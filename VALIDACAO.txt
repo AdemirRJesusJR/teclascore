@@ -1,3 +1,23 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.4.0
+12/10/2026
+
+Reprodução, exportação e biblioteca:
+- Build Release .NET 10 / WPF: sem erros ou avisos.
+- 12 verificações de importação e remoção: abrir a Biblioteca, selecionar o primeiro MIDI novo, limpar filtros, selecionar duplicado sem duplicar, preservar edições, remover, desfazer e manter os arquivos originais.
+- 11 verificações de interface/reprodução: áudio real silenciado no Windows, avanço da posição, pausa, busca pela barra, retomada, parada, remoção durante reprodução, estado do botão PDF, cache isolado e ausência de erros de binding.
+- 23 verificações de exportação: WAV PCM16 estéreo de 44.100 Hz, áudio de 258,19 segundos, cache, PDF real de sete páginas, caminhos com acentos e cancelamento preservando o PDF anterior.
+- Dez verificações de fechamento/reabertura com janelas WPF nativas invisíveis: preferências, biblioteca, edições, validação e arquivos alterados/ausentes.
+- Ícone de três linhas inspecionado nos dois estados da barra lateral, espelhado para expandir; controles de reprodução e PDF conferidos no tamanho mínimo da janela.
+- Aplicação das cores da barra nativa aceita pelo Windows nos cinco temas. Leitura do modo escuro confirmada. A API desta instalação não permite reler os atributos de cor; essa limitação impede confirmar os valores por leitura do DWM.
+- MIDIs, partituras e configurações reais do usuário preservados por comparação de hashes; testes usam configurações e cache separados.
+- DLL validada SHA-256: 1aabbe2aebc153cda22545d629ebe9bd247f1f07757250a9b7d9b1b7bab8716e.
+
+Reprodução e PDF usam o MuseScore Studio 4.7.5 instalado em segundo plano. A prévia continua sendo uma imagem; o áudio reproduz a partitura salva, sem cursor sincronizado na pauta. Os testes de interface acionam os controles WPF por código em janelas invisíveis. A exportação PDF foi testada com arquivos reais; o diálogo nativo de escolha de destino não foi automatizado.
+Os algoritmos musicais não foram alterados e as 18 partituras não foram convertidas novamente nesta atualização.
+Verificações reproduzíveis: --verify-import, --verify-playback, --verify-preferences, --smoke e tests/Teclas.Export.Tests; consulte README.md e tools/qa_preferences.py.
+
+REGISTRO ANTERIOR DE PREFERÊNCIAS E NAVEGAÇÃO
+
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.3.1
 12/10/2026
 

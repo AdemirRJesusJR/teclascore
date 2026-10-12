@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 0.4.0 — 12/10/2026
+
+- Reprodução da partitura no aplicativo, com pausa, parada e navegação pelo áudio.
+- Exportação de todas as páginas da partitura para PDF.
+- Barra de título do Windows acompanha o tema do aplicativo.
+- Controle da barra lateral usa somente o ícone de três linhas, espelhado quando o menu está recolhido.
+- Remoção de itens da biblioteca com opção de desfazer, mantendo os arquivos originais nas suas pastas.
+- Importar um MIDI abre automaticamente a Biblioteca, com o arquivo selecionado na aba Melodia.
+- Importação pelo botão ou ao arrastar arquivos limpa a busca e os filtros anteriores para mostrar os novos MIDIs.
+- Ao importar novamente um arquivo já presente, o app o seleciona sem duplicar a entrada. Em lotes, seleciona o primeiro arquivo novo.
+
 ## 0.3.1 — 12/10/2026
 
 - Nome TeclaScore e ícone de teclado com nota musical.

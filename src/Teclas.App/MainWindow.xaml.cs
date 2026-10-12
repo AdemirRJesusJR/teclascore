@@ -28,6 +28,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     private void Notify([CallerMemberName]string? name=null)=>PropertyChanged?.Invoke(this,new(name));
     public ObservableCollection<MidiRow> Files{get;}=[];
     public MidiRow? SelectedFile=>selectedFile;
+    private string? CurrentScorePath=>selectedFile?.ScorePath;
     public bool IsBusy=>busy;
     public bool IsIdle=>!busy;
     public bool HasReviewedProfile=>selectedFile?.HasReviewedProfile==true;
@@ -60,15 +61,20 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         settings=Settings.Load(settingsPath);
         ThemeManager.Apply(settings.ThemeId);
         InitializeComponent();
+        InitializePlayback();
+        Closed+=(_,_)=>DisposePlayback();
         profiles=JsonNode.Parse(File.ReadAllText(Path.Combine(engineDirectory,"profiles.json")))!.AsObject();
         instruments=JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(engineDirectory,"gm.json")))!;
         InitDashboard();
         DataContext=this;
         InitializeAppearance();
+        InitializeWindowTheme();
         InitializePersistence(smoke,settingsPath);
     }
     private void RefreshSelection()
     {
+        NotifyLibraryActions();
+        OnPlaybackSelectionChanged();
         foreach(var name in new[]{nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText)})Notify(name);
         RefreshDashboard();
         Preview=null;
@@ -82,7 +88,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));}
+    private void SetBusy(bool value){busy=value;Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();}
     private void InvalidateAnalysis(MidiRow row)
     {
         row.AnalysisPath=null;row.Chords.Clear();
@@ -110,21 +116,39 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         catch(Exception ex) when(ex is IOException or InvalidDataException or OverflowException){row=new(){FullPath=Path.GetFullPath(path),Status="Não foi possível ler: "+ex.Message};}
         Files.Add(row);if(Library.SelectedItem is null)Library.SelectedItem=row;RefreshSelection();
     }
-    private async Task ImportAsync(IEnumerable<string> paths)
+    private async Task<MidiRow?> ImportAsync(IEnumerable<string> paths)
     {
         var list=paths.Where(p=>new[]{".mid",".midi",".kar"}.Contains(Path.GetExtension(p).ToLowerInvariant())).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         int imported=0;
+        MidiRow? firstImported=null,firstExisting=null;
         foreach(var path in list)
         {
             cancellation!.Token.ThrowIfCancellationRequested();
-            if(Files.Any(f=>string.Equals(f.FullPath,Path.GetFullPath(path),StringComparison.OrdinalIgnoreCase)))continue;
+            var existing=Files.FirstOrDefault(f=>string.Equals(f.FullPath,Path.GetFullPath(path),StringComparison.OrdinalIgnoreCase));
+            if(existing is not null){firstExisting??=existing;continue;}
             Status="Lendo "+Path.GetFileName(path)+"…";
-            try{var row=await Task.Run(()=>LoadMidi(path),cancellation.Token);Files.Add(row);}
-            catch(Exception ex) when(ex is IOException or InvalidDataException or OverflowException){Files.Add(new(){FullPath=Path.GetFullPath(path),Status="Não foi possível ler: "+ex.Message});}
+            MidiRow row;
+            try{row=await Task.Run(()=>LoadMidi(path),cancellation.Token);}
+            catch(Exception ex) when(ex is IOException or InvalidDataException or OverflowException){row=new(){FullPath=Path.GetFullPath(path),Status="Não foi possível ler: "+ex.Message};}
+            Files.Add(row);firstImported??=row;
             imported++;
         }
-        if(Library.SelectedItem is null && Files.Count>0)Library.SelectedIndex=0;
-        Status=$"{imported} MIDIs importados. Os perfis revisados podem ser gerados em lote.";Notify(nameof(FileCountText));
+        Status=imported>0?$"{imported} MIDIs importados. Os perfis revisados podem ser gerados em lote.":firstExisting is not null?"Este MIDI já está na biblioteca.":"Nenhum arquivo MIDI foi selecionado.";
+        Notify(nameof(FileCountText));
+        return firstImported??firstExisting;
+    }
+    private async Task ImportAndOpenLibraryAsync(IEnumerable<string> paths)
+    {
+        if(busy || !CommitEdits())return;
+        MidiRow? importedSelection=null;
+        await RunOperation(async()=>{importedSelection=await ImportAsync(paths);});
+        if(importedSelection is null)return;
+        // Select after RunOperation releases busy state, so stale filters are refreshed first.
+        SearchText="";CurrentFilter="all";
+        SetCurrentPage("library");
+        Library.SelectedItem=importedSelection;
+        EditorTabs.SelectedIndex=0;
+        Library.ScrollIntoView(importedSelection);
     }
     private async Task RunOperation(Func<Task> action, MidiRow? rowOnError=null)
     {
@@ -180,11 +204,11 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     private async void ImportClick(object sender,RoutedEventArgs e)
     {
         var dialog=new OpenFileDialog{Title="Escolha os MIDIs",Filter="MIDI e karaokê|*.mid;*.midi;*.kar",Multiselect=true};
-        if(dialog.ShowDialog(this)==true)await RunOperation(()=>ImportAsync(dialog.FileNames));
+        if(dialog.ShowDialog(this)==true)await ImportAndOpenLibraryAsync(dialog.FileNames);
     }
     private async void FilesDrop(object sender,DragEventArgs e)
     {
-        if(!busy && e.Data.GetData(DataFormats.FileDrop) is string[] paths)await RunOperation(()=>ImportAsync(paths));
+        if(!busy && e.Data.GetData(DataFormats.FileDrop) is string[] paths)await ImportAndOpenLibraryAsync(paths);
     }
     private void SelectionChanged(object sender,SelectionChangedEventArgs e)
     {
@@ -199,7 +223,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     private bool CommitEdits()
     {
         if(!ChordGrid.CommitEdit(DataGridEditingUnit.Cell,true) || !ChordGrid.CommitEdit(DataGridEditingUnit.Row,true) || HasValidationError(this))
-        {Status="Corrija os campos destacados antes de gerar a partitura.";return false;}
+        {Status="Corrija os campos destacados para continuar.";return false;}
         return true;
     }
     private static bool HasValidationError(DependencyObject element)

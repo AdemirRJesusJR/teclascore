@@ -1,13 +1,13 @@
-TECLASCORE · PRÉVIA 0.3.1
+TECLASCORE · PRÉVIA 0.4.0
 
 Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 
 1. Em Configurações, confira MuseScore, Python com Pillow e pasta de saída.
-2. Importe os MIDIs.
+2. Importe os MIDIs. A Biblioteca abre automaticamente com o MIDI selecionado na aba Melodia.
 3. Para os 18 arquivos com perfil revisado, use “Gerar lote revisado”.
 4. Para um arquivo novo, selecione a melodia, analise os acordes e revise as cifras.
 5. Gere a partitura e confira a prévia / abra no MuseScore.
-6. Em Produção, use “Exportar ZIP” para reunir as partituras produzidas na sessão.
+6. Em Produção, use “Exportar ZIP” para reunir as partituras disponíveis na biblioteca.
 
 Requisitos: Windows, .NET Desktop Runtime 10, MuseScore Studio 4 e Python 3.11+ com Pillow.
 A interface é em C#; o motor musical desta versão reaproveita o código Python validado.
@@ -19,7 +19,17 @@ Os diagramas são incorporados ao .mscz; uma mudança na cifra dentro do MuseSco
 
 Código-fonte e informações de desenvolvimento estão na pasta software do projeto Partituras de Teclado.
 
-NOVO NA VERSÃO 0.3.1
+NOVO NA VERSÃO 0.4.0
+Na aba Prévia: Reproduzir, Pausar, Parar, barra para avançar/voltar e Salvar PDF.
+O MuseScore instalado prepara o áudio e o PDF em segundo plano, sem abrir o editor.
+A reprodução usa a partitura salva; após editar as cifras, gere novamente para atualizar o áudio.
+Barra de título do Windows 11 acompanha o tema do app.
+Botão do menu com três linhas e sem texto; o ícone fica espelhado para expandir.
+Remover da biblioteca retira o item da lista e oferece Desfazer; os arquivos são mantidos.
+Importação pelo botão e por arrastar arquivos abre a Biblioteca e mostra o primeiro MIDI novo.
+Busca e filtros anteriores são limpos para exibir o arquivo. MIDIs já presentes não são duplicados.
+
+VERSÃO 0.3.1
 Nome TeclaScore e tela Sobre com a versão atual e acesso ao repositório GitHub.
 Barra lateral recolhível: use o botão no topo para mostrar somente os ícones dos menus.
 Cinco temas em Configurações e novo ícone de teclado com nota musical.

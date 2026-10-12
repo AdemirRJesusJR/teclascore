@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Teclas.Dashboard.Tests", "t
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Teclas.Settings.Tests", "tests\Teclas.Settings.Tests\Teclas.Settings.Tests.csproj", "{1006DB03-2BFC-4E00-BAFF-4DD82FB43502}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Teclas.Export.Tests", "tests\Teclas.Export.Tests\Teclas.Export.Tests.csproj", "{6FC5377F-508E-4FDB-AF27-C8B87C49F124}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,18 @@ Global
 		{1006DB03-2BFC-4E00-BAFF-4DD82FB43502}.Release|x64.Build.0 = Release|Any CPU
 		{1006DB03-2BFC-4E00-BAFF-4DD82FB43502}.Release|x86.ActiveCfg = Release|Any CPU
 		{1006DB03-2BFC-4E00-BAFF-4DD82FB43502}.Release|x86.Build.0 = Release|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Debug|x64.Build.0 = Debug|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Debug|x86.Build.0 = Debug|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Release|x64.ActiveCfg = Release|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Release|x64.Build.0 = Release|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Release|x86.ActiveCfg = Release|Any CPU
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +111,6 @@ Global
 		{23D01CB0-81D3-4758-9A85-431E58B07562} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{D41BD5AE-3EFA-4F3E-95D5-68EAB35528A8} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{1006DB03-2BFC-4E00-BAFF-4DD82FB43502} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{6FC5377F-508E-4FDB-AF27-C8B87C49F124} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

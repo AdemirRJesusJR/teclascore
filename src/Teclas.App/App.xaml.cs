@@ -17,6 +17,16 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 4 && e.Args[0] == "--verify-import")
+        {
+            VerifyImport(e.Args[1], e.Args[2], e.Args[3]);
+            return;
+        }
+        if (e.Args.Length is 5 or 6 && e.Args[0] == "--verify-playback")
+        {
+            VerifyPlayback(e.Args[1], e.Args[2], e.Args[3], e.Args[4], e.Args.Length == 6 ? e.Args[5] : null);
+            return;
+        }
         if (e.Args.Length == 3 && e.Args[0] == "--verify-preferences")
         {
             VerifyPreferences(e.Args[1], e.Args[2]);

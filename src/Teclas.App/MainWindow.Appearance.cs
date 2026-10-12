@@ -25,6 +25,7 @@ public partial class MainWindow
         {
             if (value is null || value.Id == settings.ThemeId) return;
             settings.ThemeId = ThemeManager.Apply(value.Id).Id;
+            RefreshWindowTheme();
             foreach (var row in Files) row.RefreshTheme();
             Notify(nameof(SelectedTheme));
             Notify(nameof(CurrentThemeName));
@@ -48,7 +49,7 @@ public partial class MainWindow
     public GridLength SidebarWidth => new(IsSidebarCollapsed ? 72 : 232);
     public Visibility ExpandedSidebarVisible => IsSidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
     public HorizontalAlignment SidebarContentAlignment => IsSidebarCollapsed ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-    public string SidebarToggleGlyph => IsSidebarCollapsed ? "›" : "‹";
+    public double SidebarToggleScaleX => IsSidebarCollapsed ? -1 : 1;
     public string SidebarToggleLabel => IsSidebarCollapsed ? "Expandir menu lateral" : "Recolher menu lateral";
 
     private void InitializeAppearance()
@@ -63,7 +64,7 @@ public partial class MainWindow
     {
         foreach (var name in new[] { nameof(IsSidebarCollapsed), nameof(SidebarWidth),
             nameof(ExpandedSidebarVisible), nameof(SidebarContentAlignment),
-            nameof(SidebarToggleGlyph), nameof(SidebarToggleLabel) }) Notify(name);
+            nameof(SidebarToggleScaleX), nameof(SidebarToggleLabel) }) Notify(name);
     }
 
     private void ToggleSidebarClick(object sender, RoutedEventArgs e) => IsSidebarCollapsed = !IsSidebarCollapsed;

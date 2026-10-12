@@ -24,6 +24,9 @@ qa/
 *.midi
 *.kar
 *.mscz
+*.wav
+*.mp3
+*.pdf
 delivery-manifest.json
 ui-preview.png
 ui-deployed.png
