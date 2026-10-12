@@ -1,0 +1,32 @@
+[
+  {
+    "source_sha256": "3a007bf4cda5774a21807e19e63c1d29d5c1ca82ecf63a9a7085a64f1fa0bd9f",
+    "filename": "Norte_ForroAbertura_Show.mid",
+    "expected_attack_increase": 1,
+    "boundary_grid_refinements": [{"beat_original": 28, "from": 4, "to": 16}],
+    "restored_attacks": [
+      {
+        "source": {"track": 0, "channel": 4, "program": 23, "pitch": 62, "start": 10775, "end": 10874, "velocity": 28},
+        "expected_event": {"pitch": 62, "start": 15420, "end": 15600}
+      }
+    ],
+    "reason": "D4 follows B4 by 29 ticks in the accordion source. The two attacks straddle quarter28 and previously collapsed there. Refining beat28 also aligns G4, F#4 and E4 more closely with their source onsets."
+  },
+  {
+    "source_sha256": "82c8e1591c574d14065785036662e59ec6db15dd83c2194ad8d812981678f031",
+    "filename": "versão bonde do forró beijo por beijo.mid",
+    "expected_attack_increase": 2,
+    "boundary_grid_refinements": [{"beat_original": 83, "from": 4, "to": 16}, {"beat_original": 207, "from": 4, "to": 16}],
+    "restored_attacks": [
+      {
+        "source": {"track": 4, "channel": 4, "program": 0, "pitch": 68, "start": 40320, "end": 40360, "velocity": 1},
+        "expected_event": {"pitch": 68, "start": 80640, "end": 80880}
+      },
+      {
+        "source": {"track": 4, "channel": 4, "program": 0, "pitch": 68, "start": 99840, "end": 99880, "velocity": 1},
+        "expected_event": {"pitch": 68, "start": 199680, "end": 199920}
+      }
+    ],
+    "reason": "The approved melody source resumes on G#4 at quarters84 and208. The preceding solo's G#3 is20ticks earlier; rounding it forward previously replaced the legitimate low-velocity melody onset."
+  }
+]

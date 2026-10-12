@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.5.0 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado na segunda inversão, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.5.1 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado na segunda inversão, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
 
@@ -16,7 +16,9 @@ Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/tecl
 8. Escolha seu tema em Configurações. Ao fechar e reabrir, o app restaura suas preferências e sua biblioteca.
 9. Para retirar um item da lista, selecione-o e clique em “Remover da biblioteca”. A última remoção pode ser desfeita enquanto o app estiver aberto. Seus arquivos MIDI e .mscz permanecem nas suas pastas.
 
-A escuta de pistas funciona antes da análise, pelo sintetizador MIDI do Windows, sem abrir o MuseScore. Cada linha identifica uma combinação de pista, canal e instrumento, importante para MIDIs que concentram vários instrumentos na mesma pista. A escuta começa na primeira nota dessa fonte, oferece pausa e controle de posição e não marca Melodia automaticamente. Ao trocar de fonte, MIDI, aba ou tela, o áudio anterior para. Timbres personalizados por SysEx podem soar diferentes no sintetizador General MIDI.
+A escuta de pistas funciona antes da análise, pelo sintetizador MIDI do Windows, sem abrir o MuseScore. Cada linha identifica uma combinação de pista, canal e instrumento, importante para MIDIs que concentram vários instrumentos na mesma pista. A escuta começa na primeira nota dessa fonte, oferece pausa, controle de posição e velocidades de 25%, 50%, 75%, 100%, 125% e 150% e não marca Melodia automaticamente. Ao trocar de fonte, MIDI, aba ou tela, o áudio anterior para. Timbres personalizados por SysEx podem soar diferentes no sintetizador General MIDI.
+
+O controle Velocidade fica ao lado de Pausar/Parar na escuta de pistas. A mudança vale imediatamente, preserva a altura das notas e fica salva ao fechar. 100% retoma a velocidade original; a posição e a duração indicam o tempo original do MIDI. Essa preferência não muda o andamento da partitura gerada.
 
 Para ouvir a partitura gerada na aba Prévia, o MuseScore instalado prepara o áudio em segundo plano na primeira reprodução. O editor do MuseScore não precisa ser aberto. Nas próximas reproduções, o áudio é reutilizado enquanto a partitura permanecer igual. Essa reprodução corresponde ao arquivo .mscz salvo: depois de editar as cifras, gere a partitura novamente para ouvir o resultado atualizado. “Exportar ZIP”, na tela Produção, reúne as partituras disponíveis da biblioteca.
 
@@ -73,6 +75,8 @@ Abra Teclas.Partituras.sln. Não há pacotes NuGet externos; NuGet.Config manté
     dotnet run --project tests/Teclas.Audition.Tests/Teclas.Audition.Tests.csproj
     dotnet run --project tests/Teclas.Export.Tests/Teclas.Export.Tests.csproj -- "C:\caminho\para\teste" "C:\caminho\para\partitura.mscz" "C:\Program Files\MuseScore 4\bin\MuseScore4.exe"
     python tools/qa_ui.py --midis "C:\caminho\para\midis"
+    python tests/test_quantization.py
+    python tests/quantization_regression.py --project "C:\caminho\para\Partituras de Teclado"
     python tools/qa_preferences.py --project "C:\caminho\para\Partituras de Teclado"
 
 Projetos: Teclas.App (WPF), Teclas.Core (leitura MIDI, escuta por fonte, protocolo, métricas e exportação), Teclas.Tests, Teclas.Dashboard.Tests, Teclas.Settings.Tests, Teclas.Export.Tests e Teclas.Audition.Tests (testes executáveis). A pasta engine contém o motor musical e seus perfis. O executável precisa permanecer junto das DLLs e dessa pasta.
@@ -81,8 +85,8 @@ Os testes de configurações e de painéis usam dados sintéticos. Os testes de 
 
 Os testes de escuta por fonte usam MIDIs sintéticos e um transporte MIDI simulado, sem emitir som. Para verificar a interface real, execute `Teclas.Partituras.exe --verify-track-audition "C:\pasta\report.json" "C:\pasta\Norte_ForroAbertura_Show.mid"` usando o MIDI revisado do acervo. Essa verificação utiliza sessões isoladas e confere separadamente a abertura do driver WinMM sem emitir notas.
 
-O script tools/prepare_engine.py regenera a cópia do motor a partir das ferramentas externas do projeto musical; seu uso é opcional. tools/qa_engine.py verifica os 18 perfis contra o lote original e exercita a conversão de um MIDI novo. A pasta engine já inclui o motor necessário para o aplicativo, sem exigir a regeneração. A ferramenta histórica engine/build_keyboard_diagrams.py é preservada como origem das funções vetoriais reutilizadas pelo motor; executá-la isoladamente requer a partitura piloto na pasta externa partituras.
+O script histórico tools/prepare_engine.py copia o motor original das ferramentas externas do projeto musical. Ele sobrescreve adaptações posteriores em engine, incluindo a correção de quantização; não o execute para compilar ou atualizar o aplicativo. tools/qa_engine.py verifica os 18 perfis contra o lote original e exercita a conversão de um MIDI novo. A pasta engine já inclui o motor necessário para o aplicativo, sem exigir a regeneração. A ferramenta histórica engine/build_keyboard_diagrams.py é preservada como origem das funções vetoriais reutilizadas pelo motor; executá-la isoladamente requer a partitura piloto na pasta externa partituras.
 
-O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.5.0`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
+O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.5.1`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
 
-Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.5.0, destinada a testes no computador do usuário.
+Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.5.1, destinada a testes no computador do usuário.

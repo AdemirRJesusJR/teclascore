@@ -12,6 +12,7 @@ public sealed class Settings
     public string OutputDirectory { get; set; } = "";
     public string ThemeId { get; set; } = "classic";
     public bool IsSidebarCollapsed { get; set; }
+    public double TrackAuditionSpeed { get; set; } = 1.0;
     public double? WindowLeft { get; set; }
     public double? WindowTop { get; set; }
     public double? WindowWidth { get; set; }
@@ -64,6 +65,7 @@ public sealed class Settings
 
     private void Normalize()
     {
+        TrackAuditionSpeed = NormalizeTrackAuditionSpeed(TrackAuditionSpeed);
         ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" ? ThemeId : "classic";
         CurrentPage = CurrentPage is "library" or "production" or "settings" or "about" ? CurrentPage : "dashboard";
         CurrentFilter = CurrentFilter is "ready" or "review" or "generated" or "error" ? CurrentFilter : "all";
@@ -85,6 +87,7 @@ public sealed class Settings
         }
     }
 
+    public static double NormalizeTrackAuditionSpeed(double value) => value is 0.25 or 0.5 or 0.75 or 1.0 or 1.25 or 1.5 ? value : 1.0;
     private static double? Finite(double? value) => value is { } number && double.IsFinite(number) ? number : null;
     private static double? Positive(double? value) => Finite(value) is > 0 ? value : null;
 

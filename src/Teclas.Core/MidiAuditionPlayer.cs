@@ -21,6 +21,7 @@ public class MidiAuditionPlayer : IDisposable
     private IMidiOutputTransport? output;
     private MidiAuditionSequence? sequence;
     private TimeSpan offset;
+    private double playbackRate = 1.0;
     private int nextEvent;
     private bool playing, paused, disposed;
     public event EventHandler? StateChanged;
@@ -35,6 +36,25 @@ public class MidiAuditionPlayer : IDisposable
     public TimeSpan Duration { get { lock (gate) return sequence?.Duration ?? TimeSpan.Zero; } }
     public bool IsPlaying { get { lock (gate) return playing; } }
     public bool IsPaused { get { lock (gate) return paused; } }
+    /// <summary>Changes only scheduling speed. Position and Duration always use the original MIDI timeline.</summary>
+    public double PlaybackRate
+    {
+        get { lock (gate) return playbackRate; }
+        set
+        {
+            if (!double.IsFinite(value) || value is < 0.25 or > 1.5)
+                throw new ArgumentOutOfRangeException(nameof(value), "A velocidade da escuta deve ficar entre 25% e 150%.");
+            lock (gate)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                if (value == playbackRate) return;
+                // Anchor elapsed content at the old rate before changing the clock scale; sounding notes stay untouched.
+                if (playing) { offset = PositionLocked(); clock.Restart(); }
+                playbackRate = value;
+            }
+            StateChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     public void Play(MidiAuditionSequence value)
     {
@@ -108,8 +128,13 @@ public class MidiAuditionPlayer : IDisposable
             throw new InvalidOperationException(message, failure);
         }
     }
-    private TimeSpan PositionLocked() => sequence is null ? TimeSpan.Zero :
-        TimeSpan.FromTicks(Math.Min(sequence.Duration.Ticks, offset.Ticks + (playing ? clock.Elapsed.Ticks : 0)));
+    private TimeSpan PositionLocked()
+    {
+        if (sequence is null) return TimeSpan.Zero;
+        double elapsedTicks = playing ? clock.Elapsed.Ticks * playbackRate : 0;
+        long remainingTicks = sequence.Duration.Ticks - offset.Ticks;
+        return elapsedTicks >= remainingTicks ? sequence.Duration : TimeSpan.FromTicks(offset.Ticks + (long)elapsedTicks);
+    }
     private void StartLocked()
     { clock.Restart(); playing = true; paused = false; timer.Change(0, 5); }
     private void Tick(object? state)

@@ -11,18 +11,34 @@ try
     var path = Path.Combine(folder, "user", "settings.json");
     var missing = Settings.Load(path);
     Check(missing.ThemeId == "classic" && missing.CurrentPage == "dashboard", "Fresh installation defaults");
+    Check(missing.TrackAuditionSpeed == 1.0, "Fresh installation starts track audition at normal speed");
     Check(missing.Library.Count == 0 && !File.Exists(path), "Read does not write state");
     File.WriteAllText(Path.Combine(folder, "old.json"), "{\"PythonPath\":\"Z:/custom/python.exe\",\"MuseScorePath\":\"Z:/custom/musescore.exe\",\"OutputDirectory\":\"Z:/partituras\"}");
     var old = Settings.Load(Path.Combine(folder, "old.json"));
     Check(old.PythonPath == "Z:/custom/python.exe" && old.MuseScorePath == "Z:/custom/musescore.exe", "Temporarily unavailable user tools retained");
     Check(old.OutputDirectory == "Z:/partituras" && old.ThemeId == "classic", "Old settings migrate without erasing paths");
+    Check(old.TrackAuditionSpeed == 1.0, "Settings without the audition speed field migrate to normal speed");
+
+    var speedPath = Path.Combine(folder, "speed.json");
+    foreach (double speed in new[] { 0.25, 0.5, 0.75, 1.0, 1.25, 1.5 })
+    {
+        new Settings { TrackAuditionSpeed = speed }.Save(speedPath);
+        Check(Settings.Load(speedPath).TrackAuditionSpeed == speed, $"Audition speed {speed} roundtrips");
+    }
+    foreach (double speed in new[] { -1.0, 0.0, 0.249, 0.4, 1.51 })
+    {
+        File.WriteAllText(speedPath, JsonSerializer.Serialize(new { TrackAuditionSpeed = speed, ThemeId = "graphite" }));
+        var invalidSpeed = Settings.Load(speedPath);
+        Check(invalidSpeed.TrackAuditionSpeed == 1.0 && invalidSpeed.ThemeId == "graphite",
+            $"Invalid or unsupported audition speed {speed} becomes normal without erasing other preferences");
+    }
 
     var state = new Settings
     {
         PythonPath = "Z:/meu python.exe", MuseScorePath = "Z:/MuseScore.exe", OutputDirectory = "Z:/canções",
         ThemeId = "graphite", IsSidebarCollapsed = true, WindowLeft = -1560, WindowTop = 20,
         WindowWidth = 1420, WindowHeight = 920, WindowMaximized = true, CurrentPage = "library",
-        CurrentFilter = "review", SearchText = "Canção", EditorTab = 1, SelectedMidiPath = "Z:/canção.mid",
+        CurrentFilter = "review", SearchText = "Canção", EditorTab = 1, SelectedMidiPath = "Z:/canção.mid", TrackAuditionSpeed = 0.75,
         Library = [new SavedMidi
         {
             FullPath = "Z:/canção.mid", Sha256 = "abc", UseReviewedProfile = true,

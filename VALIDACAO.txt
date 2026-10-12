@@ -1,3 +1,24 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.5.1
+12/10/2026
+
+- Build Release .NET 10 / WPF: sem erros ou avisos.
+- 45 verificações da escuta MIDI, incluindo velocidade de 25% a 150%, continuidade ao alterar durante a reprodução, pausa, busca, parada, troca de fonte e altura/intensidade das notas preservadas.
+- 22 verificações WPF: seis opções de velocidade, mudança durante execução/pausa, retenção entre pistas e restauração após fechar e reabrir. Nenhum erro de binding.
+- 37 verificações de persistência, incluindo migração de configurações antigas, seis velocidades e recuperação de valores inválidos.
+- Layout do player inspecionado em janelas normal e mínima de 1100 × 740, com menu expandido/recolhido; controles sem sobreposição.
+- Nove testes de quantização: fronteiras binárias, ternárias e mistas, origem da partitura, ausência de colisões internas e bloqueio de casos que precisam de revisão individual.
+- Forro Boys - Deixa O Som Ligado 8: seis colisões corrigidas; 354 ataques preservados, zero colisões, nove páginas. MuseScore abriu, gravou e reabriu a partitura; sequência de notas e geometria das nove páginas verificadas. Prévia geral e páginas 1/9 inspecionadas.
+- Regressão dos 18 perfis revisados: 16 saídas de eventos/grades/estatísticas exatamente idênticas. Norte restaura um ataque (122 → 123); Beijo por beijo restaura dois (393 → 395), com refinamentos rítmicos locais verificados contra os eventos do MIDI e expectativas explícitas em tests/fixtures.
+- Novas gerações nativas desses dois perfis reabertas no MuseScore: Norte com uma página e 123 ataques; Beijo por beijo com quatro páginas e 395 ataques. Zero colisões, geometria aprovada e fontes preservadas.
+- O arredondamento considera os ataques nos dois lados de cada tempo e refina somente as grades necessárias, mantendo subdivisões binárias/ternárias. Não aumenta a tolerância a perdas.
+- O driver WinMM foi aberto, recebeu controles e foi fechado sem notas audíveis. As notas e velocidades foram testadas com transporte MIDI simulado; não houve avaliação auditiva dos alto-falantes.
+- MIDI, análise e configurações reais preservados por comparação de hashes; partituras aprovadas existentes não foram sobrescritas.
+- DLL do aplicativo validada SHA-256: 6b61df360b517ffaa4f84e964f464c0333fb56709ddd1a3319f272d66a8111b4.
+
+A velocidade atua na escuta das pistas, sem mudar o andamento da partitura gerada. A correção da quantização passa a valer ao gerar novamente; os arquivos já salvos permanecem intactos.
+Os testes de PDF e áudio de partituras registrados abaixo pertencem à versão 0.4.0 e não foram repetidos nesta atualização.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.5.0
 12/10/2026
 

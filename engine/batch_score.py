@@ -57,6 +57,47 @@ def meta(parsed):
     tempos=summary['tempo_changes'] or [{'tick':0,'bpm':120}]
     return summary,meters,tempos
 
+def _refine_boundary_grids(bybeat,grids,choices,origin,end):
+    """Separate distinct attacks meeting at a beat boundary without discarding either.
+
+    The initial grid test only sees notes inside one beat. Its last attack can
+    therefore round onto the next beat's first attack. Refine only those local
+    grids, keeping binary and ternary subdivisions in their original families.
+    """
+    original=dict(grids)
+    def positions(beat,div):
+        return [round((beat+round(phase*div)/div)*DIV) for phase in bybeat[beat]]
+    for beat in sorted(bybeat):
+        following=beat+1;boundary=following*DIV
+        if following not in bybeat or not origin<=boundary<end:continue
+        left=grids[beat];right=grids[following]
+        if max(positions(beat,left))!=min(positions(following,right)):continue
+        same_family=(choices[beat][0]%3==0)==(choices[following][0]%3==0)
+        shared_resolution=max(left,right)
+        candidates=[]
+        for left_div in choices[beat]:
+            if left_div<left:continue
+            left_positions=positions(beat,left_div)
+            if len(set(left_positions))!=len(left_positions):continue
+            for right_div in choices[following]:
+                if right_div<right:continue
+                right_positions=positions(following,right_div)
+                if len(set(right_positions))!=len(right_positions):continue
+                if max(left_positions)>=min(right_positions):continue
+                # Reuse the detail already required by the neighbouring phrase
+                # before choosing a coarser separation that moves its ornament.
+                shared=not same_family or min(left_div,right_div)>=shared_resolution
+                changed=(left_div!=left)+(right_div!=right)
+                refinement=left_div/left+right_div/right
+                error=sum(abs(t/DIV-beat-phase) for t,phase in zip(left_positions,bybeat[beat]))
+                error+=sum(abs(t/DIV-following-phase) for t,phase in zip(right_positions,bybeat[following]))
+                candidates.append(((not shared,changed,refinement,error,left_div,right_div),left_div,right_div))
+        if not candidates:
+            raise NeedsReview(f'Ataques próximos ao tempo {following} não podem ser separados nas grades rítmicas suportadas; requer revisão rítmica individual.')
+        _,grids[beat],grids[following]=min(candidates)
+    return [{'beat_original':beat,'from':original[beat],'to':div}
+            for beat,div in sorted(grids.items()) if div!=original[beat]]
+
 def melody_events(parsed,config,origin,end):
     ppq=parsed['ppq'];sources=config['melody_sources']
     selected=sorted([n for n in parsed['notes'] if (not config.get('velocity_filter') or n['velocity'] in config['velocity_filter']) and any(source_matches(n,[s]) and s.get('start_quarter',-1)<=n['start']/ppq<s.get('end_quarter',float('inf')) and s.get('min_pitch',0)<=n['pitch']<=s.get('max_pitch',127) for s in sources)],key=lambda n:(n['start'],n['pitch']))
@@ -90,7 +131,7 @@ def melody_events(parsed,config,origin,end):
     top=[max(g,key=lambda n:n['pitch']) for g in groups]
     bybeat=defaultdict(list)
     for n in top:bybeat[int(n['start']//ppq)].append(n['start']/ppq%1)
-    grids={};triplet_beats=[]
+    grids={};grid_choices={};triplet_beats=[]
     for beat,phases in bybeat.items():
         binary=sum(abs(p-round(p*4)/4) for p in phases)
         ternary=sum(abs(p-round(p*3)/3) for p in phases)
@@ -99,9 +140,11 @@ def melody_events(parsed,config,origin,end):
             choices=(3,6,12);triplet_beats.append(beat)
         elif any(abs(p-round(p*8)/8)<.025 and abs(p-round(p*4)/4)>.08 for p in phases):choices=(8,16)
         else:choices=(4,8,16)
+        grid_choices[beat]=choices
         grids[beat]=choices[-1]
         for div in choices:
             if len({round(p*div) for p in phases})==len(phases):grids[beat]=div;break
+    boundary_refinements=_refine_boundary_grids(bybeat,grids,grid_choices,origin,end)
     def snap(t):
         q=t/ppq;beat=math.floor(q);div=grids.get(beat,4)
         # Near a beat boundary use the shared endpoint.
@@ -128,7 +171,9 @@ def melody_events(parsed,config,origin,end):
         errors.append(abs(s+origin-n['start']/ppq*DIV)/DIV)
     if len({n['pitch'] for n in events})<3:raise NeedsReview('Fonte selecionada não contém alturas suficientes para uma melodia identificável.')
     assert sum(len(n.get('graces',[])) for n in events)==len(grace_notes),'Grace target lost during grouping'
-    return events,{b-int(origin//DIV):v for b,v in grids.items()}, {'raw_notes':len(selected),'principal_source_notes':main_count,'grace_notes_preserved':len(grace_notes),'solo_notes_added':solo_count,'simultaneous_notes_reduced':len(selected)-len(top),'melody_attacks':len(events),'quantized_attack_collisions':collision,'triplet_beats_original':triplet_beats,'onset_adjustment_max_quarters':max(errors),'onset_adjustment_mean_quarters':sum(errors)/len(errors)}
+    report={'raw_notes':len(selected),'principal_source_notes':main_count,'grace_notes_preserved':len(grace_notes),'solo_notes_added':solo_count,'simultaneous_notes_reduced':len(selected)-len(top),'melody_attacks':len(events),'quantized_attack_collisions':collision,'triplet_beats_original':triplet_beats,'onset_adjustment_max_quarters':max(errors),'onset_adjustment_mean_quarters':sum(errors)/len(errors)}
+    if boundary_refinements:report['boundary_grid_refinements']=boundary_refinements
+    return events,{b-int(origin//DIV):v for b,v in grids.items()},report
 
 def make_bars(parsed,meters):
     ppq=parsed['ppq'];pitched=[n for n in parsed['notes'] if n['channel']!=10 and 20<=n['pitch']<=108 and n['program']<112]

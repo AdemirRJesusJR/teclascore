@@ -131,6 +131,7 @@ try
         string message = await failure.Task.WaitAsync(TimeSpan.FromSeconds(3));
         Check(!string.IsNullOrWhiteSpace(message) && !broken.IsPlaying, "transport-failure-reports-error-and-stops-playback");
     }
+    await SpeedChecks.Run(Check);
     Console.WriteLine($"Audition QA passed: {checks.Count} checks; synthetic MIDIs and fake transports only.");
     if (args.Length > 0)
     {

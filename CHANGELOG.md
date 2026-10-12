@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.5.1 — 12/10/2026
+
+- Controle de velocidade da escuta de pistas: 25%, 50%, 75%, 100%, 125% e 150%, sem alterar a altura das notas.
+- Mudança de velocidade durante a reprodução e preferência preservada entre pistas e ao reabrir o aplicativo.
+- Correção de colisões causadas pela quantização de ataques em tempos vizinhos, refinando apenas as grades necessárias.
+
 ## 0.5.0 — 12/10/2026
 
 - Escuta individual de cada pista/canal/instrumento na aba Melodia, antes de analisar os acordes ou gerar a partitura.

@@ -93,12 +93,16 @@ public partial class App
             checks["native-winmm-driver-accepts-controls-reset-close-without-note-on"] = true;
             string first = Path.Combine(directory, "01-pistas.mid"), second = Path.Combine(directory, "02-pistas.mid");
             File.Copy(originalMidi, first); File.Copy(originalMidi, second);
-            window = new MainWindow(true, null, () =>
+            string isolatedSettings = Path.Combine(directory, "settings.json");
+            AuditionAuditOutput CreateOutput()
             {
                 var transport = new AuditionAuditOutput();
                 lock (outputs) outputs.Add(transport);
                 return transport;
-            }) { Opacity = 0, ShowInTaskbar = false, ShowActivated = false };
+            }
+            MainWindow CreateWindow() => new(true, isolatedSettings, CreateOutput)
+                { Opacity = 0, ShowInTaskbar = false, ShowActivated = false };
+            window = CreateWindow();
             window.Show(); Flush();
             window.SetThemeForSmoke("graphite");
             window.ImportForSmoke(first); window.ImportForSmoke(second);
@@ -109,6 +113,16 @@ public partial class App
             var originalSelection = row.Tracks.Select(track => track.IsMelody).ToArray();
             var grid = (DataGrid)window.FindName("TrackGrid");
             var firstTrack = row.Tracks[0]; var secondTrack = row.Tracks[1];
+            MidiAuditionPlayer Player() => (MidiAuditionPlayer)typeof(MainWindow)
+                .GetField("trackPlayer", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+            var speedCombo = (ComboBox)window.FindName("TrackSpeedCombo");
+            void SetSpeed(double speed)
+            {
+                Require(speedCombo.IsEnabled, "The track speed selector is unexpectedly disabled.");
+                speedCombo.SetCurrentValue(Selector.SelectedValueProperty, speed); Flush();
+                Require(window.TrackAuditionSpeed == speed && Player().PlaybackRate == speed,
+                    "The speed selector did not update both the preference and the active MIDI player.");
+            }
             Button ListenButton(TrackRow track)
             {
                 grid.ScrollIntoView(track); Flush(); grid.UpdateLayout();
@@ -162,16 +176,34 @@ public partial class App
             Require(window.CanAuditionTracks && !window.CanSelectTracks && grid.IsEnabled && ListenButton(firstTrack).IsEnabled,
                 "Reviewed profiles disable the listening button together with melody editing.");
             checks["reviewed-profile-allows-listening-before-analysis"] = true;
+            Require(window.TrackAuditionSpeed == 1.0 && Player().PlaybackRate == 1.0 && Equals(speedCombo.SelectedValue, 1.0),
+                "A new session did not start at normal speed.");
+            var speedValues = speedCombo.Items.Cast<object>().Select(item => (double)item.GetType().GetProperty("Value")!.GetValue(item)!).ToArray();
+            Require(speedValues.SequenceEqual(new[] { 0.25, 0.5, 0.75, 1.0, 1.25, 1.5 }), "The speed selector has missing, extra, or out-of-order options.");
+            checks["speed-default-and-six-options"] = true;
             await Listen(firstTrack);
             Require(row.AnalysisPath is null && !File.Exists(row.ScorePath) && window.TrackAuditionVisible == Visibility.Visible,
                 "Track listening depends on a generated score or failed to reveal its controls.");
             checks["track-listening-needs-no-score-or-analysis"] = true;
+            int resetsBeforeSpeed = ResetCount();
+            double positionBeforeSpeed = Player().Position.TotalSeconds;
+            SetSpeed(0.5);
+            Require(Player().IsPlaying && firstTrack.IsAuditioning && ResetCount() == resetsBeforeSpeed
+                && Player().Position.TotalSeconds >= positionBeforeSpeed && Player().Position.TotalSeconds - positionBeforeSpeed < 0.2,
+                "Changing speed during playback restarted or stopped the selected track.");
+            checks["live-speed-change-retains-position-and-source"] = true;
             ClickNamed("TrackPauseButton");
             double pausedAt = window.TrackAuditionPositionSeconds;
             await Task.Delay(100); Flush();
             Require(window.TrackPauseLabel.Contains("Continuar") && Silent()
                 && Math.Abs(window.TrackAuditionPositionSeconds - pausedAt) < 0.03, "Pause did not hold position and silence the transport.");
             checks["pause-silences-track-and-retains-position"] = true;
+            int notesBeforePausedSpeed = NoteCount();
+            SetSpeed(0.75);
+            Require(Player().IsPaused && Silent() && NoteCount() == notesBeforePausedSpeed
+                && Math.Abs(Player().Position.TotalSeconds - pausedAt) < 0.03,
+                "Changing the paused playback speed emitted notes or moved the position.");
+            checks["paused-speed-change-retains-position-and-silence"] = true;
             var slider = (Slider)window.FindName("TrackPositionSlider");
             double position = Math.Min(1, window.TrackAuditionDurationSeconds / 2);
             slider.SetCurrentValue(RangeBase.ValueProperty, position); Flush();
@@ -190,6 +222,9 @@ public partial class App
             Require(!firstTrack.IsAuditioning && secondTrack.IsAuditioning && ResetCount() > beforeSwitchReset,
                 "Changing the source left the previous track playing.");
             checks["switching-source-resets-previous-track"] = true;
+            Require(window.TrackAuditionSpeed == 0.75 && Player().PlaybackRate == 0.75 && Equals(speedCombo.SelectedValue, 0.75),
+                "Switching the source reset the selected playback speed.");
+            checks["speed-retained-when-switching-source"] = true;
             Require(originalSelection.SequenceEqual(row.Tracks.Select(track => track.IsMelody)) && row.UseReviewedProfile,
                 "Listening changed the user's melody choices or reviewed-profile preference.");
             checks["listening-does-not-change-melody-selection"] = true;
@@ -226,6 +261,16 @@ public partial class App
             Require(outputs.Count > 0 && outputs.All(transport => transport.Disposed && transport.ActiveNotes == 0),
                 "Closing the window did not dispose and silence the MIDI transport.");
             checks["closing-app-disposes-and-silences-transport"] = true;
+            Require(Settings.Load(isolatedSettings).TrackAuditionSpeed == 0.75,
+                "Closing the window did not save the selected playback speed to its isolated settings.");
+            window = CreateWindow(); window.Show(); Flush();
+            speedCombo = (ComboBox)window.FindName("TrackSpeedCombo");
+            Require(window.TrackAuditionSpeed == 0.75 && Player().PlaybackRate == 0.75 && Equals(speedCombo.SelectedValue, 0.75)
+                && !window.CanStopTrackAudition && Silent() && window.Files.Count == 1,
+                "Reopening did not restore playback speed and library without starting audio.");
+            window.Close(); Flush();
+            Require(outputs.All(transport => transport.Disposed && transport.ActiveNotes == 0), "The reopened window left its transport open.");
+            checks["speed-restored-after-real-window-close-and-reopen"] = true;
             Require(Hash(originalMidi) == originalHash && Hash(first) == originalHash && Hash(second) == originalHash,
                 "Audition modified a MIDI file.");
             var settingsAfter = UserSettings();

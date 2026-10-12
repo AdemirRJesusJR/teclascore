@@ -1,4 +1,4 @@
-TECLASCORE · PRÉVIA 0.5.0
+TECLASCORE · PRÉVIA 0.5.1
 
 Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 
@@ -19,7 +19,15 @@ Os diagramas são incorporados ao .mscz; uma mudança na cifra dentro do MuseSco
 
 Código-fonte e informações de desenvolvimento estão na pasta software do projeto Partituras de Teclado.
 
-NOVO NA VERSÃO 0.5.0
+NOVO NA VERSÃO 0.5.1
+No player de pistas, escolha Velocidade: 25%, 50%, 75%, 100%, 125% ou 150%.
+A mudança vale na hora, sem alterar a altura das notas. 100% é a velocidade original.
+A preferência fica salva ao fechar e vale para as próximas pistas.
+A posição continua indicando o tempo original do MIDI; a partitura mantém seu andamento.
+Correção da quantização de notas próximas entre tempos vizinhos, preservando seus ataques.
+Para um MIDI que apresentou essa falha, abra-o na Biblioteca e clique em Gerar .mscz novamente.
+
+VERSÃO 0.5.0
 Ouça cada pista antes de analisar acordes: botão ▶ na coluna Ouvir da aba Melodia.
 Pausar, Continuar, Parar e barra de posição permitem comparar as fontes.
 A escuta começa na primeira nota e não altera a marcação de melodia.

@@ -14,6 +14,23 @@ public partial class MainWindow
     private bool trackAuditionDisposed;
     private string trackAuditionStatus = "Use ▶ ao lado de uma pista para ouvi-la isoladamente.";
 
+    public sealed record TrackSpeedOption(double Value, string Label);
+    public IReadOnlyList<TrackSpeedOption> TrackSpeedOptions { get; } =
+    [new(0.25, "25%"), new(0.5, "50%"), new(0.75, "75%"), new(1.0, "100% · normal"), new(1.25, "125%"), new(1.5, "150%")];
+    public double TrackAuditionSpeed
+    {
+        get => settings.TrackAuditionSpeed;
+        set
+        {
+            var speed = Settings.NormalizeTrackAuditionSpeed(value);
+            if (settings.TrackAuditionSpeed == speed) return;
+            if (trackPlayer is not null) trackPlayer.PlaybackRate = speed;
+            settings.TrackAuditionSpeed = speed;
+            Notify();
+            PersistPreferences();
+        }
+    }
+
     public bool CanAuditionTracks => IsIdle && selectedFile?.Document is not null;
     public bool CanPauseTrackAudition => trackPlayer is { IsPlaying: true } or { IsPaused: true };
     public bool CanStopTrackAudition => auditionTrack is not null;
@@ -43,7 +60,7 @@ public partial class MainWindow
 
     private void InitializeTrackAudition(Func<IMidiOutputTransport>? outputFactory)
     {
-        trackPlayer = new MidiTrackPlayer(outputFactory);
+        trackPlayer = new MidiTrackPlayer(outputFactory) { PlaybackRate = settings.TrackAuditionSpeed };
         trackPlayer.StateChanged += (_, _) => QueueTrackAuditionUpdate();
         trackPlayer.PlaybackFailed += (_, error) =>
         {
