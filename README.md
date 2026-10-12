@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.4.0 para Windows, em C# / WPF (.NET 10). Prepara partituras com uma pauta de melodia, cifras e diagramas de teclado na segunda inversão, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.4.1 para Windows, em C# / WPF (.NET 10). Prepara partituras com uma pauta de melodia, cifras e diagramas de teclado na segunda inversão, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
 
@@ -12,7 +12,7 @@ Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/tecl
 4. Nos 18 MIDIs com perfil revisado, mantenha a revisão aprovada marcada. Use “Gerar lote revisado” para processar os que ainda não foram gerados.
 5. Em MIDIs novos, escolha a pista de melodia, clique em “Analisar acordes”, confira/edite as cifras e clique em “Gerar .mscz”.
 6. Na aba Prévia, clique em “Reproduzir” para ouvir, “Pausar” para continuar depois e “Parar” para voltar ao início. A barra de posição permite avançar ou voltar. “Salvar PDF” exporta todas as páginas.
-7. Use o botão no topo da barra lateral para alternar entre menus completos e somente ícones. Passe o mouse sobre um ícone para ver o nome do menu.
+7. Use o botão na parte inferior da barra lateral para alternar entre menus completos e somente ícones. Passe o mouse sobre um ícone para ver o nome do menu.
 8. Escolha seu tema em Configurações. Ao fechar e reabrir, o app restaura suas preferências e sua biblioteca.
 9. Para retirar um item da lista, selecione-o e clique em “Remover da biblioteca”. A última remoção pode ser desfeita enquanto o app estiver aberto. Seus arquivos MIDI e .mscz permanecem nas suas pastas.
 
@@ -78,6 +78,6 @@ Os testes de configurações e de painéis usam dados sintéticos. Os testes de 
 
 O script tools/prepare_engine.py regenera a cópia do motor a partir das ferramentas externas do projeto musical; seu uso é opcional. tools/qa_engine.py verifica os 18 perfis contra o lote original e exercita a conversão de um MIDI novo. A pasta engine já inclui o motor necessário para o aplicativo, sem exigir a regeneração. A ferramenta histórica engine/build_keyboard_diagrams.py é preservada como origem das funções vetoriais reutilizadas pelo motor; executá-la isoladamente requer a partitura piloto na pasta externa partituras.
 
-O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.4.0`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
+O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.4.1`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
 
-Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.4.0, destinada a testes no computador do usuário.
+Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.4.1, destinada a testes no computador do usuário.

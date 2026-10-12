@@ -1,4 +1,4 @@
-TECLASCORE · PRÉVIA 0.4.0
+TECLASCORE · PRÉVIA 0.4.1
 
 Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 
@@ -19,7 +19,10 @@ Os diagramas são incorporados ao .mscz; uma mudança na cifra dentro do MuseSco
 
 Código-fonte e informações de desenvolvimento estão na pasta software do projeto Partituras de Teclado.
 
-NOVO NA VERSÃO 0.4.0
+NOVO NA VERSÃO 0.4.1
+Botão de recolher/expandir menor, na parte inferior da barra lateral.
+
+VERSÃO 0.4.0
 Na aba Prévia: Reproduzir, Pausar, Parar, barra para avançar/voltar e Salvar PDF.
 O MuseScore instalado prepara o áudio e o PDF em segundo plano, sem abrir o editor.
 A reprodução usa a partitura salva; após editar as cifras, gere novamente para atualizar o áudio.
@@ -31,7 +34,7 @@ Busca e filtros anteriores são limpos para exibir o arquivo. MIDIs já presente
 
 VERSÃO 0.3.1
 Nome TeclaScore e tela Sobre com a versão atual e acesso ao repositório GitHub.
-Barra lateral recolhível: use o botão no topo para mostrar somente os ícones dos menus.
+Barra lateral recolhível: use o botão na parte inferior para mostrar somente os ícones dos menus.
 Cinco temas em Configurações e novo ícone de teclado com nota musical.
 Ao fechar, o app salva preferências, janela, navegação, biblioteca, pistas escolhidas e cifras editadas.
 Ao reabrir, os dados são restaurados. Mantenha os MIDIs e as partituras nas pastas em que estão.

@@ -1,3 +1,15 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.4.1
+12/10/2026
+
+- Ícone reduzido de 24 × 20 para 18 × 16 px, em botão de 32 × 32 px na parte inferior da barra lateral.
+- Renderização WPF inspecionada nos estados expandido e recolhido, no tamanho mínimo de 1100 × 740; botão visível nos dois estados e espelhamento preservado.
+- Verificações existentes de navegação, alternância e dicas aprovadas, sem erros de binding.
+- Build Release .NET 10 / WPF sem erros ou avisos.
+- DLL validada SHA-256: 76704a9d9089c2ff6691dc2b6578f0959ed7a667875880df9c4a364c2fd5d540.
+
+Alteração apenas visual. Os testes funcionais de áudio, PDF, biblioteca e preferências abaixo pertencem à versão 0.4.0 e não foram repetidos nesta alteração.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.4.0
 12/10/2026
 

@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 0.4.1 — 12/10/2026
+
+- Botão de recolher/expandir menor e fixado na parte inferior da barra lateral, com o ícone espelhado para expandir.
+
 ## 0.4.0 — 12/10/2026
 
 - Reprodução da partitura no aplicativo, com pausa, parada e navegação pelo áudio.
