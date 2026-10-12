@@ -1,0 +1,31 @@
+TECLASCORE · PRÉVIA 0.3.1
+
+Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
+
+1. Em Configurações, confira MuseScore, Python com Pillow e pasta de saída.
+2. Importe os MIDIs.
+3. Para os 18 arquivos com perfil revisado, use “Gerar lote revisado”.
+4. Para um arquivo novo, selecione a melodia, analise os acordes e revise as cifras.
+5. Gere a partitura e confira a prévia / abra no MuseScore.
+6. Em Produção, use “Exportar ZIP” para reunir as partituras produzidas na sessão.
+
+Requisitos: Windows, .NET Desktop Runtime 10, MuseScore Studio 4 e Python 3.11+ com Pillow.
+A interface é em C#; o motor musical desta versão reaproveita o código Python validado.
+Os requisitos existentes neste computador são detectados automaticamente quando possível.
+
+Os MIDIs originais não são alterados. Acordes e melodias de arquivos novos precisam de revisão.
+Um MIDI sem voz principal não contém informação suficiente para inventar essa melodia.
+Os diagramas são incorporados ao .mscz; uma mudança na cifra dentro do MuseScore exige atualizar o desenho.
+
+Código-fonte e informações de desenvolvimento estão na pasta software do projeto Partituras de Teclado.
+
+NOVO NA VERSÃO 0.3.1
+Nome TeclaScore e tela Sobre com a versão atual e acesso ao repositório GitHub.
+Barra lateral recolhível: use o botão no topo para mostrar somente os ícones dos menus.
+Cinco temas em Configurações e novo ícone de teclado com nota musical.
+Ao fechar, o app salva preferências, janela, navegação, biblioteca, pistas escolhidas e cifras editadas.
+Ao reabrir, os dados são restaurados. Mantenha os MIDIs e as partituras nas pastas em que estão.
+Configurações ficam em %LOCALAPPDATA%/TeclasPartituras/settings.json, com cópia de recuperação.
+Se não for possível salvar, o app avisa e mantém a janela aberta.
+
+Repositório: https://github.com/AdemirRJesusJR/teclascore

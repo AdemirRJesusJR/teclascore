@@ -1,0 +1,6 @@
+Ícone A — Teclado com nota
+Modo: ferramenta integrada image_gen, edição da opção A escolhida pelo usuário.
+PNG original preservado com transparência. ICO convertido com Pillow em 16, 24, 32, 48, 64, 128 e 256 pixels.
+
+Prompt final:
+Edit this comparison board into ONE final Windows app icon: isolate and faithfully recreate ONLY concept A, the top-left rounded navy square containing three ivory piano white keys/two navy black keys and one vivid blue eighth note on the right. Preserve concept A's exact visual identity, proportions, colors and recognizable simple silhouette. Remove B,C,D, the letter A, all labels and the off-white board. Center this single icon on a square canvas. Navy rounded-square container should fill nearly the canvas with only about 4% transparent padding each side; transparent pixels outside rounded corners. Keep the navy container opaque and the ivory keys solid; no extra shadows outside the container, no text, no badge, no added elements. Crisp smooth edges suited for a desktop app icon and good small-size legibility. The delivered image is this one isolated icon with actual transparency.

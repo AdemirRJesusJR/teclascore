@@ -1,0 +1,68 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.3.1
+12/10/2026
+
+Atualização de preferências e navegação:
+- Build Release .NET 10 / WPF: sem erros ou avisos.
+- 17 telas WPF renderizadas: cinco temas com barra expandida/recolhida, configurações e biblioteca no tamanho mínimo, produção e Sobre.
+- 95 combinações de contraste verificadas; recursos de cores aplicados durante a troca de tema.
+- Navegação pelos ícones, rótulos acessíveis, dicas dos menus e alternância da barra 232/72 px.
+- 24 testes de configurações: persistência de todos os campos, compatibilidade com versão anterior, caminhos indisponíveis, recuperação de backup, preservação do arquivo corrompido e falha de gravação por bloqueio.
+- Dez verificações com janelas WPF nativas invisíveis: fechar e reabrir, edição de cifra ainda em andamento, cancelamento do fechamento após edição inválida, preferências, biblioteca, pistas, tonalidade, janela, página Sobre e arquivos alterados/ausentes.
+- 43 verificações das métricas dos painéis.
+- Ícone PNG aprovado preservado com transparência; ICO com tamanhos 16, 24, 32, 48, 64, 128 e 256 pixels e incorporado ao executável.
+- MIDIs, partituras aprovadas e configurações reais do usuário preservados por comparação de hashes durante a verificação.
+- DLL validada SHA-256: be4e5b178959f858cce897a495cce0eac6f3eca0a474b6bd931298dfff7b358b.
+
+Os algoritmos musicais não foram alterados nesta atualização. Caminhos pessoais de scripts auxiliares foram substituídos por caminhos relativos ou argumentos. Esta validação não representa uma nova conversão das 18 partituras.
+Relatórios reproduzíveis: tools/qa_preferences.py, tests/Teclas.Settings.Tests e tests/Teclas.Dashboard.Tests.
+
+REGISTRO ANTERIOR DA INTERFACE
+
+TECLAS — PARTITURAS · VALIDAÇÃO DA PRÉVIA 0.2
+12/10/2026
+
+Interface e painéis:
+- Build Release em .NET 10 / WPF, sem erros ou avisos.
+- 43 verificações das métricas: biblioteca vazia, categorias exclusivas, falhas, perfil desmarcado, saída disponível e contagem de páginas.
+- 12 cenários de interface renderizados a partir da árvore visual real do WPF: painéis vazios e preenchidos, editor, cifras, prévia, produção e configurações, em dimensões normal e compacta.
+- Importação dos 113 MIDIs: 18 prontos para lote, 94 para revisão musical e 1 arquivo com falha de leitura. A revisão inclui o piloto sem perfil neste catálogo.
+- Navegação entre as quatro telas, cinco filtros, busca por nome e troca do perfil musical sem perder a seleção.
+- Exibição de uma saída real de Norte Forró: 1 partitura, 1 página, .mscz e PNG existentes. A importação dessa saída é exclusiva do teste, com o SHA-256 do MIDI conferido.
+- Conclusão de operação sob filtro Prontos preserva a seleção e mostra o resultado. O teste usa os metadados do resultado real, sem gerar uma partitura adicional.
+- Nenhum erro de binding WPF detectado. Capturas revisadas visualmente.
+- SHA-256 dos MIDIs originais, dos arquivos de referência e das configurações preservados durante os testes.
+
+Escopo desta atualização:
+O motor musical e os perfis não foram alterados. Os testes de conversão abaixo foram executados na versão 0.1; não representam uma nova geração de todo o lote nesta atualização visual. Os indicadores da interface abrangem somente a sessão atual.
+Não foi realizado um teste manual completo de todos os cliques em uma janela nativa. A inspeção usa o próprio WPF, sem abrir a janela na área de trabalho.
+
+REGISTRO ANTERIOR DO MOTOR MUSICAL
+
+TECLAS — PARTITURAS · VALIDAÇÃO DA PRÉVIA 0.1
+12/10/2026
+
+Build Release: .NET SDK 10.0.302, WPF, sem erros ou avisos de compilação.
+
+Leitor MIDI em C#:
+- 112 arquivos válidos comparados com o inventário original: número total de notas, agrupamentos por pista/canal/programa, resolução PPQ e SHA-256.
+- O MIDI truncado foi rejeitado.
+- Casos controlados de running status, velocity zero, notas simultâneas de mesma altura e dados incompletos.
+- A execução do corpus com a primeira conversão C# completou 1.418 verificações.
+
+Integração C# → motor musical → MuseScore Studio 4.7.5:
+- Norte Forró / Abertura Show: .mscz real e prévia gerados; arquivo salvo e reaberto.
+- Aguenta Coração: 7 páginas, 382 ataques e uma apojatura preservados; inclui modulações e reserva de espaço para a melodia aguda.
+
+Motor e edição:
+- Todos os 18 perfis reconhecidos por hash: posições, raízes, qualidades e armaduras comparadas com o lote musical revisado.
+- Um MIDI novo, criado para teste com 32 notas de melodia, foi analisado sem perfil e convertido.
+- Uma qualidade de acorde inválida foi rejeitada.
+- Duas gerações mantiveram a saída anterior e o MIDI original intactos.
+- Uma edição para F#m produziu SVG incorporado com C#4, F#4 e A4, quinta no grave.
+
+Interface:
+- Inicialização e renderização da versão Release com o MIDI Baby Elson.
+- Prévia da interface conferida visualmente. Arquivo: previa-do-aplicativo.png.
+- Não foi realizado um teste manual completo de todos os cliques; esta prévia está sendo entregue para uso e feedback do usuário.
+
+Dependências externas não incluídas no ZIP: .NET Desktop Runtime 10, MuseScore Studio 4 e Python com Pillow.

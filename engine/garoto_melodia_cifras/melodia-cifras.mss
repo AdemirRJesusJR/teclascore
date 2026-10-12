@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<museScore version="4.70">
+  <Style>
+    <Spatium>1.65</Spatium>
+    <pageWidth>8.26772</pageWidth>
+    <pageHeight>11.6929</pageHeight>
+    <pagePrintableWidth>7.16535</pagePrintableWidth>
+    <pageOddLeftMargin>0.55118</pageOddLeftMargin>
+    <pageEvenLeftMargin>0.55118</pageEvenLeftMargin>
+    <pageOddTopMargin>0.55118</pageOddTopMargin>
+    <pageEvenTopMargin>0.55118</pageEvenTopMargin>
+    <pageOddBottomMargin>0.55118</pageOddBottomMargin>
+    <pageEvenBottomMargin>0.55118</pageEvenBottomMargin>
+    <staffDistance>5.8</staffDistance>
+    <akkoladeDistance>5.8</akkoladeDistance>
+    <minSystemDistance>8</minSystemDistance>
+    <maxSystemDistance>15</maxSystemDistance>
+    <enableVerticalSpread>1</enableVerticalSpread>
+    <measureNumberInterval>1</measureNumberInterval>
+    <measureNumberSystem>1</measureNumberSystem>
+    <showMeasureNumberOne>0</showMeasureNumberOne>
+    <createMultiMeasureRests>0</createMultiMeasureRests>
+    <titleFontSize>22</titleFontSize>
+    <subTitleFontSize>10</subTitleFontSize>
+    <chordSymbolAFontSize>12</chordSymbolAFontSize>
+    <chordSymbolAFontFace>Edwin</chordSymbolAFontFace>
+    <harmonyY>-2.5</harmonyY>
+    <harmonyMinDistance>0.5</harmonyMinDistance>
+  </Style>
+</museScore>
