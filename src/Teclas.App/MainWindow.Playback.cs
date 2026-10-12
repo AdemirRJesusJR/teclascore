@@ -125,6 +125,7 @@ public partial class MainWindow
     {
         OnPlaybackSelectionChanged();
         if (!CanPlayScore || CurrentScorePath is not { } scorePath) return;
+        StopTrackAudition();
         if (audioLoaded && loadedAudioPath is not null)
         {
             scorePlayer.Play(); audioPlaying = true; playbackTimer.Start();

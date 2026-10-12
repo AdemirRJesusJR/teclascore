@@ -3,10 +3,22 @@ using System.Security.Cryptography;
 using System.Text;
 namespace Teclas.Core;
 
-public record MidiNote(int Track,int Channel,int Program,int Pitch,int Velocity,long Start,long End);
+public record MidiNote(int Track,int Channel,int Program,int Pitch,int Velocity,long Start,long End)
+{
+    public int StartOrder { get; init; }
+    public int EndOrder { get; init; }
+}
 public record SourceKey(int Track,int Channel,int Program);
 public record MidiSource(SourceKey Key,string Name,int Count,int Minimum,int Maximum,int DistinctPitches,double SimultaneousFraction,string Hint);
-public record MidiDocument(string Path,string Sha256,int Format,int Ppq,IReadOnlyList<MidiNote> Notes,IReadOnlyList<MidiSource> Sources,IReadOnlyList<string> Warnings);
+public record MidiTempoChange(long Tick,int MicrosecondsPerQuarter,int Track=0,int Order=0);
+public record MidiChannelEvent(long Tick,int Track,int Order,int Channel,int Kind,int Data1,int Data2);
+public record MidiDocument(string Path,string Sha256,int Format,int Ppq,IReadOnlyList<MidiNote> Notes,IReadOnlyList<MidiSource> Sources,IReadOnlyList<string> Warnings)
+{
+    public IReadOnlyList<MidiTempoChange> TempoChanges { get; init; } = [];
+    public IReadOnlyList<MidiChannelEvent> ChannelEvents { get; init; } = [];
+    public long EndTick { get; init; }
+    public bool HasSystemExclusive { get; init; }
+}
 
 public static class MidiReader
 {
@@ -38,7 +50,7 @@ public static class MidiReader
         Need(header);int format=U16(), declared=U16(), ppq=U16();pos+=header-6;
         if(format>1)throw new InvalidDataException("MIDI tipo 2 precisa ser dividido em músicas independentes.");
         if(ppq==0 || (ppq&0x8000)!=0)throw new InvalidDataException("Este MIDI usa tempo SMPTE ou uma resolução inválida; é necessário MIDI com tempo musical PPQ.");
-        var events=new List<Event>();var names=new Dictionary<int,string>();var warnings=new List<string>();int track=0;long last=0;
+        var events=new List<Event>();var tempos=new List<MidiTempoChange>();bool hasSysEx=false;var names=new Dictionary<int,string>();var warnings=new List<string>();int track=0;long last=0;
         while(pos+8<=bytes.Length)
         {
             if(track>=declared && Encoding.ASCII.GetString(bytes,pos,4)!="MTrk")break;
@@ -55,9 +67,15 @@ public static class MidiReader
                 {
                     int type=Byte(), len=Vlq();if(len>end-pos)throw new InvalidDataException("Metaevento MIDI truncado.");
                     if(type==3)names[track]=Encoding.UTF8.GetString(bytes,pos,len).Trim('\0','\r','\n');
+                    if(type==0x51)
+                    {
+                        if(len==3 && (bytes[pos]|bytes[pos+1]|bytes[pos+2])!=0)
+                            tempos.Add(new(tick,(bytes[pos]<<16)|(bytes[pos+1]<<8)|bytes[pos+2],track,order));
+                        else warnings.Add($"Tempo inválido na pista {track+1}; foi mantido o andamento anterior.");
+                    }
                     pos+=len;continue;
                 }
-                if(status is 240 or 247){int len=Vlq();if(len>end-pos)throw new InvalidDataException("SysEx truncado.");pos+=len;running=0;continue;}
+                if(status is 240 or 247){hasSysEx=true;int len=Vlq();if(len>end-pos)throw new InvalidDataException("SysEx truncado.");pos+=len;running=0;continue;}
                 if(status is <128 or >239)throw new InvalidDataException($"Status MIDI não suportado: {status:X2}.");
                 running=status;int kind=status>>4,channel=(status&15)+1,a=Byte(),b=(kind is 12 or 13)?0:Byte();
                 if(a>=128 || b>=128)throw new InvalidDataException("Dados de nota MIDI inválidos.");
@@ -75,15 +93,15 @@ public static class MidiReader
             if(e.Kind==9 && e.B>0)
             {
                 if(!active.TryGetValue(key,out var q))active[key]=q=new();
-                q.Enqueue(new(e.Track,e.Channel,programs[e.Channel],e.A,e.B,e.Tick,e.Tick));
+                q.Enqueue(new(e.Track,e.Channel,programs[e.Channel],e.A,e.B,e.Tick,e.Tick){StartOrder=e.Order});
             }
             else if(e.Kind==8 || (e.Kind==9 && e.B==0))
             {
-                if(active.TryGetValue(key,out var q) && q.Count>0)notes.Add(q.Dequeue() with{End=e.Tick});
+                if(active.TryGetValue(key,out var q) && q.Count>0)notes.Add(q.Dequeue() with{End=e.Tick,EndOrder=e.Order});
             }
         }
         int dangling=0;
-        foreach(var q in active.Values)while(q.Count>0){notes.Add(q.Dequeue() with{End=last});dangling++;}
+        foreach(var q in active.Values)while(q.Count>0){notes.Add(q.Dequeue() with{End=last,EndOrder=int.MaxValue});dangling++;}
         if(dangling>0)warnings.Add($"{dangling} notas sem término explícito; revisar a duração.");
         var sources=notes.GroupBy(n=>new SourceKey(n.Track,n.Channel,n.Program)).OrderBy(g=>g.Key.Track).ThenBy(g=>g.Key.Channel).ThenBy(g=>g.Key.Program).Select(g=>{
             var pitches=g.Select(n=>n.Pitch).ToArray();int distinct=pitches.Distinct().Count();
@@ -92,7 +110,13 @@ public static class MidiReader
             return new MidiSource(g.Key,names.GetValueOrDefault(g.Key.Track,$"Pista {g.Key.Track+1}"),g.Count(),pitches.Min(),pitches.Max(),distinct,simultaneous,hint);
         }).ToList();
         if(notes.Count==0)throw new InvalidDataException("O MIDI não contém notas.");
-        return new(path,Convert.ToHexStringLower(SHA256.HashData(original)),format,ppq,notes,sources,warnings);
+        return new(path,Convert.ToHexStringLower(SHA256.HashData(original)),format,ppq,notes,sources,warnings)
+        {
+            TempoChanges=tempos.OrderBy(t=>t.Tick).ThenBy(t=>t.Track).ThenBy(t=>t.Order).ToArray(),
+            ChannelEvents=events.Where(e=>e.Kind is >=10 and <=14).OrderBy(e=>e.Tick).ThenBy(e=>e.Track).ThenBy(e=>e.Order)
+                .Select(e=>new MidiChannelEvent(e.Tick,e.Track,e.Order,e.Channel,e.Kind,e.A,e.B)).ToArray(),
+            EndTick=last,HasSystemExclusive=hasSysEx
+        };
     }
     public static string NoteName(int pitch)=>new[]{"C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"}[pitch%12]+(pitch/12-1);
 }

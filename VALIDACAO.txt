@@ -1,3 +1,18 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.5.0
+12/10/2026
+
+- Build Release .NET 10 / WPF sem erros ou avisos.
+- 24 verificações da escuta MIDI: isolamento por pista/canal/programa, intensidade, percussão, tempo padrão e mudanças de andamento, entrada tardia, volume/pan/expressão, pitch bend, pressão, pedais, pausa, busca, parada, troca de fonte, fim natural, fechamento e falha de dispositivo.
+- 17 verificações da interface WPF: botões reais acionados antes da análise e sem partitura gerada, perfil revisado, pausa, posição, troca, parada, sair da aba/página, iniciar operação, trocar/remover MIDI, fechar e preservar marcações de melodia.
+- O driver WinMM real aceitou abertura, mensagens de controle, reset e fechamento. Esse teste não enviou notas audíveis. As sequências e notas foram verificadas por transporte MIDI simulado silencioso; não foi realizada uma avaliação auditiva dos alto-falantes.
+- 1.415 verificações de regressão do leitor no inventário: notas, fontes, resolução e hashes preservados. Nenhum MIDI original foi modificado.
+- Cinco capturas WPF conferidas em janela normal e compacta, com menu expandido/recolhido e rolagem inferior. Separação de 12 px entre a lista e os controles confirmada, sem sobreposição.
+- Nenhum erro de binding WPF; configurações reais preservadas por comparação de hashes.
+- DLL validada SHA-256: e76f308debff62f36fe68a3a9cbd8fb0dbab375ad6fe4044a8bdd6ff5d3a2b67.
+
+Verificações reproduzíveis: tests/Teclas.Audition.Tests, tests/Teclas.Tests com o inventário e --verify-track-audition (argumentos no README.md). Os testes anteriores de PDF e reprodução de partitura abaixo pertencem à versão 0.4.0; não representam nova exportação nesta atualização. A geração musical e os arquivos MuseScore aprovados não foram alterados.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.4.1
 12/10/2026
 

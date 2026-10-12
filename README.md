@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.4.1 para Windows, em C# / WPF (.NET 10). Prepara partituras com uma pauta de melodia, cifras e diagramas de teclado na segunda inversão, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.5.0 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado na segunda inversão, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
 
@@ -10,13 +10,15 @@ Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/tecl
 2. Confira os caminhos em Configurações e escolha a pasta de saída.
 3. Importe arquivos .mid, .midi ou .kar pelo botão ou arrastando-os para o app. A Biblioteca abre automaticamente com o primeiro MIDI novo selecionado, sem a busca ou os filtros anteriores. Um arquivo já importado é selecionado sem duplicação.
 4. Nos 18 MIDIs com perfil revisado, mantenha a revisão aprovada marcada. Use “Gerar lote revisado” para processar os que ainda não foram gerados.
-5. Em MIDIs novos, escolha a pista de melodia, clique em “Analisar acordes”, confira/edite as cifras e clique em “Gerar .mscz”.
+5. Na aba Melodia, use ▶ na coluna Ouvir para escutar cada fonte isoladamente. Compare as pistas, marque a melodia, clique em “Analisar acordes”, confira/edite as cifras e clique em “Gerar .mscz”. Com a revisão aprovada habilitada, é possível ouvir; desmarque essa opção para mudar a seleção manualmente.
 6. Na aba Prévia, clique em “Reproduzir” para ouvir, “Pausar” para continuar depois e “Parar” para voltar ao início. A barra de posição permite avançar ou voltar. “Salvar PDF” exporta todas as páginas.
 7. Use o botão na parte inferior da barra lateral para alternar entre menus completos e somente ícones. Passe o mouse sobre um ícone para ver o nome do menu.
 8. Escolha seu tema em Configurações. Ao fechar e reabrir, o app restaura suas preferências e sua biblioteca.
 9. Para retirar um item da lista, selecione-o e clique em “Remover da biblioteca”. A última remoção pode ser desfeita enquanto o app estiver aberto. Seus arquivos MIDI e .mscz permanecem nas suas pastas.
 
-Na primeira reprodução, o MuseScore instalado prepara o áudio em segundo plano. O editor do MuseScore não precisa ser aberto. Nas próximas reproduções, o áudio é reutilizado enquanto a partitura permanecer igual. A reprodução corresponde ao arquivo .mscz salvo: depois de editar as cifras, gere a partitura novamente para ouvir o resultado atualizado. “Exportar ZIP”, na tela Produção, reúne as partituras disponíveis da biblioteca.
+A escuta de pistas funciona antes da análise, pelo sintetizador MIDI do Windows, sem abrir o MuseScore. Cada linha identifica uma combinação de pista, canal e instrumento, importante para MIDIs que concentram vários instrumentos na mesma pista. A escuta começa na primeira nota dessa fonte, oferece pausa e controle de posição e não marca Melodia automaticamente. Ao trocar de fonte, MIDI, aba ou tela, o áudio anterior para. Timbres personalizados por SysEx podem soar diferentes no sintetizador General MIDI.
+
+Para ouvir a partitura gerada na aba Prévia, o MuseScore instalado prepara o áudio em segundo plano na primeira reprodução. O editor do MuseScore não precisa ser aberto. Nas próximas reproduções, o áudio é reutilizado enquanto a partitura permanecer igual. Essa reprodução corresponde ao arquivo .mscz salvo: depois de editar as cifras, gere a partitura novamente para ouvir o resultado atualizado. “Exportar ZIP”, na tela Produção, reúne as partituras disponíveis da biblioteca.
 
 A aba de cifras aceita inclusão e exclusão de linhas. A posição é medida em semínimas desde o início do MIDI, antes da remoção de compassos vazios de preparação. A armadura usa números negativos para bemóis e positivos para sustenidos. Alterar a armadura muda a notação da tonalidade inicial; não transpõe as notas. Modulações dos perfis revisados são preservadas.
 
@@ -68,16 +70,19 @@ Abra Teclas.Partituras.sln. Não há pacotes NuGet externos; NuGet.Config manté
     dotnet run --project tests/Teclas.Tests/Teclas.Tests.csproj
     dotnet run --project tests/Teclas.Dashboard.Tests/Teclas.Dashboard.Tests.csproj
     dotnet run --project tests/Teclas.Settings.Tests/Teclas.Settings.Tests.csproj
+    dotnet run --project tests/Teclas.Audition.Tests/Teclas.Audition.Tests.csproj
     dotnet run --project tests/Teclas.Export.Tests/Teclas.Export.Tests.csproj -- "C:\caminho\para\teste" "C:\caminho\para\partitura.mscz" "C:\Program Files\MuseScore 4\bin\MuseScore4.exe"
     python tools/qa_ui.py --midis "C:\caminho\para\midis"
     python tools/qa_preferences.py --project "C:\caminho\para\Partituras de Teclado"
 
-Projetos: Teclas.App (WPF), Teclas.Core (leitura MIDI, protocolo, métricas e exportação), Teclas.Tests, Teclas.Dashboard.Tests, Teclas.Settings.Tests e Teclas.Export.Tests (testes executáveis). A pasta engine contém o motor musical e seus perfis. O executável precisa permanecer junto das DLLs e dessa pasta.
+Projetos: Teclas.App (WPF), Teclas.Core (leitura MIDI, escuta por fonte, protocolo, métricas e exportação), Teclas.Tests, Teclas.Dashboard.Tests, Teclas.Settings.Tests, Teclas.Export.Tests e Teclas.Audition.Tests (testes executáveis). A pasta engine contém o motor musical e seus perfis. O executável precisa permanecer junto das DLLs e dessa pasta.
 
 Os testes de configurações e de painéis usam dados sintéticos. Os testes de interface e integração musical exigem a pasta do acervo local, que não faz parte do repositório; informe seu caminho nos argumentos acima. Para a integração completa, execute `python tools/qa_engine.py "C:\caminho\para\Partituras de Teclado"`.
 
+Os testes de escuta por fonte usam MIDIs sintéticos e um transporte MIDI simulado, sem emitir som. Para verificar a interface real, execute `Teclas.Partituras.exe --verify-track-audition "C:\pasta\report.json" "C:\pasta\Norte_ForroAbertura_Show.mid"` usando o MIDI revisado do acervo. Essa verificação utiliza sessões isoladas e confere separadamente a abertura do driver WinMM sem emitir notas.
+
 O script tools/prepare_engine.py regenera a cópia do motor a partir das ferramentas externas do projeto musical; seu uso é opcional. tools/qa_engine.py verifica os 18 perfis contra o lote original e exercita a conversão de um MIDI novo. A pasta engine já inclui o motor necessário para o aplicativo, sem exigir a regeneração. A ferramenta histórica engine/build_keyboard_diagrams.py é preservada como origem das funções vetoriais reutilizadas pelo motor; executá-la isoladamente requer a partitura piloto na pasta externa partituras.
 
-O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.4.1`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
+O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.5.0`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
 
-Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.4.1, destinada a testes no computador do usuário.
+Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.5.0, destinada a testes no computador do usuário.

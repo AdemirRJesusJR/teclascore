@@ -1,11 +1,11 @@
-TECLASCORE · PRÉVIA 0.4.1
+TECLASCORE · PRÉVIA 0.5.0
 
 Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 
 1. Em Configurações, confira MuseScore, Python com Pillow e pasta de saída.
 2. Importe os MIDIs. A Biblioteca abre automaticamente com o MIDI selecionado na aba Melodia.
 3. Para os 18 arquivos com perfil revisado, use “Gerar lote revisado”.
-4. Para um arquivo novo, selecione a melodia, analise os acordes e revise as cifras.
+4. Para um arquivo novo, ouça as pistas no botão ▶ da aba Melodia, marque a melodia, analise os acordes e revise as cifras.
 5. Gere a partitura e confira a prévia / abra no MuseScore.
 6. Em Produção, use “Exportar ZIP” para reunir as partituras disponíveis na biblioteca.
 
@@ -19,7 +19,14 @@ Os diagramas são incorporados ao .mscz; uma mudança na cifra dentro do MuseSco
 
 Código-fonte e informações de desenvolvimento estão na pasta software do projeto Partituras de Teclado.
 
-NOVO NA VERSÃO 0.4.1
+NOVO NA VERSÃO 0.5.0
+Ouça cada pista antes de analisar acordes: botão ▶ na coluna Ouvir da aba Melodia.
+Pausar, Continuar, Parar e barra de posição permitem comparar as fontes.
+A escuta começa na primeira nota e não altera a marcação de melodia.
+Funciona com o sintetizador MIDI do Windows, sem gerar uma partitura.
+Com a revisão aprovada marcada, ainda é possível ouvir; desmarque-a para mudar a melodia.
+
+VERSÃO 0.4.1
 Botão de recolher/expandir menor, na parte inferior da barra lateral.
 
 VERSÃO 0.4.0

@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.5.0 — 12/10/2026
+
+- Escuta individual de cada pista/canal/instrumento na aba Melodia, antes de analisar os acordes ou gerar a partitura.
+- Botões Ouvir por linha, pausa, retomada, parada e controle de posição; a escuta começa na primeira nota da fonte.
+- Reprodução MIDI pelo sintetizador do Windows, com andamento, intensidade e controles musicais preservados.
+- Trocar de pista, MIDI, aba ou tela interrompe a escuta anterior; ouvir não altera a seleção de melodia.
+- A escuta continua disponível com a revisão musical aprovada habilitada.
+
 ## 0.4.1 — 12/10/2026
 
 - Botão de recolher/expandir menor e fixado na parte inferior da barra lateral, com o ícone espelhado para expandir.

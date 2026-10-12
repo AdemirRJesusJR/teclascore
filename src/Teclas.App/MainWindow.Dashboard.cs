@@ -175,6 +175,7 @@ public partial class MainWindow
     {
         if (page is not ("dashboard" or "library" or "production" or "settings" or "about")) return;
         currentPage = page;
+        if (page != "library") StopTrackAudition();
         foreach (var name in new[] { nameof(CurrentPage), nameof(DashboardVisible), nameof(LibraryVisible),
             nameof(ProductionVisible), nameof(SettingsVisible), nameof(AboutVisible), nameof(PageTitle), nameof(PageSubtitle) }) Notify(name);
         RefreshDashboard();

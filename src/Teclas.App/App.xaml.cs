@@ -17,6 +17,11 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 3 && e.Args[0] == "--verify-track-audition")
+        {
+            VerifyTrackAudition(e.Args[1], e.Args[2]);
+            return;
+        }
         if (e.Args.Length == 4 && e.Args[0] == "--verify-import")
         {
             VerifyImport(e.Args[1], e.Args[2], e.Args[3]);

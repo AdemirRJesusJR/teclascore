@@ -56,13 +56,14 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public ImageSource? Preview{get=>preview;private set{preview=value;Notify();}}
     public string PreviewMessage=>selectedFile?.ScorePath is null?"A prévia aparecerá depois da geração.":"Primeira página · demais páginas na pasta de revisão";
     public string GenerationHint=>selectedFile?.AnalysisPath is null?"Primeiro escolha a melodia e analise os acordes.":UseReviewedProfile?"Perfil revisado carregado. Ajustes feitos na tabela de cifras serão aplicados.":"Confira a fonte de melodia e as cifras: uma análise automática precisa de revisão musical.";
-    public MainWindow(bool smoke=false,string? settingsPath=null)
+    public MainWindow(bool smoke=false,string? settingsPath=null,Func<IMidiOutputTransport>? midiOutputFactory=null)
     {
         settings=Settings.Load(settingsPath);
         ThemeManager.Apply(settings.ThemeId);
         InitializeComponent();
         InitializePlayback();
         Closed+=(_,_)=>DisposePlayback();
+        InitializeTrackAudition(midiOutputFactory);
         profiles=JsonNode.Parse(File.ReadAllText(Path.Combine(engineDirectory,"profiles.json")))!.AsObject();
         instruments=JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(engineDirectory,"gm.json")))!;
         InitDashboard();
@@ -75,6 +76,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     {
         NotifyLibraryActions();
         OnPlaybackSelectionChanged();
+        OnTrackAuditionSelectionChanged();
         foreach(var name in new[]{nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText)})Notify(name);
         RefreshDashboard();
         Preview=null;
@@ -88,7 +90,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();}
+    private void SetBusy(bool value){busy=value;if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();}
     private void InvalidateAnalysis(MidiRow row)
     {
         row.AnalysisPath=null;row.Chords.Clear();

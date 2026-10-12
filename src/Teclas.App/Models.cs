@@ -64,6 +64,10 @@ public sealed class MidiRow : Observable
 }
 public sealed class TrackRow : Observable
 {
+    private bool isAuditioning;
+    public bool IsAuditioning{get=>isAuditioning;set{if(Set(ref isAuditioning,value)){Notify(nameof(AuditionGlyph));Notify(nameof(AuditionToolTip));}}}
+    public string AuditionGlyph=>IsAuditioning?"■":"▶";
+    public string AuditionToolTip=>$"{(IsAuditioning?"Parar":"Ouvir")} pista {Track}, canal {Channel}: {Instrument}";
     private bool melody;
     public bool IsMelody{get=>melody;set{if(Set(ref melody,value))Changed?.Invoke();}}
     public Action? Changed{get;set;}
