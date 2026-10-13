@@ -1,3 +1,19 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.13.1
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 120 testes Python passaram, incluindo 11 novos testes de origem das notas, prioridade, mudanças de programa, fontes duplicadas, quantização, ligaduras, transposição e geometria dos nomes. Cinco testes opt-in com MuseScore real passaram separadamente.
+- Gerações reais com MuseScore: nomes na primeira entrada, nas trocas e no retorno, com três fontes atuantes; ligaduras e transposição preservadas. Conferência dos textos e posições após reabrir o MSCZ.
+- Entrada tardia com ajuste de margem validada; alternância densa que não comporta os nomes é sinalizada para revisão por compasso. Nenhum nome é omitido silenciosamente.
+- Editor nativo e PDF: seis verificações passaram; nomes preservados após editar uma nota, nenhuma mudança de instrumento de reprodução, exportação pela rotina do aplicativo e origem preservada. Os nomes também foram confirmados no texto do PDF.
+- 18/18 perfis revisados preservaram eventos, grades, estatísticas, XML e relatórios em comparação com a versão publicada; originais intactos.
+- 21 verificações de integração WPF da fila passaram com o motor atualizado: geração em prioridades diferentes, isolamento de falha, retomada e preservação do Histórico e das configurações reais.
+- Dashboard renderizado com versão 0.13.1, sem avisos de binding.
+
+A identificação automática vale para a seleção manual de múltiplas fontes com prioridade. Os nomes seguem os instrumentos General MIDI exibidos na lista de pistas e as notas efetivamente incluídas. Partituras anteriores precisam ser geradas em nova versão para receber as indicações. Resultados já concluídos na fila continuam disponíveis sem regeneração automática.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.13.0
 13/10/2026
 

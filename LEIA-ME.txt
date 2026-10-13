@@ -1,5 +1,9 @@
-TECLASCORE · PRÉVIA 0.13.0
+TECLASCORE · PRÉVIA 0.13.1
 
+
+NOVO NA VERSÃO 0.13.1
+Ao combinar duas ou mais pistas manualmente, o nome do instrumento aparece na primeira entrada e quando outra fonte assume a melodia. As indicações seguem as notas efetivamente escolhidas pela prioridade.
+Gere novamente as partituras existentes para receber as indicações; o Histórico preserva as cópias anteriores.
 
 NOVO NA VERSÃO 0.13.0
 Marque várias pistas para reunir introdução e melodia em uma pauta. Prioridade das pistas define qual prevalece nas sobreposições; os avisos ficam na Revisão guiada.

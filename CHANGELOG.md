@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.13.1 — 13/10/2026
+
+- Nome do instrumento na entrada e nas trocas de fonte da melodia combinada, seguindo a prioridade e as notas efetivamente incluídas.
+- Indicações preservadas no arquivo MuseScore e nas páginas geradas, sem alterar as notas ou o instrumento de reprodução da pauta.
+
 ## 0.13.0 — 13/10/2026
 
 - Fila persistente de conversões MIDI, com cópia da fonte e opções congeladas por item, execução sequencial, pausa e retomada explícita.

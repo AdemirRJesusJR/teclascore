@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw
 from inspect_midi import parse_midi, summarize
 from batch_harmony import analyze_harmony, CHORD_INTERVALS
 from batch_svg_qa import analyze as analyze_svg
+import batch_svg_qa as svg_geometry
 
 WORK=Path(__file__).resolve().parent
 BATCH=Path(os.environ.get('PARTITURAS_JOB',str(Path(tempfile.gettempdir())/'TeclasPartituras')));BATCH.mkdir(parents=True,exist_ok=True)
@@ -464,7 +465,12 @@ def melody_events(parsed,config,origin,end):
             gs=[g['pitch'] for g in grace_notes if abs(n['start']/ppq-g['target_quarter'])<.001]
             if gs:event['graces']=gs
             events.append(event)
-            if merge_report is not None:merge_report['sources'][n['_merge_source']]['quantizedAttacks']+=1
+            if merge_report is not None:
+                merge_report['sources'][n['_merge_source']]['quantizedAttacks']+=1
+                # Carry the winning attack's real MIDI identity through notation,
+                # rather than reconstructing it from pitch or pre-quantized input.
+                event['source']={key:n[key] for key in ('track','channel','program')}
+                event['source']['priority']=n['_merge_source']+1
         errors.append(abs(s+origin-n['start']/ppq*DIV)/DIV)
     if len({n['pitch'] for n in events})<3:raise NeedsReview('Fonte selecionada não contém alturas suficientes para uma melodia identificável.')
     assert sum(len(n.get('graces',[])) for n in events)==len(grace_notes),'Grace target lost during grouping'
@@ -476,6 +482,24 @@ def melody_events(parsed,config,origin,end):
         merge_report['quantizedAttacks']=len(events)
         report['melody_merge']=merge_report
     return events,{b-int(origin//DIV):v for b,v in grids.items()},report
+
+def instrument_labels(notes,origin=0):
+    """First entry and source changes only; rests and tied pieces aren't entries."""
+    names=json.loads((WORK/'gm.json').read_text(encoding='utf8'))
+    labels=[];previous=None
+    for note in notes:
+        source=note.get('source')
+        if source is None:continue
+        identity=tuple(source[key] for key in ('track','channel','program'))
+        if identity!=previous:
+            program=source['program']
+            if type(program) is not int or not 0<=program<len(names):
+                raise NeedsReview('Instrumento de origem inválido; selecione novamente as pistas.',kind='instrument_source')
+            labels.append({'tick':note['start'],'quarter':note['start']/DIV,
+                           'original_quarter':(note['start']+origin)/DIV,
+                           'text':names[program],'source':dict(source)})
+        previous=identity
+    return labels
 
 def make_bars(parsed,meters):
     ppq=parsed['ppq'];pitched=[n for n in parsed['notes'] if n['channel']!=10 and 20<=n['pitch']<=108 and n['program']<112]
@@ -686,6 +710,7 @@ def build_musicxml(parsed,config,harmony,out,title):
         sub(cr,'credit-words',txt,default_x=x,default_y=y,justify=alignment,valign='top',font_size=size)
     parts=sub(root,'part-list');p=sub(parts,'score-part',id='P1');sub(p,'part-name','Teclado');sub(p,'part-abbreviation','')
     si=sub(p,'score-instrument',id='I1');sub(si,'instrument-name','Piano');mi=sub(p,'midi-instrument',id='I1');sub(mi,'midi-channel',1);sub(mi,'midi-program',1)
+    labels=instrument_labels(notes,origin) if note_report.get('melody_merge') else []
     part=sub(root,'part',id='P1');lastmeter=None;printedtempo=None;lastkey=None
     for i,b in enumerate(bars):
         measure=sub(part,'measure',number=i+1,**({'implicit':'yes'} if b['partial'] else {}))
@@ -718,6 +743,12 @@ def build_musicxml(parsed,config,harmony,out,title):
             sub(di,'sound',tempo=bpm)
         for c in chords:
             if b['start']<=c['tick']<b['end']:emit_harmony(measure,c,b['start'],ps)
+        for label in labels:
+            if b['start']<=label['tick']<b['end']:
+                direction=sub(measure,'direction',placement='above')
+                words=sub(sub(direction,'direction-type'),'words',label['text'],font_size=9,font_style='italic')
+                if label['tick']>b['start']:sub(direction,'offset',label['tick']-b['start'])
+                sub(direction,'staff',1)
         selected=[n for n in notes if n['end']>b['start'] and n['start']<b['end']];sequence=[];cursor=b['start']
         for n in selected:
             a=max(n['start'],b['start']);z=min(n['end'],b['end'])
@@ -741,6 +772,7 @@ def build_musicxml(parsed,config,harmony,out,title):
     E.indent(root);xml=out/'melodia.musicxml';E.ElementTree(root).write(xml,encoding='utf-8',xml_declaration=True)
     report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/DIV,'measures':len(bars),'systems':len(lines),'pages_planned':1+sum(kind=='page' for kind in starts.values()),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
     report.update(score_metadata=metadata,diagram_inversion=inversion,custom_diagram_inversions=custom_diagrams,transpose_semitones=output_transpose)
+    if labels:report['instrument_labels']=labels
     if config.get('reserve_high_melody'):
         report['high_melody_layout']=high_melody_layout(part,lines)
         report['tuplet_bracket_measures']=config.get('tuplet_bracket_measures',[])
@@ -894,6 +926,102 @@ def repair_spacing(final,report,out):
             for old in out.glob(pattern):old.unlink()
         call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
 
+def instrument_label_geometry(path):
+    """Measure complete rendered text runs, including italic glyph overhangs."""
+    root=E.parse(path).getroot();records=svg_geometry._records(root)
+    rows=svg_geometry._staff_rows(records);texts=[];obstacles=[]
+    for record in records:
+        element=record['element'];kind=element.get('class','')
+        if record['tag']=='image':
+            x,y,width,height=(float(element.get(key,'0')) for key in ('x','y','width','height'))
+            box=svg_geometry._bbox(svg_geometry._xy(record['matrix'],point)
+                for point in ((x,y),(x+width,y),(x,y+height),(x+width,y+height)))
+            kind=kind or 'Image'
+        elif record['tag']=='path' and kind:
+            box=svg_geometry._bbox(svg_geometry._xy(record['matrix'],point)
+                for point in svg_geometry._path_points(element.get('d','')))
+        else:continue
+        if box is None:continue
+        item={'bbox':box,'kind':kind,'row':svg_geometry._row_for(box,rows)}
+        (texts if kind=='StaffText' else obstacles).append(item)
+    # Native MuseScore flattens SVG keyboards into Image paths. Reserve their
+    # complete rectangles, including blank gaps between keys and note markers.
+    obstacles.extend({'bbox':diagram['bbox'],'kind':'Image','row':diagram['row']}
+                     for diagram in analyze_svg(path)['diagrams'])
+    texts.sort(key=lambda text:(text['row'],text['bbox'][0]))
+    overlaps=[];clipped=[]
+    for index,text in enumerate(texts):
+        box=text['bbox'];row=rows[text['row']] if rows else None
+        if row is None:
+            clipped.append({'index':index,'reason':'no_staff'});continue
+        spatium=(row['bbox'][3]-row['bbox'][1])/4
+        for other_index,other in enumerate(texts[index+1:],index+1):
+            if svg_geometry._intersection(box,other['bbox']):
+                overlaps.append({'index':index,'other_label':other_index,'kind':'StaffText'})
+        for other in obstacles:
+            if svg_geometry._intersection(box,other['bbox']):
+                overlaps.append({'index':index,'kind':other['kind']})
+        # Keep complete names inside the printed staff margins, not just the page.
+        left=min(r['bbox'][0] for r in rows);right=row['bbox'][2]
+        shift=max(0,left-box[0])+min(0,right-box[2])
+        if abs(shift)>.5:
+            # Keep the caption close to its attack: at most half its width and
+            # eight staff spaces. A large misplaced name requires review.
+            if abs(shift)<=min((box[2]-box[0])/2,8*spatium):
+                clipped.append({'index':index,'shift_spatium':shift/spatium})
+            else:clipped.append({'index':index,'reason':'correction_too_large'})
+        view=[float(value) for value in root.get('viewBox','0 0 9921.26 14031.5').split()]
+        if box[1]<view[1] or box[3]>view[1]+view[3]:clipped.append({'index':index,'reason':'page_height'})
+    return {'path':str(path),'labels':texts,'overlaps':overlaps,'clipped':clipped}
+
+def verify_instrument_label_layout(final,report,out):
+    """A small margin correction is safe; unresolved density is explicit review."""
+    labels=report.get('instrument_labels',[])
+    if not labels:return
+    history=[]
+    for attempt in range(2):
+        pages=[instrument_label_geometry(path) for path in sorted(out.glob('qa-*.svg'),key=page_order)]
+        if sum(len(page['labels']) for page in pages)!=len(labels):
+            raise NeedsReview('Não foi possível conferir todos os nomes dos instrumentos na prévia.',kind='instrument_label_layout')
+        problems=sum(len(page['overlaps'])+len(page['clipped']) for page in pages)
+        history.append({'pass':attempt,'overlaps':sum(len(page['overlaps']) for page in pages),
+                        'margin_overflows':sum(len(page['clipped']) for page in pages)})
+        report['instrument_label_layout_qa']={'passed':not problems,'passes':history,'pages':len(pages)}
+        (out/'instrumentos_verificados.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
+        if not problems:return
+        offset=0;shifts={};affected=set()
+        for page in pages:
+            for problem in page['overlaps']+page['clipped']:
+                affected.add(offset+problem['index'])
+                if 'other_label' in problem:affected.add(offset+problem['other_label'])
+            for clip in page['clipped']:
+                if 'shift_spatium' in clip:shifts[offset+clip['index']]=clip['shift_spatium']
+            offset+=len(page['labels'])
+        if attempt or not shifts:
+            quarters=[labels[index]['original_quarter'] for index in sorted(affected)]
+            message='As trocas de instrumento estão muito próximas para exibir todos os nomes sem sobreposição. Ajuste os trechos das pistas ou o espaçamento da partitura.'
+            error=NeedsReview(message,quarters,kind='instrument_label_layout')
+            error.review_points=[point for quarter in quarters if (point:=locate_review_point(
+                quarter,round(report['origin_removed_quarters']*DIV),report['bars'],error.kind,message,True)) is not None]
+            raise error
+        with zipfile.ZipFile(final) as archive:contents={name:archive.read(name) for name in archive.namelist()}
+        name=next(name for name in contents if name.endswith('.mscx'));root=E.fromstring(contents[name])
+        for index,text in enumerate(root.findall('Score/Staff/Measure/voice/StaffText')):
+            if index not in shifts:continue
+            off=text.find('offset')
+            if off is None:off=E.SubElement(text,'offset',x='0',y='0')
+            off.set('x',str(float(off.get('x','0'))+shifts[index]))
+        contents[name]=E.tostring(root,encoding='utf-8',xml_declaration=True)
+        prepared=out/'instrumentos_preparados.mscz'
+        with zipfile.ZipFile(prepared,'w',zipfile.ZIP_DEFLATED) as archive:
+            for name,data in contents.items():archive.writestr(name,data)
+        call_musescore(['-o',str(final),str(prepared)],out/'ajuste_instrumentos.log')
+        for pattern in ('pagina-*.png','qa-*.svg'):
+            for old in out.glob(pattern):old.unlink()
+        call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
+        # A new native save may alter line wrapping; recertify diagrams too.
+        repair_spacing(final,report,out)
+
 def _apply_native_header(root,metadata):
     score=root.find('Score');staff=score.find('Staff');header=_header_layout(metadata)
     for name,value in (('workTitle',metadata['title']),('subtitle',metadata['subtitle']),('composer',metadata['composer']),('artist',metadata.get('artist',''))):
@@ -947,6 +1075,7 @@ def convert_score(xml,report,out,filename):
     vertical=report.get('high_melody_layout',[])
     vertical_by_measure={i:row for row in vertical for i in range(row['first_measure_index'],row['last_measure_index']+1)}
     style_values={'Spatium':'1.65','minSystemDistance':'12','maxSystemDistance':'20','frameSystemDistance':'11','createMultiMeasureRests':'0'}
+    labels=report.get('instrument_labels',[])
     if vertical:
         top=max(-row['image_y_spatium'] for row in vertical)
         # Image offsets do not reserve a staff skyline in MuseScore. Keep an
@@ -954,6 +1083,11 @@ def convert_score(xml,report,out,filename):
         distance=max(12,top+3)
         style_values.update(minSystemDistance=str(distance),maxSystemDistance=str(max(20,distance+4)),staffUpperBorder=str(max(7,top+1)))
         report['high_melody_spacing_style']={k:style_values[k] for k in ('minSystemDistance','maxSystemDistance','staffUpperBorder')}
+    if labels:
+        label_top=15+max((row['lift_spatium'] for row in vertical),default=0)
+        style_values.update(minSystemDistance=str(max(float(style_values['minSystemDistance']),label_top+3)),
+                            maxSystemDistance=str(max(float(style_values['maxSystemDistance']),label_top+7)),
+                            staffUpperBorder=str(label_top+1))
     for tag,val in style_values.items():
         n=style.find('Style/'+tag)
         if n is None:n=sub(style.find('Style'),tag)
@@ -963,6 +1097,10 @@ def convert_score(xml,report,out,filename):
     progress('Inserindo os diagramas de teclado junto às cifras…')
     with zipfile.ZipFile(initial) as z:contents={n:z.read(n) for n in z.namelist()}
     name=next(n for n in contents if n.endswith('.mscx'));root=E.fromstring(contents[name]);harmonies=root.findall('.//Harmony')
+    if labels:
+        texts=root.findall('Score/Staff/Measure/voice/StaffText')
+        if [''.join(text.find('text').itertext()) for text in texts]!=[label['text'] for label in labels]:
+            raise NeedsReview('Não foi possível preservar os nomes dos instrumentos. Gere novamente a partitura.',kind='instrument_label_layout')
     if len(harmonies)!=len(report['chords']):raise NeedsReview(f'MuseScore importou {len(harmonies)} cifras de {len(report["chords"])}.')
     assets={};asset_manifest={};events=iter(report['chords']);images=0;previous_chord=None
     report['image_spacing']=[0.0]*len(report['chords']);report['end_spacing']={}
@@ -997,7 +1135,16 @@ def convert_score(xml,report,out,filename):
             for tempo in voice.findall('Tempo'):
                 off=tempo.find('offset')
                 if off is None:off=E.SubElement(tempo,'offset')
-                off.set('x','0');off.set('y',str(-8.5-lift));sub(tempo,'autoplace',0)
+                off.set('x','0');off.set('y',str((-13.5 if labels else -8.5)-lift));sub(tempo,'autoplace',0)
+            if labels:
+                for text in voice.findall('StaffText'):
+                    for tag,value in (('size','9'),('autoplace','0')):
+                        element=text.find(tag)
+                        if element is None:element=sub(text,tag)
+                        element.text=value
+                    off=text.find('offset')
+                    if off is None:off=E.SubElement(text,'offset')
+                    off.set('x','0');off.set('y',str(-10.5-lift))
         # The last chord's diagram must have real room before the system edge.
         last_on_line=(measure_index+1 in report['system_starts'] or measure_index+1==len(report['bars']))
         if last_on_line and previous_chord is not None:
@@ -1014,7 +1161,7 @@ def convert_score(xml,report,out,filename):
     if vbox is not None:
         gap=vbox.find('bottomGap')
         if gap is None:gap=sub(vbox,'bottomGap')
-        gap.text=str(11+(vertical[0]['lift_spatium'] if vertical else 0))
+        gap.text=str((18 if labels else 11)+(vertical[0]['lift_spatium'] if vertical else 0))
     contents[name]=E.tostring(root,encoding='utf-8',xml_declaration=True)
     container=E.fromstring(contents['META-INF/container.xml'])
     for path in assets:sub(container.find('rootfiles'),'rootfile',**{'full-path':path})
@@ -1030,19 +1177,33 @@ def convert_score(xml,report,out,filename):
     (out/'render.json').write_text(json.dumps(job),encoding='utf8');call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
     repair_orphan_pages(final,report,out)
     repair_spacing(final,report,out)
+    verify_instrument_label_layout(final,report,out)
     progress('Conferindo notas, ritmos e diagramas na partitura salva…')
     with zipfile.ZipFile(final) as z:
         native=E.fromstring(z.read(next(n for n in z.namelist() if n.endswith('.mscx'))))
         assert len(native.findall('Score/Staff'))==1
         assert len(native.findall('.//Image'))==images
+        if labels:
+            assert [''.join(text.find('text').itertext()) for text in native.findall('Score/Staff/Measure/voice/StaffText')]==[label['text'] for label in labels],'Instrument labels changed during native save'
+            assert not native.findall('.//InstrumentChange'),'Instrument labels must not change playback instruments'
         for im in native.findall('.//Image'):
             path='Pictures/'+Path(im.findtext('path')).name;assert path in z.namelist();assert Path(path).stem==md4(z.read(path))
-    reopened=E.parse(out/'reaberto.musicxml');allnotes=[];cursor=0
+    reopened=E.parse(out/'reaberto.musicxml');allnotes=[];reopened_labels=[];cursor=0
     # Compare the realized melody after native save/reopen, collapsing tie continuations.
     for m,b in zip(reopened.findall('part/measure'),report['bars']):
         div=m.findtext('attributes/divisions')
         if div is not None:reopened_div=int(div)
         local=0
+        if labels:
+            position=0
+            for element in m:
+                if element.tag=='direction':
+                    words=element.find('direction-type/words')
+                    if words is not None and ''.join(words.itertext()).strip():
+                        tick=b['start']+position+round(int(element.findtext('offset','0'))/reopened_div*DIV)
+                        reopened_labels.append((tick,''.join(words.itertext())))
+                elif element.tag in ('note','forward','backup') and element.find('grace') is None and element.find('chord') is None:
+                    position+=round(int(element.findtext('duration','0'))/reopened_div*DIV)*(-1 if element.tag=='backup' else 1)
         for n in m.findall('note'):
             if n.find('grace') is not None:continue
             dur=round(int(n.findtext('duration','0'))/reopened_div*DIV)
@@ -1054,6 +1215,7 @@ def convert_score(xml,report,out,filename):
         assert local==b['end']-b['start'],('measure length changed',local,b)
     assert len(reopened.findall('part/measure'))==report['measures']
     assert allnotes==[(n['start'],n['pitch']) for n in report['notes']],'Melody changed during MuseScore import'
+    if labels:assert reopened_labels==[(label['tick'],label['text']) for label in labels],'Instrument label position changed during MuseScore import'
     assert len(reopened.findall('.//grace'))==report['melody_analysis']['grace_notes_preserved']
     progress('Preparando as miniaturas e a prévia da partitura…')
     pages=sorted(out.glob('pagina-*.png'),key=page_order);assert pages

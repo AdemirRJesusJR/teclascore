@@ -26,6 +26,7 @@ public sealed record ScoreReviewPoint
         "key_conflict" or "key_uncertain" => "Tonalidade",
         "rhythm_refined" => "Ritmo refinado",
         "melody_source_overlap" => "Pistas sobrepostas",
+        "instrument_label_layout" => "Instrumentos",
         _ => "Revisão rítmica"
     };
 }
