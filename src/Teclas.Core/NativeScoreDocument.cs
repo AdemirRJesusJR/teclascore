@@ -9,7 +9,10 @@ namespace Teclas.Core;
 
 public sealed record NativeScoreMetadata(string Title, string Subtitle, string Composer, int StaffCount,
     int MeasureCount, int NoteCount, int HarmonyCount, int ImageCount, double PageWidthMm,
-    double PageHeightMm, string MuseScoreVersion);
+    double PageHeightMm, string MuseScoreVersion)
+{
+    public string Artist { get; init; } = "";
+}
 
 /// <summary>Reads a native archive in memory, without extracting user-supplied ZIP paths.</summary>
 public static class NativeScoreDocument
@@ -95,24 +98,39 @@ internal sealed class NativeScoreArchive
         {
             var score = Score;
             string Meta(string name) => score.Elements("metaTag").FirstOrDefault(e => (string?)e.Attribute("name") == name)?.Value ?? "";
-            string Header(string style)
+            string Header(string style, bool preserveLineBreaks = false)
             {
                 var text = score.Elements("Staff").FirstOrDefault()?.Elements("VBox")
                     .Elements("Text").FirstOrDefault(e => (string?)e.Element("style") == style)?.Element("text");
                 if (text is null) return "";
                 var copy = new XElement(text);
-                foreach (var lineBreak in copy.Descendants("br").ToArray()) lineBreak.ReplaceWith(new XText(" "));
+                foreach (var lineBreak in copy.Descendants("br").ToArray()) lineBreak.ReplaceWith(new XText(preserveLineBreaks ? "\n" : " "));
                 return copy.Value;
             }
+            string credit = Header("composer", preserveLineBreaks: true);
+            bool labeledCredit = credit.StartsWith("Intérprete: ", StringComparison.Ordinal);
+            string CreditValue(string label)
+            {
+                var values = new List<string>(); bool collecting = false;
+                foreach (string line in credit.Split('\n'))
+                {
+                    if (line.StartsWith(label, StringComparison.Ordinal)) { values.Add(line[label.Length..].Trim()); collecting = true; }
+                    else if (line.StartsWith("Autor: ", StringComparison.Ordinal) || line.StartsWith("Intérprete: ", StringComparison.Ordinal)) collecting = false;
+                    else if (collecting) values.Add(line.Trim());
+                }
+                return string.Join(' ', values);
+            }
+            string Composer() => Nonempty(Meta("composer"), labeledCredit ? CreditValue("Autor: ") : Header("composer"));
             var style = ReadStyle();
             double Dimension(string name, double fallback) => double.TryParse((string?)style.Element(name), NumberStyles.Float,
                 CultureInfo.InvariantCulture, out var value) && double.IsFinite(value) && value > 0 ? Math.Round(value * 25.4, 2) : fallback;
             return new(Nonempty(Meta("workTitle"), Header("title")), Nonempty(Meta("subtitle"), Header("subtitle")),
-                Nonempty(Meta("composer"), Header("composer")), score.Elements("Staff").Count(),
+                Composer(), score.Elements("Staff").Count(),
                 score.Elements("Staff").Select(s => s.Elements("Measure").Count()).DefaultIfEmpty().Max(),
                 score.Elements("Staff").Descendants("Note").Count(), score.Elements("Staff").Descendants("Harmony").Count(),
                 score.Descendants("Image").Count(), Dimension("pageWidth", 210), Dimension("pageHeight", 297),
-                (string?)MainDocument.Root?.Element("programVersion") ?? (string?)MainDocument.Root?.Attribute("version") ?? "4");
+                (string?)MainDocument.Root?.Element("programVersion") ?? (string?)MainDocument.Root?.Attribute("version") ?? "4")
+            { Artist = Nonempty(Meta("artist"), labeledCredit ? CreditValue("Intérprete: ") : "") };
         }
     }
 

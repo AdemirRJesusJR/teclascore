@@ -131,7 +131,7 @@ public partial class MainWindow
         if(settings.FavoritesOnly && !row.IsFavorite)return false;
         if(!string.IsNullOrWhiteSpace(settings.CollectionFilter) && !string.Equals(row.Collection,settings.CollectionFilter,StringComparison.OrdinalIgnoreCase))return false;
         return string.IsNullOrWhiteSpace(searchText) || CultureInfo.GetCultureInfo("pt-BR").CompareInfo.IndexOf(
-            string.Join(" ",row.Name,row.ScoreTitle,row.ScoreComposer,row.Collection,row.Genre), searchText.Trim(), CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0;
+            string.Join(" ",row.Name,row.ScoreTitle,row.ScoreArtist,row.ScoreComposer,row.Collection,row.Genre), searchText.Trim(), CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0;
     }
 
     private void RefreshDashboard()

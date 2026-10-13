@@ -71,9 +71,9 @@ public partial class MainWindow
                     foreach (var chord in saved.Chords) row.Chords.Add(new ChordRow
                     { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion });
                 }
-                var freshHeader=(row.ScoreTitle,row.ScoreSubtitle,row.ScoreComposer);
+                var freshHeader=(row.ScoreTitle,row.ScoreSubtitle,row.ScoreComposer,row.ScoreArtist);
                 ApplySavedScoreProperties(row, saved);
-                if(preserveFreshNativeHeader){row.ScoreTitle=freshHeader.ScoreTitle;row.ScoreSubtitle=freshHeader.ScoreSubtitle;row.ScoreComposer=freshHeader.ScoreComposer;row.HasPendingScoreProperties=false;}
+                if(preserveFreshNativeHeader){row.ScoreTitle=freshHeader.ScoreTitle;row.ScoreSubtitle=freshHeader.ScoreSubtitle;row.ScoreComposer=freshHeader.ScoreComposer;row.ScoreArtist=freshHeader.ScoreArtist;row.HasPendingScoreProperties=false;}
                 RememberVersion(row);
                 Files.Add(row);
             }
@@ -121,6 +121,8 @@ public partial class MainWindow
         row.ScoreTitle = saved.ScoreTitle ?? ScoreMetadataDefaults.Title(row.FullPath);
         row.ScoreSubtitle = saved.ScoreSubtitle;
         row.ScoreComposer = saved.ScoreComposer ?? "";
+        row.ScoreArtist = saved.ScoreArtist ?? "";
+        row.MetadataOrganizationNotice = saved.MetadataOrganizationNotice;
         row.DefaultDiagramInversion = saved.DefaultDiagramInversion;
         row.DiagramInversion = saved.DiagramInversion;
         row.HasPendingScoreProperties = saved.HasPendingScoreProperties;
@@ -162,6 +164,7 @@ public partial class MainWindow
         {
             remembered.ScoreTitle = row.ScoreTitle; remembered.ScoreSubtitle = row.ScoreSubtitle;
             remembered.ScoreComposer = row.ScoreComposer; remembered.DefaultDiagramInversion = row.DefaultDiagramInversion;
+            remembered.ScoreArtist = row.ScoreArtist; remembered.MetadataOrganizationNotice = row.MetadataOrganizationNotice;
             remembered.DiagramInversion = row.DiagramInversion; remembered.HasPendingScoreProperties = row.HasPendingScoreProperties;
             remembered.IsFavorite = row.IsFavorite; remembered.Collection = row.Collection; remembered.Genre = row.Genre;
             remembered.TransposeSemitones = row.TransposeSemitones; remembered.Versions = row.Versions;
@@ -179,6 +182,7 @@ public partial class MainWindow
             IsFavorite = row.IsFavorite, Collection = row.Collection, Genre = row.Genre,
             TransposeSemitones = row.TransposeSemitones, Versions = row.Versions,
             ScoreTitle = row.ScoreTitle, ScoreSubtitle = row.ScoreSubtitle, ScoreComposer = row.ScoreComposer,
+            ScoreArtist = row.ScoreArtist, MetadataOrganizationNotice = row.MetadataOrganizationNotice,
             DefaultDiagramInversion = row.DefaultDiagramInversion, DiagramInversion = row.DiagramInversion,
             HasPendingScoreProperties = row.HasPendingScoreProperties,
             MelodySources = row.Tracks.Where(track => track.IsMelody).Select(track => new SavedSource

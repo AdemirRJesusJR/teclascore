@@ -1,4 +1,14 @@
-TECLASCORE · PRÉVIA 0.8.0
+TECLASCORE · PRÉVIA 0.9.0
+
+NOVO NA VERSÃO 0.9.0
+Ao importar um MIDI, título e artista já são organizados automaticamente.
+Exemplo: Roberto Carlos - Luz divina (karaoplay.com).mid → Luz divina / Roberto Carlos.
+O artista fica separado de autor/compositor; o compositor não é adivinhado pelo nome do intérprete.
+O app usa o nome do arquivo e campos internos do MIDI, localmente, sem pesquisar na internet.
+Limpa sites, espaços extras e etiquetas técnicas; preserva versões musicais e números significativos.
+Confira as sugestões nas Propriedades. Para itens antigos, use Usar sugestões e Aplicar e atualizar.
+As correções manuais permanecem salvas ao reabrir e reimportar o mesmo arquivo.
+O MIDI original permanece intacto. O Histórico e as partituras MuseScore guardam os créditos separados.
 
 NOVO NA VERSÃO 0.8.0
 Em Cifras ou Prévia, abra Posições dos diagramas para escolher uma inversão por acorde.

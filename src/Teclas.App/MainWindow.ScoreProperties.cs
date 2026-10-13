@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using Teclas.Core;
 
 namespace Teclas.App;
 
@@ -22,25 +23,30 @@ public partial class MainWindow
     }
     public bool CanEditScoreProperties => IsIdle && selectedFile is not null;
     public string ScorePropertiesSummary => selectedFile is { } row
-        ? row.ScoreTitle + " · " + (row.IsNativeScore ? "MuseScore · apresentação e metadados" : (row.Chords.Any(c=>c.DiagramInversion is not null)?"Diagramas personalizados · padrão: ":"") + ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion) + $" · transposição {row.TransposeSemitones:+0;-0;0}")
+        ? row.ScoreTitle + (string.IsNullOrWhiteSpace(row.ScoreArtist)?"":" · "+row.ScoreArtist) + " · " + (row.IsNativeScore ? "MuseScore · apresentação e metadados" : (row.Chords.Any(c=>c.DiagramInversion is not null)?"Diagramas personalizados · padrão: ":"") + ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion) + $" · transposição {row.TransposeSemitones:+0;-0;0}")
           + (row.HasPendingScoreProperties ? " · atualização pendente" : "")
-        : "Título, subtítulo, autor e inversão dos diagramas.";
+        : "Título, artista, subtítulo, autor e inversão dos diagramas.";
 
     private async void ScorePropertiesClick(object sender, RoutedEventArgs e)
     {
         if (!CanEditScoreProperties || selectedFile is not { } row || !CommitEdits()) return;
         if(row.IsNativeScore){ImproveNativeScoreClick(sender,e);return;}
         var dialog = new ScorePropertiesWindow(row.ScoreTitle, row.ScoreSubtitle, row.ScoreComposer,
-            row.DiagramInversion, row.DefaultDiagramInversion) { Owner = this };
+            row.DiagramInversion, row.DefaultDiagramInversion, row.ScoreArtist, row.MetadataOrganizationNotice) { Owner = this };
+        var suggestion=ScoreMetadataOrganizer.Suggest(row.FullPath,row.Document?.TextEvents);
+        if(suggestion.Title!=row.ScoreTitle || suggestion.Artist!=row.ScoreArtist || (!string.IsNullOrEmpty(suggestion.Composer) && string.IsNullOrEmpty(row.ScoreComposer)))
+            dialog.ConfigureMetadataSuggestion(suggestion);
         dialog.SetCustomDiagramPositions(row.Chords.Select(chord=>chord.DiagramInversion));
         if (dialog.ShowDialog() != true) return;
         bool changed = row.ScoreTitle != dialog.TitleValue || row.ScoreSubtitle != dialog.SubtitleValue
-            || row.ScoreComposer != dialog.ComposerValue || row.DiagramInversion != dialog.InversionOverride;
+            || row.ScoreComposer != dialog.ComposerValue || row.ScoreArtist != dialog.ArtistValue || row.DiagramInversion != dialog.InversionOverride;
         if (!changed && !row.HasPendingScoreProperties) return;
         RememberVersion(row);
-        row.ScoreTitle = string.IsNullOrWhiteSpace(dialog.TitleValue) ? ScoreMetadataDefaults.Title(row.FullPath) : dialog.TitleValue;
+        row.ScoreTitle = string.IsNullOrWhiteSpace(dialog.TitleValue) ? suggestion.Title : dialog.TitleValue;
         row.ScoreSubtitle = dialog.SubtitleValue;
         row.ScoreComposer = dialog.ComposerValue;
+        row.ScoreArtist = dialog.ArtistValue;
+        row.MetadataOrganizationNotice = dialog.UsedMetadataSuggestion ? dialog.OrganizationNoticeValue : "";
         row.DiagramInversion = dialog.InversionOverride;
         row.HasPendingScoreProperties = true;
         ResetPlayback();

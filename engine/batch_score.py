@@ -107,6 +107,7 @@ def score_metadata(values,default_title):
     for field,key,default,limit,label in (
         ('scoreTitle','title',default_title,160,'Título'),
         ('scoreSubtitle','subtitle',default_subtitle,200,'Subtítulo'),
+        ('scoreArtist','artist','',120,'Artista'),
         ('scoreComposer','composer','',120,'Autor')):
         value=values.get(field)
         if value is None:
@@ -136,7 +137,10 @@ def _header_lines(text,width):
 def _header_layout(metadata):
     title=_header_lines(metadata['title'],68)
     subtitle=_header_lines(metadata['subtitle'],100)
-    composer=_header_lines(metadata['composer'],70)
+    artist=metadata.get('artist','')
+    composer=('\n'.join(_header_lines(label+value,70) for label,value in
+        (('Intérprete: ',artist),('Autor: ',metadata['composer'])) if value)
+        if artist else _header_lines(metadata['composer'],70))
     title_size=20 if len(metadata['title'])<60 else 16
     lines=lambda text:len(text.splitlines()) if text else 0
     # Frame text uses absolute millimetre offsets, unlike staff-attached text.
@@ -147,7 +151,7 @@ def _header_layout(metadata):
     content_bottom=subtitle_offset+line_mm(subtitle,10) if subtitle else line_mm(title,title_size)
     height=max(10,(content_bottom+(line_mm(composer,10)+3 if composer else 1))/1.65)
     return dict(title=title,subtitle=subtitle,composer=composer,title_size=title_size,
-                subtitle_offset=round(subtitle_offset,3),height=round(height,3))
+                subtitle_offset=round(subtitle_offset,3),composer_offset=round(content_bottom+2,3),height=round(height,3))
 
 def sub(parent,tag,value=None,**attrs):
     e=E.SubElement(parent,tag,{k.replace('_','-'):str(v) for k,v in attrs.items()})
@@ -499,6 +503,7 @@ def build_musicxml(parsed,config,harmony,out,title):
     root=E.Element('score-partwise',version='4.0');work=sub(root,'work');sub(work,'work-title',title)
     ident=sub(root,'identification')
     if metadata['composer']:sub(ident,'creator',metadata['composer'],type='composer')
+    if metadata['artist']:sub(ident,'creator',metadata['artist'],type='performer')
     enc=sub(ident,'encoding');sub(enc,'software','Preparação de melodia e cifras — MuseScore Studio')
     defaults=sub(root,'defaults');scale=sub(defaults,'scaling');sub(scale,'millimeters',7);sub(scale,'tenths',40)
     pl=sub(defaults,'page-layout');sub(pl,'page-height',1697.14);sub(pl,'page-width',1200)
@@ -664,7 +669,7 @@ def repair_spacing(final,report,out):
 
 def _apply_native_header(root,metadata):
     score=root.find('Score');staff=score.find('Staff');header=_header_layout(metadata)
-    for name,value in (('workTitle',metadata['title']),('subtitle',metadata['subtitle']),('composer',metadata['composer'])):
+    for name,value in (('workTitle',metadata['title']),('subtitle',metadata['subtitle']),('composer',metadata['composer']),('artist',metadata.get('artist',''))):
         element=score.find(f"metaTag[@name='{name}']")
         if element is None:element=sub(score,'metaTag',name=name)
         element.text=value
@@ -674,6 +679,13 @@ def _apply_native_header(root,metadata):
     height=vbox.find('height')
     if height is None:height=sub(vbox,'height')
     height.text=str(header['height'])
+    if metadata.get('artist'):
+        # Explicit text offsets must reserve a fixed frame: MuseScore's auto
+        # sizing ignores them and can place long credits on the first staff.
+        for name,value in (('boxAutoSize','0'),('sizeIsSpatiumDependent','1')):
+            element=vbox.find(name)
+            if element is None:element=sub(vbox,name)
+            element.text=value
     for role in ('title','subtitle','composer'):
         existing=[text for text in vbox.findall('Text') if text.findtext('style')==role]
         if not header[role]:
@@ -691,6 +703,13 @@ def _apply_native_header(root,metadata):
             offset=text.find('offset')
             if offset is None:offset=E.SubElement(text,'offset')
             offset.set('x','0');offset.set('y',str(header['subtitle_offset']))
+        if role=='composer' and metadata.get('artist'):
+            align=text.find('align')
+            if align is None:align=sub(text,'align')
+            align.text='right,top'
+            offset=text.find('offset')
+            if offset is None:offset=E.SubElement(text,'offset')
+            offset.set('x','0');offset.set('y',str(header['composer_offset']))
         content=text.find('text')
         if content is None:content=sub(text,'text')
         content.clear();content.text=header[role]

@@ -13,13 +13,13 @@ import batch_score as engine
 class ScoreMetadataTests(unittest.TestCase):
     def test_legacy_defaults_and_null_remain_compatible(self):
         title = engine.default_score_title('Norte_ForroAbertura_Show.mid')
-        expected = dict(title='Norte ForroAbertura Show', subtitle=engine.DEFAULT_SCORE_SUBTITLE, composer='')
+        expected = dict(title='Norte ForroAbertura Show', subtitle=engine.DEFAULT_SCORE_SUBTITLE, composer='', artist='')
         self.assertEqual(engine.score_metadata({}, title), expected)
         self.assertEqual(engine.score_metadata(dict(scoreTitle=None, scoreSubtitle=None, scoreComposer=None), title), expected)
 
     def test_empty_title_falls_back_and_empty_other_fields_remove(self):
         self.assertEqual(engine.score_metadata(dict(scoreTitle=' \t', scoreSubtitle='', scoreComposer=' \n'), 'Fonte'),
-                         dict(title='Fonte', subtitle='', composer=''))
+                         dict(title='Fonte', subtitle='', composer='', artist=''))
 
     def test_default_subtitle_follows_inversion_but_explicit_text_is_preserved(self):
         for inversion, label in enumerate(('posição fundamental', '1ª inversão', '2ª inversão')):
@@ -29,7 +29,7 @@ class ScoreMetadataTests(unittest.TestCase):
             self.assertEqual(engine.score_metadata(data, 'Fonte')['subtitle'], 'Meu subtítulo')
 
     def test_invalid_values_rejected_before_generation(self):
-        for field, limit in [('scoreTitle',160), ('scoreSubtitle',200), ('scoreComposer',120)]:
+        for field, limit in [('scoreTitle',160), ('scoreSubtitle',200), ('scoreComposer',120), ('scoreArtist',120)]:
             for value in (False, 12, [], 'x'*(limit+1), 'texto\x00', 'texto\ud800'):
                 with self.subTest(field=field, value=repr(value)), self.assertRaises(ValueError):
                     engine.score_metadata({field:value}, 'Fonte')

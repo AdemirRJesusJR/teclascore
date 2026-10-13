@@ -24,6 +24,7 @@ public partial class MainWindow
             SourceSha256=row.SourceSha256,UseReviewedProfile=row.UseReviewedProfile,AnalysisPath=row.AnalysisPath,Workspace=row.Workspace,
             MelodySources=row.Tracks.Where(t=>t.IsMelody).Select(t=>new SavedSource { Track=t.Source.Key.Track,Channel=t.Source.Key.Channel,Program=t.Source.Key.Program }).ToList(),
             Title=row.ScoreTitle,Subtitle=row.ScoreSubtitle,Composer=row.ScoreComposer,DefaultInversion=row.DefaultDiagramInversion,Inversion=row.DiagramInversion,
+            Artist=row.ScoreArtist,MetadataOrganizationNotice=row.MetadataOrganizationNotice,
             TransposeSemitones=row.TransposeSemitones,KeyFifths=row.KeyFifths,KeyMinor=row.KeyMinor,
             Chords=row.Chords.Select(c=>new SavedChord { Quarter=c.Quarter,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence,DiagramInversion=c.DiagramInversion }).ToList() });
     }
@@ -51,6 +52,7 @@ public partial class MainWindow
         }
         finally{loading=false;}
         row.ScoreTitle=version.Title;row.ScoreSubtitle=version.Subtitle;row.ScoreComposer=version.Composer;
+        row.ScoreArtist=version.Artist;row.MetadataOrganizationNotice=version.MetadataOrganizationNotice;
         row.DefaultDiagramInversion=version.DefaultInversion;row.DiagramInversion=version.Inversion;row.TransposeSemitones=version.TransposeSemitones;
         row.KeyFifths=version.KeyFifths;row.KeyMinor=version.KeyMinor;row.Chords.Clear();
         foreach(var chord in version.Chords)row.Chords.Add(new ChordRow { Quarter=chord.Quarter,Root=chord.Root,Quality=chord.Quality,Confidence=chord.Confidence,DiagramInversion=chord.DiagramInversion });

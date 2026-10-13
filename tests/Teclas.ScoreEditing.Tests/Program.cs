@@ -37,6 +37,18 @@ var metadata = NativeScoreDocument.Inspect(fixture);
 Check(metadata.Title == "Peça & teste" && metadata.Subtitle == "Estudo" && metadata.Composer == "Autor", "Read native Unicode and XML-escaped metadata");
 Check(metadata.NoteCount == 1 && metadata.MeasureCount == 1 && metadata.StaffCount == 1 && metadata.HarmonyCount == 1, "Read native musical inventory");
 Check(metadata.PageWidthMm == 210 && metadata.PageHeightMm == 297, "Convert native page inches to millimetres");
+Check(metadata.Artist == "", "Legacy native metadata leaves the artist empty");
+string artistFixture = WriteFixture("artist-metadata", xml.Replace("<metaTag name=\"composer\">Autor</metaTag>",
+    "<metaTag name=\"composer\">Compositor B</metaTag><metaTag name=\"artist\">Artista A &amp; convidados</metaTag>"));
+var artistMetadata = NativeScoreDocument.Inspect(artistFixture);
+Check(artistMetadata.Artist == "Artista A & convidados" && artistMetadata.Composer == "Compositor B", "Artist and composer metadata stay separate");
+Check(NativeScoreDocument.MusicalFingerprint(artistFixture) == fingerprint, "Artist credit does not change the musical fingerprint");
+string labeledCredits = xml.Replace("<metaTag name=\"composer\">Autor</metaTag>", "")
+    .Replace("</VBox>", "<Text><style>composer</style><text>Intérprete: Artista A<br/>e convidados<br/>Autor: Compositor B<br/>e parceiro</text></Text></VBox>");
+var fallbackCredits = NativeScoreDocument.Inspect(WriteFixture("labeled-credit-fallback", labeledCredits));
+Check(fallbackCredits.Artist == "Artista A e convidados" && fallbackCredits.Composer == "Compositor B e parceiro", "Structured native credit fallback distinguishes performer and composer across wrapped lines");
+var artistOnly = NativeScoreDocument.Inspect(WriteFixture("artist-only-credit", labeledCredits.Replace("<br/>Autor: Compositor B<br/>e parceiro", "")));
+Check(artistOnly.Artist == "Artista A e convidados" && artistOnly.Composer == "", "A performer-only header is never attributed as composition");
 string cosmetic = WriteFixture("cosmetic", xml.Replace("<height>10</height>", "<height>20</height>")
     .Replace("<subtype>line</subtype>", "<subtype>page</subtype>").Replace("<pitch>60</pitch>", "<offset x=\"2\" y=\"3\"/><eid>generated</eid><pitch>60</pitch>"));
 Check(NativeScoreDocument.MusicalFingerprint(cosmetic) == fingerprint, "Presentation and generated IDs do not change the musical fingerprint");
@@ -61,6 +73,8 @@ try { await unavailable.ImproveAsync(fixture, work, new() { MarginMm = double.Na
 catch (ArgumentOutOfRangeException) { checks++; passed.Add("Invalid layout rejected before native export"); }
 try { await unavailable.ImproveAsync(fixture, work, new() { Title = new string('x', 161) }, null, CancellationToken.None); throw new Exception("Oversized title accepted"); }
 catch (InvalidOperationException) { checks++; passed.Add("Oversized metadata rejected without truncating user input"); }
+try { await unavailable.ImproveAsync(fixture, work, new() { Artist = new string('x', 121) }, null, CancellationToken.None); throw new Exception("Oversized artist accepted"); }
+catch (InvalidOperationException) { checks++; passed.Add("Oversized artist rejected before native export"); }
 using (var cancelled = new CancellationTokenSource())
 {
     cancelled.Cancel();
@@ -82,18 +96,20 @@ if (args.Length >= 3)
     var improved = await service.ImproveAsync(source, Path.Combine(work, "edited"), new()
     {
         Title = "Uma partitura com título personalizado, acentuação e símbolos < > & preservados",
-        Subtitle = "Melodia e cifras para estudar no teclado", Composer = "Ademir — revisão de apresentação",
+        Subtitle = "Melodia e cifras para estudar no teclado", Composer = "Ademir — revisão de apresentação", Artist = "Artista de teste",
         MarginMm = 16, TitleFontSize = 20, StaffSpaceMm = 1.75
     }, new Progress<string>(Console.WriteLine), CancellationToken.None);
     Check(improved.MusicalFingerprint == originalFingerprint && NativeScoreDocument.MusicalFingerprint(improved.Path) == originalFingerprint, "Native save preserves the complete musical fingerprint");
     Check(improved.Path != source && File.Exists(improved.Path), "Native revision is published as a new MSCZ copy");
     Check(improved.Metadata.Title.Contains("< > &", StringComparison.Ordinal) && improved.Metadata.Composer == "Ademir — revisão de apresentação", "Edited title and composer survive native MuseScore save");
+    Check(improved.Metadata.Artist == "Artista de teste", "Artist credit survives native MuseScore save independently from composer");
     Check(improved.Metadata.NoteCount == original.NoteCount && improved.Metadata.HarmonyCount == original.HarmonyCount && improved.Metadata.ImageCount == original.ImageCount, "Notes, chords and embedded diagrams remain present");
     Check(improved.PreviewPages.Count > 0 && improved.PreviewPages.All(File.Exists), "All pages of the saved native revision reopen and render");
     byte[] approvedHash = SHA256.HashData(File.ReadAllBytes(improved.Path));
     var second = await service.ImproveAsync(improved.Path, Path.Combine(work, "edited"), new()
     { Subtitle = "", Composer = "" }, null, CancellationToken.None);
     Check(second.Metadata.Title == improved.Metadata.Title && second.Metadata.Subtitle == "" && second.Metadata.Composer == "", "Null preserves title while explicitly empty fields remove subtitle and composer");
+    Check(second.Metadata.Artist == "Artista de teste", "Null artist preserves the existing performer while clearing the composer");
     Check(second.Path != improved.Path && SHA256.HashData(File.ReadAllBytes(improved.Path)).SequenceEqual(approvedHash), "A second revision preserves its approved predecessor");
     Check(second.MusicalFingerprint == originalFingerprint && second.PreviewPages.Count > 0, "A second layout pass preserves music and renders successfully");
     if (original.ImageCount > 0)

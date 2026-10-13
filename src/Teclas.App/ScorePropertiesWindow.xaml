@@ -1,7 +1,7 @@
 <Window x:Class="Teclas.App.ScorePropertiesWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Propriedades da partitura" Width="640" Height="690" MinWidth="560" MinHeight="560"
+        Title="Propriedades da partitura" Width="660" Height="800" MinWidth="560" MinHeight="560"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Icon="Assets/teclas.png"
         Background="{DynamicResource Background}" Foreground="{DynamicResource Ink}"
         FontFamily="Segoe UI" FontSize="13" UseLayoutRounding="True">
@@ -15,8 +15,21 @@
   <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
    <Border Style="{StaticResource Card}" Padding="20" Margin="0,0,4,0">
     <StackPanel>
+     <Border x:Name="MetadataOrganizationNotice" Visibility="Collapsed" Background="{DynamicResource Background}" CornerRadius="8" Padding="12" Margin="0,0,0,18">
+      <TextBlock x:Name="MetadataOrganizationNoticeText" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap"/>
+     </Border>
+     <Border x:Name="MetadataSuggestionPanel" Visibility="Collapsed" Background="{DynamicResource Background}" CornerRadius="8" Padding="12" Margin="0,0,0,18">
+      <StackPanel>
+       <TextBlock Text="Sugestões para organizar o cabeçalho" Foreground="{DynamicResource Ink}" FontWeight="SemiBold"/>
+       <TextBlock x:Name="MetadataSuggestionPreview" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" Margin="0,7,0,10"/>
+       <Button x:Name="ApplyMetadataSuggestionButton" Content="Usar sugestões" Click="ApplyMetadataSuggestionClick" HorizontalAlignment="Left" ToolTip="Aplicar o título e o artista sugeridos. Um autor já preenchido será preservado."/>
+      </StackPanel>
+     </Border>
      <Label Content="Título" Target="{Binding ElementName=ScoreTitleInput}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
      <TextBox x:Name="ScoreTitleInput" MaxLength="160" Margin="0,7,0,18" AutomationProperties.Name="Título da partitura"/>
+     <Label Content="Artista / intérprete" Target="{Binding ElementName=ScoreArtistInput}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
+     <TextBox x:Name="ScoreArtistInput" MaxLength="120" Margin="0,7,0,6" AutomationProperties.Name="Artista ou intérprete"/>
+     <TextBlock Text="Quem interpreta a música. A autoria pode ser de outra pessoa." Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,18"/>
      <Label Content="Subtítulo" Target="{Binding ElementName=ScoreSubtitleInput}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
      <TextBox x:Name="ScoreSubtitleInput" MaxLength="200" TextChanged="SubtitleChanged" Margin="0,7,0,10" AutomationProperties.Name="Subtítulo da partitura"/>
      <CheckBox x:Name="AutomaticSubtitleCheck" Content="Subtítulo automático conforme os diagramas" Checked="AutomaticSubtitleChanged" Unchecked="AutomaticSubtitleChanged" FontSize="12" Margin="0,0,0,18"/>
@@ -32,7 +45,7 @@
    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
    <TextBlock x:Name="PropertiesValidationMessage" Foreground="{DynamicResource Error}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,10"/>
    <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-    <TextBlock Text="Subtítulo e autor podem ficar vazios." Style="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center" Margin="0,0,14,0"/>
+    <TextBlock Text="Artista, subtítulo e autor são opcionais." Style="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center" Margin="0,0,14,0"/>
     <Button x:Name="CancelPropertiesButton" Grid.Column="1" Content="Cancelar" IsCancel="True" MinWidth="90" Margin="0,0,10,0"/>
     <Button x:Name="SavePropertiesButton" Grid.Column="2" Content="Aplicar e atualizar" IsDefault="True" Click="SavePropertiesClick" Style="{StaticResource PrimaryButton}" MinWidth="160"/>
    </Grid>

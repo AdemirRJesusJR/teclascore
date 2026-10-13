@@ -94,12 +94,13 @@ public sealed class Settings
                 version.MelodySources ??= []; version.Chords ??= [];
                 version.MelodySources=version.MelodySources.Where(source=>source is not null).ToList();
                 version.Chords=version.Chords.Where(chord=>chord is not null && double.IsFinite(chord.Quarter) && double.IsFinite(chord.Confidence)).ToList();
-                version.Title ??= "";version.Composer ??= "";
+                version.Title ??= "";version.Composer ??= "";version.Artist ??= "";version.MetadataOrganizationNotice ??= "";
                 version.DefaultInversion=NormalizeDiagramInversion(version.DefaultInversion);
                 if(version.Inversion is <0 or >2)version.Inversion=null;
                 version.TransposeSemitones=Math.Clamp(version.TransposeSemitones,-12,12);
             }
             row.DefaultDiagramInversion = NormalizeDiagramInversion(row.DefaultDiagramInversion);
+            row.MetadataOrganizationNotice ??= "";
             if (row.DiagramInversion is < 0 or > 2) row.DiagramInversion = null;
             row.MelodySources ??= []; row.Chords ??= [];
             row.MelodySources = row.MelodySources.Where(source => source is not null).ToList();
@@ -170,6 +171,8 @@ public sealed class SavedMidi
     public string? ScoreTitle { get; set; }
     public string? ScoreSubtitle { get; set; }
     public string? ScoreComposer { get; set; }
+    public string? ScoreArtist { get; set; }
+    public string MetadataOrganizationNotice { get; set; } = "";
     public int DefaultDiagramInversion { get; set; } = 2;
     public int? DiagramInversion { get; set; }
     public bool HasPendingScoreProperties { get; set; }
@@ -204,6 +207,8 @@ public sealed class SavedScoreVersion
     public string Title { get; set; } = "";
     public string? Subtitle { get; set; }
     public string Composer { get; set; } = "";
+    public string Artist { get; set; } = "";
+    public string MetadataOrganizationNotice { get; set; } = "";
     public int DefaultInversion { get; set; } = 2;
     public int? Inversion { get; set; }
     public int TransposeSemitones { get; set; }

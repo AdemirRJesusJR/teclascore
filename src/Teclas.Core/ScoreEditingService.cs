@@ -11,6 +11,7 @@ public sealed record ScoreLayoutOptions
     public string? Title { get; init; }
     public string? Subtitle { get; init; }
     public string? Composer { get; init; }
+    public string? Artist { get; init; }
     public double MarginMm { get; init; } = 14;
     public double StaffSpaceMm { get; init; } = 1.75;
     public double MinimumSystemDistance { get; init; } = 12;
@@ -128,6 +129,7 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
     private static void ApplyHeader(NativeScoreArchive document, ScoreLayoutOptions options, double printableMm)
     {
         var score = document.Score;
+        var originalMetadata = document.Metadata;
         var staff = score.Elements("Staff").FirstOrDefault() ?? throw new InvalidDataException("A partitura não possui uma pauta editável.");
         var frame = staff.Elements("VBox").FirstOrDefault();
         if (frame is null)
@@ -137,8 +139,7 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
         foreach (var (role, metadata, value, size, maximum) in new[]
         {
             ("title", "workTitle", options.Title, options.TitleFontSize, 160),
-            ("subtitle", "subtitle", options.Subtitle, options.SubtitleFontSize, 200),
-            ("composer", "composer", options.Composer, options.ComposerFontSize, 120)
+            ("subtitle", "subtitle", options.Subtitle, options.SubtitleFontSize, 200)
         })
         {
             var texts = frame.Elements("Text").Where(e => (string?)e.Element("style") == role).ToArray();
@@ -159,6 +160,24 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
             }
             foreach (var text in texts) { Set(text, "size", size); Set(text, "family", "Edwin"); }
         }
+        if (options.Composer is not null || options.Artist is not null)
+        {
+            string composerValue = options.Composer is null ? originalMetadata.Composer : NormalizeText(options.Composer, 120);
+            string artistValue = options.Artist is null ? originalMetadata.Artist : NormalizeText(options.Artist, 120);
+            foreach (var (name, value) in new[] { ("composer", composerValue), ("artist", artistValue) })
+            {
+                var tag = score.Elements("metaTag").FirstOrDefault(e => (string?)e.Attribute("name") == name);
+                if (tag is null) { tag = new XElement("metaTag", new XAttribute("name", name)); score.AddFirst(tag); }
+                tag.Value = value;
+            }
+            foreach (var previous in frame.Elements("Text").Where(e => (string?)e.Element("style") == "composer").ToArray()) previous.Remove();
+            int columns = Math.Max(18, (int)(printableMm / (options.ComposerFontSize * 25.4 / 72 * .58)));
+            string credits = artistValue.Length == 0 ? Wrap(composerValue, columns)
+                : Wrap("Intérprete: " + artistValue, columns) + (composerValue.Length == 0 ? "" : "\n" + Wrap("Autor: " + composerValue, columns));
+            if (credits.Length > 0) frame.Add(new XElement("Text", new XElement("style", "composer"), new XElement("text", credits)));
+        }
+        foreach (var text in frame.Elements("Text").Where(e => (string?)e.Element("style") == "composer"))
+        { Set(text, "size", options.ComposerFontSize); Set(text, "family", "Edwin"); }
         var title = frame.Elements("Text").FirstOrDefault(e => (string?)e.Element("style") == "title");
         var subtitle = frame.Elements("Text").FirstOrDefault(e => (string?)e.Element("style") == "subtitle");
         var composer = frame.Elements("Text").FirstOrDefault(e => (string?)e.Element("style") == "composer");
@@ -216,11 +235,12 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
         if (options.Title is not null) NormalizeText(options.Title, 160);
         if (options.Subtitle is not null) NormalizeText(options.Subtitle, 200);
         if (options.Composer is not null) NormalizeText(options.Composer, 120);
+        if (options.Artist is not null) NormalizeText(options.Artist, 120);
     }
 
     private static void ValidateMetadata(NativeScoreMetadata actual, NativeScoreMetadata expected)
     {
-        if (actual.Title != expected.Title || actual.Subtitle != expected.Subtitle || actual.Composer != expected.Composer)
+        if (actual.Title != expected.Title || actual.Subtitle != expected.Subtitle || actual.Composer != expected.Composer || actual.Artist != expected.Artist)
             throw new InvalidDataException("O MuseScore não preservou o cabeçalho solicitado. A revisão não foi publicada.");
     }
 

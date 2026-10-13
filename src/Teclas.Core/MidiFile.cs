@@ -12,10 +12,12 @@ public record SourceKey(int Track,int Channel,int Program);
 public record MidiSource(SourceKey Key,string Name,int Count,int Minimum,int Maximum,int DistinctPitches,double SimultaneousFraction,string Hint);
 public record MidiTempoChange(long Tick,int MicrosecondsPerQuarter,int Track=0,int Order=0);
 public record MidiChannelEvent(long Tick,int Track,int Order,int Channel,int Kind,int Data1,int Data2);
+public record MidiTextEvent(long Tick,int Track,int Type,string Text);
 public record MidiDocument(string Path,string Sha256,int Format,int Ppq,IReadOnlyList<MidiNote> Notes,IReadOnlyList<MidiSource> Sources,IReadOnlyList<string> Warnings)
 {
     public IReadOnlyList<MidiTempoChange> TempoChanges { get; init; } = [];
     public IReadOnlyList<MidiChannelEvent> ChannelEvents { get; init; } = [];
+    public IReadOnlyList<MidiTextEvent> TextEvents { get; init; } = [];
     public long EndTick { get; init; }
     public bool HasSystemExclusive { get; init; }
 }
@@ -50,7 +52,7 @@ public static class MidiReader
         Need(header);int format=U16(), declared=U16(), ppq=U16();pos+=header-6;
         if(format>1)throw new InvalidDataException("MIDI tipo 2 precisa ser dividido em músicas independentes.");
         if(ppq==0 || (ppq&0x8000)!=0)throw new InvalidDataException("Este MIDI usa tempo SMPTE ou uma resolução inválida; é necessário MIDI com tempo musical PPQ.");
-        var events=new List<Event>();var tempos=new List<MidiTempoChange>();bool hasSysEx=false;var names=new Dictionary<int,string>();var warnings=new List<string>();int track=0;long last=0;
+        var events=new List<Event>();var tempos=new List<MidiTempoChange>();var textEvents=new List<MidiTextEvent>();bool hasSysEx=false;var names=new Dictionary<int,string>();var warnings=new List<string>();int track=0;long last=0;
         while(pos+8<=bytes.Length)
         {
             if(track>=declared && Encoding.ASCII.GetString(bytes,pos,4)!="MTrk")break;
@@ -66,7 +68,12 @@ public static class MidiReader
                 if(status==255)
                 {
                     int type=Byte(), len=Vlq();if(len>end-pos)throw new InvalidDataException("Metaevento MIDI truncado.");
-                    if(type==3)names[track]=Encoding.UTF8.GetString(bytes,pos,len).Trim('\0','\r','\n');
+                    if(type is 1 or 2 or 3)
+                    {
+                        string value=DecodeText(bytes.AsSpan(pos,len));
+                        if(type==3)names[track]=value.Trim('\0','\r','\n');
+                        if(textEvents.Count<256 && value.Length>0)textEvents.Add(new(tick,track,type,value));
+                    }
                     if(type==0x51)
                     {
                         if(len==3 && (bytes[pos]|bytes[pos+1]|bytes[pos+2])!=0)
@@ -113,10 +120,29 @@ public static class MidiReader
         return new(path,Convert.ToHexStringLower(SHA256.HashData(original)),format,ppq,notes,sources,warnings)
         {
             TempoChanges=tempos.OrderBy(t=>t.Tick).ThenBy(t=>t.Track).ThenBy(t=>t.Order).ToArray(),
+            TextEvents=textEvents.ToArray(),
             ChannelEvents=events.Where(e=>e.Kind is >=10 and <=14).OrderBy(e=>e.Tick).ThenBy(e=>e.Track).ThenBy(e=>e.Order)
                 .Select(e=>new MidiChannelEvent(e.Tick,e.Track,e.Order,e.Channel,e.Kind,e.A,e.B)).ToArray(),
             EndTick=last,HasSystemExclusive=hasSysEx
         };
+    }
+    private static string DecodeText(ReadOnlySpan<byte> bytes)
+    {
+        var characters=new char[2048];
+        try
+        {
+            new UTF8Encoding(false,true).GetDecoder().Convert(bytes,characters,true,out _,out int used,out _);
+            return new string(characters,0,used).Trim('\0');
+        }
+        catch(DecoderFallbackException)
+        {
+            // Older karaoke files commonly use Windows-1252. Keep Latin-1 letters and
+            // decode the printable 0x80–0x9f characters without a code-page dependency.
+            const string windows1252="€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008dŽ\u008f\u0090‘’“”•–—˜™š›œ\u009džŸ";
+            int count=Math.Min(bytes.Length,characters.Length);
+            for(int i=0;i<count;i++)characters[i]=bytes[i] is >=0x80 and <=0x9f?windows1252[bytes[i]-0x80]:(char)bytes[i];
+            return new string(characters,0,count).Trim('\0');
+        }
     }
     public static string NoteName(int pitch)=>new[]{"C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"}[pitch%12]+(pitch/12-1);
 }

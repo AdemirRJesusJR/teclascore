@@ -6,7 +6,7 @@ namespace Teclas.App;
 
 public sealed class NativeLayoutWindow : Window
 {
-    private readonly TextBox title,subtitle,composer;
+    private readonly TextBox title,subtitle,artist,composer;
     private readonly ComboBox preset;
     private readonly CheckBox redistribute;
     private readonly NativeScoreMetadata initial;
@@ -15,6 +15,7 @@ public sealed class NativeLayoutWindow : Window
         Title=title.Text.Trim()==initial.Title?null:title.Text.Trim(),
         Subtitle=subtitle.Text.Trim()==initial.Subtitle?null:subtitle.Text.Trim(),
         Composer=composer.Text.Trim()==initial.Composer?null:composer.Text.Trim(),
+        Artist=artist.Text.Trim()==initial.Artist?null:artist.Text.Trim(),
         MarginMm=preset.SelectedIndex==2?12:16,
         StaffSpaceMm=preset.SelectedIndex==1?2.0:preset.SelectedIndex==2?1.6:1.75,
         MinimumSystemDistance=preset.SelectedIndex==1?14:12,
@@ -23,11 +24,12 @@ public sealed class NativeLayoutWindow : Window
     public NativeLayoutWindow(NativeScoreMetadata metadata)
     {
         initial=metadata;
-        Title="Melhorar apresentação";Width=540;Height=650;MinWidth=450;MinHeight=500;DialogUi.Theme(this);
+        Title="Melhorar apresentação";Width=540;Height=720;MinWidth=450;MinHeight=500;DialogUi.Theme(this);
         var panel=new StackPanel{Margin=new(24)};Content=new ScrollViewer{Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};
         panel.Children.Add(new TextBlock{Text="Uma nova cópia, pronta para revisar",FontSize=22,FontWeight=FontWeights.SemiBold,TextWrapping=TextWrapping.Wrap});
         title=DialogUi.Field(panel,"Título",metadata.Title,160);
         subtitle=DialogUi.Field(panel,"Subtítulo",metadata.Subtitle,200);
+        artist=DialogUi.Field(panel,"Artista / intérprete",metadata.Artist,120);
         composer=DialogUi.Field(panel,"Autor / compositor",metadata.Composer,120);
         panel.Children.Add(new TextBlock{Text="Apresentação",Margin=new(0,16,0,6)});
         preset=new ComboBox{ItemsSource=new[]{"Padrão — margens equilibradas","Leitura confortável — pautas maiores","Compacta — pautas menores"},SelectedIndex=0};panel.Children.Add(preset);

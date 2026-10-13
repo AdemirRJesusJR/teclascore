@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.8.0 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, edita as propriedades do cabeçalho, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.9.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
 
@@ -26,9 +26,15 @@ A aba de cifras aceita inclusão e exclusão de linhas. A posição é medida em
 
 ## Propriedades da partitura e diagramas
 
-Na aba Prévia, abra “Propriedades da partitura” para editar título, subtítulo, autor e inversão. “Aplicar e atualizar” salva as propriedades, gera um novo arquivo e recarrega a prévia automaticamente. O MIDI deve estar disponível e a melodia precisa estar escolhida ou ter uma revisão aprovada. Se ainda faltar essa preparação, as propriedades ficam salvas para a próxima geração. Cancelar descarta as alterações da janela.
+Ao importar um MIDI, o app organiza o cabeçalho automaticamente. Por exemplo, **Roberto Carlos - Luz divina (karaoplay.com).mid** preenche **Título: Luz divina**, **Artista/intérprete: Roberto Carlos** e deixa o compositor vazio quando não houver informação explícita. Nomes de sites, espaços extras, underscores e etiquetas finais de MIDI/karaokê são removidos; edições como “Ao vivo”, “Acústico” e números musicais são mantidos.
 
-O título vazio usa o nome do MIDI. Subtítulo e autor podem ficar vazios. Com o subtítulo automático habilitado, seu texto acompanha a inversão; um texto personalizado permanece como você escreveu. Cabeçalhos longos recebem espaço adicional e podem aumentar o número de páginas. Os limites são 160 caracteres para título, 200 para subtítulo e 120 para autor.
+O organizador funciona localmente, sem consultas à internet. Usa campos explícitos do MIDI quando disponíveis e padrões no nome do arquivo ou cabeçalho karaoke. Ignora nomes de instrumentos, copyright, programadores de MIDI e letras como fontes de autoria. Uma sugestão baseada em convenções de nomes pode precisar de revisão; a janela informa sua origem. Compositor é preenchido somente quando identificado em um campo declarado, nunca apenas por ser o artista. Textos excessivamente longos recebem uma sugestão abreviada, mantendo o arquivo original intacto.
+
+Na aba Prévia, abra “Propriedades da partitura” para editar título, artista, subtítulo, autor e inversão. “Aplicar e atualizar” salva as propriedades, gera um novo arquivo e recarrega a prévia automaticamente. O MIDI deve estar disponível e a melodia precisa estar escolhida ou ter uma revisão aprovada. Se ainda faltar essa preparação, as propriedades ficam salvas para a próxima geração. Cancelar descarta as alterações da janela.
+
+Partituras já presentes na biblioteca mantêm os dados salvos. Nas Propriedades, **Usar sugestões** apresenta uma proposta para organizar itens antigos, preservando o autor/compositor preenchido e o subtítulo manual. As correções do usuário não são refeitas ao reabrir ou reimportar o mesmo arquivo. O Histórico guarda artista e compositor separadamente; a busca também encontra o artista. O nome físico do MIDI permanece intacto.
+
+O título vazio usa a sugestão organizada para o MIDI. Artista, subtítulo e autor podem ficar vazios. Com o subtítulo automático habilitado, seu texto acompanha a inversão; um texto personalizado permanece como você escreveu. Cabeçalhos longos recebem espaço adicional e podem aumentar o número de páginas. Os limites são 160 caracteres para título, 200 para subtítulo e 120 para artista ou autor. Quando informado, o artista aparece como “Intérprete” no cabeçalho, separado da autoria; ambos são guardados em campos distintos no MuseScore.
 
 Em Configurações, escolha posição fundamental, 1ª inversão ou 2ª inversão como padrão. O padrão inicial continua sendo a 2ª inversão. A escolha vale para os MIDIs importados depois da mudança; os itens existentes mantêm o padrão adotado quando entraram na biblioteca. Nas propriedades, “Padrão adotado” usa essa escolha original, e uma inversão explícita altera somente a partitura selecionada. A mudança afeta os diagramas, preservando as notas da melodia e as cifras.
 

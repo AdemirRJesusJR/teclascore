@@ -1,3 +1,20 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.9.0
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 56 verificações de leitura MIDI e organização de metadados: padrões de nomes, domínios, versões, números, campos explícitos, ambiguidades, UTF-8/Windows-1252, limites de tamanho e preservação das notas.
+- Arquivo real Roberto Carlos - Luz divina (karaoplay.com): título Luz divina, artista Roberto Carlos e compositor vazio; 7.911 notas preservadas e hash do original intacto.
+- 85 verificações de persistência, incluindo artista separado de compositor, histórico, campos vazios e compatibilidade com dados antigos.
+- 40 testes Python, incluindo artista no protocolo, metadados, tamanho do cabeçalho, validação e compatibilidade com compositor legado.
+- 20 verificações WPF do fluxo real de importação/análise/geração: preenchimento automático, navegação, busca, MSCZ, reimportação, edições manuais, histórico e origem desconectada/reconectada.
+- 17 verificações do diálogo de Propriedades, com imagens nos temas Grafite e Azul claro e janela compacta; sugestões não sobrescrevem automaticamente campos existentes.
+- Duas gerações de uma fixture musical com artista, inclusive créditos longos, reabertas no MuseScore: 64 ataques preservados em cada uma; cabeçalho e primeira pauta inspecionados sem sobreposição.
+- 38 verificações de leitura e edição nativa MuseScore, incluindo artista/compositor separados, limpeza de campos, preservação musical e imagens. Outras 11 verificações específicas de artista passaram em três cópias nativas.
+- Originais, configurações reais e saídas anteriores preservados. A geração integral pela interface usa uma cópia isolada de Norte com nome de teste; não atribui essa melodia à canção Luz divina.
+
+O organizador sugere informações conforme padrões do arquivo e metadados declarados; não consulta um catálogo de autoria. Nomes ambíguos e informações internas incorretas podem exigir ajustes. Áudio/PDF não foram alterados; as verificações anteriores permanecem abaixo.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.8.0
 13/10/2026
 

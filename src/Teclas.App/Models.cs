@@ -34,6 +34,9 @@ public sealed class MidiRow : Observable
     public string? ScoreSubtitle{get=>scoreSubtitle;set=>Set(ref scoreSubtitle,value);}
     private string scoreComposer="";
     public string ScoreComposer{get=>scoreComposer;set=>Set(ref scoreComposer,value??"");}
+    private string scoreArtist="";
+    public string ScoreArtist{get=>scoreArtist;set=>Set(ref scoreArtist,value??"");}
+    public string MetadataOrganizationNotice{get;set;}="";
     public int DefaultDiagramInversion{get;set;}=2;
     private int? diagramInversion;
     public int? DiagramInversion{get=>diagramInversion;set{if(Set(ref diagramInversion,value))Notify(nameof(EffectiveDiagramInversion));}}

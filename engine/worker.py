@@ -73,7 +73,7 @@ def main():
     if hashlib.sha256(source.read_bytes()).hexdigest()!=data['sha256']:raise ValueError('O MIDI mudou após a análise. Analise novamente.')
     if str(source)!=data['source']:raise ValueError('A análise pertence a outro MIDI.')
     config=copy.deepcopy(data['config']);harmony=data['harmony'];edited=req.get('chords')
-    for field in ('scoreTitle','scoreSubtitle','scoreComposer'):
+    for field in ('scoreTitle','scoreSubtitle','scoreArtist','scoreComposer'):
         if field in req:config[field]=req[field]
     config['diagram_inversion']=engine.diagram_inversion(req.get('diagramInversion'))
     config['transpose_semitones']=engine.transpose_semitones(req.get('transposeSemitones'))

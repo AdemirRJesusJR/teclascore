@@ -108,6 +108,9 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         MidiDocument document=MidiReader.Read(path);
         var profile=profiles[document.Sha256]?.AsObject();
         var row=new MidiRow{FullPath=Path.GetFullPath(path),DefaultDiagramInversion=settings.DefaultDiagramInversion,Document=document,Profile=profile,UseReviewedProfile=profile?["config"]?["status"]?.GetValue<string>()=="ready"};
+        var header=ScoreMetadataOrganizer.Suggest(row.FullPath,document.TextEvents);
+        row.ScoreTitle=header.Title;row.ScoreArtist=header.Artist;row.ScoreComposer=header.Composer;
+        row.MetadataOrganizationNotice=header.Explanation;
         row.Status=row.HasReviewedProfile?"Perfil musical revisado":profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Sem melodia completa","partial_melody"=>"Somente melodia parcial",_=>"Escolha a pista de melodia"};
         var keys=profile?["config"]?["melody_sources"]?.AsArray().Select(s=>new SourceKey(s!["track"]!.GetValue<int>(),s["channel"]!.GetValue<int>(),s["program"]!.GetValue<int>())).ToHashSet()??[];
         foreach(var source in document.Sources)
@@ -222,6 +225,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=OutputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords,["scoreTitle"]=row.ScoreTitle,["scoreSubtitle"]=row.ScoreSubtitle,["scoreComposer"]=row.ScoreComposer,["diagramInversion"]=row.EffectiveDiagramInversion};
         row.Status="Gerando e conferindo no MuseScore…";
         request["transposeSemitones"]=row.TransposeSemitones;
+        request["scoreArtist"]=row.ScoreArtist;
         var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace,new Progress<string>(text=>Status=text),cancellation!.Token);
         row.ScorePath=result["scorePath"]!.GetValue<string>();row.PreviewPath=result["previewPath"]!.GetValue<string>();
         row.PageCount=result["pages"]!.GetValue<int>();row.GeneratedAt=DateTimeOffset.Now;row.HasOperationError=false;row.HasPendingScoreProperties=false;

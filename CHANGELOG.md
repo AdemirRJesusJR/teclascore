@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.9.0 — 13/10/2026
+
+- Importação de MIDI organiza automaticamente título, artista e autoria declarada a partir do nome do arquivo e dos metadados internos.
+- Limpeza de domínios como karaoplay.com, espaços, underscores e etiquetas técnicas; versões musicais e números significativos são preservados.
+- Artista/intérprete separado de autor/compositor na interface, na partitura e nos metadados MuseScore. Um artista identificado não é considerado compositor automaticamente.
+- Propriedades oferecem sugestões para itens antigos; alterações manuais são preservadas ao reimportar, reabrir e restaurar o Histórico.
+- Créditos longos recebem espaço no cabeçalho; leitura e melhoria de arquivos MuseScore preservam artista e compositor separadamente.
+
 ## 0.8.0 — 13/10/2026
 
 - Janela Posições dos diagramas para escolher posição fundamental, 1ª ou 2ª inversão por ocorrência de acorde, com atualização automática da partitura.

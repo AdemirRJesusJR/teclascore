@@ -104,6 +104,7 @@ try
 
     MetadataChecks.Run(folder, Check);
     CustomDiagramChecks.Run(folder, Check);
+    ArtistMetadataChecks.Run(folder, Check);
     Console.WriteLine($"PASS: {checks} persistence checks");
 }
 finally

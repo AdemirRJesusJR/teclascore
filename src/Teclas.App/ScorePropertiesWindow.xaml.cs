@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using Teclas.Core;
 
 namespace Teclas.App;
 
@@ -14,6 +15,8 @@ public partial class ScorePropertiesWindow : Window
     private bool updatingSubtitle;
     private bool automaticSubtitle;
     private int?[] customPositions=[];
+    private ScoreMetadataSuggestion? metadataSuggestion;
+    private string organizationNotice = "";
     public void SetCustomDiagramPositions(IEnumerable<int?> positions)
     {
         customPositions=positions.ToArray();
@@ -23,14 +26,21 @@ public partial class ScorePropertiesWindow : Window
     public string TitleValue => ScoreTitleInput.Text.Trim();
     public string? SubtitleValue => automaticSubtitle ? null : ScoreSubtitleInput.Text.Trim();
     public string ComposerValue => ScoreComposerInput.Text.Trim();
+    public string ArtistValue => ScoreArtistInput.Text.Trim();
+    public bool UsedMetadataSuggestion { get; private set; }
+    public string OrganizationNoticeValue => organizationNotice;
     public int? InversionOverride => DiagramInversionCombo.SelectedValue is int value && value is >= 0 and <= 2 ? value : null;
 
-    public ScorePropertiesWindow(string title, string? subtitle, string composer, int? diagramInversionOverride, int defaultInversion)
+    public ScorePropertiesWindow(string title, string? subtitle, string composer, int? diagramInversionOverride, int defaultInversion,
+        string artist = "", string organizationNotice = "")
     {
         this.defaultInversion = Math.Clamp(defaultInversion, 0, 2);
         InitializeComponent();
         ScoreTitleInput.Text = title;
         ScoreComposerInput.Text = composer;
+        ScoreArtistInput.Text = artist;
+        this.organizationNotice = organizationNotice;
+        SetOrganizationNotice(organizationNotice);
         DiagramInversionCombo.ItemsSource = new[]
         {
             new InversionChoice(-1, $"Padrão adotado ({InversionName(this.defaultInversion)})"),
@@ -47,6 +57,40 @@ public partial class ScorePropertiesWindow : Window
         Activated += (_, _) => ApplyNativeTheme();
         Deactivated += (_, _) => ApplyNativeTheme();
         Loaded += (_, _) => ScoreTitleInput.Focus();
+    }
+
+    public void ConfigureMetadataSuggestion(ScoreMetadataSuggestion suggestion)
+    {
+        metadataSuggestion = suggestion;
+        var details = new List<string>();
+        if (!string.IsNullOrWhiteSpace(suggestion.Title)) details.Add($"Título: {suggestion.Title}");
+        if (!string.IsNullOrWhiteSpace(suggestion.Artist)) details.Add($"Artista: {suggestion.Artist}");
+        if (string.IsNullOrWhiteSpace(ComposerValue) && !string.IsNullOrWhiteSpace(suggestion.Composer))
+            details.Add($"Autor: {suggestion.Composer}");
+        if (!string.IsNullOrWhiteSpace(suggestion.Explanation)) details.Add(suggestion.Explanation);
+        if (!string.IsNullOrWhiteSpace(ComposerValue)) details.Add("O autor preenchido será preservado.");
+        MetadataSuggestionPreview.Text = string.Join(Environment.NewLine, details);
+        MetadataSuggestionPanel.Visibility = Visibility.Visible;
+    }
+
+    private void ApplyMetadataSuggestionClick(object sender, RoutedEventArgs e)
+    {
+        if (metadataSuggestion is not {} suggestion) return;
+        if (!string.IsNullOrWhiteSpace(suggestion.Title)) ScoreTitleInput.Text = suggestion.Title;
+        if (!string.IsNullOrWhiteSpace(suggestion.Artist)) ScoreArtistInput.Text = suggestion.Artist;
+        if (string.IsNullOrWhiteSpace(ComposerValue) && !string.IsNullOrWhiteSpace(suggestion.Composer))
+            ScoreComposerInput.Text = suggestion.Composer;
+        MetadataSuggestionPanel.Visibility = Visibility.Collapsed;
+        UsedMetadataSuggestion = true;
+        organizationNotice = suggestion.Explanation;
+        SetOrganizationNotice("Sugestões aplicadas. Confira o cabeçalho e clique em Aplicar e atualizar para salvar.");
+        PropertiesValidationMessage.Visibility = Visibility.Collapsed;
+    }
+
+    private void SetOrganizationNotice(string notice)
+    {
+        MetadataOrganizationNoticeText.Text = notice;
+        MetadataOrganizationNotice.Visibility = string.IsNullOrWhiteSpace(notice) ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private static string InversionName(int value) => value switch
@@ -87,9 +131,9 @@ public partial class ScorePropertiesWindow : Window
 
     private void SavePropertiesClick(object sender, RoutedEventArgs e)
     {
-        if (TitleValue.Length > 160 || (SubtitleValue?.Length ?? 0) > 200 || ComposerValue.Length > 120)
+        if (TitleValue.Length > 160 || (SubtitleValue?.Length ?? 0) > 200 || ComposerValue.Length > 120 || ArtistValue.Length > 120)
         {
-            PropertiesValidationMessage.Text = "Use até 160 caracteres no título, 200 no subtítulo e 120 no autor.";
+            PropertiesValidationMessage.Text = "Use até 160 caracteres no título, 200 no subtítulo e 120 no artista e no autor.";
             PropertiesValidationMessage.Visibility = Visibility.Visible;
             return;
         }
