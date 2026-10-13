@@ -1,3 +1,20 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.14.0
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 70 verificações do motor de arranjos passaram, incluindo 11 de preparação/publicação com MuseScore real: redução exata, vozes e pautas independentes, estruturas protegidas, cabeçalho, recursos, origem intacta, cancelamento e rejeição de plano/MSCZ/PNG alterados.
+- 131 verificações independentes passaram com 12 planos e quatro publicações reais. Níveis intermediário e iniciante comparados em partitura polifônica e amostra de três instrumentos; edição posterior e PDF preservaram as informações do arranjo.
+- A inspeção geométrica identificou colisões após simplificação rítmica de Luz divina. A versão final preserva ritmo e ornamentos quando há imagens/diagramas; Luz informa ausência de mudanças seguras e não permite criar uma cópia redundante.
+- Geometria final das amostras: três instrumentos, original e ambos os níveis, sem colisões ou cortes; nomes mantidos no PDF. As seis páginas originais de Luz divina, com 158 diagramas, continuam intactas e sem colisões ou cortes.
+- 37 verificações WPF do diálogo passaram: opções, invalidação, comparação, progresso, cancelamento, falhas, fechamento e controles. Temas claro/escuro e tamanho mínimo conferidos. Outras 20 verificações da interface com páginas reais confirmaram o caso sem mudanças e a comparação do arranjo de três fontes.
+- 66 verificações da integração Biblioteca/Histórico e 113 de persistência passaram: identificação do arranjo, restauração do original, reabertura com MIDI ausente ou alterado, compatibilidade com sessões antigas e proteção contra regeneração acidental.
+- Seis verificações de apresentação de um arranjo salvo passaram: alteração de título/margem, páginas, metadados do nível, conteúdo musical e reabertura no editor.
+- Dashboard renderizado com versão 0.14.0 e sem avisos de binding. Testes e capturas usaram sessões e saídas isoladas; originais e configurações reais preservados.
+
+Os perfis são regras conservadoras aplicadas a uma pauta/voz e não uma classificação pedagógica certificada. Algumas partituras já monofônicas ou com estruturas protegidas não terão alterações propostas. Com imagens/diagramas, remover ataques ou ornamentos fica desabilitado para preservar o espaçamento; reduções de notas simultâneas continuam disponíveis quando seguras. Toda proposta requer conferência musical e visual. A reprodução inclui a partitura inteira. As amostras validadas não certificam o layout de todos os arquivos MuseScore possíveis.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.13.1
 13/10/2026
 

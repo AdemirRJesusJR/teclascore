@@ -24,7 +24,7 @@ public partial class MainWindow
     public bool CanEditScoreProperties => IsIdle && selectedFile is {} row
         && (!row.UsesNativeScoreWorkflow || File.Exists(row.ScorePath));
     public string ScorePropertiesSummary => selectedFile is { } row
-        ? row.ScoreTitle + (string.IsNullOrWhiteSpace(row.ScoreArtist)?"":" · "+row.ScoreArtist) + " · " + (row.UsesNativeScoreWorkflow ? (row.HasMusicalEdits ? "Edição musical · apresentação e metadados" : "MuseScore · apresentação e metadados") : (row.Chords.Any(c=>c.DiagramInversion is not null)?"Diagramas personalizados · padrão: ":"") + ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion) + $" · transposição {row.TransposeSemitones:+0;-0;0}")
+        ? row.ScoreTitle + (string.IsNullOrWhiteSpace(row.ScoreArtist)?"":" · "+row.ScoreArtist) + " · " + (row.UsesNativeScoreWorkflow ? (!string.IsNullOrEmpty(row.ArrangementSummary) ? row.ArrangementSummary : row.HasMusicalEdits ? "Edição musical · apresentação e metadados" : "MuseScore · apresentação e metadados") : (row.Chords.Any(c=>c.DiagramInversion is not null)?"Diagramas personalizados · padrão: ":"") + ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion) + $" · transposição {row.TransposeSemitones:+0;-0;0}")
           + (row.HasPendingScoreProperties ? " · atualização pendente" : "")
         : "Título, artista, subtítulo, autor e inversão dos diagramas.";
 

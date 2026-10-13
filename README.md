@@ -1,8 +1,8 @@
 # TeclaScore
 
-Versão 0.13.1 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.14.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
-A versão 0.13.1 identifica automaticamente o instrumento na entrada e nas trocas de fonte da melodia combinada. A versão 0.13.0 acrescenta uma fila persistente de conversões MIDI, com retomada após interrupção ou falha, e combina várias pistas em uma única pauta com prioridade ajustável. A versão 0.12.0 acrescentou um editor musical com rascunho, desfazer/refazer, prévia, reprodução e salvamento em nova versão. A versão anterior trouxe sugestões de melodia com trechos para comparar, justificativas e alternativas de cifras, e diagnóstico estrutural de partituras MuseScore por pauta, compasso e voz. O painel de progresso continua acompanhando a preparação, análise e geração.
+A versão 0.14.0 acrescenta arranjos por nível para partituras geradas de MIDI e arquivos MuseScore importados, com mudanças explicadas, comparação e salvamento em nova versão. A versão 0.13.1 identifica automaticamente o instrumento na entrada e nas trocas de fonte da melodia combinada. A versão 0.13.0 acrescenta uma fila persistente de conversões MIDI, com retomada após interrupção ou falha, e combina várias pistas em uma única pauta com prioridade ajustável. A versão 0.12.0 acrescentou um editor musical com rascunho, desfazer/refazer, prévia, reprodução e salvamento em nova versão. A versão anterior trouxe sugestões de melodia com trechos para comparar, justificativas e alternativas de cifras, e diagnóstico estrutural de partituras MuseScore por pauta, compasso e voz. O painel de progresso continua acompanhando a preparação, análise e geração.
 
 Em **Comparar pistas**, a ordem de escuta considera notas simultâneas, legato, registro, repetição e duração. Ouça trechos a 25%, 50%, 75% ou 100%; somente **Usar esta pista como melodia** muda a seleção. Confirmar a mesma pista preserva as cifras já ajustadas. A ordem é uma sugestão heurística, sem garantia de identificar a melodia; compare especialmente fontes duplicadas ou com várias vozes.
 
@@ -23,6 +23,18 @@ Mudar uma duração exige compensar outra nota ou pausa da mesma voz e manter as
 Cifras simples reconhecidas podem ser alteradas. Quando a cifra tem um diagrama TeclaScore associado de forma inequívoca, o desenho e sua inversão acompanham apenas aquela ocorrência. Diagramas desconhecidos e associações ambíguas são preservados e orientam edição no MuseScore. A conferência estrutural não certifica espaçamento visual: revise todas as páginas renderizadas, principalmente depois de aumentar o texto de uma cifra.
 
 Ao salvar, o app cria uma nova cópia MSCZ e registra original e edição no Histórico. A partitura editada passa a ser a fonte para reprodução, PDF, propriedades e apresentação; as abas de preparação a partir do MIDI ficam desabilitadas para evitar perda das correções. Para voltar ao MIDI, restaure no Histórico uma versão anterior à edição. A cópia editada e seu estado continuam disponíveis mesmo se o MIDI original mudar ou ficar ausente.
+
+## Arranjos por nível
+
+Na **Prévia**, abra **Arranjo por nível**. Escolha a pauta e a voz, selecione **Intermediário** ou **Iniciante** e use **Recalcular mudanças**. A tabela mostra o compasso, antes/depois e o motivo de cada proposta; as observações identificam os trechos preservados. **Original** mostra a versão que estava aberta ao entrar nessa janela e serve para comparação.
+
+Os perfis aplicam regras conservadoras à voz selecionada: redução de notas simultâneas, ornamentos simples e repetições rítmicas quando seguras, além de ajustes de oitava do conjunto quando apropriados. Quando há imagens ou diagramas, o ritmo e os ornamentos são preservados para proteger o espaçamento. Não medem a habilidade de uma pessoa nem garantem que toda a música se torne fácil. Pautas e vozes restantes são preservadas. Estruturas complexas recebem limitações explícitas.
+
+Use **Preparar prévia**, compare **Original / Arranjo preparado**, passe por todas as páginas e ouça os resultados. A reprodução inclui a partitura inteira. Mudar as opções invalida a prévia anterior. **Salvar nova versão** exige uma proposta atual com alterações; quando não há adaptação útil, o app informa e não salva uma cópia vazia.
+
+O fluxo funciona com partituras já geradas de MIDI e **MSCZ do MuseScore 4 importados**. A nova versão mantém o original no Histórico e identifica o nível, a pauta e a voz escolhidos. Cifras, diagramas, nomes de instrumentos e cabeçalho são preservados; a cópia adaptada passa a usar o fluxo do Editor musical. Para voltar à geração pelo MIDI, restaure uma versão anterior pelo Histórico.
+
+Veja [ROTEIRO-DE-TESTES.txt](ROTEIRO-DE-TESTES.txt) para conferir as fases entregues: importação, melodia/harmonia, progresso, diagnóstico, editor, fila, arranjos e persistência.
 
 ## Para testar
 
@@ -90,7 +102,7 @@ Os dados ficam em `%LOCALAPPDATA%/TeclasPartituras/settings.json`, com gravaçã
 
 ## Leitura, estudo e organização — 0.7.0
 
-A Prévia mostra todas as páginas. Use miniaturas, anterior/próxima, zoom, Largura, Página ou Tela cheia; Esc sai da tela cheia. A imagem é uma leitura da partitura: a edição musical continua na tabela de cifras ou no MuseScore.
+A Prévia mostra todas as páginas. Use miniaturas, anterior/próxima, zoom, Largura, Página ou Tela cheia; Esc sai da tela cheia. Use o Editor musical para alterar notas, durações e cifras dos elementos suportados; o visualizador mostra as páginas da versão salva.
 
 Em **Organizar**, marque favoritos e defina coleção/repertório e gênero. A busca considera nome, título, autor, coleção e gênero, sem diferenciar acentos. A biblioteca oferece filtros de favoritos e coleção. Importar limpa os filtros para exibir o novo arquivo.
 
@@ -132,7 +144,7 @@ A barra de título nativa acompanha as cores do tema no Windows 11. Em versões 
 
 - A análise automática de um MIDI novo é uma proposta para revisão. O programa não recria uma melodia ausente, nem distingue com certeza uma voz de um acompanhamento.
 - Os perfis conhecidos são reconhecidos pelo conteúdo SHA-256, não pelo nome. Há 18 revisões completas, 79 casos sem melodia completa e 14 com melodia parcial no catálogo.
-- A edição de notas e ritmos é feita no MuseScore. Nesta interface, é possível escolher fontes e editar as cifras.
+- O Editor musical altera notas, durações e cifras existentes. Inserção/exclusão livre de elementos e estruturas não suportadas continuam disponíveis pelo MuseScore.
 - Os diagramas são imagens vetoriais incorporadas. Ao mudar uma cifra dentro do MuseScore, atualize também seu desenho.
 - Arquivos de saída existentes recebem outro nome, sem sobrescrita. MIDIs originais não são modificados.
 - Cada geração inclui uma pasta de revisão com imagens de todas as páginas, MusicXML e relatório de validação.
@@ -167,9 +179,9 @@ Para verificar a edição e a persistência das propriedades em janelas WPF, exe
 
 O script histórico tools/prepare_engine.py copia o motor original das ferramentas externas do projeto musical. Ele sobrescreve adaptações posteriores em engine, incluindo a correção de quantização; não o execute para compilar ou atualizar o aplicativo. tools/qa_engine.py verifica os 18 perfis contra o lote original e exercita a conversão de um MIDI novo. A pasta engine já inclui o motor necessário para o aplicativo, sem exigir a regeneração. A ferramenta histórica engine/build_keyboard_diagrams.py é preservada como origem das funções vetoriais reutilizadas pelo motor; executá-la isoladamente requer a partitura piloto na pasta externa partituras.
 
-O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.13.1`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
+O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.14.0`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
 
-Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.13.1, destinada a testes no computador do usuário.
+Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.14.0, destinada a testes no computador do usuário.
 
 ## Fila de conversões e várias pistas
 

@@ -21,7 +21,7 @@ public partial class MainWindow
     {
         if(row.ScorePath is not {} path || !File.Exists(path) || row.HasPendingScoreProperties || row.Versions.Any(v=>string.Equals(v.ScorePath,path,StringComparison.OrdinalIgnoreCase)))return;
         row.Versions.Add(new SavedScoreVersion { ScorePath=path,PreviewPath=row.PreviewPath,PageCount=row.PageCount,CreatedAt=row.GeneratedAt??File.GetLastWriteTime(path),
-            HasMusicalEdits=row.HasMusicalEdits,
+            HasMusicalEdits=row.HasMusicalEdits,ArrangementSummary=row.ArrangementSummary,
             MelodySourcePriority=SaveMelodyPriority(row.MelodySourcePriority),
             SourceSha256=row.SourceSha256,UseReviewedProfile=row.UseReviewedProfile,AnalysisPath=row.AnalysisPath,Workspace=row.Workspace,
             MelodySources=SaveMelodyPriority(GetOrderedMelodySources(row)),
@@ -42,7 +42,7 @@ public partial class MainWindow
     {
         if(!File.Exists(version.ScorePath))throw new FileNotFoundException("A cópia desta versão não está disponível.",version.ScorePath);
         ResetPlayback();row.ScorePath=version.ScorePath;row.PreviewPath=version.PreviewPath;row.PageCount=version.PageCount;row.GeneratedAt=version.CreatedAt;
-        row.HasMusicalEdits=version.HasMusicalEdits;
+        row.HasMusicalEdits=version.HasMusicalEdits;row.ArrangementSummary=version.ArrangementSummary;
         bool sameSource=row.SourceSha256 is not null && string.Equals(row.SourceSha256,version.SourceSha256,StringComparison.OrdinalIgnoreCase);
         loading=true;
         try
@@ -64,7 +64,7 @@ public partial class MainWindow
         row.HasPendingScoreProperties=false;row.HasOperationError=false;row.Status="Versão restaurada · "+row.PageCountText;
         if(unavailableSessionRows.TryGetValue(row.FullPath,out var remembered))
         {
-            remembered.HasMusicalEdits=version.HasMusicalEdits;
+            remembered.HasMusicalEdits=version.HasMusicalEdits;remembered.ArrangementSummary=version.ArrangementSummary;
             remembered.MelodySourcePriority=SaveMelodyPriority(RestoreMelodyPriority(version.MelodySourcePriority));
             remembered.Sha256=version.SourceSha256;remembered.UseReviewedProfile=version.UseReviewedProfile;
             remembered.MelodySources=version.MelodySources.Select(s=>new SavedSource {Track=s.Track,Channel=s.Channel,Program=s.Program}).ToList();

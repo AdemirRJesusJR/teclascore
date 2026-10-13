@@ -84,7 +84,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         NotifyLibraryActions();
         Notify(nameof(CanCustomizeDiagrams));
         foreach(var name in new[]{nameof(PreviewSourcePath),nameof(CanShowHistory),nameof(GenerateButtonLabel),nameof(LibraryCollections),nameof(CanEditMidi),nameof(CanReviewScore),nameof(CanTransposeScore)})Notify(name);
-        Notify(nameof(CanOpenMusicEditor)); Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
+        Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore)); Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
         foreach(var name in new[]{nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText)})Notify(name);
@@ -100,7 +100,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
+    private void SetBusy(bool value){busy=value;Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
     private void InvalidateAnalysis(MidiRow row)
     {
         if(row.UsesNativeScoreWorkflow)return;
@@ -264,6 +264,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace!,CreateOperationProgress(),cancellation!.Token);
         row.ScorePath=result["scorePath"]!.GetValue<string>();row.PreviewPath=result["previewPath"]!.GetValue<string>();
         row.PageCount=result["pages"]!.GetValue<int>();row.GeneratedAt=DateTimeOffset.Now;row.HasOperationError=false;row.HasPendingScoreProperties=false;
+        row.ArrangementSummary="";
         row.Status=$"Gerada · {row.PageCount} páginas";Status=result["message"]!.GetValue<string>();RememberVersion(row);RefreshSelection();
     }
     private async Task EnsureAnalysisForGeneration(MidiRow row)

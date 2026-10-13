@@ -44,6 +44,7 @@ public partial class MainWindow
         row.ScoreTitle = result.Metadata.Title; row.ScoreSubtitle = result.Metadata.Subtitle;
         row.ScoreArtist = result.Metadata.Artist; row.ScoreComposer = result.Metadata.Composer;
         row.HasMusicalEdits = true;
+        row.ArrangementSummary = result.Metadata.ArrangementSummary;
         row.UseReviewedProfile = false;
         row.HasPendingScoreProperties = false;
         row.HasOperationError = false;

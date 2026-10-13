@@ -257,7 +257,8 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
 
     private static void ValidateMetadata(NativeScoreMetadata actual, NativeScoreMetadata expected)
     {
-        if (actual.Title != expected.Title || actual.Subtitle != expected.Subtitle || actual.Composer != expected.Composer || actual.Artist != expected.Artist)
+        if (actual.Title != expected.Title || actual.Subtitle != expected.Subtitle || actual.Composer != expected.Composer || actual.Artist != expected.Artist ||
+            actual.ArrangementSummary != expected.ArrangementSummary)
             throw new InvalidDataException("O MuseScore não preservou o cabeçalho solicitado. A revisão não foi publicada.");
     }
 

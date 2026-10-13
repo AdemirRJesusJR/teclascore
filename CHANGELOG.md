@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.14.0 — 13/10/2026
+
+- Arranjos por nível para partituras geradas de MIDI e MSCZ importados, com seleção explícita de pauta e voz.
+- Propostas de simplificação explicadas por compasso, preservando trechos não suportados e sinalizando limitações.
+- Comparação original/arranjo, prévia paginada e reprodução com controle de velocidade; salvar exige prévia atual.
+- Nova cópia com identificação do nível, pauta e voz no arquivo, na Biblioteca e no Histórico, preservada ao reabrir.
+- Roteiro consolidado para testar todas as fases entregues.
+
 ## 0.13.1 — 13/10/2026
 
 - Nome do instrumento na entrada e nas trocas de fonte da melodia combinada, seguindo a prioridade e as notas efetivamente incluídas.

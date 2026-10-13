@@ -12,6 +12,7 @@ public sealed record NativeScoreMetadata(string Title, string Subtitle, string C
     double PageHeightMm, string MuseScoreVersion)
 {
     public string Artist { get; init; } = "";
+    public string ArrangementSummary { get; init; } = "";
 }
 
 /// <summary>Reads a native archive in memory, without extracting user-supplied ZIP paths.</summary>
@@ -130,7 +131,10 @@ internal sealed class NativeScoreArchive
                 score.Elements("Staff").Descendants("Note").Count(), score.Elements("Staff").Descendants("Harmony").Count(),
                 score.Descendants("Image").Count(), Dimension("pageWidth", 210), Dimension("pageHeight", 297),
                 (string?)MainDocument.Root?.Element("programVersion") ?? (string?)MainDocument.Root?.Attribute("version") ?? "4")
-            { Artist = Nonempty(Meta("artist"), labeledCredit ? CreditValue("Intérprete: ") : "") };
+            {
+                Artist = Nonempty(Meta("artist"), labeledCredit ? CreditValue("Intérprete: ") : ""),
+                ArrangementSummary = Meta("teclasArrangementSummary")[..Math.Min(200, Meta("teclasArrangementSummary").Length)]
+            };
         }
     }
 

@@ -9,6 +9,7 @@ archive_name=f'TeclaScore-{version}-Windows.zip'
 shutil.copy2(B/'engine/worker.py',APP/'engine/worker.py')
 shutil.copy2(B/'LEIA-ME.txt',APP/'LEIA-ME.txt')
 shutil.copy2(B/'VALIDACAO.txt',APP/'VALIDACAO.txt')
+shutil.copy2(B/'ROTEIRO-DE-TESTES.txt',APP/'ROTEIRO-DE-TESTES.txt')
 shutil.copy2(B/'ui-preview.png',B/'previa-do-aplicativo.png')
 with zipfile.ZipFile(B/archive_name,'w',zipfile.ZIP_DEFLATED) as z:
     for p in APP.rglob('*'):

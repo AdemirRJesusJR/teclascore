@@ -16,6 +16,8 @@ public sealed class MidiRow : Observable
 {
     public required string FullPath{get;init;}
     public bool IsNativeScore=>Path.GetExtension(FullPath).Equals(".mscz",StringComparison.OrdinalIgnoreCase);
+    private string arrangementSummary="";
+    public string ArrangementSummary{get=>arrangementSummary;set=>Set(ref arrangementSummary,Settings.NormalizeArrangementSummary(value));}
     private bool hasMusicalEdits;
     public bool HasMusicalEdits{get=>hasMusicalEdits;set{if(Set(ref hasMusicalEdits,value)){Notify(nameof(UsesNativeScoreWorkflow));NotifyCategory();}}}
     public bool UsesNativeScoreWorkflow=>IsNativeScore||HasMusicalEdits;
@@ -143,4 +145,3 @@ public sealed class ChordRow : Observable
     public string Advice=>string.Join(" ",new[]{Recommendation,string.IsNullOrWhiteSpace(Alternatives)?"":"Alternativas para conferir: "+Alternatives+"."}.Where(text=>!string.IsNullOrWhiteSpace(text)));
     private void ClearAdvice(){Recommendation="";Alternatives="";}
 }
-

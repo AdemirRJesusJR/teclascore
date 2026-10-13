@@ -83,9 +83,9 @@ public partial class MainWindow
                     foreach (var chord in saved.Chords) row.Chords.Add(new ChordRow
                     { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
                 }
-                var freshHeader=(row.ScoreTitle,row.ScoreSubtitle,row.ScoreComposer,row.ScoreArtist);
+                var freshHeader=(row.ScoreTitle,row.ScoreSubtitle,row.ScoreComposer,row.ScoreArtist,row.ArrangementSummary);
                 ApplySavedScoreProperties(row, saved);
-                if(preserveFreshNativeHeader){row.ScoreTitle=freshHeader.ScoreTitle;row.ScoreSubtitle=freshHeader.ScoreSubtitle;row.ScoreComposer=freshHeader.ScoreComposer;row.ScoreArtist=freshHeader.ScoreArtist;row.HasPendingScoreProperties=false;}
+                if(preserveFreshNativeHeader){row.ScoreTitle=freshHeader.ScoreTitle;row.ScoreSubtitle=freshHeader.ScoreSubtitle;row.ScoreComposer=freshHeader.ScoreComposer;row.ScoreArtist=freshHeader.ScoreArtist;row.ArrangementSummary=freshHeader.ArrangementSummary;row.HasPendingScoreProperties=false;}
                 RememberVersion(row);
                 Files.Add(row);
             }
@@ -129,6 +129,7 @@ public partial class MainWindow
     private static void ApplySavedScoreProperties(MidiRow row, SavedMidi saved)
     {
         row.HasMusicalEdits = saved.HasMusicalEdits;
+        row.ArrangementSummary = saved.ArrangementSummary;
         // Preserve disconnected origins, but never apply a stale ordering to changed MIDI content.
         row.MelodySourcePriority = row.SourceSha256 is null || saved.HasMusicalEdits ||
             string.Equals(row.SourceSha256, saved.Sha256, StringComparison.OrdinalIgnoreCase)
@@ -180,6 +181,7 @@ public partial class MainWindow
         if (row.Document is null && unavailableSessionRows.TryGetValue(row.FullPath, out var remembered))
         {
             remembered.HasMusicalEdits = row.HasMusicalEdits;
+            remembered.ArrangementSummary = row.ArrangementSummary;
             remembered.MelodySourcePriority = SaveMelodyPriority(row.MelodySourcePriority);
             remembered.ScoreTitle = row.ScoreTitle; remembered.ScoreSubtitle = row.ScoreSubtitle;
             remembered.ScoreComposer = row.ScoreComposer; remembered.DefaultDiagramInversion = row.DefaultDiagramInversion;
@@ -197,7 +199,7 @@ public partial class MainWindow
         }
         return new SavedMidi
         {
-            HasMusicalEdits = row.HasMusicalEdits,
+            HasMusicalEdits = row.HasMusicalEdits, ArrangementSummary = row.ArrangementSummary,
             MelodySourcePriority = SaveMelodyPriority(row.MelodySourcePriority),
             FullPath = row.FullPath, Sha256 = row.SourceSha256, UseReviewedProfile = row.UseReviewedProfile,
             IsFavorite = row.IsFavorite, Collection = row.Collection, Genre = row.Genre,

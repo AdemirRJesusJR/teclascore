@@ -15,7 +15,7 @@ public partial class MainWindow
         var metadata=NativeScoreDocument.Inspect(path);
         using var stream=File.OpenRead(path);
         return new MidiRow{FullPath=path,NativeSourceSha256=Convert.ToHexString(SHA256.HashData(stream)),ScorePath=path,
-            ScoreTitle=metadata.Title,ScoreSubtitle=metadata.Subtitle,ScoreComposer=metadata.Composer,ScoreArtist=metadata.Artist,
+            ScoreTitle=metadata.Title,ScoreSubtitle=metadata.Subtitle,ScoreComposer=metadata.Composer,ScoreArtist=metadata.Artist,ArrangementSummary=metadata.ArrangementSummary,
             DefaultDiagramInversion=settings.DefaultDiagramInversion,Status="Partitura MuseScore importada",GeneratedAt=File.GetLastWriteTime(path)};
     }
     private async Task PrepareNativePreview(MidiRow row)
@@ -77,7 +77,7 @@ public partial class MainWindow
             ResetPlayback();
             var result=await new ScoreEditingService(MuseScorePath,LocalJobsDirectory).ImproveAsync(score,OutputDirectory,dialog.Options,CreateOperationProgress(),cancellation!.Token);
             row.ScorePath=result.Path;row.PreviewPath=result.PreviewPages.FirstOrDefault();row.PageCount=result.PreviewPages.Count;row.GeneratedAt=DateTimeOffset.Now;
-            row.ScoreTitle=result.Metadata.Title;row.ScoreSubtitle=result.Metadata.Subtitle;row.ScoreComposer=result.Metadata.Composer;row.ScoreArtist=result.Metadata.Artist;
+            row.ScoreTitle=result.Metadata.Title;row.ScoreSubtitle=result.Metadata.Subtitle;row.ScoreComposer=result.Metadata.Composer;row.ScoreArtist=result.Metadata.Artist;row.ArrangementSummary=result.Metadata.ArrangementSummary;
             row.HasPendingScoreProperties=false;row.HasOperationError=false;row.Status="Apresentação atualizada · "+row.PageCountText;
             RememberVersion(row);EditorTabs.SelectedIndex=2;PersistPreferences();
             await DiagnosePublishedNativeScore(row,row.Status,"Nova cópia salva e diagnosticada. Abra o Histórico para comparar com a original.");

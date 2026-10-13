@@ -20,7 +20,7 @@ def prepare():
     for path in sorted(APP.rglob('*')):
         if (not path.is_file() or '__pycache__' in path.parts
                 or path.suffix in ('.pdb', '.pyc')
-                or path.name in ('installation-manifest.json', 'LEIA-ME.txt', 'VALIDACAO.txt')):
+                or path.name in ('installation-manifest.json', 'LEIA-ME.txt', 'VALIDACAO.txt', 'ROTEIRO-DE-TESTES.txt')):
             continue
         files[path.relative_to(APP).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
     (APP / 'installation-manifest.json').write_text(json.dumps(

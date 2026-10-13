@@ -152,6 +152,7 @@ public sealed class NativeMusicEditingService(string museScorePath, string cache
     }
     private static bool SameMetadata(NativeScoreMetadata first, NativeScoreMetadata second) =>
         first.Title == second.Title && first.Subtitle == second.Subtitle && first.Composer == second.Composer && first.Artist == second.Artist &&
+        first.ArrangementSummary == second.ArrangementSummary &&
         first.StaffCount == second.StaffCount && first.MeasureCount == second.MeasureCount && first.NoteCount == second.NoteCount &&
         first.HarmonyCount == second.HarmonyCount && first.ImageCount == second.ImageCount;
     private static string SafeName(string source)

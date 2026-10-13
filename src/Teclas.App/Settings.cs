@@ -87,11 +87,13 @@ public sealed class Settings
         foreach (var row in Library)
         {
             row.Collection ??= ""; row.Genre ??= ""; row.Versions ??= [];
+            row.ArrangementSummary = NormalizeArrangementSummary(row.ArrangementSummary);
             row.TransposeSemitones = Math.Clamp(row.TransposeSemitones,-12,12);
             row.Versions = row.Versions.Where(version => version is not null && !string.IsNullOrWhiteSpace(version.ScorePath)).ToList();
             foreach(var version in row.Versions)
             {
                 version.MelodySources ??= []; version.Chords ??= [];
+                version.ArrangementSummary = NormalizeArrangementSummary(version.ArrangementSummary);
                 version.MelodySourcePriority = NormalizeMelodySourcePriority(version.MelodySourcePriority);
                 version.MelodySources=version.MelodySources.Where(source=>source is not null).ToList();
                 version.Chords=version.Chords.Where(chord=>chord is not null && double.IsFinite(chord.Quarter) && double.IsFinite(chord.Confidence)).ToList();
@@ -121,6 +123,7 @@ public sealed class Settings
         .Select(source => new SavedSource { Track = source.Track, Channel = source.Channel, Program = source.Program }).ToList();
 
     public static double NormalizeTrackAuditionSpeed(double value) => value is 0.25 or 0.5 or 0.75 or 1.0 or 1.25 or 1.5 ? value : 1.0;
+    public static string NormalizeArrangementSummary(string? value) => string.IsNullOrWhiteSpace(value) ? "" : value.Trim()[..Math.Min(value.Trim().Length,200)];
     public static int NormalizeDiagramInversion(int value) => value is >= 0 and <= 2 ? value : 2;
     private static double? Finite(double? value) => value is { } number && double.IsFinite(number) ? number : null;
     private static double? Positive(double? value) => Finite(value) is > 0 ? value : null;
@@ -172,6 +175,7 @@ public sealed class Settings
 public sealed class SavedMidi
 {
     public bool HasMusicalEdits { get; set; }
+    public string ArrangementSummary { get; set; } = "";
     public bool IsFavorite { get; set; }
     public string Collection { get; set; } = "";
     public string Genre { get; set; } = "";
@@ -206,6 +210,7 @@ public sealed class SavedMidi
 public sealed class SavedScoreVersion
 {
     public bool HasMusicalEdits { get; set; }
+    public string ArrangementSummary { get; set; } = "";
     public string? SourceSha256 { get; set; }
     public bool UseReviewedProfile { get; set; }
     public List<SavedSource> MelodySources { get; set; } = [];
@@ -227,7 +232,7 @@ public sealed class SavedScoreVersion
     public int KeyFifths { get; set; }
     public bool KeyMinor { get; set; }
     public List<SavedChord> Chords { get; set; } = [];
-    [JsonIgnore] public string Label => $"{CreatedAt?.ToLocalTime():dd/MM/yyyy HH:mm} · {Title} · {PageCount} pág.";
+    [JsonIgnore] public string Label => $"{CreatedAt?.ToLocalTime():dd/MM/yyyy HH:mm} · {Title} · {PageCount} pág." + (string.IsNullOrEmpty(ArrangementSummary) ? "" : " · " + ArrangementSummary);
     [JsonIgnore] public bool IsAvailable => File.Exists(ScorePath);
 }
 

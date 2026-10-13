@@ -1,5 +1,11 @@
-TECLASCORE · PRÉVIA 0.13.1
+TECLASCORE · PRÉVIA 0.14.0
 
+
+NOVO NA VERSÃO 0.14.0
+Arranjo por nível está disponível na Prévia de partituras MIDI geradas e arquivos MuseScore importados.
+Escolha pauta, voz e nível; confira as mudanças e limitações, prepare a prévia, compare com Original e ouça. Salvar nova versão preserva a anterior e registra o arranjo no Histórico.
+Os perfis simplificam trechos suportados da voz escolhida; não certificam dificuldade musical. Com imagens ou diagramas, ritmo e ornamentos são preservados para proteger o espaçamento. Trocar opções exige preparar nova prévia. Sem mudanças, nenhuma cópia vazia é salva.
+Use ROTEIRO-DE-TESTES.txt para testar todas as fases do aplicativo.
 
 NOVO NA VERSÃO 0.13.1
 Ao combinar duas ou mais pistas manualmente, o nome do instrumento aparece na primeira entrada e quando outra fonte assume a melodia. As indicações seguem as notas efetivamente escolhidas pela prioridade.

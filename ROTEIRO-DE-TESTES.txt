@@ -1,0 +1,44 @@
+TECLASCORE 0.14.0 · ROTEIRO DE TESTES
+
+Use uma música conhecida em MIDI e uma partitura MuseScore 4. As cópias anteriores permanecem no Histórico. Os testes abaixo também servem para registrar o que você gostaria de refinar.
+
+1. IMPORTAÇÃO E BIBLIOTECA
+Importe o MIDI. A Biblioteca deve abrir com a música selecionada. Nas Propriedades, confira o título limpo, artista separado e campos de autoria/subtítulo. Faça um ajuste e confira o cabeçalho após gerar.
+
+2. IDENTIFICAÇÃO DA MELODIA
+Ouça pistas individuais e abra Comparar pistas. Experimente uma velocidade menor. Marque a pista da introdução e a pista da melodia; em Prioridade das pistas, defina qual deve prevalecer nas sobreposições. Ouvir uma pista não deve alterar sua seleção automaticamente.
+
+3. ACORDES E REVISÃO
+Analise os acordes, confira justificativas e alternativas. Abra Revisão guiada e ouça os compassos indicados. Ajuste uma cifra se necessário. A análise oferece sugestões e precisa de conferência musical.
+
+4. GERAÇÃO E NOMES DOS INSTRUMENTOS
+Gere a partitura. A preparação deve mostrar progresso por etapa e permitir cancelamento. Confira a única pauta, os solos e a melodia. Os nomes dos instrumentos devem acompanhar as mudanças efetivas de fonte conforme a prioridade. Alterar a seleção e gerar novamente deve produzir outra versão.
+
+5. DIAGRAMAS E PROPRIEDADES
+Experimente uma inversão geral e depois uma posição diferente para uma ocorrência em Posições dos diagramas. Confira o desenho ao lado da cifra. Alterar o padrão em Configurações vale para novas importações; as músicas existentes mantêm o padrão adotado.
+
+6. LEITURA, ÁUDIO E PDF
+Passe por todas as páginas, abra miniaturas e use zoom ou Tela cheia. Reproduza, pause, mude a velocidade e marque A/B para repetir um trecho. Exporte PDF e confira todas as páginas e o cabeçalho.
+
+7. EDITOR MUSICAL
+Abra Editor musical, selecione uma pauta e um compasso e altere uma nota. Confira Desfazer/Refazer. Para mudar uma duração, mantenha a soma da voz e as posições das marcações. Atualize a prévia, ouça e salve uma nova versão. Confira uma edição de cifra e seu diagrama quando reconhecido pelo app.
+
+8. PARTITURA MUSESCORE IMPORTADA
+Importe um MSCZ do MuseScore 4. Confira o diagnóstico por pauta/compasso/voz. Use Melhorar apresentação para ajustar cabeçalho e espaçamento e compare com o original no Histórico. O Editor musical e Arranjo por nível também ficam disponíveis para esta partitura.
+
+9. ARRANJO POR NÍVEL
+Na Prévia, abra Arranjo por nível. Escolha a pauta, a voz e Intermediário ou Iniciante. Recalcule as mudanças, leia os motivos e as observações dos trechos preservados. Prepare a prévia e compare Original/Arranjo preparado; ouça os dois. A reprodução inclui a partitura inteira.
+Troque o nível: a prévia anterior deixa de valer para salvar. Prepare novamente. Salvar nova versão fica disponível somente para uma proposta atual com mudanças. Original mostra a versão aberta ao entrar nessa janela. Quando as regras não encontrarem uma adaptação segura e útil, o app explica e não cria uma cópia vazia.
+Os níveis aplicam regras de simplificação à voz escolhida. Em partituras com imagens ou diagramas, ritmo e ornamentos são preservados para proteger o espaçamento. Não garantem que a música inteira seja adequada à habilidade de um aluno. Confira especialmente os trechos mantidos por conterem estruturas complexas.
+
+10. HISTÓRICO DOS ARRANJOS
+Salve um arranjo e confira a identificação do nível, da pauta e da voz no Histórico. Restaure o original e depois o arranjo. As duas cópias devem continuar disponíveis. Após uma edição ou arranjo, a partitura salva passa a ser a fonte de trabalho; restaurar uma versão anterior permite voltar à geração pelo MIDI.
+
+11. FILA E RETOMADA
+Adicione dois MIDIs à fila e inicie os pendentes. Pause uma conversão, feche e reabra o app; retome explicitamente pela fila. Itens concluídos não devem ser duplicados. Uma falha deve aparecer no item e permitir que os seguintes avancem. Alterações posteriores na Biblioteca exigem um novo item, pois a receita da fila fica congelada.
+
+12. PREFERÊNCIAS E REABERTURA
+Mude o tema, recolha a barra lateral, marque favoritos e uma coleção. Feche e reabra o app. Confira preferências, música selecionada, versões e Histórico. Remover uma música da Biblioteca não apaga os arquivos MIDI ou MSCZ.
+
+AO RELATAR UM PROBLEMA
+Informe a versão exibida em Sobre, a música, as pistas/pauta/voz selecionadas, o passo deste roteiro e o que esperava ver. Se houver mensagem de erro, copie o texto ou faça uma captura. Mantenha a partitura original para comparação.
