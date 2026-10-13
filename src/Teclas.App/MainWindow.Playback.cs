@@ -24,7 +24,7 @@ public partial class MainWindow
     public bool CanStopScore => audioLoaded || audioOpening;
     public bool CanExportPdf => !IsBusy && SelectedScoreExists;
     public bool CanSeekScore => audioLoaded && playbackDuration > 0;
-    private bool SelectedScoreExists => CurrentScorePath is { } path && File.Exists(path);
+    private bool SelectedScoreExists => selectedFile?.HasPendingScoreProperties != true && CurrentScorePath is { } path && File.Exists(path);
     public string PlaybackStatus { get => playbackStatus; private set { playbackStatus = value; Notify(); } }
     public string PlaybackPositionText => FormatTime(PlaybackPositionSeconds);
     public string PlaybackDurationText => FormatTime(playbackDuration);

@@ -58,6 +58,7 @@ public partial class MainWindow
                     row.ScorePath = saved.ScorePath; row.PreviewPath = saved.PreviewPath;
                     row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
                 }
+                ApplySavedScoreProperties(row, saved);
                 Files.Add(row);
             }
             SearchText = settings.SearchText;
@@ -96,6 +97,16 @@ public partial class MainWindow
             row.Status = "Cifras restauradas · análise temporária indisponível; analise novamente antes de gerar";
     }
 
+    private static void ApplySavedScoreProperties(MidiRow row, SavedMidi saved)
+    {
+        row.ScoreTitle = saved.ScoreTitle ?? ScoreMetadataDefaults.Title(row.FullPath);
+        row.ScoreSubtitle = saved.ScoreSubtitle;
+        row.ScoreComposer = saved.ScoreComposer ?? "";
+        row.DefaultDiagramInversion = saved.DefaultDiagramInversion;
+        row.DiagramInversion = saved.DiagramInversion;
+        row.HasPendingScoreProperties = saved.HasPendingScoreProperties;
+    }
+
     private void RestoreWindowBounds()
     {
         var desktop = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
@@ -128,10 +139,19 @@ public partial class MainWindow
 
     private SavedMidi CaptureMidi(MidiRow row)
     {
-        if (row.Document is null && unavailableSessionRows.TryGetValue(row.FullPath, out var remembered)) return remembered;
+        if (row.Document is null && unavailableSessionRows.TryGetValue(row.FullPath, out var remembered))
+        {
+            remembered.ScoreTitle = row.ScoreTitle; remembered.ScoreSubtitle = row.ScoreSubtitle;
+            remembered.ScoreComposer = row.ScoreComposer; remembered.DefaultDiagramInversion = row.DefaultDiagramInversion;
+            remembered.DiagramInversion = row.DiagramInversion; remembered.HasPendingScoreProperties = row.HasPendingScoreProperties;
+            return remembered;
+        }
         return new SavedMidi
         {
             FullPath = row.FullPath, Sha256 = row.Document?.Sha256, UseReviewedProfile = row.UseReviewedProfile,
+            ScoreTitle = row.ScoreTitle, ScoreSubtitle = row.ScoreSubtitle, ScoreComposer = row.ScoreComposer,
+            DefaultDiagramInversion = row.DefaultDiagramInversion, DiagramInversion = row.DiagramInversion,
+            HasPendingScoreProperties = row.HasPendingScoreProperties,
             MelodySources = row.Tracks.Where(track => track.IsMelody).Select(track => new SavedSource
                 { Track = track.Source.Key.Track, Channel = track.Source.Key.Channel, Program = track.Source.Key.Program }).ToList(),
             Chords = row.Chords.Select(chord => new SavedChord

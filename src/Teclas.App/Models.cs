@@ -16,6 +16,17 @@ public sealed class MidiRow : Observable
 {
     public required string FullPath{get;init;}
     public string Name=>Path.GetFileName(FullPath);
+    private string? scoreTitle;
+    public string ScoreTitle{get=>scoreTitle??ScoreMetadataDefaults.Title(FullPath);set=>Set(ref scoreTitle,value);}
+    private string? scoreSubtitle;
+    public string? ScoreSubtitle{get=>scoreSubtitle;set=>Set(ref scoreSubtitle,value);}
+    private string scoreComposer="";
+    public string ScoreComposer{get=>scoreComposer;set=>Set(ref scoreComposer,value??"");}
+    public int DefaultDiagramInversion{get;set;}=2;
+    private int? diagramInversion;
+    public int? DiagramInversion{get=>diagramInversion;set{if(Set(ref diagramInversion,value))Notify(nameof(EffectiveDiagramInversion));}}
+    public int EffectiveDiagramInversion=>DiagramInversion??DefaultDiagramInversion;
+    public bool HasPendingScoreProperties{get;set;}
     public MidiDocument? Document{get;init;}
     public JsonObject? Profile{get;init;}
     public bool HasReviewedProfile=>Profile?["config"]?["status"]?.GetValue<string>()=="ready";

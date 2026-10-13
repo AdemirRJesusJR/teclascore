@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 0.6.0 — 12/10/2026
+
+- Janela Propriedades da partitura para editar título, subtítulo, autor e inversão dos diagramas, com geração e atualização automática da prévia ao aplicar.
+- Posição fundamental, 1ª e 2ª inversão; Configurações define o padrão adotado por novos MIDIs, sem alterar os já presentes na biblioteca.
+- Propriedades salvas entre sessões; subtítulo automático acompanha a inversão, e subtítulo personalizado ou vazio é preservado.
+- Botão Salvar MuseScore ao lado de Salvar PDF, para copiar o arquivo .mscz ao destino escolhido.
+- Botão de geração renomeado para Gerar partitura.
+- Cabeçalhos longos recebem espaço e paginação adequados, sem alterar notas ou cifras.
+- A biblioteca mantém o fundo do tema enquanto fica desabilitada durante análises e conversões, sem o retângulo branco do visual padrão do Windows.
+- Seleção, rolagem e bloqueio de interação durante o processamento preservados.
+
 ## 0.5.1 — 12/10/2026
 
 - Controle de velocidade da escuta de pistas: 25%, 50%, 75%, 100%, 125% e 150%, sem alterar a altura das notas.

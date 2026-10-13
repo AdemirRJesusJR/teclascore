@@ -5,7 +5,7 @@ from bisect import bisect_right
 from fractions import Fraction
 from statistics import median
 import xml.etree.ElementTree as E
-import ast, struct, math, json, zipfile, subprocess, hashlib, re, copy, os, tempfile
+import ast, struct, math, json, zipfile, subprocess, hashlib, re, copy, os, tempfile, textwrap
 from PIL import Image, ImageDraw
 from inspect_midi import parse_midi, summarize
 from batch_harmony import analyze_harmony, CHORD_INTERVALS
@@ -20,6 +20,56 @@ exec(compile(ast.Module(body=[n for n in module.body if isinstance(n,ast.Functio
 NS='{http://www.w3.org/2000/svg}';E.register_namespace('',NS[1:-1])
 
 class NeedsReview(Exception):pass
+
+DEFAULT_SCORE_SUBTITLE='Melodia, cifras e diagramas de teclado • 2ª inversão'
+
+def default_score_title(filename):
+    title=re.sub(r'[_]+',' ',Path(filename).stem)
+    return re.sub(r'\s+',' ',title).strip() or 'Partitura'
+
+def score_metadata(values,default_title):
+    result={}
+    inversion=diagram_inversion(values.get('diagram_inversion'))
+    default_subtitle='Melodia, cifras e diagramas de teclado • '+('posição fundamental','1ª inversão','2ª inversão')[inversion]
+    for field,key,default,limit,label in (
+        ('scoreTitle','title',default_title,160,'Título'),
+        ('scoreSubtitle','subtitle',default_subtitle,200,'Subtítulo'),
+        ('scoreComposer','composer','',120,'Autor')):
+        value=values.get(field)
+        if value is None:
+            result[key]=default;continue
+        if not isinstance(value,str):raise ValueError(f'{label} deve ser um texto.')
+        if any(not (ord(c) in (9,10,13) or 32<=ord(c)<=0xd7ff or 0xe000<=ord(c)<=0xfffd or 0x10000<=ord(c)<=0x10ffff) for c in value):
+            raise ValueError(f'{label} contém um caractere de controle inválido.')
+        value=re.sub(r'\s+',' ',value).strip()
+        if len(value)>limit:raise ValueError(f'{label} deve ter no máximo {limit} caracteres.')
+        result[key]=(value or default_title) if key=='title' else value
+    return result
+
+def diagram_inversion(value=2):
+    if value is None:return 2
+    if type(value) is not int or value not in (0,1,2):
+        raise ValueError('A inversão dos diagramas deve ser 0 (fundamental), 1 (primeira) ou 2 (segunda).')
+    return value
+
+def _header_lines(text,width):
+    return '\n'.join(textwrap.wrap(text,width=width,break_long_words=True,break_on_hyphens=False))
+
+def _header_layout(metadata):
+    title=_header_lines(metadata['title'],68)
+    subtitle=_header_lines(metadata['subtitle'],100)
+    composer=_header_lines(metadata['composer'],70)
+    title_size=20 if len(metadata['title'])<60 else 16
+    lines=lambda text:len(text.splitlines()) if text else 0
+    # Frame text uses absolute millimetre offsets, unlike staff-attached text.
+    # A multiline title must push the subtitle below all its lines; MuseScore's
+    # fixed subtitle offset does not do this automatically on MusicXML import.
+    line_mm=lambda text,size:lines(text)*size*25.4/72*1.2
+    subtitle_offset=max(10,line_mm(title,title_size)+1)
+    content_bottom=subtitle_offset+line_mm(subtitle,10) if subtitle else line_mm(title,title_size)
+    height=max(10,(content_bottom+(line_mm(composer,10)+3 if composer else 1))/1.65)
+    return dict(title=title,subtitle=subtitle,composer=composer,title_size=title_size,
+                subtitle_offset=round(subtitle_offset,3),height=round(height,3))
 
 def sub(parent,tag,value=None,**attrs):
     e=E.SubElement(parent,tag,{k.replace('_','-'):str(v) for k,v in attrs.items()})
@@ -254,7 +304,7 @@ def emit_harmony(measure,event,barstart,ps):
     offset=event['tick']-barstart
     if offset:sub(h,'offset',offset)
 
-def layout_bars(bars,notes,chords,max_chords=3):
+def layout_bars(bars,notes,chords,max_chords=3,first_page_capacity=7):
     lines=[];current=[];notecount=chordcount=quarters=0
     for i,b in enumerate(bars):
         nc=sum(b['start']<=n['start']<b['end'] for n in notes)
@@ -264,10 +314,14 @@ def layout_bars(bars,notes,chords,max_chords=3):
             lines.append(current);current=[];notecount=chordcount=quarters=0
         current.append(i);notecount+=nc;chordcount+=cc;quarters+=q
     if current:lines.append(current)
-    pages=math.ceil(len(lines)/7);base,extra=divmod(len(lines),pages)
+    pages=math.ceil((len(lines)+7-first_page_capacity)/7);base,extra=divmod(len(lines),pages)
+    counts=[base+(page<extra) for page in range(pages)]
+    while counts[0]>first_page_capacity:
+        page=min(range(1,pages),key=lambda p:counts[p])
+        counts[0]-=1;counts[page]+=1
     starts={};cursor=0
     for page in range(pages):
-        for j in range(base+(page<extra)):
+        for j in range(counts[page]):
             starts[lines[cursor][0]]='page' if page and j==0 else 'line';cursor+=1
     return starts,lines
 
@@ -301,6 +355,8 @@ def high_melody_layout(part,lines):
     return result
 
 def build_musicxml(parsed,config,harmony,out,title):
+    metadata=score_metadata(config,title);title=metadata['title'];header=_header_layout(metadata)
+    inversion=diagram_inversion(config.get('diagram_inversion'))
     summary,meters,tempos=meta(parsed);origin,end,bars=make_bars(parsed,meters)
     notes,grids,note_report=melody_events(parsed,config,origin,end)
     transpose=config.get('melody_transpose_semitones',0)
@@ -321,25 +377,32 @@ def build_musicxml(parsed,config,harmony,out,title):
     unique_chords={c['tick']:c for c in chords};chords=sorted(unique_chords.values(),key=lambda c:c['tick'])
     if not chords:raise NeedsReview('Nenhuma cifra suficientemente apoiada pelas notas do acompanhamento.')
     if len(chords)>len(bars)*3:raise NeedsReview('Harmonia excessivamente densa; revisar detecção de acordes.')
-    starts,lines=layout_bars(bars,notes,chords,config.get('max_chords_per_system',3))
+    # A large custom heading consumes first-page space. Rebalance page breaks,
+    # retaining the same systems and events, instead of compressing the music.
+    first_capacity=max(3,7-max(0,math.ceil((header['height']-16)/16)))
+    starts,lines=layout_bars(bars,notes,chords,config.get('max_chords_per_system',3),first_capacity)
     # Re-state the active chord at each new system, as in the approved pilot.
     for index in starts:
         tick=bars[index]['start'];prior=[c for c in chords if c['tick']<=tick]
         if prior and not any(c['tick']==tick for c in chords):chords.append(dict(max(prior,key=lambda c:c['tick']),tick=tick,reminder=True))
     chords.sort(key=lambda c:c['tick'])
     root=E.Element('score-partwise',version='4.0');work=sub(root,'work');sub(work,'work-title',title)
-    ident=sub(root,'identification');enc=sub(ident,'encoding');sub(enc,'software','Preparação de melodia e cifras — MuseScore Studio')
+    ident=sub(root,'identification')
+    if metadata['composer']:sub(ident,'creator',metadata['composer'],type='composer')
+    enc=sub(ident,'encoding');sub(enc,'software','Preparação de melodia e cifras — MuseScore Studio')
     defaults=sub(root,'defaults');scale=sub(defaults,'scaling');sub(scale,'millimeters',7);sub(scale,'tenths',40)
     pl=sub(defaults,'page-layout');sub(pl,'page-height',1697.14);sub(pl,'page-width',1200)
     margins=sub(pl,'page-margins',type='both')
     for tag,val in [('left-margin',80),('right-margin',80),('top-margin',70),('bottom-margin',70)]:sub(margins,tag,val)
-    printed_title=title
-    if len(title)>68:
-        spaces=[m.start() for m in re.finditer(' ',title)]
-        split=min(spaces,key=lambda i:abs(i-len(title)/2)) if spaces else len(title)//2
-        printed_title=title[:split]+'\n'+title[split+1:]
-    for y,txt,size in [(1615,printed_title,20 if len(title)<60 else 16),(1575,'Melodia, cifras e diagramas de teclado • 2ª inversão',10)]:
-        cr=sub(root,'credit',page=1);sub(cr,'credit-words',txt,default_x=600,default_y=y,justify='center',valign='top',font_size=size)
+    subtitle_y=1575-max(0,len(header['title'].splitlines())-1)*header['title_size']*2.2
+    composer_y=subtitle_y-len(header['subtitle'].splitlines())*24-8
+    for role,y,txt,size,x,alignment in [
+        ('title',1615,header['title'],header['title_size'],600,'center'),
+        ('subtitle',subtitle_y,header['subtitle'],10,600,'center'),
+        ('composer',composer_y,header['composer'],10,1120,'right')]:
+        if not txt:continue
+        cr=sub(root,'credit',page=1);sub(cr,'credit-type',role)
+        sub(cr,'credit-words',txt,default_x=x,default_y=y,justify=alignment,valign='top',font_size=size)
     parts=sub(root,'part-list');p=sub(parts,'score-part',id='P1');sub(p,'part-name','Teclado');sub(p,'part-abbreviation','')
     si=sub(p,'score-instrument',id='I1');sub(si,'instrument-name','Piano');mi=sub(p,'midi-instrument',id='I1');sub(mi,'midi-channel',1);sub(mi,'midi-program',1)
     part=sub(root,'part',id='P1');lastmeter=None;printedtempo=None;lastkey=None
@@ -395,21 +458,25 @@ def build_musicxml(parsed,config,harmony,out,title):
                 if tuplet.get('type')=='start':tuplet.set('bracket','yes');tuplet.set('placement','above')
         if i==len(bars)-1:bl=sub(measure,'barline',location='right');sub(bl,'bar-style','light-heavy')
     E.indent(root);xml=out/'melodia.musicxml';E.ElementTree(root).write(xml,encoding='utf-8',xml_declaration=True)
-    report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/DIV,'measures':len(bars),'systems':len(lines),'pages_planned':math.ceil(len(lines)/7),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
+    report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/DIV,'measures':len(bars),'systems':len(lines),'pages_planned':1+sum(kind=='page' for kind in starts.values()),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
+    report.update(score_metadata=metadata,diagram_inversion=inversion)
     if config.get('reserve_high_melody'):
         report['high_melody_layout']=high_melody_layout(part,lines)
         report['tuplet_bracket_measures']=config.get('tuplet_bracket_measures',[])
     return xml,report
 
-def keyboard_asset(rootpc,quality):
-    intervals=CHORD_INTERVALS[quality];fifth=next(x for x in (7,6,8) if x in intervals)
-    bass=53+((rootpc+fifth-53)%12)
+def keyboard_asset(rootpc,quality,inversion=2):
+    inversion=diagram_inversion(inversion)
+    intervals=CHORD_INTERVALS[quality]
+    bass_interval=0 if inversion==0 else next(x for x in ((3,4,2,5) if inversion==1 else (7,6,8)) if x in intervals)
+    bass=53+((rootpc+bass_interval-53)%12)
     pitches=sorted(bass+(rootpc+x-bass)%12 for x in intervals)
     if max(pitches)>71:pitches=[p-12 for p in pitches]
     assert 48<=min(pitches)<max(pitches)<=71
     label=str(rootpc)+quality;svg=E.fromstring(svg_keyboard(label,pitches))
-    svg.find(NS+'title').text='Acorde em segunda inversão'
-    svg.find(NS+'desc').text='Quinta no grave; notas MIDI: '+','.join(map(str,pitches))
+    svg.find(NS+'title').text=('Acorde em posição fundamental','Acorde em primeira inversão','Acorde em segunda inversão')[inversion]
+    label=('Fundamental no grave','Terça ou nota suspensa no grave','Quinta no grave')[inversion]
+    svg.find(NS+'desc').text=label+'; notas MIDI: '+','.join(map(str,pitches))
     data=E.tostring(svg,encoding='utf-8',xml_declaration=True)
     return md4(data)+'.svg',data,pitches
 
@@ -485,6 +552,40 @@ def repair_spacing(final,report,out):
             for old in out.glob(pattern):old.unlink()
         call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
 
+def _apply_native_header(root,metadata):
+    score=root.find('Score');staff=score.find('Staff');header=_header_layout(metadata)
+    for name,value in (('workTitle',metadata['title']),('subtitle',metadata['subtitle']),('composer',metadata['composer'])):
+        element=score.find(f"metaTag[@name='{name}']")
+        if element is None:element=sub(score,'metaTag',name=name)
+        element.text=value
+    vbox=staff.find('VBox')
+    if vbox is None:
+        vbox=E.Element('VBox');staff.insert(0,vbox)
+    height=vbox.find('height')
+    if height is None:height=sub(vbox,'height')
+    height.text=str(header['height'])
+    for role in ('title','subtitle','composer'):
+        existing=[text for text in vbox.findall('Text') if text.findtext('style')==role]
+        if not header[role]:
+            for text in existing:vbox.remove(text)
+            continue
+        text=existing[0] if existing else sub(vbox,'Text')
+        for duplicate in existing[1:]:vbox.remove(duplicate)
+        style=text.find('style')
+        if style is None:style=sub(text,'style')
+        style.text=role
+        size=text.find('size')
+        if size is None:size=sub(text,'size')
+        size.text=str(header['title_size'] if role=='title' else 10)
+        if role=='subtitle':
+            offset=text.find('offset')
+            if offset is None:offset=E.SubElement(text,'offset')
+            offset.set('x','0');offset.set('y',str(header['subtitle_offset']))
+        content=text.find('text')
+        if content is None:content=sub(text,'text')
+        content.clear();content.text=header[role]
+    return vbox
+
 def convert_score(xml,report,out,filename):
     style=E.parse(WORK/'garoto_melodia_cifras'/'melodia-cifras.mss').getroot()
     vertical=report.get('high_melody_layout',[])
@@ -514,7 +615,7 @@ def convert_score(xml,report,out,filename):
         if measure_index in report['system_starts']:previous_chord=None
         for voice in measure.findall('voice'):
             for harmony in list(voice.findall('Harmony')):
-                c=next(events);path,data,pitches=keyboard_asset(c['root'],c['quality']);assets['Pictures/'+path]=data
+                c=next(events);path,data,pitches=keyboard_asset(c['root'],c['quality'],report.get('diagram_inversion',2));assets['Pictures/'+path]=data
                 asset_manifest[path]={'root':c['root'],'quality':c['quality'],'pitches':pitches}
                 im=E.Element('Image');E.SubElement(im,'offset',x=str(4.5+max(0,len(c['quality'])-1)*.8),y=str(-6.7-lift));sub(im,'path',path);sub(im,'autoScale',0);E.SubElement(im,'size',w='14',h=str(14*84/282));sub(im,'lockAspectRatio',1);sub(im,'sizeIsSpatium',1)
                 if placement:
@@ -551,7 +652,7 @@ def convert_score(xml,report,out,filename):
                 bl=sub(voice,'BarLine');sub(bl,'subtype','end' if measure_index+1==len(report['bars']) else 'normal')
                 segment=sub(voice,'Segment');sub(segment,'leadingSpace',18)
                 report['end_spacing'][measure_index]=18.0
-    vbox=root.find('Score/Staff/VBox')
+    vbox=_apply_native_header(root,report.get('score_metadata') or {'title':report['title'],'subtitle':DEFAULT_SCORE_SUBTITLE,'composer':''})
     if vbox is not None:
         gap=vbox.find('bottomGap')
         if gap is None:gap=sub(vbox,'bottomGap')
@@ -604,7 +705,8 @@ def convert_score(xml,report,out,filename):
     return final
 
 def prepare(config):
-    title=re.sub(r'[_]+',' ',Path(config['filename']).stem);title=re.sub(r'\s+',' ',title).strip()
+    title=default_score_title(config['filename'])
+    score_metadata(config,title);diagram_inversion(config.get('diagram_inversion'))
     index=config['index'];stem=f'{index+1:03d} - '+re.sub(r'[<>:"/\\|?*]','',title)[:83].rstrip(' .')
     out=BATCH/f'{index+1:03d}';out.mkdir(exist_ok=True)
     parsed=parse_midi(config['source_path'])
@@ -640,7 +742,8 @@ def prepare(config):
     (out/'harmonia_fonte.json').write_text(json.dumps(harmony,ensure_ascii=False,indent=2),encoding='utf8')
     xml,report=build_musicxml(parsed,config,harmony,out,title)
     report['triage']=config
-    final=convert_score(xml,report,out,stem+' - cifras 2a inversao')
+    suffix=('posicao fundamental','1a inversao','2a inversao')[report['diagram_inversion']]
+    final=convert_score(xml,report,out,stem+' - cifras '+suffix)
     (out/'validacao.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
     return {'index':index,'filename':config['filename'],'status':'generated_pending_visual_review','path':str(final),'preview':str(out/'previa-geral.png'),'pages':report['pages'],'measures':report['measures'],'notes':report['melody_attacks_verified'],'harmony_warnings':harmony.get('warnings',[])}
 

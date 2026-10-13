@@ -71,7 +71,11 @@ def main():
     data=json.loads(Path(req['analysisPath']).read_text(encoding='utf8'))
     if hashlib.sha256(source.read_bytes()).hexdigest()!=data['sha256']:raise ValueError('O MIDI mudou após a análise. Analise novamente.')
     if str(source)!=data['source']:raise ValueError('A análise pertence a outro MIDI.')
-    config=data['config'];harmony=data['harmony'];edited=req.get('chords')
+    config=copy.deepcopy(data['config']);harmony=data['harmony'];edited=req.get('chords')
+    for field in ('scoreTitle','scoreSubtitle','scoreComposer'):
+        if field in req:config[field]=req[field]
+    config['diagram_inversion']=engine.diagram_inversion(req.get('diagramInversion'))
+    engine.score_metadata(config,engine.default_score_title(config['filename']))
     if edited is not None:
         if not edited:raise ValueError('A partitura precisa de pelo menos uma cifra.')
         new=[];naturals={'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}
@@ -104,7 +108,8 @@ def main():
     if not exe.is_file():raise ValueError('Localize o executável do MuseScore nas configurações.')
     engine.EXE=str(exe)
     engine.analyze_harmony=lambda parsed,sources:copy.deepcopy(harmony)
-    send('progress',message='Preparando melodia, cifras e diagramas em 2ª inversão…')
+    inversion_label=('posição fundamental','1ª inversão','2ª inversão')[config['diagram_inversion']]
+    send('progress',message=f'Preparando melodia, cifras e diagramas em {inversion_label}…')
     result=engine.prepare(config)
     final=Path(result['path']);targetdir=Path(req['outputDirectory']).resolve();targetdir.mkdir(parents=True,exist_ok=True)
     clean=re.sub(r'[<>:"/\\|?*]','',source.stem).strip(' .')[:110] or 'Partitura'

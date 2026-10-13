@@ -36,7 +36,7 @@ public partial class MainWindow
     public bool CanStopTrackAudition => auditionTrack is not null;
     public bool CanSeekTrackAudition => auditionTrack is not null && TrackAuditionDurationSeconds > 0;
     public Visibility TrackAuditionVisible => auditionTrack is null ? Visibility.Collapsed : Visibility.Visible;
-    public double ScoreEditorMinimumHeight => auditionTrack is null ? 620 : 760;
+    public double ScoreEditorMinimumHeight => EditorTabs?.SelectedIndex == 2 ? 920 : auditionTrack is null ? 620 : 760;
     public string TrackAuditionTitle => auditionTrack is { } track ? $"Pista {track.Track} · Canal {track.Channel} · {track.Instrument}" : "";
     public string TrackSelectionHint => UseReviewedProfile
         ? "Ouça cada pista no botão ▶. Para escolher outra melodia, desmarque a revisão aprovada e marque a pista desejada."
@@ -70,6 +70,7 @@ public partial class MainWindow
         trackAuditionTimer.Tick += (_, _) => NotifyTrackAudition();
         EditorTabs.SelectionChanged += (_, e) =>
         {
+            Notify(nameof(ScoreEditorMinimumHeight));
             if (ReferenceEquals(e.Source, EditorTabs) && EditorTabs.SelectedIndex != 0) StopTrackAudition();
         };
         Closed += (_, _) =>

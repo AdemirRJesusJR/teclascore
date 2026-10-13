@@ -54,7 +54,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public string FileCountText=>$"{Files.Count} MIDIs · {Files.Count(f=>f.ScorePath is not null)} partituras geradas";
     public string Status{get=>status;private set{status=value;Notify();}}
     public ImageSource? Preview{get=>preview;private set{preview=value;Notify();}}
-    public string PreviewMessage=>selectedFile?.ScorePath is null?"A prévia aparecerá depois da geração.":"Primeira página · demais páginas na pasta de revisão";
+    public string PreviewMessage=>selectedFile?.HasPendingScoreProperties == true?"Propriedades alteradas · aguardando atualização da partitura.":selectedFile?.ScorePath is null?"A prévia aparecerá depois da geração.":"Primeira página · demais páginas na pasta de revisão";
     public string GenerationHint=>selectedFile?.AnalysisPath is null?"Primeiro escolha a melodia e analise os acordes.":UseReviewedProfile?"Perfil revisado carregado. Ajustes feitos na tabela de cifras serão aplicados.":"Confira a fonte de melodia e as cifras: uma análise automática precisa de revisão musical.";
     public MainWindow(bool smoke=false,string? settingsPath=null,Func<IMidiOutputTransport>? midiOutputFactory=null)
     {
@@ -75,6 +75,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     private void RefreshSelection()
     {
         NotifyLibraryActions();
+        Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
         foreach(var name in new[]{nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText)})Notify(name);
@@ -90,7 +91,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();}
+    private void SetBusy(bool value){busy=value;if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));}
     private void InvalidateAnalysis(MidiRow row)
     {
         row.AnalysisPath=null;row.Chords.Clear();
@@ -101,7 +102,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     {
         MidiDocument document=MidiReader.Read(path);
         var profile=profiles[document.Sha256]?.AsObject();
-        var row=new MidiRow{FullPath=Path.GetFullPath(path),Document=document,Profile=profile,UseReviewedProfile=profile?["config"]?["status"]?.GetValue<string>()=="ready"};
+        var row=new MidiRow{FullPath=Path.GetFullPath(path),DefaultDiagramInversion=settings.DefaultDiagramInversion,Document=document,Profile=profile,UseReviewedProfile=profile?["config"]?["status"]?.GetValue<string>()=="ready"};
         row.Status=row.HasReviewedProfile?"Perfil musical revisado":profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Sem melodia completa","partial_melody"=>"Somente melodia parcial",_=>"Escolha a pista de melodia"};
         var keys=profile?["config"]?["melody_sources"]?.AsArray().Select(s=>new SourceKey(s!["track"]!.GetValue<int>(),s["channel"]!.GetValue<int>(),s["program"]!.GetValue<int>())).ToHashSet()??[];
         foreach(var source in document.Sources)
@@ -177,7 +178,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         ValidateSettings(false);
         if(row.Document is null)throw new InvalidOperationException("Este arquivo não pôde ser lido como MIDI.");
         if(!row.UseReviewedProfile && !row.Tracks.Any(t=>t.IsMelody))throw new InvalidOperationException("Marque uma pista de melodia ou use o perfil revisado.");
-        row.Workspace=Path.Combine(Settings.DataDirectory,"jobs",Guid.NewGuid().ToString("N"));
+        row.Workspace=Path.Combine(persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!,"jobs",Guid.NewGuid().ToString("N"));
         var request=new JsonObject{["mode"]="analyze",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["useReviewedProfile"]=row.UseReviewedProfile,["melodySources"]=Sources(row)};
         row.Status="Analisando acordes…";
         var client=new EngineClient(PythonPath,engineDirectory);
@@ -196,11 +197,11 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         ValidateSettings(true);
         if(row.AnalysisPath is null || row.Workspace is null)throw new InvalidOperationException("Analise os acordes antes de gerar.");
         var chords=new JsonArray(row.Chords.Select(c=>(JsonNode)new JsonObject{["quarter"]=c.Quarter,["root"]=c.Root,["quality"]=c.Quality}).ToArray());
-        var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=OutputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords};
+        var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=OutputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords,["scoreTitle"]=row.ScoreTitle,["scoreSubtitle"]=row.ScoreSubtitle,["scoreComposer"]=row.ScoreComposer,["diagramInversion"]=row.EffectiveDiagramInversion};
         row.Status="Gerando e conferindo no MuseScore…";
         var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace,new Progress<string>(text=>Status=text),cancellation!.Token);
         row.ScorePath=result["scorePath"]!.GetValue<string>();row.PreviewPath=result["previewPath"]!.GetValue<string>();
-        row.PageCount=result["pages"]!.GetValue<int>();row.GeneratedAt=DateTimeOffset.Now;row.HasOperationError=false;
+        row.PageCount=result["pages"]!.GetValue<int>();row.GeneratedAt=DateTimeOffset.Now;row.HasOperationError=false;row.HasPendingScoreProperties=false;
         row.Status=$"Gerada · {row.PageCount} páginas";Status=result["message"]!.GetValue<string>();RefreshSelection();
     }
     private async void ImportClick(object sender,RoutedEventArgs e)
@@ -254,8 +255,11 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     }
     private async void ZipClick(object sender,RoutedEventArgs e)
     {
+        if(!IsIdle)return;
         var scores=Files.Where(f=>f.ScorePath is not null && File.Exists(f.ScorePath)).ToArray();
         if(scores.Length==0){Status="Gere ao menos uma partitura para criar o ZIP.";return;}
+        int pending=scores.Count(row=>row.HasPendingScoreProperties);
+        if(pending>0){Status=$"Há {pending} partitura(s) com propriedades pendentes. Atualize-as na Biblioteca antes de exportar o ZIP.";return;}
         var dialog=new SaveFileDialog{Title="Salvar pacote",Filter="Pacote ZIP|*.zip",FileName="Partituras de teclado.zip",OverwritePrompt=true};
         if(dialog.ShowDialog(this)!=true)return;
         await RunOperation(async()=>{
@@ -273,7 +277,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
                     archive.CreateEntryFromFile(row.ScorePath!,name,CompressionLevel.Optimal);
                 }
                 using var writer=new StreamWriter(archive.CreateEntry("LEIA-ME.txt").Open());
-                writer.Write("Partituras com melodia, cifras e diagramas na 2ª inversão.\nAbra os arquivos .mscz no MuseScore e confira a música.\nOs diagramas são imagens: alterações nas cifras dentro do MuseScore exigem atualizar o desenho.\n");
+                writer.Write("Partituras com melodia, cifras e diagramas de teclado.\nA inversão dos diagramas segue as propriedades de cada partitura.\nAbra os arquivos .mscz no MuseScore e confira a música.\nOs diagramas são imagens: alterações nas cifras dentro do MuseScore exigem atualizar o desenho.\n");
                 }
                 cancellation!.Token.ThrowIfCancellationRequested();File.Move(temporary,dialog.FileName,true);
                 }

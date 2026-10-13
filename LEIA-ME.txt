@@ -1,4 +1,4 @@
-TECLASCORE · PRÉVIA 0.5.1
+TECLASCORE · PRÉVIA 0.6.0
 
 Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 
@@ -19,13 +19,26 @@ Os diagramas são incorporados ao .mscz; uma mudança na cifra dentro do MuseSco
 
 Código-fonte e informações de desenvolvimento estão na pasta software do projeto Partituras de Teclado.
 
-NOVO NA VERSÃO 0.5.1
+NOVO NA VERSÃO 0.6.0
+Na aba Prévia, use Propriedades da partitura para editar título, subtítulo, autor e inversão dos diagramas.
+Aplicar e atualizar gera um novo arquivo e recarrega a prévia automaticamente, com a melodia já preparada.
+Em Configurações, escolha a inversão padrão para os novos MIDIs importados; os existentes permanecem iguais.
+As opções são posição fundamental, 1ª e 2ª inversão. A segunda continua sendo o padrão inicial.
+Nas propriedades, Padrão adotado usa a inversão que o MIDI recebeu ao entrar na biblioteca.
+Subtítulo automático acompanha a inversão; texto personalizado ou vazio é preservado.
+As propriedades ficam salvas ao fechar o app. As gerações anteriores são mantidas.
+Salvar MuseScore fica ao lado de Salvar PDF e permite escolher onde salvar a cópia .mscz.
+O botão de geração agora se chama Gerar partitura.
+A biblioteca mantém o fundo do tema durante a conversão, sem a área branca.
+A lista continua bloqueada enquanto o processamento está em andamento.
+
+VERSÃO 0.5.1
 No player de pistas, escolha Velocidade: 25%, 50%, 75%, 100%, 125% ou 150%.
 A mudança vale na hora, sem alterar a altura das notas. 100% é a velocidade original.
 A preferência fica salva ao fechar e vale para as próximas pistas.
 A posição continua indicando o tempo original do MIDI; a partitura mantém seu andamento.
 Correção da quantização de notas próximas entre tempos vizinhos, preservando seus ataques.
-Para um MIDI que apresentou essa falha, abra-o na Biblioteca e clique em Gerar .mscz novamente.
+Para um MIDI que apresentou essa falha, abra-o na Biblioteca e clique em Gerar partitura novamente.
 
 VERSÃO 0.5.0
 Ouça cada pista antes de analisar acordes: botão ▶ na coluna Ouvir da aba Melodia.

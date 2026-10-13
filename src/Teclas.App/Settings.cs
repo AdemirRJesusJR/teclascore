@@ -13,6 +13,7 @@ public sealed class Settings
     public string ThemeId { get; set; } = "classic";
     public bool IsSidebarCollapsed { get; set; }
     public double TrackAuditionSpeed { get; set; } = 1.0;
+    public int DefaultDiagramInversion { get; set; } = 2;
     public double? WindowLeft { get; set; }
     public double? WindowTop { get; set; }
     public double? WindowWidth { get; set; }
@@ -66,6 +67,7 @@ public sealed class Settings
     private void Normalize()
     {
         TrackAuditionSpeed = NormalizeTrackAuditionSpeed(TrackAuditionSpeed);
+        DefaultDiagramInversion = NormalizeDiagramInversion(DefaultDiagramInversion);
         ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" ? ThemeId : "classic";
         CurrentPage = CurrentPage is "library" or "production" or "settings" or "about" ? CurrentPage : "dashboard";
         CurrentFilter = CurrentFilter is "ready" or "review" or "generated" or "error" ? CurrentFilter : "all";
@@ -79,6 +81,8 @@ public sealed class Settings
             .GroupBy(row => row.FullPath, StringComparer.OrdinalIgnoreCase).Select(group => group.First()).ToList();
         foreach (var row in Library)
         {
+            row.DefaultDiagramInversion = NormalizeDiagramInversion(row.DefaultDiagramInversion);
+            if (row.DiagramInversion is < 0 or > 2) row.DiagramInversion = null;
             row.MelodySources ??= []; row.Chords ??= [];
             row.MelodySources = row.MelodySources.Where(source => source is not null).ToList();
             row.Chords = row.Chords.Where(chord => chord is not null && double.IsFinite(chord.Quarter)
@@ -88,6 +92,7 @@ public sealed class Settings
     }
 
     public static double NormalizeTrackAuditionSpeed(double value) => value is 0.25 or 0.5 or 0.75 or 1.0 or 1.25 or 1.5 ? value : 1.0;
+    public static int NormalizeDiagramInversion(int value) => value is >= 0 and <= 2 ? value : 2;
     private static double? Finite(double? value) => value is { } number && double.IsFinite(number) ? number : null;
     private static double? Positive(double? value) => Finite(value) is > 0 ? value : null;
 
@@ -137,6 +142,12 @@ public sealed class Settings
 
 public sealed class SavedMidi
 {
+    public string? ScoreTitle { get; set; }
+    public string? ScoreSubtitle { get; set; }
+    public string? ScoreComposer { get; set; }
+    public int DefaultDiagramInversion { get; set; } = 2;
+    public int? DiagramInversion { get; set; }
+    public bool HasPendingScoreProperties { get; set; }
     public string FullPath { get; set; } = "";
     public string? Sha256 { get; set; }
     public bool UseReviewedProfile { get; set; }

@@ -1,3 +1,24 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.6.0
+12/10/2026
+
+- Build Release .NET 10 / WPF: sem erros ou avisos.
+- 62 verificações de persistência: compatibilidade com configurações anteriores, padrão para novos MIDIs, inversão por partitura, campos vazios, subtítulo automático e recuperação de valores inválidos.
+- 21 verificações WPF de propriedades: Cancelar/Aplicar na janela real, dados independentes por MIDI, fechamento/reabertura, mudança do padrão sem alterar os existentes, título vazio usando o nome original, arquivos alterados ou indisponíveis e ausência de erros de binding.
+- 11 verificações específicas do modal, incluindo limites dos campos, subtítulo automático/personalizado/vazio, três inversões, padrão adotado, Cancelar e Aplicar.
+- 13 verificações de integração com WPF e MuseScore: aplicar propriedades executou análise/geração automaticamente, uma segunda inversão regenerou e recarregou a prévia, a partitura anterior permaneceu intacta e a cópia Salvar MuseScore manteve os bytes do arquivo. Botões de salvar habilitados após concluir; prévia de 333 px de altura interna no tamanho mínimo.
+- Seis verificações adicionais no build final confirmam que Exportar ZIP informa propriedades pendentes antes de abrir o diálogo, sem criar arquivo ou alterar a partitura existente.
+- Janela de propriedades conferida nos temas Grafite e Azul claro; prévia e configurações em tamanhos normal e mínimo de 1100 × 740. Botões Propriedades da partitura, Salvar MuseScore e Gerar partitura presentes; controles acessíveis por rolagem.
+- Nove testes do motor cobrem metadados, XML, limites de texto e 720 combinações de acorde/inversão. Os 240 diagramas legados da 2ª inversão permanecem idênticos.
+- Quatro gerações nativas de Norte Forró abriram, salvaram e reabriram no MuseScore: padrão, cabeçalho personalizado com acentos e caracteres XML, campos opcionais vazios/posição fundamental e cabeçalho nos limites de 160/200/120 caracteres. 123 ataques preservados em cada caso; geometria aprovada. O cabeçalho longo ocupa duas páginas, e os demais casos uma página.
+- Regressão dos 18 perfis: nenhuma mudança musical adicional às duas restaurações rítmicas já documentadas na versão 0.5.1.
+- Correção do fundo da biblioteca verificada nos cinco temas, em 1100 × 740 e 1400 × 900, durante o bloqueio de interação. No tema Grafite, o fundo desabilitado antes era #FFFFFFFF e passou a manter #FF2B3038. Seleção, rolagem e virtualização preservadas.
+- MIDI original e configurações reais preservados; sessões de teste, gerações e cópias usam pastas isoladas.
+- DLL final SHA-256: e4597ce5584673bdaef7ca679c7e2e17768451786bf1290200854a9c820a3047. Após os testes de integração, apenas o bloqueio do ZIP com propriedades pendentes e seu texto de orientação foram ajustados.
+
+As propriedades atuam nas partituras geradas a partir da biblioteca MIDI. O padrão das configurações é adotado na importação e não atualiza retroativamente as partituras existentes. Aplicar propriedades requer o MIDI disponível e uma seleção de melodia ou perfil revisado; caso contrário, os dados ficam salvos para a próxima geração.
+Os testes anteriores de áudio e PDF abaixo pertencem à versão 0.4.0 e não foram repetidos nesta atualização. O diálogo nativo de escolha do destino de Salvar MuseScore não foi automatizado.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.5.1
 12/10/2026
 
