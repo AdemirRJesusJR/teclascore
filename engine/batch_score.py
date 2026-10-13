@@ -603,31 +603,57 @@ def call_musescore(args,log,timeout=90):
 
 def page_order(path):return int(path.stem.rsplit('-',1)[-1])
 
+def _compact_diagram_offsets(page,offset,compacted):
+    """Reclaim surplus label padding once in crowded rows, keeping full-size keys."""
+    affected=set()
+    for overlap in page['overlaps']:
+        indices=(overlap['diagram'],) if overlap['type']=='harmony-image' else (overlap['a'],overlap['b'])
+        affected.update(page['diagrams'][i]['row'] for i in indices)
+    affected.update(page['diagrams'][clip['index']]['row'] for clip in page['clipped'] if clip['type']=='image')
+    moves={}
+    for row in page['rows']:
+        indices=row['diagrams'];key=tuple(offset+i for i in indices)
+        if row['row'] not in affected or len(indices)<4 or key in compacted:continue
+        if not row['pairing_by_order_safe']:continue
+        compacted.add(key)
+        for i in indices:
+            diagram=page['diagrams'][i];harmony=page['harmonies'][diagram['harmony_index']]
+            scale=(diagram['bbox'][2]-diagram['bbox'][0])/14
+            delta=(harmony['bbox'][2]-diagram['bbox'][0])/scale+.8
+            if abs(delta)>.05:moves[offset+i]=delta
+    return moves
+
 def repair_spacing(final,report,out):
     """Use the rendered geometry to reserve space, preserving musical content."""
-    history=[]
+    history=[];compacted=set()
     for attempt in range(10):
         pages=[analyze_svg(p) for p in sorted(out.glob('qa-*.svg'),key=page_order)]
         offset=0;image_add=defaultdict(float);end_add=defaultdict(float);move_image=defaultdict(float);problems=0
         for page in pages:
-            if page['warnings']:raise NeedsReview('Geometria de cifras não pôde ser pareada: '+str(page['warnings']))
+            if page['warnings']:raise NeedsReview('Geometria de cifras não pôde ser pareada: '+str(page['warnings']),kind='diagram_layout')
             diagrams=page['diagrams'];harmonies=page['harmonies']
+            compact_moves=_compact_diagram_offsets(page,offset,compacted)
+            move_image.update(compact_moves)
+            compacting_rows={diagrams[i-offset]['row'] for i in compact_moves}
+            problems+=len(page['overlaps'])+len(page['clipped'])
             for overlap in page['overlaps']:
-                problems+=1
+                index=overlap['diagram'] if overlap['type']=='harmony-image' else overlap['a']
+                if diagrams[index]['row'] in compacting_rows:continue
                 if overlap['type']=='harmony-image':
                     h=harmonies[overlap['harmony']];d=diagrams[overlap['diagram']];scale=(d['bbox'][2]-d['bbox'][0])/14
                     if overlap.get('own_pair'):
                         move_image[offset+overlap['diagram']]=max(move_image[offset+overlap['diagram']],(h['bbox'][2]-d['bbox'][0])/scale+1)
                     else:
                         target=h.get('diagram_index')
-                        if target is None:raise NeedsReview('Cifra sem diagrama correspondente na verificação geométrica.')
+                        if target is None:raise NeedsReview('Cifra sem diagrama correspondente na verificação geométrica.',kind='diagram_layout')
                         image_add[offset+target]=max(image_add[offset+target],(d['bbox'][2]-h['bbox'][0])/scale+1.2)
                 else:
                     first,second=sorted((overlap['a'],overlap['b']));d=diagrams[first];scale=(d['bbox'][2]-d['bbox'][0])/14
                     image_add[offset+second]=max(image_add[offset+second],overlap['width']/scale+1.2)
             for clip in page['clipped']:
                 if clip['type']!='image' or clip['edge']!='staff_right':continue
-                problems+=1;idx=offset+clip['index'];d=diagrams[clip['index']];scale=(d['bbox'][2]-d['bbox'][0])/14
+                idx=offset+clip['index'];d=diagrams[clip['index']];scale=(d['bbox'][2]-d['bbox'][0])/14
+                if d['row'] in compacting_rows:continue
                 tick=report['chords'][idx]['tick'];measure_index=next(i for i,b in enumerate(report['bars']) if b['start']<=tick<b['end'])
                 end_add[measure_index]=max(end_add[measure_index],clip['overflow']/scale+1.2)
             offset+=len(diagrams)
@@ -637,7 +663,12 @@ def repair_spacing(final,report,out):
             report['geometric_layout_qa']={'passed':True,'passes':history,'pages':len(pages)}
             (out/'geometria_verificada.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
             return
-        if attempt==9:raise NeedsReview('Sobreposição residual após ajuste de diagrama: '+json.dumps(history))
+        if attempt==9:
+            report['geometric_layout_qa']={'passed':False,'passes':history,'pages':len(pages)}
+            (out/'geometria_verificada.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
+            error=NeedsReview('Não foi possível acomodar todos os diagramas dentro das margens da partitura.',kind='diagram_layout')
+            error.layout_history=history
+            raise error
         with zipfile.ZipFile(final) as z:contents={n:z.read(n) for n in z.namelist()}
         name=next(n for n in contents if n.endswith('.mscx'));root=E.fromstring(contents[name])
         for i,amount in image_add.items():report['image_spacing'][i]+=amount

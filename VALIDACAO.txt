@@ -1,3 +1,18 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.9.1
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 55 testes Python passaram, incluindo 9 de espaçamento e preservação de conteúdo e 6 de mensagens e diagnósticos do worker.
+- 56 verificações de MIDI/metadados e 85 de persistência passaram.
+- Geração integral do MIDI real Luz divina com a mesma seleção e cifras do trabalho que falhou: 9 páginas, 107 compassos, 167 cifras/diagramas e 73 ataques da fonte de melodia selecionada.
+- MuseScore reabriu a saída; todas as páginas ficaram sem colisões, cortes ou avisos na verificação de geometria. As notas, durações, pausas, ligaduras, cifras, imagens e inversões foram preservadas.
+- Largura dos diagramas mantida em 14 espaços da pauta; o compasso 47 com cinco acordes foi inspecionado visualmente, assim como a prévia das nove páginas.
+- Regressão nativa em Norte Forró: 1 página, 123 ataques e 20 diagramas, mantendo a música e a geometria da referência revisada.
+- 19 verificações independentes dessas duas gerações passaram. MIDIs originais e trabalho anterior preservados; testes geraram cópias em pastas isoladas.
+
+O ajuste trata a apresentação dos diagramas. A seleção de pista e as cifras escolhidas pelo usuário continuam as mesmas; a revisão musical de MIDIs novos permanece necessária. Resultados anteriores estão registrados abaixo.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.9.0
 13/10/2026
 

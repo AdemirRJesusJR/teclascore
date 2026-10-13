@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.9.1 — 13/10/2026
+
+- Corrigido o espaçamento de linhas com quatro ou mais diagramas: a folga entre cifra e teclado é ajustada à largura real do texto quando há colisão, mantendo o tamanho dos desenhos.
+- Resolvida a falha em Luz divina, em que um compasso com cinco acordes alternava entre sobreposição e extravasamento da margem durante a conversão.
+- A verificação geométrica passa a rejeitar também cifras e diagramas cortados nas demais bordas da página.
+- Erros de diagramação mostram uma mensagem curta no app; o histórico técnico é preservado em diagnóstico exclusivo por tentativa, sem substituir registros anteriores.
+
 ## 0.9.0 — 13/10/2026
 
 - Importação de MIDI organiza automaticamente título, artista e autoria declarada a partir do nome do arquivo e dos metadados internos.

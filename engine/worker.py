@@ -1,9 +1,31 @@
 """JSON protocol for the C# desktop app. One isolated process per operation."""
 from pathlib import Path
-import json,sys,os,hashlib,shutil,traceback,copy,re
-sys.stdout.reconfigure(encoding='utf-8')
-sys.stderr.reconfigure(encoding='utf-8')
+import json,sys,os,hashlib,shutil,traceback,copy,re,uuid
 def send(kind,**data):print(json.dumps(dict(kind=kind,**data),ensure_ascii=False),flush=True)
+def report_error(error,request_path=None):
+    """Keep technical failure details in the job, not in the library status."""
+    details=''.join(traceback.format_exception(type(error),error,error.__traceback__))
+    diagnostic_path=None
+    if request_path:
+        try:
+            request_path=Path(request_path).resolve()
+            diagnostic=request_path.with_name(request_path.stem+'-error-'+uuid.uuid4().hex+'.json')
+            document={'requestFile':request_path.name,'exceptionType':type(error).__name__,
+                'message':str(error),'traceback':details,'kind':getattr(error,'kind',None),
+                'reviewPoints':getattr(error,'review_points',[]),
+                'layoutHistory':getattr(error,'layout_history',[])}
+            with diagnostic.open('x',encoding='utf8') as stream:
+                json.dump(document,stream,ensure_ascii=False,indent=2)
+            diagnostic_path=str(diagnostic)
+        except (OSError,TypeError,ValueError) as diagnostic_error:
+            print('Não foi possível salvar o diagnóstico: '+str(diagnostic_error),file=sys.stderr)
+    message=str(error)
+    if getattr(error,'kind',None)=='diagram_layout' or message.startswith('Sobreposição residual após ajuste de diagrama:'):
+        message='Não foi possível ajustar o espaço entre alguns diagramas de acordes.'
+        if diagnostic_path:message+=' Os detalhes foram salvos no diagnóstico da conversão.'
+    send('error',message=message,reviewPoints=getattr(error,'review_points',[]),diagnosticPath=diagnostic_path)
+    print(details,file=sys.stderr,end='')
+
 def main():
     req=json.loads(Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
     workspace=Path(req['workspace']).resolve();workspace.mkdir(parents=True,exist_ok=True)
@@ -134,6 +156,8 @@ def main():
     if collisions and not data['reviewedProfile']:notice+=f' {collisions} ataques próximos foram agrupados; revise os ornamentos.'
     send('result',data={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'reviewedProfile':data['reviewedProfile'],'message':notice,'transposeSemitones':config['transpose_semitones']})
 if __name__=='__main__':
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
     try:main()
     except Exception as e:
-        send('error',message=str(e),reviewPoints=getattr(e,'review_points',[]));traceback.print_exc(file=sys.stderr);sys.exit(1)
+        report_error(e,sys.argv[1] if len(sys.argv)>1 else None);sys.exit(1)

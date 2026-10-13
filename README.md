@@ -1,6 +1,8 @@
 # TeclaScore
 
-Versão 0.9.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.9.1 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+
+A versão 0.9.1 corrige o ajuste de espaço em linhas com muitos diagramas, incluindo a falha de conversão em Luz divina. O tamanho dos teclados e o conteúdo musical são preservados. Falhas de diagramação exibem uma mensagem curta; os detalhes técnicos ficam no diagnóstico da conversão.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
 

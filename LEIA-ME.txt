@@ -1,4 +1,10 @@
-TECLASCORE · PRÉVIA 0.9.0
+TECLASCORE · PRÉVIA 0.9.1
+
+NOVO NA VERSÃO 0.9.1
+Corrigida a falha de espaçamento entre diagramas em trechos com muitos acordes, como em Luz divina.
+O ajuste mantém o tamanho dos desenhos, as cifras e as notas da melodia escolhida.
+Após atualizar, selecione o MIDI na Biblioteca e clique em Gerar partitura novamente.
+Falhas de diagramação apresentam uma mensagem curta; o relatório técnico fica salvo no trabalho de conversão.
 
 NOVO NA VERSÃO 0.9.0
 Ao importar um MIDI, título e artista já são organizados automaticamente.
