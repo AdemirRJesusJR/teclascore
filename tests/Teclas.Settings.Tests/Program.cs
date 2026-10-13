@@ -103,6 +103,7 @@ try
     Check(Settings.Load(invalid).LoadWarning.Length > 0, "Missing primary with corrupt backup is visible");
 
     MetadataChecks.Run(folder, Check);
+    CustomDiagramChecks.Run(folder, Check);
     Console.WriteLine($"PASS: {checks} persistence checks");
 }
 finally

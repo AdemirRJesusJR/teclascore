@@ -1,3 +1,18 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.8.0
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 77 verificações de persistência, incluindo posição por ocorrência, valores nulos, posição fundamental explícita, dados antigos e isolamento entre partituras e versões.
+- 34 testes Python de propriedades, quantização, transposição, revisão e posições de diagramas; 720 combinações de acordes/inversões conferidas.
+- 15 verificações do diálogo: escolhas individuais, aplicação à mesma cifra, Cancelar/Aplicar, retorno ao padrão e tela compacta; temas Grafite e Azul claro inspecionados.
+- 36 verificações WPF do fluxo completo: aplicação gera automaticamente, conserva notas/ritmo, incorpora os desenhos, atualiza prévia, histórico, subtítulo e persistência, incluindo origem desconectada/reconectada e inclusão/exclusão de cifras.
+- Duas gerações nativas de uma sequência com inversões mistas, no tom original e transposta +2, reabertas pelo MuseScore: 64 ataques e 7 diagramas em cada uma; geometria e notas dos diagramas verificadas, incluindo o lembrete no início de sistema.
+- Aplicação real em Norte Forró, com 18 cifras e geração pelo aplicativo; origem, partitura anterior e configurações reais preservadas por hashes.
+- 19 verificações da interface final em 1400×900 e 1100×740: novas ações acessíveis, coluna Tipo editável e rolagem horizontal preservando as larguras; prévia e partitura inspecionadas visualmente.
+
+A personalização modifica os diagramas das partituras geradas de MIDI, sem alterar a melodia. Diagramas externos de .mscz importados são preservados. O botão Importar MuseScore facilita o acesso ao fluxo de melhoria já validado na versão 0.7.0 abaixo; não foram refeitos os testes de áudio, PDF e diagramação nativa que não mudaram.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.7.0
 13/10/2026
 

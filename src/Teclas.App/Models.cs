@@ -105,6 +105,9 @@ public sealed class TrackRow : Observable
 }
 public sealed class ChordRow : Observable
 {
+    private int? diagramInversion;
+    public int? DiagramInversion{get=>diagramInversion;set{if(Set(ref diagramInversion,value))Notify(nameof(DiagramPositionLabel));}}
+    public string DiagramPositionLabel=>DiagramInversion is {} value?ScoreMetadataDefaults.InversionLabel(value):"Padrão da partitura";
     private double quarter;public double Quarter{get=>quarter;set=>Set(ref quarter,value);}
     private string root="C";public string Root{get=>root;set=>Set(ref root,value);}
     private string quality="";public string Quality{get=>quality;set=>Set(ref quality,value);}

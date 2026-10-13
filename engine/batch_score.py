@@ -125,6 +125,11 @@ def diagram_inversion(value=2):
         raise ValueError('A inversão dos diagramas deve ser 0 (fundamental), 1 (primeira) ou 2 (segunda).')
     return value
 
+def chord_diagram_inversion(chord,default=2):
+    """An occurrence override may be zero; only null/missing inherits the score."""
+    value=chord.get('diagram_inversion')
+    return diagram_inversion(default if value is None else value)
+
 def _header_lines(text,width):
     return '\n'.join(textwrap.wrap(text,width=width,break_long_words=True,break_on_hyphens=False))
 
@@ -432,8 +437,13 @@ def high_melody_layout(part,lines):
     return result
 
 def build_musicxml(parsed,config,harmony,out,title):
-    metadata=score_metadata(config,title);title=metadata['title'];header=_header_layout(metadata)
     inversion=diagram_inversion(config.get('diagram_inversion'))
+    event_inversions=[chord_diagram_inversion(chord,inversion) for chord in harmony['events']]
+    custom_diagrams=any(value!=inversion for value in event_inversions)
+    metadata=score_metadata(config,title)
+    if custom_diagrams and config.get('scoreSubtitle') is None:
+        metadata['subtitle']='Melodia, cifras e diagramas de teclado • posições personalizadas'
+    title=metadata['title'];header=_header_layout(metadata)
     summary,meters,tempos=meta(parsed);origin,end,bars=make_bars(parsed,meters)
     try:notes,grids,note_report=melody_events(parsed,config,origin,end)
     except NeedsReview as error:
@@ -464,7 +474,17 @@ def build_musicxml(parsed,config,harmony,out,title):
         beat=tick//DIV;grid=grids.get(beat,4);snapped=round(beat*DIV+round((tick-beat*DIV)/(DIV/grid))*DIV/grid)
         adjustment=(snapped-tick)/DIV;tick=snapped
         if 0<=tick<end-origin:chords.append(dict(ev,tick=tick,placement_adjustment_quarters=adjustment))
-    unique_chords={c['tick']:c for c in chords};chords=sorted(unique_chords.values(),key=lambda c:c['tick'])
+    unique_chords={}
+    for chord in chords:
+        previous=unique_chords.get(chord['tick'])
+        if previous is not None and any(item.get('diagram_inversion') is not None for item in (previous,chord)):
+            quarter=(chord['tick']+origin)/DIV
+            error=NeedsReview('Duas cifras com posições de diagramas personalizadas coincidem após a quantização. Afaste suas posições e gere novamente.',[quarter],kind='diagram_collision')
+            point=locate_review_point(quarter,origin,bars,error.kind,str(error),True)
+            error.review_points=[point] if point is not None else []
+            raise error
+        unique_chords[chord['tick']]=chord
+    chords=sorted(unique_chords.values(),key=lambda c:c['tick'])
     if not chords:raise NeedsReview('Nenhuma cifra suficientemente apoiada pelas notas do acompanhamento.')
     if len(chords)>len(bars)*3:raise NeedsReview('Harmonia excessivamente densa; revisar detecção de acordes.')
     # A large custom heading consumes first-page space. Rebalance page breaks,
@@ -549,7 +569,7 @@ def build_musicxml(parsed,config,harmony,out,title):
         if i==len(bars)-1:bl=sub(measure,'barline',location='right');sub(bl,'bar-style','light-heavy')
     E.indent(root);xml=out/'melodia.musicxml';E.ElementTree(root).write(xml,encoding='utf-8',xml_declaration=True)
     report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/DIV,'measures':len(bars),'systems':len(lines),'pages_planned':1+sum(kind=='page' for kind in starts.values()),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
-    report.update(score_metadata=metadata,diagram_inversion=inversion,transpose_semitones=output_transpose)
+    report.update(score_metadata=metadata,diagram_inversion=inversion,custom_diagram_inversions=custom_diagrams,transpose_semitones=output_transpose)
     if config.get('reserve_high_melody'):
         report['high_melody_layout']=high_melody_layout(part,lines)
         report['tuplet_bracket_measures']=config.get('tuplet_bracket_measures',[])
@@ -705,8 +725,9 @@ def convert_score(xml,report,out,filename):
         if measure_index in report['system_starts']:previous_chord=None
         for voice in measure.findall('voice'):
             for harmony in list(voice.findall('Harmony')):
-                c=next(events);path,data,pitches=keyboard_asset(c['root'],c['quality'],report.get('diagram_inversion',2));assets['Pictures/'+path]=data
-                asset_manifest[path]={'root':c['root'],'quality':c['quality'],'pitches':pitches}
+                c=next(events);inversion=chord_diagram_inversion(c,report.get('diagram_inversion',2))
+                path,data,pitches=keyboard_asset(c['root'],c['quality'],inversion);assets['Pictures/'+path]=data
+                asset_manifest[path]={'root':c['root'],'quality':c['quality'],'pitches':pitches,'diagram_inversion':inversion}
                 im=E.Element('Image');E.SubElement(im,'offset',x=str(4.5+max(0,len(c['quality'])-1)*.8),y=str(-6.7-lift));sub(im,'path',path);sub(im,'autoScale',0);E.SubElement(im,'size',w='14',h=str(14*84/282));sub(im,'lockAspectRatio',1);sub(im,'sizeIsSpatium',1)
                 if placement:
                     # One shared row keeps each chord symbol aligned with its
@@ -832,7 +853,7 @@ def prepare(config):
     (out/'harmonia_fonte.json').write_text(json.dumps(harmony,ensure_ascii=False,indent=2),encoding='utf8')
     xml,report=build_musicxml(parsed,config,harmony,out,title)
     report['triage']=config
-    suffix=('posicao fundamental','1a inversao','2a inversao')[report['diagram_inversion']]
+    suffix='posicoes personalizadas' if report['custom_diagram_inversions'] else ('posicao fundamental','1a inversao','2a inversao')[report['diagram_inversion']]
     final=convert_score(xml,report,out,stem+' - cifras '+suffix)
     (out/'validacao.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
     return {'index':index,'filename':config['filename'],'status':'generated_pending_visual_review','path':str(final),'preview':str(out/'previa-geral.png'),'pages':report['pages'],'measures':report['measures'],'notes':report['melody_attacks_verified'],'harmony_warnings':harmony.get('warnings',[])}

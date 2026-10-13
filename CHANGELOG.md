@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.8.0 — 13/10/2026
+
+- Janela Posições dos diagramas para escolher posição fundamental, 1ª ou 2ª inversão por ocorrência de acorde, com atualização automática da partitura.
+- Aplicar à mesma cifra permite repetir a escolha; Padrão da partitura mantém o vínculo com a inversão geral.
+- Escolhas preservadas ao fechar, restaurar o Histórico e desconectar/reconectar o MIDI; transposição e lembretes de cifra acompanham a posição escolhida.
+- Subtítulo automático identifica posições personalizadas, preservando subtítulos escritos pelo usuário.
+- Botão Importar MuseScore no topo facilita abrir .mscz para melhorar a apresentação em uma nova cópia.
+
 ## 0.7.0 — 13/10/2026
 
 - Visualizador de todas as páginas, com miniaturas, zoom, ajuste à página/largura e tela cheia.

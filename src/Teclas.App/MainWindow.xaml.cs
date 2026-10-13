@@ -77,6 +77,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     private void RefreshSelection()
     {
         NotifyLibraryActions();
+        Notify(nameof(CanCustomizeDiagrams));
         foreach(var name in new[]{nameof(PreviewSourcePath),nameof(CanShowHistory),nameof(GenerateButtonLabel),nameof(LibraryCollections),nameof(CanEditMidi),nameof(CanReviewScore),nameof(CanTransposeScore)})Notify(name);
         Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
         OnPlaybackSelectionChanged();
@@ -94,7 +95,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));}
+    private void SetBusy(bool value){busy=value;if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
     private void InvalidateAnalysis(MidiRow row)
     {
         RememberVersion(row);row.AnalysisPath=null;row.Chords.Clear();row.ReviewPoints.Clear();Notify(nameof(CanReviewScore));
@@ -196,8 +197,11 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         var result=await client.RunAsync(request,row.Workspace,new Progress<string>(text=>Status=text),cancellation!.Token);
         ParseReviewPoints(row,JsonSerializer.SerializeToElement(result));
         row.AnalysisPath=result["analysisPath"]!.GetValue<string>();row.KeyFifths=result["keyFifths"]!.GetValue<int>();row.KeyMinor=result["keyMinor"]!.GetValue<bool>();
+        var previousPositions=row.Chords.Where(c=>c.DiagramInversion is not null).ToArray();
         row.Chords.Clear();
         foreach(var c in result["chords"]!.AsArray())row.Chords.Add(new(){Quarter=c!["quarter"]!.GetValue<double>(),Root=c["root"]!.GetValue<string>(),Quality=c["quality"]!.GetValue<string>(),Confidence=c["confidence"]!.GetValue<double>()});
+        foreach(var chord in row.Chords)
+            chord.DiagramInversion=previousPositions.FirstOrDefault(old=>Math.Abs(old.Quarter-chord.Quarter)<.000001 && old.Root==chord.Root && old.Quality==chord.Quality)?.DiagramInversion;
         row.HasOperationError=false;
         row.Status=$"{row.Chords.Count} mudanças de acorde · confira as cifras";
         var warnings=string.Join(" ",result["warnings"]!.AsArray().Select(x=>x!.GetValue<string>()));
@@ -214,7 +218,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         ValidateSettings(true);
         RememberVersion(row);
         if(row.AnalysisPath is null || row.Workspace is null)throw new InvalidOperationException("Analise os acordes antes de gerar.");
-        var chords=new JsonArray(row.Chords.Select(c=>(JsonNode)new JsonObject{["quarter"]=c.Quarter,["root"]=c.Root,["quality"]=c.Quality}).ToArray());
+        var chords=new JsonArray(row.Chords.Select(c=>(JsonNode)new JsonObject{["quarter"]=c.Quarter,["root"]=c.Root,["quality"]=c.Quality,["diagramInversion"]=c.DiagramInversion}).ToArray());
         var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=OutputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords,["scoreTitle"]=row.ScoreTitle,["scoreSubtitle"]=row.ScoreSubtitle,["scoreComposer"]=row.ScoreComposer,["diagramInversion"]=row.EffectiveDiagramInversion};
         row.Status="Gerando e conferindo no MuseScore…";
         request["transposeSemitones"]=row.TransposeSemitones;
@@ -234,8 +238,14 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     }
     private void SelectionChanged(object sender,SelectionChangedEventArgs e)
     {
-        if(Library is null)return;loading=true;selectedFile=Library.SelectedItem as MidiRow;RefreshSelection();loading=false;
+        if(Library is null)return;
+        if(selectedFile is not null)selectedFile.Chords.CollectionChanged-=SelectedChordsChanged;
+        loading=true;selectedFile=Library.SelectedItem as MidiRow;
+        if(selectedFile is not null)selectedFile.Chords.CollectionChanged+=SelectedChordsChanged;
+        RefreshSelection();loading=false;
     }
+    private void SelectedChordsChanged(object? sender,System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {Notify(nameof(CanCustomizeDiagrams));Notify(nameof(ScorePropertiesSummary));}
     private async void AnalyzeClick(object sender,RoutedEventArgs e){if(selectedFile is { } row)await RunOperation(async()=>{await Analyze(row);EditorTabs.SelectedIndex=1;},row);}
     private async void GenerateClick(object sender,RoutedEventArgs e)
     {

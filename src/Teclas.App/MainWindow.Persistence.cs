@@ -67,6 +67,9 @@ public partial class MainWindow
                     // Existing output remains accessible even if the input is on a disconnected drive.
                     row.ScorePath = saved.ScorePath; row.PreviewPath = saved.PreviewPath;
                     row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
+                    row.KeyFifths = saved.KeyFifths; row.KeyMinor = saved.KeyMinor;
+                    foreach (var chord in saved.Chords) row.Chords.Add(new ChordRow
+                    { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion });
                 }
                 var freshHeader=(row.ScoreTitle,row.ScoreSubtitle,row.ScoreComposer);
                 ApplySavedScoreProperties(row, saved);
@@ -99,7 +102,7 @@ public partial class MainWindow
         foreach (var track in row.Tracks) track.IsMelody = sources.Contains(track.Source.Key);
         row.KeyFifths = saved.KeyFifths; row.KeyMinor = saved.KeyMinor;
         foreach (var chord in saved.Chords) row.Chords.Add(new ChordRow
-        { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence });
+        { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion });
         row.Workspace = saved.Workspace;
         row.AnalysisPath = File.Exists(saved.AnalysisPath) && Directory.Exists(saved.Workspace) ? saved.AnalysisPath : null;
         RestoreReviewPoints(row);
@@ -165,6 +168,9 @@ public partial class MainWindow
             remembered.ScorePath = row.ScorePath; remembered.PreviewPath = row.PreviewPath;
             remembered.PageCount = row.PageCount; remembered.GeneratedAt = row.GeneratedAt;
             remembered.Status = row.Status; remembered.HasOperationError = row.HasOperationError;
+            remembered.KeyFifths = row.KeyFifths; remembered.KeyMinor = row.KeyMinor;
+            remembered.Chords = row.Chords.Select(chord => new SavedChord
+                { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion }).ToList();
             return remembered;
         }
         return new SavedMidi
@@ -178,7 +184,7 @@ public partial class MainWindow
             MelodySources = row.Tracks.Where(track => track.IsMelody).Select(track => new SavedSource
                 { Track = track.Source.Key.Track, Channel = track.Source.Key.Channel, Program = track.Source.Key.Program }).ToList(),
             Chords = row.Chords.Select(chord => new SavedChord
-                { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence }).ToList(),
+                { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion }).ToList(),
             KeyFifths = row.KeyFifths, KeyMinor = row.KeyMinor, AnalysisPath = row.AnalysisPath, Workspace = row.Workspace,
             ScorePath = row.ScorePath, PreviewPath = row.PreviewPath, PageCount = row.PageCount, GeneratedAt = row.GeneratedAt,
             HasOperationError = row.HasOperationError, Status = row.Status

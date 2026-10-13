@@ -46,4 +46,10 @@ public partial class MainWindow
         PersistPreferences();
     }
     private void UpdatesClick(object sender,RoutedEventArgs e)=>new UpdateWindow(PythonPath,MuseScorePath){Owner=this}.ShowDialog();
+    private async void ImportMuseScoreClick(object sender,RoutedEventArgs e)
+    {
+        if(!IsIdle || !CommitEdits())return;
+        var dialog=new Microsoft.Win32.OpenFileDialog{Title="Abrir partituras MuseScore para melhorar",Filter="Partitura MuseScore 4|*.mscz",Multiselect=true};
+        if(dialog.ShowDialog(this)==true)await ImportAndOpenLibraryAsync(dialog.FileNames);
+    }
 }

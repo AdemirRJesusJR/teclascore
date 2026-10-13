@@ -93,6 +93,8 @@ def main():
             old=next((x for x in harmony['events'] if x['tick']==tick),{})
             changed=(old.get('root'),old.get('quality'))!=(pc,quality)
             event=dict(old,tick=tick,root=pc,quality=quality,root_spelling=root,confidence=old.get('confidence',0) if not changed else 0)
+            selected_inversion=c.get('diagramInversion')
+            event['diagram_inversion']=None if selected_inversion is None else engine.diagram_inversion(selected_inversion)
             event['pitch_classes']=sorted((pc+x)%12 for x in CHORD_INTERVALS[quality])
             if changed:event.update(user_edited=True,evidence={'method':'user_edit_in_desktop'})
             new.append(event)
@@ -111,6 +113,8 @@ def main():
     engine.EXE=str(exe)
     engine.analyze_harmony=lambda parsed,sources:copy.deepcopy(harmony)
     inversion_label=('posição fundamental','1ª inversão','2ª inversão')[config['diagram_inversion']]
+    if any(engine.chord_diagram_inversion(chord,config['diagram_inversion'])!=config['diagram_inversion'] for chord in harmony['events']):
+        inversion_label='posições personalizadas'
     send('progress',message=f'Preparando melodia, cifras e diagramas em {inversion_label}…')
     result=engine.prepare(config)
     final=Path(result['path']);targetdir=Path(req['outputDirectory']).resolve();targetdir.mkdir(parents=True,exist_ok=True)

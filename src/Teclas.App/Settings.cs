@@ -105,7 +105,9 @@ public sealed class Settings
             row.MelodySources = row.MelodySources.Where(source => source is not null).ToList();
             row.Chords = row.Chords.Where(chord => chord is not null && double.IsFinite(chord.Quarter)
                 && double.IsFinite(chord.Confidence)).ToList();
-            foreach (var chord in row.Chords) { chord.Root ??= "C"; chord.Quality ??= ""; }
+            foreach (var chord in row.Chords) { chord.Root ??= "C"; chord.Quality ??= ""; if(chord.DiagramInversion is <0 or >2)chord.DiagramInversion=null; }
+            foreach(var chord in row.Versions.SelectMany(version=>version.Chords))
+                if(chord.DiagramInversion is <0 or >2)chord.DiagramInversion=null;
         }
     }
 
@@ -221,6 +223,7 @@ public sealed class SavedSource
 
 public sealed class SavedChord
 {
+    public int? DiagramInversion { get; set; }
     public double Quarter { get; set; }
     public string Root { get; set; } = "C";
     public string Quality { get; set; } = "";

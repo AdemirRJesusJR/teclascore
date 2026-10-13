@@ -25,7 +25,7 @@ public partial class MainWindow
             MelodySources=row.Tracks.Where(t=>t.IsMelody).Select(t=>new SavedSource { Track=t.Source.Key.Track,Channel=t.Source.Key.Channel,Program=t.Source.Key.Program }).ToList(),
             Title=row.ScoreTitle,Subtitle=row.ScoreSubtitle,Composer=row.ScoreComposer,DefaultInversion=row.DefaultDiagramInversion,Inversion=row.DiagramInversion,
             TransposeSemitones=row.TransposeSemitones,KeyFifths=row.KeyFifths,KeyMinor=row.KeyMinor,
-            Chords=row.Chords.Select(c=>new SavedChord { Quarter=c.Quarter,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence }).ToList() });
+            Chords=row.Chords.Select(c=>new SavedChord { Quarter=c.Quarter,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence,DiagramInversion=c.DiagramInversion }).ToList() });
     }
     private void ScoreHistoryClick(object sender,RoutedEventArgs e)
     {
@@ -53,13 +53,13 @@ public partial class MainWindow
         row.ScoreTitle=version.Title;row.ScoreSubtitle=version.Subtitle;row.ScoreComposer=version.Composer;
         row.DefaultDiagramInversion=version.DefaultInversion;row.DiagramInversion=version.Inversion;row.TransposeSemitones=version.TransposeSemitones;
         row.KeyFifths=version.KeyFifths;row.KeyMinor=version.KeyMinor;row.Chords.Clear();
-        foreach(var chord in version.Chords)row.Chords.Add(new ChordRow { Quarter=chord.Quarter,Root=chord.Root,Quality=chord.Quality,Confidence=chord.Confidence });
+        foreach(var chord in version.Chords)row.Chords.Add(new ChordRow { Quarter=chord.Quarter,Root=chord.Root,Quality=chord.Quality,Confidence=chord.Confidence,DiagramInversion=chord.DiagramInversion });
         row.HasPendingScoreProperties=false;row.HasOperationError=false;row.Status="Versão restaurada · "+row.PageCountText;
         if(unavailableSessionRows.TryGetValue(row.FullPath,out var remembered))
         {
             remembered.Sha256=version.SourceSha256;remembered.UseReviewedProfile=version.UseReviewedProfile;
             remembered.MelodySources=version.MelodySources.Select(s=>new SavedSource {Track=s.Track,Channel=s.Channel,Program=s.Program}).ToList();
-            remembered.Chords=version.Chords.Select(c=>new SavedChord {Quarter=c.Quarter,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence}).ToList();
+            remembered.Chords=version.Chords.Select(c=>new SavedChord {Quarter=c.Quarter,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence,DiagramInversion=c.DiagramInversion}).ToList();
             remembered.KeyFifths=version.KeyFifths;remembered.KeyMinor=version.KeyMinor;
             remembered.AnalysisPath=version.AnalysisPath;remembered.Workspace=version.Workspace;
         }

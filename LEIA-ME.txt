@@ -1,4 +1,13 @@
-TECLASCORE · PRÉVIA 0.7.0
+TECLASCORE · PRÉVIA 0.8.0
+
+NOVO NA VERSÃO 0.8.0
+Em Cifras ou Prévia, abra Posições dos diagramas para escolher uma inversão por acorde.
+Use Aplicar à mesma cifra para repetir a escolha em todos os acordes daquele tipo.
+Padrão da partitura acompanha a inversão geral; escolhas individuais permanecem independentes.
+Aplicar e atualizar gera uma nova cópia automaticamente e recarrega a prévia.
+As posições ficam salvas entre sessões e no Histórico. O MIDI precisa estar disponível para gerar.
+Exemplo: C em 2ª inversão (Sol–Dó–Mi) e Am em posição fundamental (Lá–Dó–Mi).
+No topo, Importar MuseScore abre seus .mscz; Melhorar apresentação cria uma cópia com novo acabamento.
 
 Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 

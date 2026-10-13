@@ -13,6 +13,12 @@ public partial class ScorePropertiesWindow : Window
     private bool initializing = true;
     private bool updatingSubtitle;
     private bool automaticSubtitle;
+    private int?[] customPositions=[];
+    public void SetCustomDiagramPositions(IEnumerable<int?> positions)
+    {
+        customPositions=positions.ToArray();
+        if(automaticSubtitle)UpdateAutomaticSubtitle();
+    }
 
     public string TitleValue => ScoreTitleInput.Text.Trim();
     public string? SubtitleValue => automaticSubtitle ? null : ScoreSubtitleInput.Text.Trim();
@@ -51,7 +57,12 @@ public partial class ScorePropertiesWindow : Window
     private void UpdateAutomaticSubtitle()
     {
         updatingSubtitle = true;
-        try { ScoreSubtitleInput.Text = ScoreMetadataDefaults.Subtitle(InversionOverride ?? defaultInversion); }
+        try
+        {
+            int inversion=InversionOverride??defaultInversion;
+            ScoreSubtitleInput.Text=customPositions.Any(value=>value is not null && value!=inversion)
+                ?"Melodia, cifras e diagramas de teclado • posições personalizadas":ScoreMetadataDefaults.Subtitle(inversion);
+        }
         finally { updatingSubtitle = false; }
     }
 

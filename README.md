@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.7.0 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável, edita as propriedades do cabeçalho, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.8.0 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, edita as propriedades do cabeçalho, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
 
@@ -33,6 +33,14 @@ O título vazio usa o nome do MIDI. Subtítulo e autor podem ficar vazios. Com o
 Em Configurações, escolha posição fundamental, 1ª inversão ou 2ª inversão como padrão. O padrão inicial continua sendo a 2ª inversão. A escolha vale para os MIDIs importados depois da mudança; os itens existentes mantêm o padrão adotado quando entraram na biblioteca. Nas propriedades, “Padrão adotado” usa essa escolha original, e uma inversão explícita altera somente a partitura selecionada. A mudança afeta os diagramas, preservando as notas da melodia e as cifras.
 
 Uma atualização automática mantém os arquivos gerados anteriormente. Se houver erro, o app informa a pendência e desabilita a reprodução e o botão Salvar PDF até concluir a atualização. O ZIP também pede que as partituras pendentes sejam atualizadas antes de exportar o lote. O arquivo .mscz gerado, com os diagramas incorporados, fica na pasta de saída.
+
+Após analisar um MIDI, abra **Posições dos diagramas** na aba Cifras ou Prévia. Cada linha permite escolher posição fundamental, 1ª inversão, 2ª inversão ou Padrão da partitura. A escolha é por ocorrência: você pode usar C em 2ª inversão, Am em posição fundamental e outro C em 1ª inversão na mesma música. Para repetir uma escolha em todas as ocorrências daquele acorde, selecione a linha e use **Aplicar à mesma cifra**. Restaurar o padrão remove as escolhas individuais.
+
+**Aplicar e atualizar** salva as escolhas e gera uma nova partitura automaticamente. O MIDI precisa estar disponível; caso contrário, as escolhas ficam salvas até reconectá-lo e gerar. Cancelar descarta as edições da janela. O Histórico recupera as posições daquela versão. Alterar a inversão geral mantém as escolhas individuais; Padrão da partitura acompanha a configuração geral da música. A transposição mantém a posição escolhida para cada acorde, e a tabela mostra as cifras no tom original. Um subtítulo automático indica “posições personalizadas” quando há posições diferentes da configuração geral.
+
+Para C, posição fundamental é Dó–Mi–Sol; 1ª inversão é Mi–Sol–Dó; 2ª inversão é Sol–Dó–Mi. Os diagramas podem deslocar o conjunto inteiro em uma oitava para caber no teclado desenhado, preservando a inversão. A personalização vale para os diagramas gerados a partir de MIDI; imagens de diagramas em partituras MuseScore importadas são preservadas.
+
+Trocar a pista de melodia ou alternar o perfil revisado descarta a tabela de cifras para uma nova análise, incluindo as posições individuais. Uma partitura já gerada continua disponível no Histórico com suas escolhas anteriores.
 
 ## Painéis e biblioteca
 
@@ -68,7 +76,7 @@ Após Analisar acordes, **Revisão guiada** lista os pontos identificados, com c
 
 ## Melhorar partituras MuseScore
 
-Importe um **.mscz do MuseScore 4** e abra **Melhorar apresentação** ou Propriedades. Edite título, subtítulo e autor e escolha apresentação padrão, confortável ou compacta. O app ajusta margens, tamanho de pauta e cabeçalho e salva uma nova cópia. Notas, ritmos, vozes, cifras, repetições e imagens são conferidos antes da entrega. O Histórico permite comparar antes/depois. Se a preservação não puder ser confirmada, a operação informa a falha e mantém o original.
+Use **Importar MuseScore**, no topo do app, para abrir um **.mscz do MuseScore 4** e clique em **Melhorar apresentação** ou Propriedades. Edite título, subtítulo e autor e escolha apresentação padrão, confortável ou compacta. O app ajusta margens, tamanho de pauta e cabeçalho e salva uma nova cópia. Notas, ritmos, vozes, cifras, repetições e imagens são conferidos antes da entrega. O Histórico permite comparar antes/depois. Se a preservação não puder ser confirmada, a operação informa a falha e mantém o original.
 
 Arquivos de versões antigas devem ser abertos e salvos em uma nova cópia pelo MuseScore 4 antes da importação. Quando há imagens ou diagramas, as quebras existentes são preservadas para evitar corte dos desenhos; confirme visualmente o resultado, sobretudo em partituras com posicionamentos manuais. A melhoria não inventa cifras nem troca automaticamente a inversão de diagramas externos.
 
@@ -115,6 +123,7 @@ Abra Teclas.Partituras.sln. Não há pacotes NuGet externos; NuGet.Config manté
     python tools/qa_ui.py --midis "C:\caminho\para\midis"
     python tests/test_quantization.py
     python tests/test_score_properties.py
+    python tests/test_chord_diagrams.py
     python tests/quantization_regression.py --project "C:\caminho\para\Partituras de Teclado"
     python tools/qa_preferences.py --project "C:\caminho\para\Partituras de Teclado"
 

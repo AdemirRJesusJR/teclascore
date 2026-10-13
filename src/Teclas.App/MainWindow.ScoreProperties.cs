@@ -22,7 +22,7 @@ public partial class MainWindow
     }
     public bool CanEditScoreProperties => IsIdle && selectedFile is not null;
     public string ScorePropertiesSummary => selectedFile is { } row
-        ? row.ScoreTitle + " · " + (row.IsNativeScore ? "MuseScore · apresentação e metadados" : ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion) + $" · transposição {row.TransposeSemitones:+0;-0;0}")
+        ? row.ScoreTitle + " · " + (row.IsNativeScore ? "MuseScore · apresentação e metadados" : (row.Chords.Any(c=>c.DiagramInversion is not null)?"Diagramas personalizados · padrão: ":"") + ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion) + $" · transposição {row.TransposeSemitones:+0;-0;0}")
           + (row.HasPendingScoreProperties ? " · atualização pendente" : "")
         : "Título, subtítulo, autor e inversão dos diagramas.";
 
@@ -32,6 +32,7 @@ public partial class MainWindow
         if(row.IsNativeScore){ImproveNativeScoreClick(sender,e);return;}
         var dialog = new ScorePropertiesWindow(row.ScoreTitle, row.ScoreSubtitle, row.ScoreComposer,
             row.DiagramInversion, row.DefaultDiagramInversion) { Owner = this };
+        dialog.SetCustomDiagramPositions(row.Chords.Select(chord=>chord.DiagramInversion));
         if (dialog.ShowDialog() != true) return;
         bool changed = row.ScoreTitle != dialog.TitleValue || row.ScoreSubtitle != dialog.SubtitleValue
             || row.ScoreComposer != dialog.ComposerValue || row.DiagramInversion != dialog.InversionOverride;
