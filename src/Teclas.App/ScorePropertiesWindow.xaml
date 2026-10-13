@@ -30,13 +30,13 @@
      <Label Content="Artista / intérprete" Target="{Binding ElementName=ScoreArtistInput}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
      <TextBox x:Name="ScoreArtistInput" MaxLength="120" Margin="0,7,0,6" AutomationProperties.Name="Artista ou intérprete"/>
      <TextBlock Text="Quem interpreta a música. A autoria pode ser de outra pessoa." Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,18"/>
-     <Label Content="Subtítulo" Target="{Binding ElementName=ScoreSubtitleInput}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
-     <TextBox x:Name="ScoreSubtitleInput" MaxLength="200" TextChanged="SubtitleChanged" Margin="0,7,0,10" AutomationProperties.Name="Subtítulo da partitura"/>
-     <CheckBox x:Name="AutomaticSubtitleCheck" Content="Subtítulo automático conforme os diagramas" Checked="AutomaticSubtitleChanged" Unchecked="AutomaticSubtitleChanged" FontSize="12" Margin="0,0,0,18"/>
+     <Label Content="Subtítulo (opcional)" Target="{Binding ElementName=ScoreSubtitleInput}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
+     <TextBox x:Name="ScoreSubtitleInput" MaxLength="200" Margin="0,7,0,6" AutomationProperties.Name="Subtítulo da partitura"/>
+     <TextBlock Text="Deixe vazio para não exibir subtítulo na partitura." Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,18"/>
      <Label Content="Autor / compositor" Target="{Binding ElementName=ScoreComposerInput}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
      <TextBox x:Name="ScoreComposerInput" MaxLength="120" Margin="0,7,0,18" AutomationProperties.Name="Autor ou compositor"/>
      <Label Content="Posição dos acordes nos diagramas" Target="{Binding ElementName=DiagramInversionCombo}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
-     <ComboBox x:Name="DiagramInversionCombo" SelectedValuePath="Value" DisplayMemberPath="Label" SelectionChanged="InversionChanged" Margin="0,7,0,10" AutomationProperties.Name="Inversão dos diagramas desta partitura"/>
+     <ComboBox x:Name="DiagramInversionCombo" SelectedValuePath="Value" DisplayMemberPath="Label" Margin="0,7,0,10" AutomationProperties.Name="Inversão dos diagramas desta partitura"/>
      <TextBlock Text="O padrão adotado é o que esta partitura recebeu ao ser adicionada. Alterações em Configurações valem para novas partituras." Style="{StaticResource MutedText}" FontSize="11"/>
     </StackPanel>
    </Border>

@@ -18,12 +18,6 @@ public partial class MainWindow
         if(!row.UseReviewedProfile && !row.Tracks.Any(t=>t.IsMelody)){Status="Transposição salva. Escolha a melodia e analise os acordes para gerar.";return;}
         await RunOperation(async()=>
         {
-            if(row.AnalysisPath is null || !File.Exists(row.AnalysisPath))
-            {
-                var chords=row.Chords.ToArray();int fifths=row.KeyFifths;bool minor=row.KeyMinor;
-                await Analyze(row);
-                if(chords.Length>0){row.Chords.Clear();foreach(var chord in chords)row.Chords.Add(chord);row.KeyFifths=fifths;row.KeyMinor=minor;}
-            }
             await Generate(row);EditorTabs.SelectedIndex=2;
         },row);
     }

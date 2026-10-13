@@ -10,21 +10,12 @@ namespace Teclas.App;
 public partial class ScorePropertiesWindow : Window
 {
     private sealed record InversionChoice(int Value, string Label);
-    private readonly int defaultInversion;
-    private bool initializing = true;
-    private bool updatingSubtitle;
-    private bool automaticSubtitle;
-    private int?[] customPositions=[];
+    private readonly string? initialSubtitle;
     private ScoreMetadataSuggestion? metadataSuggestion;
     private string organizationNotice = "";
-    public void SetCustomDiagramPositions(IEnumerable<int?> positions)
-    {
-        customPositions=positions.ToArray();
-        if(automaticSubtitle)UpdateAutomaticSubtitle();
-    }
-
     public string TitleValue => ScoreTitleInput.Text.Trim();
-    public string? SubtitleValue => automaticSubtitle ? null : ScoreSubtitleInput.Text.Trim();
+    public string? SubtitleValue => initialSubtitle is null && string.IsNullOrWhiteSpace(ScoreSubtitleInput.Text)
+        ? null : ScoreSubtitleInput.Text.Trim();
     public string ComposerValue => ScoreComposerInput.Text.Trim();
     public string ArtistValue => ScoreArtistInput.Text.Trim();
     public bool UsedMetadataSuggestion { get; private set; }
@@ -34,7 +25,8 @@ public partial class ScorePropertiesWindow : Window
     public ScorePropertiesWindow(string title, string? subtitle, string composer, int? diagramInversionOverride, int defaultInversion,
         string artist = "", string organizationNotice = "")
     {
-        this.defaultInversion = Math.Clamp(defaultInversion, 0, 2);
+        defaultInversion = Math.Clamp(defaultInversion, 0, 2);
+        initialSubtitle = subtitle;
         InitializeComponent();
         ScoreTitleInput.Text = title;
         ScoreComposerInput.Text = composer;
@@ -43,16 +35,13 @@ public partial class ScorePropertiesWindow : Window
         SetOrganizationNotice(organizationNotice);
         DiagramInversionCombo.ItemsSource = new[]
         {
-            new InversionChoice(-1, $"Padrão adotado ({InversionName(this.defaultInversion)})"),
+            new InversionChoice(-1, $"Padrão adotado ({InversionName(defaultInversion)})"),
             new InversionChoice(0, "Posição fundamental"),
             new InversionChoice(1, "Primeira inversão"),
             new InversionChoice(2, "Segunda inversão")
         };
         DiagramInversionCombo.SelectedValue = diagramInversionOverride is >= 0 and <= 2 ? diagramInversionOverride.Value : -1;
-        automaticSubtitle = subtitle is null;
-        AutomaticSubtitleCheck.IsChecked = automaticSubtitle;
-        ScoreSubtitleInput.Text = subtitle ?? ScoreMetadataDefaults.Subtitle(InversionOverride ?? this.defaultInversion);
-        initializing = false;
+        ScoreSubtitleInput.Text = subtitle ?? "";
         SourceInitialized += (_, _) => ApplyNativeTheme();
         Activated += (_, _) => ApplyNativeTheme();
         Deactivated += (_, _) => ApplyNativeTheme();
@@ -97,37 +86,6 @@ public partial class ScorePropertiesWindow : Window
     {
         0 => "posição fundamental", 1 => "primeira inversão", _ => "segunda inversão"
     };
-
-    private void UpdateAutomaticSubtitle()
-    {
-        updatingSubtitle = true;
-        try
-        {
-            int inversion=InversionOverride??defaultInversion;
-            ScoreSubtitleInput.Text=customPositions.Any(value=>value is not null && value!=inversion)
-                ?"Melodia, cifras e diagramas de teclado • posições personalizadas":ScoreMetadataDefaults.Subtitle(inversion);
-        }
-        finally { updatingSubtitle = false; }
-    }
-
-    private void SubtitleChanged(object sender, TextChangedEventArgs e)
-    {
-        if (initializing || updatingSubtitle) return;
-        automaticSubtitle = false;
-        AutomaticSubtitleCheck.IsChecked = false;
-    }
-
-    private void AutomaticSubtitleChanged(object sender, RoutedEventArgs e)
-    {
-        if (initializing) return;
-        automaticSubtitle = AutomaticSubtitleCheck.IsChecked == true;
-        if (automaticSubtitle) UpdateAutomaticSubtitle();
-    }
-
-    private void InversionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!initializing && automaticSubtitle) UpdateAutomaticSubtitle();
-    }
 
     private void SavePropertiesClick(object sender, RoutedEventArgs e)
     {

@@ -67,17 +67,19 @@ public partial class App
                     dialog.Opacity = 0; dialog.ShowInTaskbar = false;
                     ((TextBox)dialog.FindName("ScoreTitleInput")).Text = title;
                     var subtitleBox = (TextBox)dialog.FindName("ScoreSubtitleInput");
-                    var automatic = (CheckBox)dialog.FindName("AutomaticSubtitleCheck");
-                    automatic.IsChecked = subtitle is null;
-                    if (subtitle is not null) subtitleBox.Text = subtitle;
+                    if (subtitleBox.Text != (window.SelectedFile!.ScoreSubtitle ?? ""))
+                        throw new InvalidOperationException("The dialog did not preserve the optional subtitle.");
+                    if (dialog.FindName("AutomaticSubtitleCheck") is not null)
+                        throw new InvalidOperationException("The obsolete automatic subtitle option is still present.");
+                    subtitleBox.Text = subtitle ?? "";
                     ((TextBox)dialog.FindName("ScoreComposerInput")).Text = composer;
                     var combo = dialog.FindName("DiagramInversionCombo") as ComboBox
                         ?? dialog.FindName("ScoreInversionInput") as ComboBox
                         ?? Descendants(dialog).OfType<ComboBox>().Single();
                     combo.SelectedValue = inversion ?? -1;
                     if (!Equals(combo.SelectedValue, inversion ?? -1)) throw new InvalidOperationException("The selected diagram inversion was not applied.");
-                    if (subtitle is null && subtitleBox.Text != ScoreMetadataDefaults.Subtitle(inversion ?? window.SelectedFile!.DefaultDiagramInversion))
-                        throw new InvalidOperationException("The automatic subtitle did not follow the selected diagram inversion.");
+                    if (subtitleBox.Text != (subtitle ?? ""))
+                        throw new InvalidOperationException("Changing the diagram inversion modified the optional subtitle.");
                     var button = save
                         ? FindButton(dialog, "Salvar", "SavePropertiesButton", "SaveButton", "PropertiesSaveButton")
                         : FindButton(dialog, "Cancelar", "CancelPropertiesButton", "CancelButton", "PropertiesCancelButton");
@@ -120,6 +122,7 @@ public partial class App
             Check(Metadata(one, "Canção & Sol <2026>", "Estudo — teclado", "Ademir José / Autoria", 1), "modal-save-applies-title-subtitle-composer-and-inversion");
             Select(first, two);
             Check(Metadata(two, "outra faixa", null, "", null), "different-midi-with-same-hash-keeps-independent-defaults");
+            Properties(first, "", "Subtítulo temporário", "", 0, true);
             Properties(first, "", "", "", 0, true);
             Check(Metadata(two, "outra faixa", "", "", 0) && one.ScoreTitle == "Canção & Sol <2026>" && one.DiagramInversion == 1,
                 "blank-title-falls-back-to-filename-and-empty-subtitle-composer-stay-per-midi");
@@ -141,7 +144,7 @@ public partial class App
             Select(first, three);
             Properties(first, "Novo padrão", null, "", 1, true);
             Check(Metadata(three, "Novo padrão", null, "", 1) && three.EffectiveDiagramInversion == 1,
-                "automatic-subtitle-follows-first-inversion-without-becoming-custom");
+                "changing-inversion-leaves-default-subtitle-empty");
             Properties(first, "Novo padrão", null, "", null, true);
             Check(Metadata(three, "Novo padrão", null, "", null) && three.EffectiveDiagramInversion == 0 && three.DefaultDiagramInversion == 0,
                 "modal-default-option-removes-override-and-restores-imported-snapshot");
@@ -156,7 +159,7 @@ public partial class App
             Check(reopened.DefaultDiagramInversion == 0 && restoredOne.DefaultDiagramInversion == 2
                 && restoredTwo.DefaultDiagramInversion == 2 && restoredThree.DefaultDiagramInversion == 0
                 && restoredThree.DiagramInversion is null && restoredThree.ScoreSubtitle is null,
-                "native-reopen-preserves-global-default-snapshots-and-automatic-subtitle");
+                "native-reopen-preserves-global-default-snapshots-and-empty-default-subtitle");
             Close(reopened);
 
             // Editorial metadata belongs to the library item, independently of the source-note checksum.

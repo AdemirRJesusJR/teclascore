@@ -13,7 +13,7 @@ import batch_score as engine
 class ScoreMetadataTests(unittest.TestCase):
     def test_legacy_defaults_and_null_remain_compatible(self):
         title = engine.default_score_title('Norte_ForroAbertura_Show.mid')
-        expected = dict(title='Norte ForroAbertura Show', subtitle=engine.DEFAULT_SCORE_SUBTITLE, composer='', artist='')
+        expected = dict(title='Norte ForroAbertura Show', subtitle='', composer='', artist='')
         self.assertEqual(engine.score_metadata({}, title), expected)
         self.assertEqual(engine.score_metadata(dict(scoreTitle=None, scoreSubtitle=None, scoreComposer=None), title), expected)
 
@@ -21,10 +21,10 @@ class ScoreMetadataTests(unittest.TestCase):
         self.assertEqual(engine.score_metadata(dict(scoreTitle=' \t', scoreSubtitle='', scoreComposer=' \n'), 'Fonte'),
                          dict(title='Fonte', subtitle='', composer='', artist=''))
 
-    def test_default_subtitle_follows_inversion_but_explicit_text_is_preserved(self):
-        for inversion, label in enumerate(('posição fundamental', '1ª inversão', '2ª inversão')):
+    def test_subtitle_is_optional_and_independent_of_inversion(self):
+        for inversion in range(3):
             data = dict(diagram_inversion=inversion)
-            self.assertTrue(engine.score_metadata(data, 'Fonte')['subtitle'].endswith(label))
+            self.assertEqual(engine.score_metadata(data, 'Fonte')['subtitle'], '')
             data['scoreSubtitle'] = 'Meu subtítulo'
             self.assertEqual(engine.score_metadata(data, 'Fonte')['subtitle'], 'Meu subtítulo')
 

@@ -88,13 +88,20 @@ def review_points(parsed,config,harmony):
         for item in report.get('boundary_grid_refinements',[]):
             add(item['beat_original'],'rhythm_refined',
                 'Ritmo refinado automaticamente para separar ataques próximos. Confira o trecho com velocidade reduzida.')
+        for item in report.get('attack_position_adjustments',[]):
+            point=locate_review_point(item['original_quarter'],origin,bars,'rhythm_refined',
+                'Ataque preservado com ajuste local de ritmo. Confira o trecho com velocidade reduzida.')
+            if point is not None:
+                point.update(originalQuarter=item['original_quarter'],quantizedQuarter=item['quantized_quarter'],
+                    adjustmentQuarters=item['adjustment_quarters'])
+                points.append(point)
     except NeedsReview as error:
         ready=False;message=str(error)
         for quarter in error.quarters:add(quarter,error.kind,str(error),True)
     unique={(point['quarter'],point['kind']):point for point in points}
     return sorted(unique.values(),key=lambda point:(point['quarter'],point['kind'])),ready,message
 
-DEFAULT_SCORE_SUBTITLE='Melodia, cifras e diagramas de teclado • 2ª inversão'
+DEFAULT_SCORE_SUBTITLE=''
 
 def default_score_title(filename):
     title=re.sub(r'[_]+',' ',Path(filename).stem)
@@ -102,11 +109,10 @@ def default_score_title(filename):
 
 def score_metadata(values,default_title):
     result={}
-    inversion=diagram_inversion(values.get('diagram_inversion'))
-    default_subtitle='Melodia, cifras e diagramas de teclado • '+('posição fundamental','1ª inversão','2ª inversão')[inversion]
+    diagram_inversion(values.get('diagram_inversion'))
     for field,key,default,limit,label in (
         ('scoreTitle','title',default_title,160,'Título'),
-        ('scoreSubtitle','subtitle',default_subtitle,200,'Subtítulo'),
+        ('scoreSubtitle','subtitle',DEFAULT_SCORE_SUBTITLE,200,'Subtítulo'),
         ('scoreArtist','artist','',120,'Artista'),
         ('scoreComposer','composer','',120,'Autor')):
         value=values.get(field)
@@ -231,6 +237,58 @@ def _refine_boundary_grids(bybeat,grids,choices,origin,end):
     return [{'beat_original':beat,'from':original[beat],'to':div}
             for beat,div in sorted(grids.items()) if div!=original[beat]]
 
+def _separate_quantized_attacks(bybeat,grids,choices,origin,end):
+    """Resolve a failed nearest-grid quantization without losing distinct attacks.
+
+    Only beats containing a collision may change. Their finest supported grid
+    offers adjacent positions at most one subdivision from each source onset.
+    A monotonic minimum-error assignment preserves every attack and its order;
+    dense passages that cannot fit within that bound still require review.
+    """
+    records=[]
+    for beat in sorted(bybeat):
+        for phase in sorted(bybeat[beat]):
+            quarter=beat+phase
+            position=round((beat+round(phase*grids[beat])/grids[beat])*DIV)
+            if origin<=position<end:records.append((beat,quarter,position))
+    affected=set()
+    for previous,current in zip(records,records[1:]):
+        if previous[2]>=current[2]:affected.update((previous[0],current[0]))
+    if not affected:return {},[],[]
+    refined=dict(grids)
+    for beat in affected:refined[beat]=max(choices[beat])
+    layers=[];states={None:(0.,0)}
+    for index,(beat,quarter,nearest) in enumerate(records):
+        if beat in affected:
+            div=refined[beat];step=DIV//div;source=quarter*DIV
+            candidates=[beat*DIV+index*step for index in range(div+1)
+                if origin<=beat*DIV+index*step<end
+                and abs(beat*DIV+index*step-source)<=step+1e-7]
+        else:candidates=[nearest]
+        layer={}
+        for position in candidates:
+            options=[((cost[0]+(position-quarter*DIV)**2,
+                       cost[1]+abs(position-nearest)),previous)
+                     for previous,cost in states.items() if previous is None or previous<position]
+            if options:layer[position]=min(options,key=lambda item:item[0])
+        if not layer:
+            raise NeedsReview(f'Ataques próximos ao tempo {quarter:.3f} excedem a resolução rítmica suportada; requer revisão rítmica individual.',
+                [record[1] for record in records[:index+1] if quarter-record[1]<=2/refined[beat]])
+        layers.append(layer);states={position:item[0] for position,item in layer.items()}
+    position=min(states,key=states.get);assigned=[]
+    for layer in reversed(layers):
+        assigned.append(position);position=layer[position][1]
+    assigned.reverse()
+    refinements=[{'beat_original':beat,'from':grids[beat],'to':refined[beat]}
+        for beat in sorted(affected) if grids[beat]!=refined[beat]]
+    adjustments=[{'original_quarter':quarter,'quantized_quarter':position/DIV,
+                  'adjustment_quarters':position/DIV-quarter,'grid':refined[beat]}
+        for (beat,quarter,nearest),position in zip(records,assigned)
+        if position!=nearest]
+    grids.update(refined)
+    return {quarter:position for (_,quarter,_),position in zip(records,assigned)},refinements,adjustments
+
+
 def melody_events(parsed,config,origin,end):
     ppq=parsed['ppq'];sources=config['melody_sources']
     selected=sorted([n for n in parsed['notes'] if (not config.get('velocity_filter') or n['velocity'] in config['velocity_filter']) and any(source_matches(n,[s]) and s.get('start_quarter',-1)<=n['start']/ppq<s.get('end_quarter',float('inf')) and s.get('min_pitch',0)<=n['pitch']<=s.get('max_pitch',127) for s in sources)],key=lambda n:(n['start'],n['pitch']))
@@ -277,14 +335,24 @@ def melody_events(parsed,config,origin,end):
         grids[beat]=choices[-1]
         for div in choices:
             if len({round(p*div) for p in phases})==len(phases):grids[beat]=div;break
-    boundary_refinements=_refine_boundary_grids(bybeat,grids,grid_choices,origin,end)
+    initial_grids=dict(grids);attack_positions={};attack_adjustments=[]
+    try:boundary_refinements=_refine_boundary_grids(bybeat,grids,grid_choices,origin,end)
+    except NeedsReview:
+        grids=initial_grids
+        attack_positions,boundary_refinements,attack_adjustments=_separate_quantized_attacks(bybeat,grids,grid_choices,origin,end)
     def snap(t):
         q=t/ppq;beat=math.floor(q);div=grids.get(beat,4)
         # Near a beat boundary use the shared endpoint.
         return round((beat+round((q-beat)*div)/div)*DIV)
+    if not attack_positions:
+        nearest=[snap(n['start']) for n in top if origin<=snap(n['start'])<end]
+        if len(nearest)-len(set(nearest))>max(3,len(top)*.008):
+            attack_positions,_,attack_adjustments=_separate_quantized_attacks(bybeat,grids,grid_choices,origin,end)
+            boundary_refinements=[{'beat_original':beat,'from':initial_grids[beat],'to':div}
+                for beat,div in sorted(grids.items()) if div!=initial_grids[beat]]
     onsetmap={};collision=0;collision_quarters=[]
     for n in top:
-        s=snap(n['start'])-origin
+        s=attack_positions.get(n['start']/ppq,snap(n['start']))-origin
         if not 0<=s<end-origin:continue
         if s in onsetmap:
             collision+=1
@@ -308,6 +376,7 @@ def melody_events(parsed,config,origin,end):
     assert sum(len(n.get('graces',[])) for n in events)==len(grace_notes),'Grace target lost during grouping'
     report={'raw_notes':len(selected),'principal_source_notes':main_count,'grace_notes_preserved':len(grace_notes),'solo_notes_added':solo_count,'simultaneous_notes_reduced':len(selected)-len(top),'melody_attacks':len(events),'quantized_attack_collisions':collision,'triplet_beats_original':triplet_beats,'onset_adjustment_max_quarters':max(errors),'onset_adjustment_mean_quarters':sum(errors)/len(errors)}
     if boundary_refinements:report['boundary_grid_refinements']=boundary_refinements
+    if attack_adjustments:report['attack_position_adjustments']=attack_adjustments
     if collision_quarters:report['collision_original_quarters']=sorted(set(collision_quarters))
     return events,{b-int(origin//DIV):v for b,v in grids.items()},report
 
@@ -445,8 +514,6 @@ def build_musicxml(parsed,config,harmony,out,title):
     event_inversions=[chord_diagram_inversion(chord,inversion) for chord in harmony['events']]
     custom_diagrams=any(value!=inversion for value in event_inversions)
     metadata=score_metadata(config,title)
-    if custom_diagrams and config.get('scoreSubtitle') is None:
-        metadata['subtitle']='Melodia, cifras e diagramas de teclado • posições personalizadas'
     title=metadata['title'];header=_header_layout(metadata)
     summary,meters,tempos=meta(parsed);origin,end,bars=make_bars(parsed,meters)
     try:notes,grids,note_report=melody_events(parsed,config,origin,end)
@@ -602,6 +669,27 @@ def call_musescore(args,log,timeout=90):
     if p.returncode:raise NeedsReview(f'MuseScore retornou {p.returncode}; veja {log.name}.')
 
 def page_order(path):return int(path.stem.rsplit('-',1)[-1])
+
+def repair_orphan_pages(final,report,out):
+    """Release planned page breaks when wider music creates an orphan interior page."""
+    pages=[analyze_svg(p) for p in sorted(out.glob('qa-*.svg'),key=page_order)]
+    if not any(len(page['rows'])<=1 for page in pages[1:-1]):return
+    with zipfile.ZipFile(final) as archive:contents={name:archive.read(name) for name in archive.namelist()}
+    name=next(name for name in contents if name.endswith('.mscx'));root=E.fromstring(contents[name])
+    breaks=[element for element in root.findall('.//LayoutBreak/subtype') if element.text=='page']
+    if not breaks:return
+    # Keep every requested system boundary; MuseScore can then paginate by its
+    # realized staff height and any extra systems required by dense measures.
+    for element in breaks:element.text='line'
+    contents[name]=E.tostring(root,encoding='utf-8',xml_declaration=True)
+    pre=out/'paginacao_preparada.mscz'
+    with zipfile.ZipFile(pre,'w',zipfile.ZIP_DEFLATED) as archive:
+        for name,data in contents.items():archive.writestr(name,data)
+    call_musescore(['-o',str(final),str(pre)],out/'ajuste_paginacao.log')
+    for pattern in ('pagina-*.png','qa-*.svg'):
+        for old in out.glob(pattern):old.unlink()
+    call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
+    report['page_flow_adjustment']={'pages_before':len(pages),'page_breaks_released':len(breaks)}
 
 def _compact_diagram_offsets(page,offset,compacted):
     """Reclaim surplus label padding once in crowded rows, keeping full-size keys."""
@@ -831,6 +919,7 @@ def convert_score(xml,report,out,filename):
         for old in out.glob(pattern):old.unlink()
     job=[{'in':str(final),'out':[str(out/'pagina.png'),str(out/'qa.svg'),str(out/'reaberto.musicxml')]}]
     (out/'render.json').write_text(json.dumps(job),encoding='utf8');call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
+    repair_orphan_pages(final,report,out)
     repair_spacing(final,report,out)
     with zipfile.ZipFile(final) as z:
         native=E.fromstring(z.read(next(n for n in z.namelist() if n.endswith('.mscx'))))

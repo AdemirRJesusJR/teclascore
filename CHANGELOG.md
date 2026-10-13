@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.9.2 — 13/10/2026
+
+- Gerar partitura analisa automaticamente a seleção de melodia atual quando a pista mudou ou a análise temporária não está disponível.
+- A prévia anterior fica identificada como pendente até a nova geração terminar; falhas preservam o Histórico e não liberam áudio/PDF desatualizados.
+- Corrigido o bloqueio rítmico da pista de piano de Luz divina: ataques próximos recebem ajuste local limitado, preservando cada ataque da linha melódica e sua ordem.
+- Quebras de página planejadas são flexibilizadas quando criam uma página interna quase vazia, preservando as divisões de sistema e o conteúdo musical.
+- Removido o subtítulo automático “Melodia, cifras e diagramas de teclado” e a indicação de inversão no cabeçalho das partituras geradas.
+- Subtítulo permanece opcional nas Propriedades: textos personalizados são preservados e não mudam ao selecionar outras inversões.
+- Partituras antigas que usavam o subtítulo automático recebem o cabeçalho limpo ao gerar novamente; arquivos anteriores permanecem intactos.
+
 ## 0.9.1 — 13/10/2026
 
 - Corrigido o espaçamento de linhas com quatro ou mais diagramas: a folga entre cifra e teclado é ajustada à largura real do texto quando há colisão, mantendo o tamanho dos desenhos.

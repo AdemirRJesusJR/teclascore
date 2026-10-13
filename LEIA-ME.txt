@@ -1,4 +1,13 @@
-TECLASCORE · PRÉVIA 0.9.1
+TECLASCORE · PRÉVIA 0.9.2
+
+NOVO NA VERSÃO 0.9.2
+Ao trocar a pista de melodia, Gerar partitura refaz a análise necessária e cria uma nova cópia automaticamente.
+A prévia anterior fica pendente até a atualização terminar; em caso de falha, ela continua preservada no Histórico.
+Corrigidos ataques próximos no ritmo da pista de piano de Luz divina, com ajustes locais registrados para revisão.
+As partituras não recebem mais o subtítulo automático com a descrição dos diagramas e sua inversão.
+Para atualizar uma partitura já gerada, selecione-a na Biblioteca e clique em Gerar partitura.
+Se desejar um subtítulo próprio, preencha o campo opcional nas Propriedades da partitura.
+Os subtítulos escritos pelo usuário e os arquivos anteriores são preservados.
 
 NOVO NA VERSÃO 0.9.1
 Corrigida a falha de espaçamento entre diagramas em trechos com muitos acordes, como em Luz divina.
@@ -54,7 +63,7 @@ Aplicar e atualizar gera um novo arquivo e recarrega a prévia automaticamente, 
 Em Configurações, escolha a inversão padrão para os novos MIDIs importados; os existentes permanecem iguais.
 As opções são posição fundamental, 1ª e 2ª inversão. A segunda continua sendo o padrão inicial.
 Nas propriedades, Padrão adotado usa a inversão que o MIDI recebeu ao entrar na biblioteca.
-Subtítulo automático acompanha a inversão; texto personalizado ou vazio é preservado.
+Subtítulo é opcional e vazio por padrão; texto personalizado é preservado ao mudar a inversão.
 As propriedades ficam salvas ao fechar o app. As gerações anteriores são mantidas.
 O botão Salvar MuseScore foi introduzido nesta versão e retirado na 0.6.1.
 O botão de geração agora se chama Gerar partitura.

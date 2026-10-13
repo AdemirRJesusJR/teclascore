@@ -50,7 +50,7 @@ class ChordDiagramTests(unittest.TestCase):
             self.assertEqual([engine.keyboard_asset(c['root'],c['quality'],engine.chord_diagram_inversion(c,0))[2]
                               for c in real[:3]],[[55,60,64],[57,60,64],[52,55,60]])
             self.assertTrue(result['custom_diagram_inversions'])
-            self.assertIn('posições personalizadas',result['score_metadata']['subtitle'])
+            self.assertEqual(result['score_metadata']['subtitle'],'')
             self.assertEqual(len(E.parse(xml).findall('.//harmony')),len(result['chords']))
             reminders=[c for c in result['chords'] if c.get('reminder')]
             self.assertTrue(reminders,'Long source should repeat its active chord at a system start')
@@ -73,7 +73,7 @@ class ChordDiagramTests(unittest.TestCase):
                     self.assertEqual(pitches[0]%12,(before['root']+shift+expected_interval)%12)
                     self.assertEqual({p%12 for p in pitches},{(p+shift)%12 for p in before['pitch_classes']})
 
-    def test_automatic_subtitle_changes_only_for_effective_override(self):
+    def test_diagram_overrides_do_not_insert_or_replace_subtitle(self):
         parsed,config,harmony=fixture()
         with tempfile.TemporaryDirectory() as directory:
             for custom_text in ('','Meu subtítulo'):
@@ -82,7 +82,7 @@ class ChordDiagramTests(unittest.TestCase):
             for chord in harmony['events']:chord['diagram_inversion']=0
             _,result=engine.build_musicxml(parsed,config,harmony,Path(directory),'Teste')
             self.assertFalse(result['custom_diagram_inversions'])
-            self.assertTrue(result['score_metadata']['subtitle'].endswith('posição fundamental'))
+            self.assertEqual(result['score_metadata']['subtitle'],'')
 
     def test_invalid_late_override_is_rejected_even_after_valid_custom_position(self):
         parsed,config,harmony=fixture()

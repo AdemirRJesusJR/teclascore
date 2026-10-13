@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.9.1 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.9.2 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
 A versão 0.9.1 corrige o ajuste de espaço em linhas com muitos diagramas, incluindo a falha de conversão em Luz divina. O tamanho dos teclados e o conteúdo musical são preservados. Falhas de diagramação exibem uma mensagem curta; os detalhes técnicos ficam no diagnóstico da conversão.
 
@@ -26,6 +26,10 @@ Para ouvir a partitura gerada na aba Prévia, o MuseScore instalado prepara o á
 
 A aba de cifras aceita inclusão e exclusão de linhas. A posição é medida em semínimas desde o início do MIDI, antes da remoção de compassos vazios de preparação. A armadura usa números negativos para bemóis e positivos para sustenidos. Alterar a armadura muda a notação da tonalidade inicial; não transpõe as notas. Modulações dos perfis revisados são preservadas.
 
+Ao trocar a pista de melodia, **Gerar partitura** refaz a análise e cria a partitura da seleção atual. Você também pode usar **Analisar acordes** antes para conferir as sugestões. Enquanto a nova geração estiver pendente, a prévia anterior fica identificada e seu áudio/PDF não são apresentados como atualizados. A cópia anterior permanece no Histórico. Se apenas a análise temporária desaparecer, o app a reconstrói preservando as cifras e a armadura editadas.
+
+Ataques próximos que não cabem pelo arredondamento habitual recebem um ajuste local de ritmo, limitado à menor subdivisão suportada, sem eliminar ataques da linha melódica nem inverter sua ordem. Os trechos ajustados aparecem na Revisão guiada; passagens que excedem esse limite continuam exigindo revisão.
+
 ## Propriedades da partitura e diagramas
 
 Ao importar um MIDI, o app organiza o cabeçalho automaticamente. Por exemplo, **Roberto Carlos - Luz divina (karaoplay.com).mid** preenche **Título: Luz divina**, **Artista/intérprete: Roberto Carlos** e deixa o compositor vazio quando não houver informação explícita. Nomes de sites, espaços extras, underscores e etiquetas finais de MIDI/karaokê são removidos; edições como “Ao vivo”, “Acústico” e números musicais são mantidos.
@@ -36,7 +40,7 @@ Na aba Prévia, abra “Propriedades da partitura” para editar título, artist
 
 Partituras já presentes na biblioteca mantêm os dados salvos. Nas Propriedades, **Usar sugestões** apresenta uma proposta para organizar itens antigos, preservando o autor/compositor preenchido e o subtítulo manual. As correções do usuário não são refeitas ao reabrir ou reimportar o mesmo arquivo. O Histórico guarda artista e compositor separadamente; a busca também encontra o artista. O nome físico do MIDI permanece intacto.
 
-O título vazio usa a sugestão organizada para o MIDI. Artista, subtítulo e autor podem ficar vazios. Com o subtítulo automático habilitado, seu texto acompanha a inversão; um texto personalizado permanece como você escreveu. Cabeçalhos longos recebem espaço adicional e podem aumentar o número de páginas. Os limites são 160 caracteres para título, 200 para subtítulo e 120 para artista ou autor. Quando informado, o artista aparece como “Intérprete” no cabeçalho, separado da autoria; ambos são guardados em campos distintos no MuseScore.
+O título vazio usa a sugestão organizada para o MIDI. Artista, subtítulo e autor podem ficar vazios. O subtítulo é opcional e fica vazio por padrão; somente o texto preenchido pelo usuário aparece na partitura. Alterar a inversão dos diagramas não modifica esse texto. Cabeçalhos longos recebem espaço adicional e podem aumentar o número de páginas. Os limites são 160 caracteres para título, 200 para subtítulo e 120 para artista ou autor. Quando informado, o artista aparece como “Intérprete” no cabeçalho, separado da autoria; ambos são guardados em campos distintos no MuseScore.
 
 Em Configurações, escolha posição fundamental, 1ª inversão ou 2ª inversão como padrão. O padrão inicial continua sendo a 2ª inversão. A escolha vale para os MIDIs importados depois da mudança; os itens existentes mantêm o padrão adotado quando entraram na biblioteca. Nas propriedades, “Padrão adotado” usa essa escolha original, e uma inversão explícita altera somente a partitura selecionada. A mudança afeta os diagramas, preservando as notas da melodia e as cifras.
 
@@ -44,7 +48,7 @@ Uma atualização automática mantém os arquivos gerados anteriormente. Se houv
 
 Após analisar um MIDI, abra **Posições dos diagramas** na aba Cifras ou Prévia. Cada linha permite escolher posição fundamental, 1ª inversão, 2ª inversão ou Padrão da partitura. A escolha é por ocorrência: você pode usar C em 2ª inversão, Am em posição fundamental e outro C em 1ª inversão na mesma música. Para repetir uma escolha em todas as ocorrências daquele acorde, selecione a linha e use **Aplicar à mesma cifra**. Restaurar o padrão remove as escolhas individuais.
 
-**Aplicar e atualizar** salva as escolhas e gera uma nova partitura automaticamente. O MIDI precisa estar disponível; caso contrário, as escolhas ficam salvas até reconectá-lo e gerar. Cancelar descarta as edições da janela. O Histórico recupera as posições daquela versão. Alterar a inversão geral mantém as escolhas individuais; Padrão da partitura acompanha a configuração geral da música. A transposição mantém a posição escolhida para cada acorde, e a tabela mostra as cifras no tom original. Um subtítulo automático indica “posições personalizadas” quando há posições diferentes da configuração geral.
+**Aplicar e atualizar** salva as escolhas e gera uma nova partitura automaticamente. O MIDI precisa estar disponível; caso contrário, as escolhas ficam salvas até reconectá-lo e gerar. Cancelar descarta as edições da janela. O Histórico recupera as posições daquela versão. Alterar a inversão geral mantém as escolhas individuais; Padrão da partitura acompanha a configuração geral da música. A transposição mantém a posição escolhida para cada acorde, e a tabela mostra as cifras no tom original. As informações de inversão ficam disponíveis no app, sem acrescentar um subtítulo à partitura.
 
 Para C, posição fundamental é Dó–Mi–Sol; 1ª inversão é Mi–Sol–Dó; 2ª inversão é Sol–Dó–Mi. Os diagramas podem deslocar o conjunto inteiro em uma oitava para caber no teclado desenhado, preservando a inversão. A personalização vale para os diagramas gerados a partir de MIDI; imagens de diagramas em partituras MuseScore importadas são preservadas.
 

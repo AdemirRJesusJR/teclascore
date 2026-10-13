@@ -36,7 +36,6 @@ public partial class MainWindow
         var suggestion=ScoreMetadataOrganizer.Suggest(row.FullPath,row.Document?.TextEvents);
         if(suggestion.Title!=row.ScoreTitle || suggestion.Artist!=row.ScoreArtist || (!string.IsNullOrEmpty(suggestion.Composer) && string.IsNullOrEmpty(row.ScoreComposer)))
             dialog.ConfigureMetadataSuggestion(suggestion);
-        dialog.SetCustomDiagramPositions(row.Chords.Select(chord=>chord.DiagramInversion));
         if (dialog.ShowDialog() != true) return;
         bool changed = row.ScoreTitle != dialog.TitleValue || row.ScoreSubtitle != dialog.SubtitleValue
             || row.ScoreComposer != dialog.ComposerValue || row.ScoreArtist != dialog.ArtistValue || row.DiagramInversion != dialog.InversionOverride;
@@ -65,18 +64,6 @@ public partial class MainWindow
         }
         await RunOperation(async () =>
         {
-            if (row.AnalysisPath is null || !File.Exists(row.AnalysisPath))
-            {
-                // Rebuilding a missing temporary analysis must not discard edited chords or key.
-                var chords = row.Chords.ToArray();
-                int fifths = row.KeyFifths; bool minor = row.KeyMinor;
-                await Analyze(row);
-                if (chords.Length > 0)
-                {
-                    row.Chords.Clear(); foreach (var chord in chords) row.Chords.Add(chord);
-                    row.KeyFifths = fifths; row.KeyMinor = minor;
-                }
-            }
             await Generate(row);
             EditorTabs.SelectedIndex = 2;
         }, row);

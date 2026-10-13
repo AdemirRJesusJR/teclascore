@@ -122,13 +122,18 @@ class ReviewTests(unittest.TestCase):
 
     def test_blocking_collision_is_localized_in_analysis_and_generation(self):
         parsed,config,harmony=fixture();ppq=parsed['ppq'];harmony['events']=[]
+        # A boundary pair now fits the adjacent supported positions. Four
+        # separate attacks here exceed those positions even after refinement.
+        config['onset_cluster_quarters']=.001
         parsed['notes'][7]['start']=round(7.97*ppq)
         parsed['notes'][7]['end']=round(8.02*ppq)
-        parsed['notes'][8]['start']=round(8.03*ppq)
+        parsed['notes'][8]['start']=round(8.005*ppq)
         parsed['notes'][8]['end']=round(8.4*ppq)
+        for quarter in (8.01,8.02):
+            parsed['notes'].append(dict(parsed['notes'][8],start=round(quarter*ppq)))
         points,ready,message=engine.review_points(parsed,config,harmony)
-        self.assertFalse(ready);self.assertEqual(len(points),2)
-        self.assertEqual([point['measure'] for point in points],[1,2])
+        self.assertFalse(ready);self.assertEqual(len(points),4)
+        self.assertEqual([point['measure'] for point in points],[1,2,2,2])
         self.assertTrue(all(point['blocking'] for point in points))
         with tempfile.TemporaryDirectory() as directory,self.assertRaises(engine.NeedsReview) as caught:
             engine.build_musicxml(parsed,config,harmony,Path(directory),'Teste')

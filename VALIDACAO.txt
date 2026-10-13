@@ -1,3 +1,18 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.9.2
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros; 67 testes Python, 56 verificações MIDI/metadados e 85 de persistência passaram.
+- 19 verificações do diálogo de Propriedades e 21 do fluxo de metadados: campo opcional vazio, remoção explícita de subtítulo personalizado, inversões independentes do texto, persistência e ausência de erros de binding.
+- 24 verificações WPF do fluxo de geração: checkbox e botão reais, primeira geração sem análise manual, troca de fonte produz outro MSCZ com outras notas, Histórico preservado, falha visível, recuperação de análise ausente/bloqueada e cifras editadas preservadas.
+- Geração integral de Luz divina com a pista 6 / canal 4 / Acoustic Grand Piano escolhida pelo usuário: 746 ataques da linha superior preservados, 158 cifras/diagramas, 107 compassos, 6 páginas, sem subtítulo automático, sobreposições ou cortes de diagramas.
+- Ajustes rítmicos locais da pista de piano mantêm a ordem e as alturas de todos os ataques da linha melódica. Os trechos ajustados ficam localizados para revisão; grupos fora do limite suportado continuam bloqueados.
+- A correção de uma página órfã reduziu a saída de 9 para 6 páginas. Notas, durações, ligaduras e cifras do MusicXML reaberto permaneceram idênticas antes/depois dessa paginação.
+- Os 18 perfis revisados e a regressão de Deixa O Som Ligado mantiveram eventos, grades e relatórios musicais idênticos às referências; hashes dos originais preservados.
+- A seleção anterior de Luz divina também foi gerada sem subtítulo: 9 páginas, notas/cifras/imagens intactas. Testes usam sessões e saídas isoladas; originais, configurações reais e partituras anteriores preservados.
+
+A seleção de fonte pode conter acordes: a extração mantém a linha superior conforme o comportamento existente. A nova correção de ritmo preserva os ataques dessa linha, não converte a fonte polifônica em várias vozes. Resultados anteriores estão registrados abaixo.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.9.1
 13/10/2026
 

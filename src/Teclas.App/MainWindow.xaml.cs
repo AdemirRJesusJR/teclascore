@@ -34,7 +34,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public bool HasReviewedProfile=>selectedFile?.HasReviewedProfile==true;
     public bool CanEditMidi=>IsIdle && selectedFile?.Document is not null;
     public bool CanSelectTracks=>CanEditMidi && !UseReviewedProfile;
-    public bool CanGenerate=>IsIdle && (selectedFile?.AnalysisPath is not null || selectedFile is { IsNativeScore:true, ScorePath:not null });
+    public bool CanGenerate=>IsIdle && (selectedFile is { IsNativeScore:true, ScorePath:not null }
+        || selectedFile is { Document:not null } row && (row.UseReviewedProfile || row.Tracks.Any(track=>track.IsMelody)));
     public string? PreviewSourcePath=>selectedFile?.PreviewPath;
     public bool UseReviewedProfile
     {
@@ -56,8 +57,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public string FileCountText=>$"{Files.Count} arquivos · {Files.Count(f=>f.ScorePath is not null)} partituras geradas";
     public string Status{get=>status;private set{status=value;Notify();}}
     public ImageSource? Preview{get=>preview;private set{preview=value;Notify();}}
-    public string PreviewMessage=>selectedFile?.HasPendingScoreProperties == true?"Propriedades alteradas · aguardando atualização da partitura.":selectedFile?.ScorePath is null?"A prévia aparecerá depois da geração.":"Todas as páginas · use as miniaturas, o zoom ou a tela cheia para estudar.";
-    public string GenerationHint=>selectedFile?.IsNativeScore==true?"Melhore a apresentação em uma nova cópia e compare as versões no Histórico.":selectedFile?.AnalysisPath is null?"Primeiro escolha a melodia e analise os acordes.":UseReviewedProfile?"Perfil revisado carregado. Ajustes feitos na tabela de cifras serão aplicados.":"Confira a fonte de melodia e as cifras: uma análise automática precisa de revisão musical.";
+    public string PreviewMessage=>selectedFile?.HasPendingScoreProperties == true?"Alterações pendentes · gere novamente para atualizar esta prévia.":selectedFile?.ScorePath is null?"A prévia aparecerá depois da geração.":"Todas as páginas · use as miniaturas, o zoom ou a tela cheia para estudar.";
+    public string GenerationHint=>selectedFile?.IsNativeScore==true?"Melhore a apresentação em uma nova cópia e compare as versões no Histórico.":selectedFile?.AnalysisPath is null?selectedFile is { Document:not null } row && (row.UseReviewedProfile || row.Tracks.Any(track=>track.IsMelody))?"Ao gerar, os acordes serão analisados para a melodia selecionada. Confira as cifras sugeridas.":"Escolha a pista de melodia para gerar a partitura.":UseReviewedProfile?"Perfil revisado carregado. Ajustes feitos na tabela de cifras serão aplicados.":"Confira a fonte de melodia e as cifras: uma análise automática precisa de revisão musical.";
     public MainWindow(bool smoke=false,string? settingsPath=null,Func<IMidiOutputTransport>? midiOutputFactory=null)
     {
         settings=Settings.Load(settingsPath);
@@ -99,8 +100,10 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     private void InvalidateAnalysis(MidiRow row)
     {
         RememberVersion(row);row.AnalysisPath=null;row.Chords.Clear();row.ReviewPoints.Clear();Notify(nameof(CanReviewScore));
-        if(row.Document is not null)row.Status=row.UseReviewedProfile?"Perfil revisado · pronto para analisar":"Seleção alterada · analisar novamente";
-        Notify(nameof(CanGenerate));Notify(nameof(GenerationHint));
+        if(row.ScorePath is not null)row.HasPendingScoreProperties=true;
+        if(row==selectedFile){ResetPlayback();NotifyPlaybackState();}
+        if(row.Document is not null)row.Status=row.UseReviewedProfile?"Perfil revisado · pronto para gerar":"Seleção alterada · gere para atualizar a partitura";
+        Notify(nameof(CanGenerate));Notify(nameof(GenerationHint));Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));
     }
     private MidiRow LoadMidi(string path)
     {
@@ -220,16 +223,34 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     {
         ValidateSettings(true);
         RememberVersion(row);
-        if(row.AnalysisPath is null || row.Workspace is null)throw new InvalidOperationException("Analise os acordes antes de gerar.");
+        if(row.ScorePath is not null)
+        {
+            row.HasPendingScoreProperties=true;
+            if(row==selectedFile){ResetPlayback();NotifyPlaybackState();Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));}
+        }
+        await EnsureAnalysisForGeneration(row);
         var chords=new JsonArray(row.Chords.Select(c=>(JsonNode)new JsonObject{["quarter"]=c.Quarter,["root"]=c.Root,["quality"]=c.Quality,["diagramInversion"]=c.DiagramInversion}).ToArray());
         var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=OutputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords,["scoreTitle"]=row.ScoreTitle,["scoreSubtitle"]=row.ScoreSubtitle,["scoreComposer"]=row.ScoreComposer,["diagramInversion"]=row.EffectiveDiagramInversion};
         row.Status="Gerando e conferindo no MuseScore…";
         request["transposeSemitones"]=row.TransposeSemitones;
         request["scoreArtist"]=row.ScoreArtist;
-        var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace,new Progress<string>(text=>Status=text),cancellation!.Token);
+        var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace!,new Progress<string>(text=>Status=text),cancellation!.Token);
         row.ScorePath=result["scorePath"]!.GetValue<string>();row.PreviewPath=result["previewPath"]!.GetValue<string>();
         row.PageCount=result["pages"]!.GetValue<int>();row.GeneratedAt=DateTimeOffset.Now;row.HasOperationError=false;row.HasPendingScoreProperties=false;
         row.Status=$"Gerada · {row.PageCount} páginas";Status=result["message"]!.GetValue<string>();RememberVersion(row);RefreshSelection();
+    }
+    private async Task EnsureAnalysisForGeneration(MidiRow row)
+    {
+        if(File.Exists(row.AnalysisPath) && Directory.Exists(row.Workspace) && !row.ReviewPoints.Any(point=>point.Blocking))return;
+        // Reassess rhythm blockers with the current engine while preserving edits and the old analysis file.
+        // A selection change clears the chords, so rebuilding here cannot reuse another melody's edits.
+        var chords=row.Chords.ToArray();int fifths=row.KeyFifths;bool minor=row.KeyMinor;
+        await Analyze(row);
+        if(chords.Length>0)
+        {
+            row.Chords.Clear();foreach(var chord in chords)row.Chords.Add(chord);
+            row.KeyFifths=fifths;row.KeyMinor=minor;
+        }
     }
     private async void ImportClick(object sender,RoutedEventArgs e)
     {
@@ -280,7 +301,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             foreach(var row in rows)
             {
                 cancellation!.Token.ThrowIfCancellationRequested();Library.SelectedItem=row;
-                try{if(row.AnalysisPath is null)await Analyze(row);await Generate(row);complete++;}
+                try{await Generate(row);complete++;}
                 catch(OperationCanceledException){row.Status="Operação cancelada · lote interrompido";throw;}
                 catch(Exception ex){failed++;row.Status="Revisar: "+ex.Message;row.HasOperationError=true;}
             }
@@ -293,7 +314,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         var scores=Files.Where(f=>f.ScorePath is not null && File.Exists(f.ScorePath)).ToArray();
         if(scores.Length==0){Status="Gere ao menos uma partitura para criar o ZIP.";return;}
         int pending=scores.Count(row=>row.HasPendingScoreProperties);
-        if(pending>0){Status=$"Há {pending} partitura(s) com propriedades pendentes. Atualize-as na Biblioteca antes de exportar o ZIP.";return;}
+        if(pending>0){Status=$"Há {pending} partitura(s) com alterações pendentes. Atualize-as na Biblioteca antes de exportar o ZIP.";return;}
         var dialog=new SaveFileDialog{Title="Salvar pacote",Filter="Pacote ZIP|*.zip",FileName="Partituras de teclado.zip",OverwritePrompt=true};
         if(dialog.ShowDialog(this)!=true)return;
         await RunOperation(async()=>{
