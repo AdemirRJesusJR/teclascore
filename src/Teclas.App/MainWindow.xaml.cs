@@ -53,7 +53,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public string MuseScorePath{get=>settings.MuseScorePath;set{settings.MuseScorePath=value;Notify();}}
     public string OutputDirectory{get=>settings.OutputDirectory;set{settings.OutputDirectory=value;Notify();}}
     public string SelectedName=>selectedFile?.Name??"Do MIDI à partitura";
-    public string SelectionMessage=>selectedFile is null?"Escolha um MIDI na biblioteca para preparar a melodia, conferir os acordes e gerar sua partitura.":selectedFile is { HasMusicalEdits:true, IsNativeScore:false }?"Partitura com edições musicais: continue no Editor musical. Para voltar à geração pelo MIDI, restaure uma versão anterior às edições no Histórico.":selectedFile.IsNativeScore?"Partitura MuseScore: use o Editor musical ou melhore a apresentação em uma nova cópia.":selectedFile.Document is null?"Este arquivo não pôde ser lido. Substitua-o por uma cópia completa do MIDI.":selectedFile.HasReviewedProfile?"Este MIDI tem uma revisão pronta de melodia, solos e acordes. Você pode aplicá-la ou escolher as pistas manualmente.":selectedFile.Profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Este arquivo foi identificado como acompanhamento, sem a melodia completa. Para transcrever a canção inteira, use um MIDI que contenha a voz principal.","partial_melody"=>"Este MIDI contém apenas parte da melodia ou solos. A seleção manual permite preparar esses trechos; a canção completa precisa de outra fonte.",_=>"MIDI novo: escolha a pista que contém a melodia e confira os acordes sugeridos antes de gerar."};
+    public string SelectionMessage=>selectedFile is null?"Escolha um MIDI na biblioteca para preparar a melodia, conferir os acordes e gerar sua partitura.":selectedFile is { HasMusicalEdits:true, IsNativeScore:false }?"Partitura com edições musicais: continue no Editor musical. Para voltar à geração pelo MIDI, restaure uma versão anterior às edições no Histórico.":selectedFile.IsNativeScore?"Partitura MuseScore: use o Editor musical ou melhore a apresentação em uma nova cópia.":selectedFile.Document is null?"Este arquivo não pôde ser lido. Substitua-o por uma cópia completa do MIDI.":selectedFile.HasReviewedProfile?"Este MIDI tem uma revisão pronta de melodia, solos e acordes. Você pode aplicá-la ou escolher as pistas manualmente.":selectedFile.Profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Este arquivo foi identificado como acompanhamento, sem a melodia completa. Para transcrever a canção inteira, use um MIDI que contenha a voz principal.","partial_melody"=>"Este MIDI contém apenas parte da melodia ou solos. A seleção manual permite preparar esses trechos; a canção completa precisa de outra fonte.",_=>"MIDI novo: selecione uma ou mais pistas para reunir introdução e melodia; confira a prioridade e os acordes antes de gerar."};
     public string FileCountText=>$"{Files.Count} arquivos · {Files.Count(f=>f.ScorePath is not null)} partituras geradas";
     public string Status{get=>status;private set{status=value;Notify();}}
     public ImageSource? Preview{get=>preview;private set{preview=value;Notify();}}
@@ -75,9 +75,11 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeAppearance();
         InitializeWindowTheme();
         InitializePersistence(smoke,settingsPath);
+        Closed+=(_,_)=>conversionQueue?.Dispose();
     }
     private void RefreshSelection()
     {
+        NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));
         NotifyDiagnostics();
         NotifyLibraryActions();
         Notify(nameof(CanCustomizeDiagrams));
@@ -98,15 +100,15 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;Notify(nameof(CanOpenMusicEditor));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
+    private void SetBusy(bool value){busy=value;Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
     private void InvalidateAnalysis(MidiRow row)
     {
         if(row.UsesNativeScoreWorkflow)return;
-        RememberVersion(row);row.AnalysisPath=null;row.Chords.Clear();row.ReviewPoints.Clear();Notify(nameof(CanReviewScore));
+        RememberVersion(row);row.AnalysisPath=null;row.Chords.Clear();row.ReviewPoints.Clear();row.MelodyMergeSummary="";Notify(nameof(CanReviewScore));
         if(row.ScorePath is not null)row.HasPendingScoreProperties=true;
         if(row==selectedFile){ResetPlayback();NotifyPlaybackState();}
         if(row.Document is not null)row.Status=row.UseReviewedProfile?"Perfil revisado · pronto para gerar":"Seleção alterada · gere para atualizar a partitura";
-        Notify(nameof(CanGenerate));Notify(nameof(GenerationHint));Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));
+        NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanGenerate));Notify(nameof(GenerationHint));Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));
     }
     private MidiRow LoadMidi(string path)
     {
@@ -207,7 +209,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(generating && !File.Exists(MuseScorePath))throw new InvalidOperationException("Localize o MuseScore Studio 4 na aba Configurações.");
         if(generating && !Path.IsPathFullyQualified(OutputDirectory))throw new InvalidOperationException("Escolha uma pasta de saída com caminho completo.");
     }
-    private JsonArray Sources(MidiRow row)=>new(row.Tracks.Where(t=>t.IsMelody).Select(t=>(JsonNode)new JsonObject{["track"]=t.Source.Key.Track,["channel"]=t.Source.Key.Channel,["program"]=t.Source.Key.Program}).ToArray());
+    private JsonArray Sources(MidiRow row)=>new(GetOrderedMelodySources(row).Select(key=>(JsonNode)new JsonObject{["track"]=key.Track,["channel"]=key.Channel,["program"]=key.Program}).ToArray());
     private static void RequireMidiWorkflow(MidiRow row)
     {
         if(row.UsesNativeScoreWorkflow)throw new InvalidOperationException(row.HasMusicalEdits && !row.IsNativeScore
@@ -267,7 +269,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     private async Task EnsureAnalysisForGeneration(MidiRow row)
     {
         RequireMidiWorkflow(row);
-        if(File.Exists(row.AnalysisPath) && Directory.Exists(row.Workspace) && !row.ReviewPoints.Any(point=>point.Blocking))return;
+        if(HasCurrentMelodyAnalysis(row) && !row.ReviewPoints.Any(point=>point.Blocking))return;
         // Reassess rhythm blockers with the current engine while preserving edits and the old analysis file.
         // A selection change clears the chords, so rebuilding here cannot reuse another melody's edits.
         var chords=row.Chords.ToArray();int fifths=row.KeyFifths;bool minor=row.KeyMinor;
@@ -319,24 +321,21 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     }
     private async void BatchClick(object sender,RoutedEventArgs e)
     {
-        if(!CommitEdits())return;
+        if(!IsIdle || !CommitEdits())return;
         var rows=Files.Where(f=>!f.UsesNativeScoreWorkflow && f.Category==DashboardCategory.Ready).ToArray();
-        if(rows.Length==0){Status="Importe MIDIs com perfil revisado para gerar o lote. Arquivos novos precisam da escolha de melodia e da revisão das cifras.";return;}
-        SearchText="";CurrentFilter="all";
+        if(rows.Length==0){Status="Não há MIDIs revisados prontos para adicionar à fila.";return;}
+        int added=0;
         await RunOperation(async()=>{
-            int complete=0,failed=0;
             SetOperationItems(0,rows.Length);
             foreach(var row in rows)
             {
-                cancellation!.Token.ThrowIfCancellationRequested();Library.SelectedItem=row;
-                SetOperationItems(complete+failed,rows.Length,row.Name);
-                try{await Generate(row);complete++;}
-                catch(OperationCanceledException){row.Status="Operação cancelada · lote interrompido";throw;}
-                catch(Exception ex){failed++;row.Status="Revisar: "+ex.Message;row.HasOperationError=true;}
-                SetOperationItems(complete+failed,rows.Length);
+                cancellation!.Token.ThrowIfCancellationRequested();
+                SetOperationItems(added,rows.Length,row.Name);
+                await EnqueueConversion(row,cancellation.Token);added++;
             }
-            Status=$"Lote concluído: {complete} partituras geradas; {failed} precisam de revisão.";
-        },operationTitle:"Gerando partituras em lote");
+            Status=$"{added} partituras adicionadas à fila. Clique em Iniciar pendentes para converter.";
+        },operationTitle:"Adicionando lote à fila");
+        if(added>0)ShowConversionQueue();
     }
     private async void ZipClick(object sender,RoutedEventArgs e)
     {

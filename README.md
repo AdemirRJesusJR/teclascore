@@ -1,8 +1,8 @@
 # TeclaScore
 
-Versão 0.12.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.13.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
-A versão 0.12.0 acrescenta um editor musical com rascunho, desfazer/refazer, prévia, reprodução e salvamento em nova versão. A versão anterior trouxe sugestões de melodia com trechos para comparar, justificativas e alternativas de cifras, e diagnóstico estrutural de partituras MuseScore por pauta, compasso e voz. O painel de progresso continua acompanhando a preparação, análise e geração.
+A versão 0.13.0 acrescenta uma fila persistente de conversões MIDI, com retomada após interrupção ou falha, e combina várias pistas em uma única pauta com prioridade ajustável. A versão 0.12.0 acrescentou um editor musical com rascunho, desfazer/refazer, prévia, reprodução e salvamento em nova versão. A versão anterior trouxe sugestões de melodia com trechos para comparar, justificativas e alternativas de cifras, e diagnóstico estrutural de partituras MuseScore por pauta, compasso e voz. O painel de progresso continua acompanhando a preparação, análise e geração.
 
 Em **Comparar pistas**, a ordem de escuta considera notas simultâneas, legato, registro, repetição e duração. Ouça trechos a 25%, 50%, 75% ou 100%; somente **Usar esta pista como melodia** muda a seleção. Confirmar a mesma pista preserva as cifras já ajustadas. A ordem é uma sugestão heurística, sem garantia de identificar a melodia; compare especialmente fontes duplicadas ou com várias vozes.
 
@@ -167,6 +167,18 @@ Para verificar a edição e a persistência das propriedades em janelas WPF, exe
 
 O script histórico tools/prepare_engine.py copia o motor original das ferramentas externas do projeto musical. Ele sobrescreve adaptações posteriores em engine, incluindo a correção de quantização; não o execute para compilar ou atualizar o aplicativo. tools/qa_engine.py verifica os 18 perfis contra o lote original e exercita a conversão de um MIDI novo. A pasta engine já inclui o motor necessário para o aplicativo, sem exigir a regeneração. A ferramenta histórica engine/build_keyboard_diagrams.py é preservada como origem das funções vetoriais reutilizadas pelo motor; executá-la isoladamente requer a partitura piloto na pasta externa partituras.
 
-O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.6.1`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
+O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.13.0`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
 
-Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.6.1, destinada a testes no computador do usuário.
+Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.13.0, destinada a testes no computador do usuário.
+
+## Fila de conversões e várias pistas
+
+Na Biblioteca, marque as fontes de introdução, solo e melodia. Em **Prioridade das pistas**, coloque no topo a fonte que deve prevalecer quando tocarem juntas. As seguintes completam os trechos livres. Não são criadas notas novas para retomar ataques que ficaram encobertos; sobreposições relevantes aparecem na Revisão guiada. A seleção e a prioridade acompanham a sessão e o Histórico. Perfis já revisados mantêm seu arranjo aprovado.
+
+Use **Adicionar à fila**, depois **Fila de conversões → Iniciar pendentes**. A fila guarda uma cópia do MIDI e das opções de cada item: seleção, prioridade, cifras já revisadas, metadados, inversões e transposição. **Gerar partitura** continua disponível para uma conversão imediata. O lote revisado agora entra na fila.
+
+Uma falha não impede os próximos itens. **Pausar** interrompe o item ativo; **Retomar** o devolve à espera. Após reabrir o app, abra a fila e inicie os pendentes explicitamente. A retomada usa a análise já concluída e recupera resultados com comprovante válido; renderizações incompletas são refeitas. Concluídos não são gerados novamente.
+
+Resultados aparecem na Biblioteca/Histórico. Se a música tiver recebido ajustes depois de enfileirada, o resultado entra apenas no Histórico. Remover da fila retira a entrada, preservando cópias e arquivos gerados. Problemas musicais na receita exigem corrigir a Biblioteca e adicionar um novo item; a receita já enfileirada não muda junto com as configurações. Nesta versão, a fila é para MIDI; arquivos MuseScore continuam pelo editor e melhoria de apresentação.
+
+Testes da fila: `dotnet run --project tests/Teclas.Queue.Tests -c Release`. Usam motor simulado e pastas isoladas, incluindo falhas, cancelamento, backup e retomada por recibos.

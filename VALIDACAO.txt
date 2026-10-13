@@ -1,3 +1,21 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.13.0
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 109 testes Python passaram. Os 18 perfis revisados foram comparados com o motor publicado 0.12.0: eventos, grades e relatórios idênticos; MIDIs originais preservados.
+- Combinação real de introdução e melodia no MuseScore, em ambas as prioridades: uma pauta e 36 ataques exatos por caso. Conferência dos recibos de geração e hashes de todos os artefatos; fallback de tonalidade menor preservado.
+- 38 verificações Core da fila: receita e MIDI congelados, checkpoint de análise, pausa/retomada, falha isolada, progresso tardio, exclusão da lista sem apagar arquivos, reabertura, trava entre instâncias, backup corrompido, recibo alterado e recuperação após renderização/publicação sem duplicar resultados.
+- 21 verificações de integração WPF com MuseScore real: prioridade invertida muda as notas, falha não bloqueia o item seguinte, conversão sem o original disponível, Histórico idempotente, preservação de alterações posteriores e reabertura da biblioteca/fila.
+- 27 verificações WPF da fila: controles, falha visível, progresso ativo, cancelamento, retomada, fechamento aguardando liberação e temas claro/escuro no tamanho mínimo.
+- 29 verificações WPF de prioridade: seleção, ordem, aplicação explícita, invalidação de análise, histórico, sessão e origem temporariamente indisponível. Diálogos conferidos em temas claro e escuro, incluindo tamanho mínimo.
+- 107 verificações de persistência, 103 de MIDI/metadados e 43 de dashboard passaram.
+- Regressões: 24 verificações da geração de melodia e 20 da importação/diagnóstico nativo MuseScore passaram.
+- Biblioteca e tela Sobre renderizadas com versão 0.13.0, sem avisos de binding. Testes com sessões e saídas isoladas; configurações reais e originais preservados.
+
+A fila desta versão recebe MIDIs. Retomar reaproveita a análise concluída e saídas com comprovante íntegro; uma renderização interrompida sem recibo reinicia. A receita fica congelada: correções de seleção/cifras/metadados exigem adicionar um novo item. Resultados mais antigos entram somente no Histórico se a biblioteca já tiver novos ajustes. A fusão gera uma linha melódica e prioriza ataques das fontes selecionadas; avisos de sobreposição precisam de conferência musical.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.12.0
 13/10/2026
 

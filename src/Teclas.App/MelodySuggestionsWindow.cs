@@ -28,6 +28,7 @@ public sealed class MelodySuggestionsWindow : Window
         header.Children.Add(new TextBlock { Text = row.ScoreTitle, TextWrapping = TextWrapping.Wrap, Margin = new(0, 8, 0, 10) });
         header.Children.Add(new TextBlock { Text = "A ordem considera o comportamento das notas e serve como orientação. A melodia pode estar em mais de uma pista; confira os trechos antes de escolher.", TextWrapping = TextWrapping.Wrap, FontSize = 12 });
         if (row.UseReviewedProfile) header.Children.Add(new TextBlock { Text = "Usar uma pista abaixo substitui a revisão aprovada pela sua escolha manual.", TextWrapping = TextWrapping.Wrap, Margin = new(0, 8, 0, 0) });
+        if (row.Tracks.Count(track => track.IsMelody) > 1) header.Children.Add(new TextBlock { Text = $"Usar esta pista substituirá as {row.Tracks.Count(track => track.IsMelody)} fontes selecionadas. Para juntar pistas, marque-as na lista principal e ajuste a prioridade.", TextWrapping = TextWrapping.Wrap, Margin = new(0, 8, 0, 0) });
         var grid = new DataGrid { Name = "MelodyCandidatesGrid", ItemsSource = row.Tracks.OrderBy(track => track.MelodySuggestion?.Rank ?? int.MaxValue).Select(track => new Candidate(track)).ToArray(),
             AutoGenerateColumns = false, IsReadOnly = true, CanUserAddRows = false, CanUserDeleteRows = false, SelectionMode = DataGridSelectionMode.Single,
             RowHeight = double.NaN, MinRowHeight = 52, SelectedIndex = 0 };

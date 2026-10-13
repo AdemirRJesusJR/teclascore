@@ -1,5 +1,11 @@
-TECLASCORE · PRÉVIA 0.12.0
+TECLASCORE · PRÉVIA 0.13.0
 
+
+NOVO NA VERSÃO 0.13.0
+Marque várias pistas para reunir introdução e melodia em uma pauta. Prioridade das pistas define qual prevalece nas sobreposições; os avisos ficam na Revisão guiada.
+Use Adicionar à fila e abra Fila de conversões para Iniciar pendentes. A fila salva o MIDI e as opções, permite pausar, retomar falhas/interrupções e continua com os próximos itens quando um falha.
+Depois de reabrir o app, abra a fila e retome explicitamente. Concluídos não são refeitos. Uma renderização interrompida pode reiniciar; a análise concluída e os resultados verificados são reaproveitados.
+Cópias concluídas entram na Biblioteca/Histórico sem substituir ajustes posteriores. Remover da fila preserva os arquivos. Para corrigir as opções de um item com falha, ajuste a música e adicione novamente. A fila desta versão é para MIDI.
 
 EDITOR MUSICAL
 Na Prévia, abra Editor musical para ajustar notas, ritmo e cifras por pauta/compasso. Atualize a prévia, confira as páginas, ouça o rascunho inteiro e use Salvar nova versão. Originais e Histórico são preservados.

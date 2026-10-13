@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.13.0 — 13/10/2026
+
+- Fila persistente de conversões MIDI, com cópia da fonte e opções congeladas por item, execução sequencial, pausa e retomada explícita.
+- Falhas isoladas por item; itens em execução voltam pausados após reiniciar. Checkpoints de análise e comprovantes de saída recuperam trabalho concluído sem duplicar publicações.
+- Publicação da partitura e suas páginas em uma pasta exclusiva, conferência de hashes e histórico que preserva ajustes mais recentes.
+- Seleção de várias fontes de introdução, solo e melodia em uma pauta, com prioridade ajustável e avisos por compasso nas sobreposições.
+- Ordem preservada na sessão e no Histórico; análises antigas de múltiplas fontes são refeitas com o novo critério, mantendo cifras editadas.
+- Perfis musicais previamente aprovados e fluxo de edição nativa preservados.
+
 ## 0.12.0 — 13/10/2026
 
 - Editor musical por pauta, compasso e voz, disponível para partituras geradas e arquivos MuseScore 4 importados.

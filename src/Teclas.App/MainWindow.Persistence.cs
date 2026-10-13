@@ -129,6 +129,10 @@ public partial class MainWindow
     private static void ApplySavedScoreProperties(MidiRow row, SavedMidi saved)
     {
         row.HasMusicalEdits = saved.HasMusicalEdits;
+        // Preserve disconnected origins, but never apply a stale ordering to changed MIDI content.
+        row.MelodySourcePriority = row.SourceSha256 is null || saved.HasMusicalEdits ||
+            string.Equals(row.SourceSha256, saved.Sha256, StringComparison.OrdinalIgnoreCase)
+            ? RestoreMelodyPriority(saved.MelodySourcePriority) : [];
         row.IsFavorite = saved.IsFavorite; row.Collection = saved.Collection; row.Genre = saved.Genre;
         row.TransposeSemitones = saved.TransposeSemitones; row.Versions = saved.Versions;
         row.ScoreTitle = saved.ScoreTitle ?? ScoreMetadataDefaults.Title(row.FullPath);
@@ -176,6 +180,7 @@ public partial class MainWindow
         if (row.Document is null && unavailableSessionRows.TryGetValue(row.FullPath, out var remembered))
         {
             remembered.HasMusicalEdits = row.HasMusicalEdits;
+            remembered.MelodySourcePriority = SaveMelodyPriority(row.MelodySourcePriority);
             remembered.ScoreTitle = row.ScoreTitle; remembered.ScoreSubtitle = row.ScoreSubtitle;
             remembered.ScoreComposer = row.ScoreComposer; remembered.DefaultDiagramInversion = row.DefaultDiagramInversion;
             remembered.ScoreArtist = row.ScoreArtist; remembered.MetadataOrganizationNotice = row.MetadataOrganizationNotice;
@@ -193,6 +198,7 @@ public partial class MainWindow
         return new SavedMidi
         {
             HasMusicalEdits = row.HasMusicalEdits,
+            MelodySourcePriority = SaveMelodyPriority(row.MelodySourcePriority),
             FullPath = row.FullPath, Sha256 = row.SourceSha256, UseReviewedProfile = row.UseReviewedProfile,
             IsFavorite = row.IsFavorite, Collection = row.Collection, Genre = row.Genre,
             TransposeSemitones = row.TransposeSemitones, Versions = row.Versions,
@@ -200,8 +206,7 @@ public partial class MainWindow
             ScoreArtist = row.ScoreArtist, MetadataOrganizationNotice = row.MetadataOrganizationNotice,
             DefaultDiagramInversion = row.DefaultDiagramInversion, DiagramInversion = row.DiagramInversion,
             HasPendingScoreProperties = row.HasPendingScoreProperties,
-            MelodySources = row.Tracks.Where(track => track.IsMelody).Select(track => new SavedSource
-                { Track = track.Source.Key.Track, Channel = track.Source.Key.Channel, Program = track.Source.Key.Program }).ToList(),
+            MelodySources = SaveMelodyPriority(GetOrderedMelodySources(row)),
             Chords = row.Chords.Select(chord => new SavedChord
                 { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives }).ToList(),
             KeyFifths = row.KeyFifths, KeyMinor = row.KeyMinor, AnalysisPath = row.AnalysisPath, Workspace = row.Workspace,

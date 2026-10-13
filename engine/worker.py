@@ -2,6 +2,65 @@
 from pathlib import Path
 import json,sys,os,hashlib,shutil,traceback,copy,re,uuid
 def send(kind,**data):print(json.dumps(dict(kind=kind,**data),ensure_ascii=False),flush=True)
+
+def manual_melody_config(selected):
+    """Request order is musical priority; keep the first occurrence of each key."""
+    if not isinstance(selected,list) or not selected:raise ValueError('Escolha ao menos uma pista para a melodia.')
+    sources=[];seen=set()
+    for item in selected:
+        if not isinstance(item,dict) or any(type(item.get(key)) is not int for key in ('track','channel','program')):
+            raise ValueError('Cada fonte de melodia deve informar pista, canal e instrumento.')
+        if item['track']<0 or not 1<=item['channel']<=16 or not 0<=item['program']<=127:
+            raise ValueError('Pista, canal ou instrumento de melodia inválido.')
+        if item['channel']==10:raise ValueError('A pista de percussão não pode ser usada como melodia.')
+        key=tuple(item[field] for field in ('track','channel','program'))
+        if key in seen:continue
+        seen.add(key);sources.append({field:item[field] for field in ('track','channel','program')})
+    config={'index':0,'status':'ready','melody_sources':sources,'solo_sources':[],'reserve_high_melody':True}
+    if len(sources)>1:config['merge_mode']='priority'
+    return config
+
+def queue_receipt_path(req,workspace):
+    if 'queueReceipt' not in req:return None
+    value=req['queueReceipt']
+    if not isinstance(value,str) or not value.strip():raise ValueError('Caminho do recibo da fila inválido.')
+    path=Path(value)
+    if not path.is_absolute():raise ValueError('O recibo da fila precisa de um caminho absoluto dentro do trabalho.')
+    workspace=Path(workspace).resolve();path=path.resolve()
+    if not path.is_relative_to(workspace) or path==workspace or path.suffix.lower()!='.json':
+        raise ValueError('O recibo da fila deve permanecer dentro da pasta de trabalho.')
+    job=req.get('queueJobId');recipe=req.get('queueRecipeSha256')
+    if not isinstance(job,str) or not job.strip() or len(job)>128 or not isinstance(recipe,str) or not re.fullmatch(r'[0-9a-fA-F]{64}',recipe):
+        raise ValueError('O recibo precisa da identificação da tarefa e do hash da receita congelada.')
+    if path.exists():
+        previous=json.loads(path.read_text(encoding='utf-8-sig'))
+        if not isinstance(previous,dict) or previous.get('schemaVersion')!=1 or previous.get('jobId')!=job or str(previous.get('recipeSha256','')).lower()!=recipe.lower():
+            raise ValueError('Já existe outro documento no caminho reservado para o recibo da fila.')
+    return path
+
+def write_queue_receipt(req,workspace,result,source_sha256):
+    """Publish a recoverable result only after every output has been hashed."""
+    path=queue_receipt_path(req,workspace)
+    if path is None:return
+    score=Path(result['scorePath']).resolve();review=Path(result['reviewDirectory']).resolve()
+    files=[score]+sorted((file.resolve() for file in review.rglob('*') if file.is_file()),key=str)
+    artifacts=[]
+    for file in files:
+        with file.open('rb') as stream:
+            digest=hashlib.file_digest(stream,'sha256').hexdigest()
+        artifacts.append({'path':str(file),'sha256':digest,
+                          'kind':'score' if file==score else 'preview' if file.suffix.lower()=='.png' else 'review'})
+    document={'schemaVersion':1,'jobId':req['queueJobId'],'recipeSha256':req['queueRecipeSha256'],
+              'sourceSha256':source_sha256,'result':result,'artifacts':artifacts}
+    path.parent.mkdir(parents=True,exist_ok=True)
+    temporary=path.with_name('.'+path.name+'.'+uuid.uuid4().hex+'.tmp')
+    try:
+        with temporary.open('x',encoding='utf8',newline='\n') as stream:
+            json.dump(document,stream,ensure_ascii=False,indent=2)
+            stream.flush();os.fsync(stream.fileno())
+        os.replace(temporary,path)
+    finally:
+        if temporary.exists():temporary.unlink()
 def report_error(error,request_path=None):
     """Keep technical failure details in the job, not in the library status."""
     details=''.join(traceback.format_exception(type(error),error,error.__traceback__))
@@ -30,6 +89,7 @@ def main():
     req=json.loads(Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
     send('progress',message='Preparando a análise musical…' if req['mode']=='analyze' else 'Preparando a geração da partitura…')
     workspace=Path(req['workspace']).resolve();workspace.mkdir(parents=True,exist_ok=True)
+    if req['mode']=='generate':queue_receipt_path(req,workspace)
     os.environ['PARTITURAS_JOB']=str(workspace/'work')
     import batch_score as engine
     from inspect_midi import parse_midi
@@ -45,10 +105,7 @@ def main():
         if reviewed:
             config=copy.deepcopy(profile['config']);override=profile['harmony']
         else:
-            selected=req.get('melodySources',[])
-            if not selected:raise ValueError('Escolha ao menos uma pista para a melodia.')
-            if any(s['channel']==10 for s in selected):raise ValueError('A pista de percussão não pode ser usada como melodia.')
-            config={'index':0,'status':'ready','melody_sources':selected,'solo_sources':[],'reserve_high_melody':True}
+            config=manual_melody_config(req.get('melodySources',[]))
             override=None
         config.update(filename=source.name,source_path=str(source))
         send('progress',message='Analisando acordes e tonalidade…')
@@ -78,9 +135,10 @@ def main():
             collapsed.append(c)
         harmony['events']=collapsed
         send('progress',message='Conferindo a melodia, o ritmo e os trechos que precisam de revisão…')
-        points,rhythm_ready,rhythm_message=engine.review_points(parsed,config,harmony)
+        points,rhythm_ready,rhythm_message,melody_report=engine.review_points(parsed,config,harmony,include_melody_report=True)
         document={'source':str(source),'sha256':parsed['sha256'],'config':config,'harmony':harmony,'reviewedProfile':reviewed,'ppq':parsed['ppq'],'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
-        analysis=workspace/'analysis.json';analysis.write_text(json.dumps(document,ensure_ascii=False,indent=2),encoding='utf8')
+        if 'melody_merge' in melody_report:document['melodyMerge']=melody_report['melody_merge']
+        analysis=workspace/'analysis.json'
         fifths=harmony.get('key',{}).get('fifths',0)
         chords=[]
         for c in collapsed:
@@ -96,8 +154,12 @@ def main():
                 chord['alternatives']=', '.join(chord_label(option['root'],option['quality'],active['fifths'])
                     for option in evidence.get('alternatives',[]))
             chords.append(chord)
+        document.update(chords=chords,keyFifths=fifths,keyMinor=harmony.get('key',{}).get('minor',False))
+        analysis.write_text(json.dumps(document,ensure_ascii=False,indent=2),encoding='utf8')
         send('progress',message='Análise concluída. Preparando as cifras e os pontos de revisão…')
-        send('result',data={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation',''),'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message})
+        response={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation',''),'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
+        if 'melodyMerge' in document:response['melodyMerge']=document['melodyMerge']
+        send('result',data=response)
         return
     if mode!='generate':raise ValueError('Operação desconhecida.')
     send('progress',message='Conferindo o MIDI e as opções escolhidas para a partitura…')
@@ -134,8 +196,8 @@ def main():
         harmony['events']=sorted(new,key=lambda c:c['tick'])
     fifths=int(req.get('keyFifths',harmony.get('key',{}).get('fifths',0)))
     if not -7<=fifths<=7:raise ValueError('Armadura precisa ficar entre 7 bemóis e 7 sustenidos.')
-    minor=bool(req.get('keyMinor',False))
     old_key=harmony.get('key',{})
+    minor=bool(req.get('keyMinor',old_key.get('minor',False)))
     if (fifths,minor)!=(old_key.get('fifths',0),old_key.get('minor',False)):
         harmony['key']=dict(old_key,fifths=fifths,minor=minor)
         for change in harmony.get('key_changes',[]):
@@ -165,7 +227,10 @@ def main():
     notice='Partitura gerada e reaberta no MuseScore. Confira a prévia antes de considerar a revisão musical concluída.'
     collisions=report['melody_analysis']['quantized_attack_collisions']
     if collisions and not data['reviewedProfile']:notice+=f' {collisions} ataques próximos foram agrupados; revise os ornamentos.'
-    send('result',data={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'reviewedProfile':data['reviewedProfile'],'message':notice,'transposeSemitones':config['transpose_semitones']})
+    response={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'reviewedProfile':data['reviewedProfile'],'message':notice,'transposeSemitones':config['transpose_semitones']}
+    if 'melody_merge' in report['melody_analysis']:response['melodyMerge']=report['melody_analysis']['melody_merge']
+    write_queue_receipt(req,workspace,response,data['sha256'])
+    send('result',data=response)
 if __name__=='__main__':
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')

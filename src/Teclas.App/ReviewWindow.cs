@@ -25,6 +25,7 @@ public sealed record ScoreReviewPoint
         "harmony_gap" or "harmony_missing" => "Sem cifra",
         "key_conflict" or "key_uncertain" => "Tonalidade",
         "rhythm_refined" => "Ritmo refinado",
+        "melody_source_overlap" => "Pistas sobrepostas",
         _ => "Revisão rítmica"
     };
 }
@@ -61,6 +62,7 @@ public sealed class ReviewWindow : Window
         heading.Children.Add(new TextBlock { Text = row.ScoreTitle, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 8) });
         var guidance = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Text =
             "Ouça o compasso na pista original e confira a cifra. Ritmos refinados são avisos para conferência. " +
+            "Para pistas sobrepostas, compare as fontes e ajuste a Prioridade das pistas na aba Melodia. " +
             "Quando houver bloqueio rítmico, escolha outra pista de melodia ou revise o MIDI no editor; esta tela não altera notas automaticamente." };
         guidance.SetResourceReference(ForegroundProperty, "Muted"); heading.Children.Add(guidance);
         grid.Children.Add(heading);

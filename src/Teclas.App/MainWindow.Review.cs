@@ -13,6 +13,14 @@ public partial class MainWindow
     private void ParseReviewPoints(MidiRow row, JsonElement result)
     {
         row.ReviewPoints.Clear();
+        row.MelodyMergeSummary="";
+        if(result.ValueKind==JsonValueKind.Object && result.TryGetProperty("melodyMerge",out var merge) && merge.ValueKind==JsonValueKind.Object)
+        {
+            row.MelodyMergeSummary=Text(merge,"message");
+            if(merge.TryGetProperty("sources",out var sources) && sources.ValueKind==JsonValueKind.Array)
+                row.MelodyMergeSummary+=" " + string.Join(" · ",sources.EnumerateArray().Where(source=>source.ValueKind==JsonValueKind.Object)
+                    .Select(source=>$"Pista {(Number(source,"track",out var track)?track+1:0)}/canal {(Number(source,"channel",out var channel)?channel:0)}: {(Number(source,"keptAttacks",out var kept)?kept:0)} ataques usados"));
+        }
         if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("reviewPoints", out var points) || points.ValueKind != JsonValueKind.Array) return;
         foreach (var point in points.EnumerateArray())
         {
@@ -40,6 +48,7 @@ public partial class MainWindow
     private void RestoreReviewPoints(MidiRow row)
     {
         row.ReviewPoints.Clear();
+        row.MelodyMergeSummary="";
         if (row.UsesNativeScoreWorkflow || row.AnalysisPath is null || !File.Exists(row.AnalysisPath)) return;
         try { using var document = JsonDocument.Parse(File.ReadAllText(row.AnalysisPath)); ParseReviewPoints(row, document.RootElement); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }

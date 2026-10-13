@@ -71,12 +71,14 @@ def locate_review_point(quarter,origin,bars,kind,message,blocking=False):
             'measureEndQuarter':(bar['end']+origin)/DIV,
             'kind':kind,'message':message,'blocking':blocking}
 
-def review_points(parsed,config,harmony):
+def review_points(parsed,config,harmony,*,include_melody_report=False):
     """Locate review evidence with the exact bar origin used by score generation."""
     points=[];message='';ready=True
     try:
         _,meters,_=meta(parsed);origin,end,bars=make_bars(parsed,meters)
-    except NeedsReview as error:return [],False,str(error)
+    except NeedsReview as error:
+        result=([],False,str(error))
+        return (*result,{}) if include_melody_report else result
     def add(quarter,kind,text,blocking=False):
         point=locate_review_point(quarter,origin,bars,kind,text,blocking)
         if point is not None:points.append(point)
@@ -87,6 +89,7 @@ def review_points(parsed,config,harmony):
     if harmony.get('context_advice'):
         for diagnostic in harmony.get('diagnostics',[]):
             add(diagnostic['tick']/parsed['ppq'],diagnostic['kind'],diagnostic['message'])
+    report={}
     try:
         _,_,report=melody_events(parsed,config,origin,end)
         for quarter in report.get('collision_original_quarters',[]):
@@ -101,11 +104,23 @@ def review_points(parsed,config,harmony):
                 point.update(originalQuarter=item['original_quarter'],quantizedQuarter=item['quantized_quarter'],
                     adjustmentQuarters=item['adjustment_quarters'])
                 points.append(point)
+        # Each affected bar gets one actionable warning, even when a long tail
+        # crosses several bars. Identical doubled notes are not conflicts.
+        overlaps=report.get('melody_merge',{}).get('overlaps',[])
+        for bar in bars:
+            start=(bar['start']+origin)/DIV;stop=(bar['end']+origin)/DIV
+            affected=[item for item in overlaps if item['startQuarter']<stop and item['endQuarter']>start]
+            if affected:
+                suppressed=sum(item['action']=='suppressed' for item in affected)
+                trimmed=sum(item['action']=='trimmed' for item in affected)
+                add(max(start,min(item['startQuarter'] for item in affected)),'melody_source_overlap',
+                    f'Combinação por prioridade: {suppressed} ataques omitidos e {trimmed} caudas encurtadas neste compasso. Confira a ordem das pistas e ouça o trecho.')
     except NeedsReview as error:
         ready=False;message=str(error)
         for quarter in error.quarters:add(quarter,error.kind,str(error),True)
     unique={(point['quarter'],point['kind']):point for point in points}
-    return sorted(unique.values(),key=lambda point:(point['quarter'],point['kind'])),ready,message
+    result=(sorted(unique.values(),key=lambda point:(point['quarter'],point['kind'])),ready,message)
+    return (*result,report) if include_melody_report else result
 
 DEFAULT_SCORE_SUBTITLE=''
 
@@ -295,6 +310,74 @@ def _separate_quantized_attacks(bybeat,grids,choices,origin,end):
     return {quarter:position for (_,quarter,_),position in zip(records,assigned)},refinements,adjustments
 
 
+def _source_accepts(note,source,ppq):
+    return (source_matches(note,[source]) and source.get('start_quarter',-1)<=note['start']/ppq<source.get('end_quarter',float('inf'))
+            and source.get('min_pitch',0)<=note['pitch']<=source.get('max_pitch',127))
+
+
+def priority_melody_notes(selected,sources,ppq,onset_cluster_quarters=.04):
+    """Choose only evidenced attacks; never resume an already masked lower tail.
+
+    Upper-line reduction is local to each source. A lower source may contribute
+    its attack only while higher sources are silent, and ends at their next
+    attack. All timing decisions precede the single, global quantization pass.
+    """
+    result=[];higher=[];seen_attacks=set();statistics=[];overlaps=[]
+    for priority,source in enumerate(sources):
+        original=[note for note in selected if _source_accepts(note,source,ppq)]
+        row={key:source[key] for key in ('track','channel','program') if key in source}
+        row.update(priority=priority+1,inputNotes=len(original),candidateAttacks=0,keptAttacks=0,
+                   suppressedAttacks=0,duplicateAttacks=0,trimmedNotes=0,quantizedAttacks=0)
+        statistics.append(row)
+        unique={}
+        for note in original:
+            identity=(note['start'],note['end'],note['pitch'])
+            if identity in unique:
+                row['duplicateAttacks']+=1
+                if note['velocity']>unique[identity]['velocity']:unique[identity]=note
+            else:unique[identity]=note
+        groups=[]
+        for note in sorted(unique.values(),key=lambda n:(n['start'],n['pitch'],n['end'],n['velocity'])):
+            if not groups or note['start']-groups[-1][0]['start']>ppq*onset_cluster_quarters:groups.append([note])
+            else:groups[-1].append(note)
+        top=[max(group,key=lambda n:(n['pitch'],n['end'],n['velocity'])) for group in groups]
+        top.sort(key=lambda n:(n['start'],n['pitch'],n['end']))
+        row['candidateAttacks']=len(top)
+        active=[]
+        for index,note in enumerate(top):
+            limit=top[index+1]['start'] if index+1<len(top) else note['end']
+            stop=min(note['end'],limit)
+            if stop<=note['start']:continue
+            current=dict(note,end=stop,duration=stop-note['start'],_merge_source=priority)
+            active.append(current)
+            identity=(note['start'],note['end'],note['pitch'])
+            if identity in seen_attacks:
+                row['duplicateAttacks']+=1;continue
+            conflicts=[]
+            for higher_notes,higher_ends in higher:
+                position=bisect_right(higher_ends,note['start'])
+                if position<len(higher_notes) and higher_notes[position]['start']<stop:conflicts.append(higher_notes[position])
+            first=min(conflicts,key=lambda n:(max(note['start'],n['start']),n['_merge_source'])) if conflicts else None
+            if first is not None:
+                cut=max(note['start'],first['start'])
+                action='suppressed' if cut==note['start'] else 'trimmed'
+                row['suppressedAttacks' if action=='suppressed' else 'trimmedNotes']+=1
+                overlaps.append(dict(startQuarter=cut/ppq,endQuarter=stop/ppq,sourcePriority=priority+1,
+                                     preferredPriority=first['_merge_source']+1,action=action))
+                if action=='suppressed':continue
+                current=dict(current,end=cut,duration=cut-note['start'])
+            result.append(current);row['keptAttacks']+=1
+        higher.append((active,[note['end'] for note in active]))
+        seen_attacks.update((note['start'],note['end'],note['pitch']) for note in top)
+    result.sort(key=lambda n:(n['start'],n['_merge_source'],n['pitch']))
+    summary=dict(mode='priority',sources=statistics,overlaps=overlaps)
+    for field in ('inputNotes','candidateAttacks','keptAttacks','suppressedAttacks','duplicateAttacks','trimmedNotes','quantizedAttacks'):
+        summary[field]=sum(row[field] for row in statistics)
+    summary['message']=(f"{len(sources)} fontes combinadas por prioridade: {summary['keptAttacks']} ataques selecionados, "
+                        f"{summary['suppressedAttacks']} omitidos em sobreposição e {summary['duplicateAttacks']} duplicados removidos.")
+    return result,summary
+
+
 def melody_events(parsed,config,origin,end):
     ppq=parsed['ppq'];sources=config['melody_sources']
     selected=sorted([n for n in parsed['notes'] if (not config.get('velocity_filter') or n['velocity'] in config['velocity_filter']) and any(source_matches(n,[s]) and s.get('start_quarter',-1)<=n['start']/ppq<s.get('end_quarter',float('inf')) and s.get('min_pitch',0)<=n['pitch']<=s.get('max_pitch',127) for s in sources)],key=lambda n:(n['start'],n['pitch']))
@@ -320,12 +403,16 @@ def melody_events(parsed,config,origin,end):
                 added=dict(n,end=min(n['end'],gap[1]),_role='solo')
                 if added['end']>added['start']:selected.append(added);solo_count+=1
         selected.sort(key=lambda n:(n['start'],n['pitch']))
-    # Co-sounding notes in a lead source are reduced to its upper melodic line.
-    groups=[]
-    for n in selected:
-        if not groups or n['start']-groups[-1][0]['start']>ppq*config.get('onset_cluster_quarters',.04):groups.append([n])
-        else:groups[-1].append(n)
-    top=[max(g,key=lambda n:n['pitch']) for g in groups]
+    merge_report=None
+    if config.get('merge_mode')=='priority' and len(sources)>1:
+        top,merge_report=priority_melody_notes(selected,sources,ppq,config.get('onset_cluster_quarters',.04))
+    else:
+        # Reviewed profiles and single-source selections retain their exact path.
+        groups=[]
+        for n in selected:
+            if not groups or n['start']-groups[-1][0]['start']>ppq*config.get('onset_cluster_quarters',.04):groups.append([n])
+            else:groups[-1].append(n)
+        top=[max(g,key=lambda n:n['pitch']) for g in groups]
     bybeat=defaultdict(list)
     for n in top:bybeat[int(n['start']//ppq)].append(n['start']/ppq%1)
     grids={};grid_choices={};triplet_beats=[]
@@ -352,7 +439,7 @@ def melody_events(parsed,config,origin,end):
         return round((beat+round((q-beat)*div)/div)*DIV)
     if not attack_positions:
         nearest=[snap(n['start']) for n in top if origin<=snap(n['start'])<end]
-        if len(nearest)-len(set(nearest))>max(3,len(top)*.008):
+        if len(nearest)-len(set(nearest))>(0 if merge_report is not None else max(3,len(top)*.008)):
             attack_positions,_,attack_adjustments=_separate_quantized_attacks(bybeat,grids,grid_choices,origin,end)
             boundary_refinements=[{'beat_original':beat,'from':initial_grids[beat],'to':div}
                 for beat,div in sorted(grids.items()) if div!=initial_grids[beat]]
@@ -377,6 +464,7 @@ def melody_events(parsed,config,origin,end):
             gs=[g['pitch'] for g in grace_notes if abs(n['start']/ppq-g['target_quarter'])<.001]
             if gs:event['graces']=gs
             events.append(event)
+            if merge_report is not None:merge_report['sources'][n['_merge_source']]['quantizedAttacks']+=1
         errors.append(abs(s+origin-n['start']/ppq*DIV)/DIV)
     if len({n['pitch'] for n in events})<3:raise NeedsReview('Fonte selecionada não contém alturas suficientes para uma melodia identificável.')
     assert sum(len(n.get('graces',[])) for n in events)==len(grace_notes),'Grace target lost during grouping'
@@ -384,6 +472,9 @@ def melody_events(parsed,config,origin,end):
     if boundary_refinements:report['boundary_grid_refinements']=boundary_refinements
     if attack_adjustments:report['attack_position_adjustments']=attack_adjustments
     if collision_quarters:report['collision_original_quarters']=sorted(set(collision_quarters))
+    if merge_report is not None:
+        merge_report['quantizedAttacks']=len(events)
+        report['melody_merge']=merge_report
     return events,{b-int(origin//DIV):v for b,v in grids.items()},report
 
 def make_bars(parsed,meters):

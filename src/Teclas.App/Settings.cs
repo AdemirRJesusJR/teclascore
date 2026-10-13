@@ -92,6 +92,7 @@ public sealed class Settings
             foreach(var version in row.Versions)
             {
                 version.MelodySources ??= []; version.Chords ??= [];
+                version.MelodySourcePriority = NormalizeMelodySourcePriority(version.MelodySourcePriority);
                 version.MelodySources=version.MelodySources.Where(source=>source is not null).ToList();
                 version.Chords=version.Chords.Where(chord=>chord is not null && double.IsFinite(chord.Quarter) && double.IsFinite(chord.Confidence)).ToList();
                 version.Title ??= "";version.Composer ??= "";version.Artist ??= "";version.MetadataOrganizationNotice ??= "";
@@ -103,6 +104,7 @@ public sealed class Settings
             row.MetadataOrganizationNotice ??= "";
             if (row.DiagramInversion is < 0 or > 2) row.DiagramInversion = null;
             row.MelodySources ??= []; row.Chords ??= [];
+            row.MelodySourcePriority = NormalizeMelodySourcePriority(row.MelodySourcePriority);
             row.MelodySources = row.MelodySources.Where(source => source is not null).ToList();
             row.Chords = row.Chords.Where(chord => chord is not null && double.IsFinite(chord.Quarter)
                 && double.IsFinite(chord.Confidence)).ToList();
@@ -111,6 +113,12 @@ public sealed class Settings
             { chord.Recommendation ??= ""; chord.Alternatives ??= ""; if(chord.DiagramInversion is <0 or >2)chord.DiagramInversion=null; }
         }
     }
+
+    public static List<SavedSource> NormalizeMelodySourcePriority(IEnumerable<SavedSource>? priority) =>
+        (priority ?? []).Where(source => source is not null && source.Track is >= 0 and < 65535 &&
+            source.Channel is >= 1 and <= 16 && source.Program is >= 0 and <= 127)
+        .DistinctBy(source => (source.Track, source.Channel, source.Program))
+        .Select(source => new SavedSource { Track = source.Track, Channel = source.Channel, Program = source.Program }).ToList();
 
     public static double NormalizeTrackAuditionSpeed(double value) => value is 0.25 or 0.5 or 0.75 or 1.0 or 1.25 or 1.5 ? value : 1.0;
     public static int NormalizeDiagramInversion(int value) => value is >= 0 and <= 2 ? value : 2;
@@ -181,6 +189,7 @@ public sealed class SavedMidi
     public string? Sha256 { get; set; }
     public bool UseReviewedProfile { get; set; }
     public List<SavedSource> MelodySources { get; set; } = [];
+    public List<SavedSource> MelodySourcePriority { get; set; } = [];
     public List<SavedChord> Chords { get; set; } = [];
     public int KeyFifths { get; set; }
     public bool KeyMinor { get; set; }
@@ -200,6 +209,7 @@ public sealed class SavedScoreVersion
     public string? SourceSha256 { get; set; }
     public bool UseReviewedProfile { get; set; }
     public List<SavedSource> MelodySources { get; set; } = [];
+    public List<SavedSource> MelodySourcePriority { get; set; } = [];
     public string? AnalysisPath { get; set; }
     public string? Workspace { get; set; }
     public string ScorePath { get; set; } = "";

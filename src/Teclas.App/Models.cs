@@ -30,6 +30,8 @@ public sealed class MidiRow : Observable
     public int TransposeSemitones{get;set;}
     public List<SavedScoreVersion> Versions{get;set;}=[];
     public List<ScoreReviewPoint> ReviewPoints{get;set;}=[];
+    private string melodyMergeSummary="";
+    public string MelodyMergeSummary{get=>melodyMergeSummary;set=>Set(ref melodyMergeSummary,value);}
     private ScoreDiagnosticReport? diagnosticReport;
     public ScoreDiagnosticReport? DiagnosticReport{get=>diagnosticReport;set{if(Set(ref diagnosticReport,value))Notify(nameof(DiagnosticSummary));}}
     public string DiagnosticSummary=>DiagnosticReport is {} report
@@ -58,6 +60,7 @@ public sealed class MidiRow : Observable
     private string status="";public string Status{get=>status;set=>Set(ref status,value);}
     public string ProfileReason=>Profile?["config"]?["reason"]?.GetValue<string>()??"MIDI novo: escolha a pista de melodia e confira as cifras sugeridas.";
     public ObservableCollection<TrackRow> Tracks{get;}=[];
+    public List<SourceKey> MelodySourcePriority{get;set;}=[];
     public ObservableCollection<ChordRow> Chords{get;}=[];
     public string? AnalysisPath{get;set;}
     public string? Workspace{get;set;}
