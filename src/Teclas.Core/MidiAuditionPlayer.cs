@@ -56,14 +56,20 @@ public class MidiAuditionPlayer : IDisposable
         }
     }
 
-    public void Play(MidiAuditionSequence value)
+    public void Play(MidiAuditionSequence value) => Play(value, TimeSpan.Zero);
+
+    /// <summary>Starts at an original-timeline position, restoring active voices without playing skipped notes.</summary>
+    public void Play(MidiAuditionSequence value, TimeSpan position)
     {
         ArgumentNullException.ThrowIfNull(value);
         Change(() =>
         {
-            SilenceLocked(); sequence = value; offset = TimeSpan.Zero; nextEvent = 0;
+            SilenceLocked(); sequence = value; offset = TimeSpan.FromTicks(Math.Clamp(position.Ticks, 0, value.Duration.Ticks)); nextEvent = 0;
             output ??= outputFactory() ?? throw new InvalidOperationException("O dispositivo MIDI não está disponível.");
-            RestoreLocked(offset, true); StartLocked();
+            bool canPlay = offset < value.Duration;
+            RestoreLocked(offset, canPlay);
+            if (canPlay) StartLocked();
+            else { clock.Reset(); playing = false; paused = false; timer.Change(Timeout.Infinite, Timeout.Infinite); }
         });
     }
     public void Pause()

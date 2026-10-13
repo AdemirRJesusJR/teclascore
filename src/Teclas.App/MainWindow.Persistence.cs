@@ -38,15 +38,25 @@ public partial class MainWindow
             foreach (var saved in settings.Library)
             {
                 MidiRow row;
+                bool preserveFreshNativeHeader=false;
                 try
                 {
                     row = LoadMidi(saved.FullPath);
-                    if (!string.IsNullOrEmpty(saved.Sha256) && string.Equals(row.Document!.Sha256, saved.Sha256, StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrEmpty(saved.Sha256) && string.Equals(row.SourceSha256, saved.Sha256, StringComparison.OrdinalIgnoreCase))
                         ApplySavedMidi(row, saved);
                     else if (!string.IsNullOrEmpty(saved.Sha256))
                     {
                         changed++;
-                        row.Status = "MIDI alterado desde a última sessão · analise os acordes novamente";
+                        if(row.IsNativeScore)
+                        {
+                            if(File.Exists(saved.ScorePath) && !string.Equals(saved.ScorePath,saved.FullPath,StringComparison.OrdinalIgnoreCase))
+                            {
+                                row.ScorePath=saved.ScorePath;row.PreviewPath=saved.PreviewPath;row.PageCount=saved.PageCount;row.GeneratedAt=saved.GeneratedAt;
+                            }
+                            else preserveFreshNativeHeader=true;
+                            row.Status="Origem MuseScore alterada · cópias anteriores preservadas no Histórico";
+                        }
+                        else row.Status = "MIDI alterado desde a última sessão · analise os acordes novamente";
                     }
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OverflowException or ArgumentException or NotSupportedException)
@@ -58,7 +68,10 @@ public partial class MainWindow
                     row.ScorePath = saved.ScorePath; row.PreviewPath = saved.PreviewPath;
                     row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
                 }
+                var freshHeader=(row.ScoreTitle,row.ScoreSubtitle,row.ScoreComposer);
                 ApplySavedScoreProperties(row, saved);
+                if(preserveFreshNativeHeader){row.ScoreTitle=freshHeader.ScoreTitle;row.ScoreSubtitle=freshHeader.ScoreSubtitle;row.ScoreComposer=freshHeader.ScoreComposer;row.HasPendingScoreProperties=false;}
+                RememberVersion(row);
                 Files.Add(row);
             }
             SearchText = settings.SearchText;
@@ -89,6 +102,7 @@ public partial class MainWindow
         { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence });
         row.Workspace = saved.Workspace;
         row.AnalysisPath = File.Exists(saved.AnalysisPath) && Directory.Exists(saved.Workspace) ? saved.AnalysisPath : null;
+        RestoreReviewPoints(row);
         row.ScorePath = saved.ScorePath; row.PreviewPath = saved.PreviewPath;
         row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
         row.HasOperationError = saved.HasOperationError;
@@ -99,6 +113,8 @@ public partial class MainWindow
 
     private static void ApplySavedScoreProperties(MidiRow row, SavedMidi saved)
     {
+        row.IsFavorite = saved.IsFavorite; row.Collection = saved.Collection; row.Genre = saved.Genre;
+        row.TransposeSemitones = saved.TransposeSemitones; row.Versions = saved.Versions;
         row.ScoreTitle = saved.ScoreTitle ?? ScoreMetadataDefaults.Title(row.FullPath);
         row.ScoreSubtitle = saved.ScoreSubtitle;
         row.ScoreComposer = saved.ScoreComposer ?? "";
@@ -144,11 +160,18 @@ public partial class MainWindow
             remembered.ScoreTitle = row.ScoreTitle; remembered.ScoreSubtitle = row.ScoreSubtitle;
             remembered.ScoreComposer = row.ScoreComposer; remembered.DefaultDiagramInversion = row.DefaultDiagramInversion;
             remembered.DiagramInversion = row.DiagramInversion; remembered.HasPendingScoreProperties = row.HasPendingScoreProperties;
+            remembered.IsFavorite = row.IsFavorite; remembered.Collection = row.Collection; remembered.Genre = row.Genre;
+            remembered.TransposeSemitones = row.TransposeSemitones; remembered.Versions = row.Versions;
+            remembered.ScorePath = row.ScorePath; remembered.PreviewPath = row.PreviewPath;
+            remembered.PageCount = row.PageCount; remembered.GeneratedAt = row.GeneratedAt;
+            remembered.Status = row.Status; remembered.HasOperationError = row.HasOperationError;
             return remembered;
         }
         return new SavedMidi
         {
-            FullPath = row.FullPath, Sha256 = row.Document?.Sha256, UseReviewedProfile = row.UseReviewedProfile,
+            FullPath = row.FullPath, Sha256 = row.SourceSha256, UseReviewedProfile = row.UseReviewedProfile,
+            IsFavorite = row.IsFavorite, Collection = row.Collection, Genre = row.Genre,
+            TransposeSemitones = row.TransposeSemitones, Versions = row.Versions,
             ScoreTitle = row.ScoreTitle, ScoreSubtitle = row.ScoreSubtitle, ScoreComposer = row.ScoreComposer,
             DefaultDiagramInversion = row.DefaultDiagramInversion, DiagramInversion = row.DiagramInversion,
             HasPendingScoreProperties = row.HasPendingScoreProperties,

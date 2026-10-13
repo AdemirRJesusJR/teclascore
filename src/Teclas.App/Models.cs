@@ -15,6 +15,18 @@ public abstract class Observable : INotifyPropertyChanged
 public sealed class MidiRow : Observable
 {
     public required string FullPath{get;init;}
+    public bool IsNativeScore=>Path.GetExtension(FullPath).Equals(".mscz",StringComparison.OrdinalIgnoreCase);
+    public string? NativeSourceSha256{get;init;}
+    public string? SourceSha256=>Document?.Sha256??NativeSourceSha256;
+    private bool favorite;
+    public bool IsFavorite{get=>favorite;set=>Set(ref favorite,value);}
+    private string collection="";
+    public string Collection{get=>collection;set=>Set(ref collection,value??"");}
+    private string genre="";
+    public string Genre{get=>genre;set=>Set(ref genre,value??"");}
+    public int TransposeSemitones{get;set;}
+    public List<SavedScoreVersion> Versions{get;set;}=[];
+    public List<ScoreReviewPoint> ReviewPoints{get;set;}=[];
     public string Name=>Path.GetFileName(FullPath);
     private string? scoreTitle;
     public string ScoreTitle{get=>scoreTitle??ScoreMetadataDefaults.Title(FullPath);set=>Set(ref scoreTitle,value);}
@@ -47,7 +59,7 @@ public sealed class MidiRow : Observable
     public DateTimeOffset? GeneratedAt{get=>generatedAt;set{if(Set(ref generatedAt,value))Notify(nameof(GeneratedAtText));}}
     private bool hasOperationError;
     public bool HasOperationError{get=>hasOperationError;set{if(Set(ref hasOperationError,value))NotifyCategory();}}
-    public DashboardItem DashboardFacts=>new(Document is not null,HasReviewedProfile,UseReviewedProfile,
+    public DashboardItem DashboardFacts=>new(SourceSha256 is not null,HasReviewedProfile,UseReviewedProfile,
         ScorePath is not null && File.Exists(ScorePath),HasOperationError,PageCount);
     public DashboardCategory Category=>DashboardFacts.Category;
     public string CategoryCode=>Category switch{DashboardCategory.Ready=>"ready",DashboardCategory.Generated=>"generated",DashboardCategory.Error=>"error",_=>"review"};
@@ -71,7 +83,7 @@ public sealed class MidiRow : Observable
     private void NotifyCategory(){Notify(nameof(Category));Notify(nameof(CategoryCode));Notify(nameof(CategoryLabel));Notify(nameof(CategoryColor));}
     private int keyFifths;public int KeyFifths{get=>keyFifths;set=>Set(ref keyFifths,value);}
     private bool keyMinor;public bool KeyMinor{get=>keyMinor;set=>Set(ref keyMinor,value);}
-    public string Summary=>Document is null?"Não foi possível ler o arquivo":$"{Document.Notes.Count:N0} notas · {Document.Sources.Count} fontes · MIDI {Document.Format}";
+    public string Summary=>IsNativeScore?"MuseScore · "+PageCountText:Document is null?"Não foi possível ler o arquivo":$"{Document.Notes.Count:N0} notas · {Document.Sources.Count} fontes · MIDI {Document.Format}";
 }
 public sealed class TrackRow : Observable
 {

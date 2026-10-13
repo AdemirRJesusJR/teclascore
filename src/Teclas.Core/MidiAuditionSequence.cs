@@ -14,6 +14,14 @@ public sealed class MidiAuditionSequence
     private MidiAuditionSequence(SourceKey source, TimeSpan duration, TimeSpan trim, IReadOnlyList<MidiAuditionEvent> events, IReadOnlyList<string> warnings)
     { Source = source; Duration = duration; LeadingSilenceTrimmed = trim; Events = events; Warnings = warnings; }
 
+    /// <summary>Ends before events at the boundary, preserving original time and controller history for seeking.</summary>
+    public MidiAuditionSequence Until(TimeSpan end)
+    {
+        if (end < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(end));
+        if (end >= Duration) return this;
+        return new(Source, end, LeadingSilenceTrimmed, Events.Where(item => item.At < end).ToArray(), Warnings);
+    }
+
     public static uint Message(int kind, int channel, int first, int second = 0)
     {
         if (kind is < 8 or > 14 || channel is < 1 or > 16 || first is < 0 or > 127 || second is < 0 or > 127)

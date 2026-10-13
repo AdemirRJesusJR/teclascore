@@ -16,6 +16,7 @@ with zipfile.ZipFile(B/archive_name,'w',zipfile.ZIP_DEFLATED) as z:
 with zipfile.ZipFile(B/archive_name) as z:
     assert z.testzip() is None
     assert {'Teclas.Partituras.exe','Teclas.Partituras.dll','Teclas.Core.dll','engine/worker.py','engine/profiles.json','engine/gm.json'}<=set(z.namelist())
+(B/'SHA256SUMS').write_text(hashlib.sha256((B/archive_name).read_bytes()).hexdigest()+'  '+archive_name+'\n',encoding='ascii')
 def included(p):
     rel=p.relative_to(B)
     if p.suffix=='.zip' and p.name!=archive_name:return False

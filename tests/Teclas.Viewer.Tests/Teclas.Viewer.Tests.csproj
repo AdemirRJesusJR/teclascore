@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+ <ItemGroup><Compile Include="../../src/Teclas.App/ScorePageFiles.cs" Link="ScorePageFiles.cs"/></ItemGroup>
+</Project>

@@ -22,19 +22,21 @@ public partial class MainWindow
     }
     public bool CanEditScoreProperties => IsIdle && selectedFile is not null;
     public string ScorePropertiesSummary => selectedFile is { } row
-        ? row.ScoreTitle + " · " + ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion)
+        ? row.ScoreTitle + " · " + (row.IsNativeScore ? "MuseScore · apresentação e metadados" : ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion) + $" · transposição {row.TransposeSemitones:+0;-0;0}")
           + (row.HasPendingScoreProperties ? " · atualização pendente" : "")
         : "Título, subtítulo, autor e inversão dos diagramas.";
 
     private async void ScorePropertiesClick(object sender, RoutedEventArgs e)
     {
         if (!CanEditScoreProperties || selectedFile is not { } row || !CommitEdits()) return;
+        if(row.IsNativeScore){ImproveNativeScoreClick(sender,e);return;}
         var dialog = new ScorePropertiesWindow(row.ScoreTitle, row.ScoreSubtitle, row.ScoreComposer,
             row.DiagramInversion, row.DefaultDiagramInversion) { Owner = this };
         if (dialog.ShowDialog() != true) return;
         bool changed = row.ScoreTitle != dialog.TitleValue || row.ScoreSubtitle != dialog.SubtitleValue
             || row.ScoreComposer != dialog.ComposerValue || row.DiagramInversion != dialog.InversionOverride;
         if (!changed && !row.HasPendingScoreProperties) return;
+        RememberVersion(row);
         row.ScoreTitle = string.IsNullOrWhiteSpace(dialog.TitleValue) ? ScoreMetadataDefaults.Title(row.FullPath) : dialog.TitleValue;
         row.ScoreSubtitle = dialog.SubtitleValue;
         row.ScoreComposer = dialog.ComposerValue;

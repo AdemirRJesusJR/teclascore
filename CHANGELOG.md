@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 0.7.0 — 13/10/2026
+
+- Visualizador de todas as páginas, com miniaturas, zoom, ajuste à página/largura e tela cheia.
+- Importação de partituras MuseScore 4 (.mscz) e melhoria de apresentação e cabeçalho em uma nova cópia, com verificação da preservação musical.
+- Revisão guiada de acordes incertos e ocorrências rítmicas, com compasso, tempo e escuta isolada do trecho antes de corrigir a cifra.
+- Transposição de partituras geradas de MIDI entre −12 e +12 semitons: melodia, armadura, cifras e diagramas atualizados juntos.
+- Modo de estudo com velocidades de 25% a 150%, sem mudar a afinação, e repetição A–B.
+- Histórico com comparação das páginas e restauração da versão ativa, preservando arquivos anteriores e a preparação musical.
+- Favoritos, coleção/repertório, gênero e busca por nome, título, autor ou gênero; organização salva entre sessões.
+- Instalador por usuário, diagnóstico das dependências e consulta de versões no GitHub pela tela Sobre; instalação de pacotes verificados por SHA-256.
+
 ## 0.6.1 — 12/10/2026
 
 - Removido o botão Salvar MuseScore da aba Prévia, conforme preferência do usuário.

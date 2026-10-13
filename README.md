@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.6.1 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável, edita as propriedades do cabeçalho, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.7.0 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável, edita as propriedades do cabeçalho, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
 
@@ -8,7 +8,7 @@ Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/tecl
 
 1. Abra Aplicativo/Teclas.Partituras.exe.
 2. Confira os caminhos em Configurações e escolha a pasta de saída.
-3. Importe arquivos .mid, .midi ou .kar pelo botão ou arrastando-os para o app. A Biblioteca abre automaticamente com o primeiro MIDI novo selecionado, sem a busca ou os filtros anteriores. Um arquivo já importado é selecionado sem duplicação.
+3. Importe arquivos .mid, .midi, .kar ou .mscz pelo botão ou arrastando-os para o app. A Biblioteca abre automaticamente com o primeiro MIDI novo selecionado, sem a busca ou os filtros anteriores. Um arquivo já importado é selecionado sem duplicação.
 4. Nos 18 MIDIs com perfil revisado, mantenha a revisão aprovada marcada. Use “Gerar lote revisado” para processar os que ainda não foram gerados.
 5. Na aba Melodia, use ▶ na coluna Ouvir para escutar cada fonte isoladamente. Compare as pistas, marque a melodia, clique em “Analisar acordes”, confira/edite as cifras e clique em “Gerar partitura”. Com a revisão aprovada habilitada, é possível ouvir; desmarque essa opção para mudar a seleção manualmente.
 6. Na aba Prévia, clique em “Reproduzir” para ouvir, “Pausar” para continuar depois e “Parar” para voltar ao início. A barra de posição permite avançar ou voltar. “Salvar PDF” exporta todas as páginas. “Gerar partitura” já salva o arquivo .mscz automaticamente; use “Pasta de saída” para acessá-lo.
@@ -50,13 +50,41 @@ Ao fechar o aplicativo, são salvos o tema, o modo da barra lateral, os caminhos
 
 Os dados ficam em `%LOCALAPPDATA%/TeclasPartituras/settings.json`, com gravação atômica e cópia de recuperação. Se o salvamento falhar, a janela permanece aberta e mostra o motivo. Os arquivos MIDI e .mscz continuam nos locais originais; o app salva suas referências. Um MIDI alterado precisa de nova análise para impedir a reutilização de resultados de outro conteúdo. Mantenha os arquivos e pastas de trabalho para continuar de onde parou.
 
+## Leitura, estudo e organização — 0.7.0
+
+A Prévia mostra todas as páginas. Use miniaturas, anterior/próxima, zoom, Largura, Página ou Tela cheia; Esc sai da tela cheia. A imagem é uma leitura da partitura: a edição musical continua na tabela de cifras ou no MuseScore.
+
+Em **Organizar**, marque favoritos e defina coleção/repertório e gênero. A busca considera nome, título, autor, coleção e gênero, sem diferenciar acentos. A biblioteca oferece filtros de favoritos e coleção. Importar limpa os filtros para exibir o novo arquivo.
+
+**Histórico** compara a versão escolhida com a atual e permite restaurá-la. Restaurar preserva as outras cópias e recupera metadados, transposição, pistas e cifras daquela geração. Uma análise temporária ausente pode precisar ser refeita. O histórico passa a registrar a versão disponível na biblioteca ao abrir esta versão do app; arquivos antigos fora desse registro não são descobertos automaticamente. Mantenha as pastas de saída para acessar todas as cópias.
+
+No modo de estudo, marque **A** na posição inicial e **B** na final para repetir um trecho. Limpar A–B remove os marcadores. A velocidade de 25% a 150% é independente da escuta de pistas e permanece salva. O MuseScore prepara uma cópia de áudio por velocidade, preservando afinação, repetições e mudanças de andamento; a primeira reprodução pode levar alguns instantes. A posição usa o tempo do andamento original. Trocar de partitura limpa os marcadores.
+
+## Revisão guiada e transposição
+
+Após Analisar acordes, **Revisão guiada** lista os pontos identificados, com compasso e tempo. Escolha uma pista e ouça apenas aquele compasso, inclusive mais devagar. Editar cifra abre o acorde correspondente na tabela. A revisão aponta incertezas da análise e refinamentos rítmicos; não garante a identificação de todos os erros musicais. Problemas rítmicos que não possam ser resolvidos automaticamente exigem rever a pista ou editar a cópia no MuseScore.
+
+**Transpor**, na Prévia de um MIDI, permite deslocar de −12 a +12 semitons. O intervalo é relativo ao MIDI original, sem acumular alterações. A nova partitura atualiza notas, armadura, modulações, cifras e diagramas. A tabela de cifras continua no tom original. O arquivo MIDI e as versões anteriores permanecem intactos. A transposição não se aplica a arquivos .mscz importados, cujos diagramas externos podem ser imagens sem informação musical.
+
+## Melhorar partituras MuseScore
+
+Importe um **.mscz do MuseScore 4** e abra **Melhorar apresentação** ou Propriedades. Edite título, subtítulo e autor e escolha apresentação padrão, confortável ou compacta. O app ajusta margens, tamanho de pauta e cabeçalho e salva uma nova cópia. Notas, ritmos, vozes, cifras, repetições e imagens são conferidos antes da entrega. O Histórico permite comparar antes/depois. Se a preservação não puder ser confirmada, a operação informa a falha e mantém o original.
+
+Arquivos de versões antigas devem ser abertos e salvos em uma nova cópia pelo MuseScore 4 antes da importação. Quando há imagens ou diagramas, as quebras existentes são preservadas para evitar corte dos desenhos; confirme visualmente o resultado, sobretudo em partituras com posicionamentos manuais. A melhoria não inventa cifras nem troca automaticamente a inversão de diagramas externos.
+
+## Instalação e atualizações
+
+Extraia o ZIP completo e execute **Instalar.cmd**, ou continue usando Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
+
+Na tela **Sobre → Instalação e atualizações**, confira dependências e consulte a última versão publicada no GitHub. A consulta só ocorre ao clicar. Baixe o ZIP pela página da versão e selecione-o no app; o instalador confere SHA-256 e conteúdo antes de instalar. Se a consulta não estiver disponível, selecione também o arquivo SHA256SUMS da mesma versão. A nova instalação não fecha o app sem sua escolha e não instala Python ou MuseScore automaticamente.
+
 ## Dependências desta versão
 
 - Windows com .NET Desktop Runtime 10.
 - MuseScore Studio 4 instalado, para gravação nativa, renderização, preparação do áudio e exportação PDF em segundo plano.
 - Python 3.11 ou superior com Pillow, para o motor musical reaproveitado.
 
-A interface, a leitura inicial do MIDI, a biblioteca, o controle das operações e a criação de ZIP são em C#. A preparação musical detalhada usa o motor Python validado no lote anterior. Este protótipo ainda não é uma implementação musical integralmente em C# nem um instalador que inclua todas as dependências.
+A interface, a leitura inicial do MIDI, a biblioteca, o controle das operações e a criação de ZIP são em C#. A preparação musical detalhada usa o motor Python validado no lote anterior. Este protótipo ainda não é uma implementação musical integralmente em C# e o instalador não inclui as dependências externas.
 
 No computador usado para preparar o projeto, as dependências já existem e o programa procura seus caminhos automaticamente. Em outro computador, configure os executáveis na interface. O aplicativo não instala programas, não baixa dependências e não envia os MIDIs pela internet.
 

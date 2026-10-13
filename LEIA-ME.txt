@@ -1,4 +1,4 @@
-TECLASCORE · PRÉVIA 0.6.1
+TECLASCORE · PRÉVIA 0.7.0
 
 Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 
@@ -19,7 +19,7 @@ Os diagramas são incorporados ao .mscz; uma mudança na cifra dentro do MuseSco
 
 Código-fonte e informações de desenvolvimento estão na pasta software do projeto Partituras de Teclado.
 
-NOVO NA VERSÃO 0.6.1
+ANTERIOR — VERSÃO 0.6.1
 O botão Salvar MuseScore foi removido da Prévia.
 Gerar partitura já salva o arquivo .mscz automaticamente; use Pasta de saída para acessá-lo.
 
@@ -74,3 +74,13 @@ Configurações ficam em %LOCALAPPDATA%/TeclasPartituras/settings.json, com cóp
 Se não for possível salvar, o app avisa e mantém a janela aberta.
 
 Repositório: https://github.com/AdemirRJesusJR/teclascore
+
+NOVO NA VERSÃO 0.7.0
+Todas as páginas na Prévia, com miniaturas, zoom e tela cheia.
+Importe .mscz do MuseScore 4 e use Melhorar apresentação para criar uma nova cópia; compare no Histórico.
+Organizar permite favoritos, coleção e gênero; a busca também encontra título e autor.
+Revisão guiada identifica compassos para ouvir e conferir cifras após a análise.
+Transpor atualiza a partitura gerada de MIDI, incluindo notas, cifras, armadura e diagramas.
+Estude em 25% a 150% sem mudar a afinação e marque A/B para repetir um trecho.
+Use Instalar.cmd para instalar por usuário. Em Sobre, consulte dependências e novas versões.
+As dependências externas continuam necessárias; não são incluídas no instalador.

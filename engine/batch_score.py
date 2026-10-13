@@ -19,7 +19,80 @@ module=ast.parse((WORK/'build_keyboard_diagrams.py').read_text(encoding='utf8'))
 exec(compile(ast.Module(body=[n for n in module.body if isinstance(n,ast.FunctionDef) and n.name in ('md4','svg_keyboard')],type_ignores=[]),'diagram_helpers','exec'))
 NS='{http://www.w3.org/2000/svg}';E.register_namespace('',NS[1:-1])
 
-class NeedsReview(Exception):pass
+class NeedsReview(Exception):
+    def __init__(self,message,quarters=None,kind='rhythm_collision'):
+        super().__init__(message)
+        self.quarters=list(quarters or [])
+        self.kind=kind
+        self.review_points=[]
+
+def transpose_semitones(value=0):
+    if value is None:return 0
+    if type(value) is not int or not -12<=value<=12:
+        raise ValueError('A transposição deve ser um número inteiro entre -12 e 12 semitons.')
+    return value
+
+def transpose_harmony(harmony,semitones):
+    """Transpose an output copy; evidence and MIDI analysis retain source pitches."""
+    semitones=transpose_semitones(semitones)
+    result=copy.deepcopy(harmony)
+    if semitones%12==0:return result
+    def key_transposed(key):
+        changed=copy.deepcopy(key)
+        old=key.get('fifths',0);target=(old*7+semitones)%12
+        candidates=[f for f in range(-7,8) if f*7%12==target]
+        fifths=min(candidates,key=lambda f:(abs(f),bool(old and f and (old>0)!=(f>0)),abs(f-old)))
+        changed['fifths']=fifths
+        changed['root']=(fifths*7+(9 if changed.get('minor',False) else 0))%12
+        return changed
+    result['key']=key_transposed(harmony.get('key') or {'fifths':0,'minor':False})
+    result['key_changes']=[key_transposed(key) for key in harmony.get('key_changes',[])]
+    for chord in result['events']:
+        chord['root']=(chord['root']+semitones)%12
+        chord['pitch_classes']=sorted((chord['root']+interval)%12 for interval in CHORD_INTERVALS[chord['quality']])
+        active=result['key']
+        for change in result['key_changes']:
+            if change['tick']<=chord['tick']:active=change
+        letter,alter=spellings(active['fifths'],active.get('minor',False))[chord['root']]
+        chord['root_spelling']=letter+('#'*alter if alter>0 else 'b'*(-alter))
+    return result
+
+def locate_review_point(quarter,origin,bars,kind,message,blocking=False):
+    position=quarter*DIV-origin
+    found=next(((i,bar) for i,bar in enumerate(bars) if bar['start']<=position<bar['end']),None)
+    if found is None:return None
+    index,bar=found
+    return {'quarter':round(quarter,6),'measure':index+1,
+            'beat':round(1+(position-bar['start'])/DIV/(4/bar['meter'][1]),4),
+            'measureStartQuarter':(bar['start']+origin)/DIV,
+            'measureEndQuarter':(bar['end']+origin)/DIV,
+            'kind':kind,'message':message,'blocking':blocking}
+
+def review_points(parsed,config,harmony):
+    """Locate review evidence with the exact bar origin used by score generation."""
+    points=[];message='';ready=True
+    try:
+        _,meters,_=meta(parsed);origin,end,bars=make_bars(parsed,meters)
+    except NeedsReview as error:return [],False,str(error)
+    def add(quarter,kind,text,blocking=False):
+        point=locate_review_point(quarter,origin,bars,kind,text,blocking)
+        if point is not None:points.append(point)
+    for chord in harmony.get('events',[]):
+        if chord.get('confidence',0)<.65:
+            add(chord['tick']/parsed['ppq'],'chord_low_confidence',
+                f"Acorde com confiança de {chord.get('confidence',0):.0%}. Confira a cifra ouvindo o acompanhamento.")
+    try:
+        _,_,report=melody_events(parsed,config,origin,end)
+        for quarter in report.get('collision_original_quarters',[]):
+            add(quarter,'rhythm_collision','Ataques próximos agrupados na grade; confira as notas e os ornamentos.')
+        for item in report.get('boundary_grid_refinements',[]):
+            add(item['beat_original'],'rhythm_refined',
+                'Ritmo refinado automaticamente para separar ataques próximos. Confira o trecho com velocidade reduzida.')
+    except NeedsReview as error:
+        ready=False;message=str(error)
+        for quarter in error.quarters:add(quarter,error.kind,str(error),True)
+    unique={(point['quarter'],point['kind']):point for point in points}
+    return sorted(unique.values(),key=lambda point:(point['quarter'],point['kind'])),ready,message
 
 DEFAULT_SCORE_SUBTITLE='Melodia, cifras e diagramas de teclado • 2ª inversão'
 
@@ -143,7 +216,8 @@ def _refine_boundary_grids(bybeat,grids,choices,origin,end):
                 error+=sum(abs(t/DIV-following-phase) for t,phase in zip(right_positions,bybeat[following]))
                 candidates.append(((not shared,changed,refinement,error,left_div,right_div),left_div,right_div))
         if not candidates:
-            raise NeedsReview(f'Ataques próximos ao tempo {following} não podem ser separados nas grades rítmicas suportadas; requer revisão rítmica individual.')
+            raise NeedsReview(f'Ataques próximos ao tempo {following} não podem ser separados nas grades rítmicas suportadas; requer revisão rítmica individual.',
+                [beat+max(bybeat[beat]),following+min(bybeat[following])])
         _,grids[beat],grids[following]=min(candidates)
     return [{'beat_original':beat,'from':original[beat],'to':div}
             for beat,div in sorted(grids.items()) if div!=original[beat]]
@@ -199,13 +273,15 @@ def melody_events(parsed,config,origin,end):
         q=t/ppq;beat=math.floor(q);div=grids.get(beat,4)
         # Near a beat boundary use the shared endpoint.
         return round((beat+round((q-beat)*div)/div)*DIV)
-    onsetmap={};collision=0
+    onsetmap={};collision=0;collision_quarters=[]
     for n in top:
         s=snap(n['start'])-origin
         if not 0<=s<end-origin:continue
-        if s in onsetmap:collision+=1
+        if s in onsetmap:
+            collision+=1
+            collision_quarters.extend((n['start']/ppq,onsetmap[s]['start']/ppq))
         if s not in onsetmap or n['velocity']>onsetmap[s]['velocity']:onsetmap[s]=n
-    if collision>max(3,len(top)*.008):raise NeedsReview(f'{collision} ataques colidem após quantização; requer revisão rítmica individual.')
+    if collision>max(3,len(top)*.008):raise NeedsReview(f'{collision} ataques colidem após quantização; requer revisão rítmica individual.',sorted(set(collision_quarters)))
     events=[];errors=[];onsets=sorted(onsetmap)
     for i,s in enumerate(onsets):
         n=onsetmap[s];next_s=onsets[i+1] if i+1<len(onsets) else end-origin
@@ -223,6 +299,7 @@ def melody_events(parsed,config,origin,end):
     assert sum(len(n.get('graces',[])) for n in events)==len(grace_notes),'Grace target lost during grouping'
     report={'raw_notes':len(selected),'principal_source_notes':main_count,'grace_notes_preserved':len(grace_notes),'solo_notes_added':solo_count,'simultaneous_notes_reduced':len(selected)-len(top),'melody_attacks':len(events),'quantized_attack_collisions':collision,'triplet_beats_original':triplet_beats,'onset_adjustment_max_quarters':max(errors),'onset_adjustment_mean_quarters':sum(errors)/len(errors)}
     if boundary_refinements:report['boundary_grid_refinements']=boundary_refinements
+    if collision_quarters:report['collision_original_quarters']=sorted(set(collision_quarters))
     return events,{b-int(origin//DIV):v for b,v in grids.items()},report
 
 def make_bars(parsed,meters):
@@ -358,7 +435,11 @@ def build_musicxml(parsed,config,harmony,out,title):
     metadata=score_metadata(config,title);title=metadata['title'];header=_header_layout(metadata)
     inversion=diagram_inversion(config.get('diagram_inversion'))
     summary,meters,tempos=meta(parsed);origin,end,bars=make_bars(parsed,meters)
-    notes,grids,note_report=melody_events(parsed,config,origin,end)
+    try:notes,grids,note_report=melody_events(parsed,config,origin,end)
+    except NeedsReview as error:
+        error.review_points=[point for quarter in error.quarters
+            if (point:=locate_review_point(quarter,origin,bars,error.kind,str(error),True)) is not None]
+        raise
     transpose=config.get('melody_transpose_semitones',0)
     assert transpose%12==0,'Only octave placement may change without changing the key'
     if transpose:
@@ -367,6 +448,15 @@ def build_musicxml(parsed,config,harmony,out,title):
             if 'graces' in n:n['graces']=[p+transpose for p in n['graces']]
         note_report['octave_transposition_semitones']=transpose
         assert all(0<=n['pitch']<=127 for n in notes)
+    output_transpose=transpose_semitones(config.get('transpose_semitones'))
+    if output_transpose:
+        for note in notes:
+            note['pitch']+=output_transpose
+            if 'graces' in note:note['graces']=[pitch+output_transpose for pitch in note['graces']]
+        if any(not 0<=pitch<=127 for note in notes for pitch in [note['pitch']]+note.get('graces',[])):
+            raise NeedsReview('A transposição ultrapassa as alturas permitidas pelo MIDI. Escolha um intervalo menor.',kind='transpose_range')
+        harmony=transpose_harmony(harmony,output_transpose)
+        note_report['output_transposition_semitones']=output_transpose
     key=harmony.get('key') or {'fifths':0,'minor':False};fifths=key.get('fifths',0);ps=spellings(fifths,key.get('minor',False))
     chords=[]
     for ev in harmony['events']:
@@ -459,7 +549,7 @@ def build_musicxml(parsed,config,harmony,out,title):
         if i==len(bars)-1:bl=sub(measure,'barline',location='right');sub(bl,'bar-style','light-heavy')
     E.indent(root);xml=out/'melodia.musicxml';E.ElementTree(root).write(xml,encoding='utf-8',xml_declaration=True)
     report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/DIV,'measures':len(bars),'systems':len(lines),'pages_planned':1+sum(kind=='page' for kind in starts.values()),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
-    report.update(score_metadata=metadata,diagram_inversion=inversion)
+    report.update(score_metadata=metadata,diagram_inversion=inversion,transpose_semitones=output_transpose)
     if config.get('reserve_high_melody'):
         report['high_melody_layout']=high_melody_layout(part,lines)
         report['tuplet_bracket_measures']=config.get('tuplet_bracket_measures',[])

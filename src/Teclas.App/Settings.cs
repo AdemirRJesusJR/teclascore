@@ -13,6 +13,9 @@ public sealed class Settings
     public string ThemeId { get; set; } = "classic";
     public bool IsSidebarCollapsed { get; set; }
     public double TrackAuditionSpeed { get; set; } = 1.0;
+    public double ScorePlaybackSpeed { get; set; } = 1.0;
+    public bool FavoritesOnly { get; set; }
+    public string CollectionFilter { get; set; } = "";
     public int DefaultDiagramInversion { get; set; } = 2;
     public double? WindowLeft { get; set; }
     public double? WindowTop { get; set; }
@@ -67,6 +70,8 @@ public sealed class Settings
     private void Normalize()
     {
         TrackAuditionSpeed = NormalizeTrackAuditionSpeed(TrackAuditionSpeed);
+        ScorePlaybackSpeed = NormalizeTrackAuditionSpeed(ScorePlaybackSpeed);
+        CollectionFilter ??= "";
         DefaultDiagramInversion = NormalizeDiagramInversion(DefaultDiagramInversion);
         ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" ? ThemeId : "classic";
         CurrentPage = CurrentPage is "library" or "production" or "settings" or "about" ? CurrentPage : "dashboard";
@@ -81,6 +86,19 @@ public sealed class Settings
             .GroupBy(row => row.FullPath, StringComparer.OrdinalIgnoreCase).Select(group => group.First()).ToList();
         foreach (var row in Library)
         {
+            row.Collection ??= ""; row.Genre ??= ""; row.Versions ??= [];
+            row.TransposeSemitones = Math.Clamp(row.TransposeSemitones,-12,12);
+            row.Versions = row.Versions.Where(version => version is not null && !string.IsNullOrWhiteSpace(version.ScorePath)).ToList();
+            foreach(var version in row.Versions)
+            {
+                version.MelodySources ??= []; version.Chords ??= [];
+                version.MelodySources=version.MelodySources.Where(source=>source is not null).ToList();
+                version.Chords=version.Chords.Where(chord=>chord is not null && double.IsFinite(chord.Quarter) && double.IsFinite(chord.Confidence)).ToList();
+                version.Title ??= "";version.Composer ??= "";
+                version.DefaultInversion=NormalizeDiagramInversion(version.DefaultInversion);
+                if(version.Inversion is <0 or >2)version.Inversion=null;
+                version.TransposeSemitones=Math.Clamp(version.TransposeSemitones,-12,12);
+            }
             row.DefaultDiagramInversion = NormalizeDiagramInversion(row.DefaultDiagramInversion);
             if (row.DiagramInversion is < 0 or > 2) row.DiagramInversion = null;
             row.MelodySources ??= []; row.Chords ??= [];
@@ -142,6 +160,11 @@ public sealed class Settings
 
 public sealed class SavedMidi
 {
+    public bool IsFavorite { get; set; }
+    public string Collection { get; set; } = "";
+    public string Genre { get; set; } = "";
+    public int TransposeSemitones { get; set; }
+    public List<SavedScoreVersion> Versions { get; set; } = [];
     public string? ScoreTitle { get; set; }
     public string? ScoreSubtitle { get; set; }
     public string? ScoreComposer { get; set; }
@@ -163,6 +186,30 @@ public sealed class SavedMidi
     public DateTimeOffset? GeneratedAt { get; set; }
     public bool HasOperationError { get; set; }
     public string Status { get; set; } = "";
+}
+
+public sealed class SavedScoreVersion
+{
+    public string? SourceSha256 { get; set; }
+    public bool UseReviewedProfile { get; set; }
+    public List<SavedSource> MelodySources { get; set; } = [];
+    public string? AnalysisPath { get; set; }
+    public string? Workspace { get; set; }
+    public string ScorePath { get; set; } = "";
+    public string? PreviewPath { get; set; }
+    public int PageCount { get; set; }
+    public DateTimeOffset? CreatedAt { get; set; }
+    public string Title { get; set; } = "";
+    public string? Subtitle { get; set; }
+    public string Composer { get; set; } = "";
+    public int DefaultInversion { get; set; } = 2;
+    public int? Inversion { get; set; }
+    public int TransposeSemitones { get; set; }
+    public int KeyFifths { get; set; }
+    public bool KeyMinor { get; set; }
+    public List<SavedChord> Chords { get; set; } = [];
+    [JsonIgnore] public string Label => $"{CreatedAt?.ToLocalTime():dd/MM/yyyy HH:mm} · {Title} · {PageCount} pág.";
+    [JsonIgnore] public bool IsAvailable => File.Exists(ScorePath);
 }
 
 public sealed class SavedSource

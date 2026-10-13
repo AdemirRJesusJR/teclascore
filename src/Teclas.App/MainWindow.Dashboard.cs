@@ -51,7 +51,7 @@ public partial class MainWindow
     public bool HasFiles => TotalCount > 0;
     public bool HasGenerated => GeneratedCount > 0;
     public bool CanBatch => IsIdle && ReadyCount > 0;
-    public string SessionSummary => $"{TotalCount} MIDIs importados · {GeneratedCount} partituras disponíveis";
+    public string SessionSummary => $"{TotalCount} arquivos importados · {GeneratedCount} partituras disponíveis";
     public string DashboardMessage => TotalCount == 0
         ? "Importe seus MIDIs para começar. Os indicadores serão preenchidos com os arquivos da biblioteca."
         : ReadyCount > 0
@@ -79,15 +79,15 @@ public partial class MainWindow
     public string FilterLabel => currentFilter switch
     {
         "ready" => "Prontos para o lote", "review" => "Revisão manual",
-        "generated" => "Partituras geradas", "error" => "Falhas", _ => "Todos os MIDIs"
+        "generated" => "Partituras geradas", "error" => "Falhas", _ => "Todos os arquivos"
     };
-    public string LibraryCountText => $"{Files.Count(MatchesLibraryFilter)} de {TotalCount} MIDIs";
+    public string LibraryCountText => $"{Files.Count(MatchesLibraryFilter)} de {TotalCount} arquivos";
     public Visibility EmptyLibraryVisible => VisibleWhen(!Files.Any(MatchesLibraryFilter));
     public Visibility EmptyProductionVisible => VisibleWhen(GeneratedCount == 0);
     public Visibility DashboardEmptyVisible => VisibleWhen(TotalCount == 0);
     public Visibility DashboardHasFilesVisible => VisibleWhen(TotalCount > 0);
     public string EmptyLibraryMessage => TotalCount == 0 ? "Importe seus primeiros MIDIs."
-        : "Nenhum MIDI corresponde à busca e ao filtro atual.";
+        : "Nenhum arquivo corresponde à busca e ao filtro atual.";
     private static Visibility VisibleWhen(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
     private void InitDashboard()
@@ -128,8 +128,10 @@ public partial class MainWindow
     private bool MatchesLibraryFilter(MidiRow row)
     {
         if (currentFilter != "all" && row.CategoryCode != currentFilter) return false;
+        if(settings.FavoritesOnly && !row.IsFavorite)return false;
+        if(!string.IsNullOrWhiteSpace(settings.CollectionFilter) && !string.Equals(row.Collection,settings.CollectionFilter,StringComparison.OrdinalIgnoreCase))return false;
         return string.IsNullOrWhiteSpace(searchText) || CultureInfo.GetCultureInfo("pt-BR").CompareInfo.IndexOf(
-            row.Name, searchText.Trim(), CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0;
+            string.Join(" ",row.Name,row.ScoreTitle,row.ScoreComposer,row.Collection,row.Genre), searchText.Trim(), CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0;
     }
 
     private void RefreshDashboard()
@@ -205,7 +207,7 @@ public partial class MainWindow
     {
         if (IsBusy || !CommitEdits() || element is null) return false;
         if ((element.Tag as MidiRow ?? element.DataContext as MidiRow) is not { } row) return false;
-        SearchText = ""; CurrentFilter = "all";
+        SearchText = ""; CurrentFilter = "all";FavoritesOnly=false;CollectionFilter="";
         SetCurrentPage("library"); Library.SelectedItem = row;
         return true;
     }

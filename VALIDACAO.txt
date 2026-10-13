@@ -1,3 +1,18 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.7.0
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 5 verificações básicas de MIDI, 43 do painel, 62 de persistência, 11 de exportação e 54 de escuta MIDI, incluindo escuta limitada a um compasso sem atacar notas do seguinte.
+- 27 testes Python de propriedades, quantização, transposição e localização da revisão musical. Transposição nativa +2 de Norte: 123 ataques deslocados, tempos e durações preservados, armadura/cifras/diagramas coerentes, fonte inalterada.
+- 30 verificações de revisão MuseScore nativa, repetidas em Norte e Garoto, com uma fixture adicional de duas pautas, vozes, ligaduras, letra, dinâmica, modulação e repetição. Preservação estrutural e de imagens conferida; cabeçalhos e páginas inspecionados.
+- 22 verificações WPF de organização, busca, histórico, restauração e reabertura da sessão; versão ativa e preparação musical preservadas mesmo ao desconectar e reconectar a origem; edição após busca mantém a partitura selecionada.
+- 10 verificações de descoberta e ordem de páginas; nomes Unicode, página inicial ausente e prefixos de arquivo.
+- 29 verificações visuais/funcionais WPF do leitor e revisão: 9 páginas reais, zoom, miniaturas, tela cheia, arquivos ausentes/corrompidos e escuta de compasso. Interface inspecionada em 1400×900 e 1100×740.
+- 33 verificações de estudo com renderização real de áudio no MuseScore, incluindo repetições e mudanças de andamento; duração alterada e afinação preservada. 13 verificações WPF de velocidades, loop A–B, posição, persistência e diagnóstico de dependências.
+- 16 verificações de consulta de versões, validação de ZIP e SHA-256. 7 verificações do instalador em pasta isolada, preservando versões e configurações; atalhos do desktop do usuário não foram modificados nos testes.
+- Originais MIDI/MSCZ e configurações pessoais preservados durante a validação; testes usam sessões e saídas isoladas.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.6.1
 12/10/2026
 

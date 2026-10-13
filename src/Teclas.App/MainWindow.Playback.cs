@@ -10,7 +10,7 @@ namespace Teclas.App;
 public partial class MainWindow
 {
     private readonly MediaPlayer scorePlayer = new();
-    private readonly DispatcherTimer playbackTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly DispatcherTimer playbackTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private readonly DispatcherTimer audioOpenTimer = new() { Interval = TimeSpan.FromSeconds(20) };
     private string? playbackScoreIdentity;
     private string? loadedAudioPath;
@@ -31,11 +31,11 @@ public partial class MainWindow
     public double PlaybackDurationSeconds => playbackDuration;
     public double PlaybackPositionSeconds
     {
-        get => audioLoaded ? scorePlayer.Position.TotalSeconds : 0;
+        get => audioLoaded ? scorePlayer.Position.TotalSeconds * loadedAudioSpeed : pendingPlaybackPosition;
         set
         {
             if (!audioLoaded || !double.IsFinite(value)) return;
-            scorePlayer.Position = TimeSpan.FromSeconds(Math.Clamp(value, 0, playbackDuration));
+            scorePlayer.Position = TimeSpan.FromSeconds(Math.Clamp(value, 0, playbackDuration) / loadedAudioSpeed);
             Notify(nameof(PlaybackPositionSeconds)); Notify(nameof(PlaybackPositionText));
         }
     }
@@ -43,12 +43,16 @@ public partial class MainWindow
     private void InitializePlayback()
     {
         scorePlayer.Volume = .85;
+        scorePlayer.SpeedRatio = 1;
         scorePlayer.MediaOpened += (_, _) =>
         {
             if (loadedAudioPath is null) return;
             audioOpenTimer.Stop();
             audioOpening = false; audioLoaded = true;
-            if (scorePlayer.NaturalDuration.HasTimeSpan) playbackDuration = scorePlayer.NaturalDuration.TimeSpan.TotalSeconds;
+            if (scorePlayer.NaturalDuration.HasTimeSpan) playbackDuration = scorePlayer.NaturalDuration.TimeSpan.TotalSeconds * loadedAudioSpeed;
+            ClampStudyMarkers();
+            scorePlayer.Position = TimeSpan.FromSeconds(Math.Clamp(pendingPlaybackPosition, 0, playbackDuration) / loadedAudioSpeed);
+            pendingPlaybackPosition = 0;
             if (playWhenOpened)
             {
                 scorePlayer.Play(); audioPlaying = true; playbackTimer.Start();
@@ -57,7 +61,7 @@ public partial class MainWindow
             else PlaybackStatus = "Áudio pronto para reproduzir.";
             NotifyPlaybackState();
         };
-        scorePlayer.MediaEnded += (_, _) => StopPlayback("Reprodução concluída. Você pode ouvir novamente.");
+        scorePlayer.MediaEnded += (_, _) => { if (!RepeatStudyLoop()) StopPlayback("Reprodução concluída. Você pode ouvir novamente."); };
         scorePlayer.MediaFailed += (_, e) =>
         {
             if (loadedAudioPath is null) return;
@@ -66,7 +70,11 @@ public partial class MainWindow
             Status = PlaybackStatus + " " + e.ErrorException.Message;
             NotifyPlaybackState();
         };
-        playbackTimer.Tick += (_, _) => { Notify(nameof(PlaybackPositionSeconds)); Notify(nameof(PlaybackPositionText)); };
+        playbackTimer.Tick += (_, _) =>
+        {
+            if (audioPlaying && LoopEnabled && loopEnd is { } end && PlaybackPositionSeconds >= end) RepeatStudyLoop();
+            Notify(nameof(PlaybackPositionSeconds)); Notify(nameof(PlaybackPositionText));
+        };
         audioOpenTimer.Tick += (_, _) =>
         {
             ResetPlayback();
@@ -84,6 +92,7 @@ public partial class MainWindow
     private void NotifyPlaybackState()
     {
         foreach (var name in new[] { nameof(CanPlayScore), nameof(CanPauseScore), nameof(CanStopScore), nameof(CanExportPdf), nameof(CanSeekScore), nameof(PlaybackPositionSeconds), nameof(PlaybackPositionText), nameof(PlaybackDurationSeconds), nameof(PlaybackDurationText) }) Notify(name);
+        NotifyStudyState();
     }
 
     private string? SelectedScoreIdentity()
@@ -108,16 +117,18 @@ public partial class MainWindow
         NotifyPlaybackState();
     }
 
-    private void ResetPlayback()
+    private void ResetPlayback(bool preserveStudy = false)
     {
         playbackTimer.Stop(); audioOpenTimer.Stop(); scorePlayer.Close();
         loadedAudioPath = null; audioLoaded = false; audioOpening = false; audioPlaying = false; playWhenOpened = false; playbackDuration = 0;
+        if (!preserveStudy) ResetStudyMarkers();
     }
     private void DisposePlayback() { ResetPlayback(); }
     private void StopPlayback(string message = "Reprodução parada.")
     {
         if (audioOpening) { ResetPlayback(); PlaybackStatus = message; NotifyPlaybackState(); return; }
         playWhenOpened = false; audioPlaying = false; playbackTimer.Stop();
+        pendingPlaybackPosition = 0;
         scorePlayer.Stop(); PlaybackStatus = message; NotifyPlaybackState();
     }
 
@@ -128,19 +139,22 @@ public partial class MainWindow
         StopTrackAudition();
         if (audioLoaded && loadedAudioPath is not null)
         {
+            if (LoopEnabled && CanLoopScore && (PlaybackPositionSeconds < loopStart || PlaybackPositionSeconds >= loopEnd)) PlaybackPositionSeconds = loopStart!.Value;
             scorePlayer.Play(); audioPlaying = true; playbackTimer.Start();
             PlaybackStatus = "Reproduzindo a partitura selecionada."; NotifyPlaybackState(); return;
         }
         string? identity = SelectedScoreIdentity();
+        var requestedSpeed = ScorePlaybackSpeed;
         await RunOperation(async () =>
         {
             PlaybackStatus = "Preparando áudio… A primeira reprodução pode levar alguns segundos.";
-            var exporter = new ScoreExporter(MuseScorePath, PlaybackCacheDirectory);
+            var exporter = new ScoreStudyAudio(MuseScorePath, PlaybackCacheDirectory);
             try
             {
-                var audio = await exporter.PrepareAudioAsync(scorePath, new Progress<string>(text => Status = text), cancellation!.Token);
+                var audio = await exporter.PrepareAsync(scorePath, requestedSpeed, new Progress<string>(text => Status = text), cancellation!.Token);
                 if (identity != SelectedScoreIdentity()) return;
-                loadedAudioPath = audio.Path; playbackDuration = audio.Duration.TotalSeconds;
+                loadedAudioSpeed = requestedSpeed;
+                loadedAudioPath = audio.Path; playbackDuration = audio.Duration.TotalSeconds * loadedAudioSpeed;
                 audioOpening = true; playWhenOpened = true;
                 audioOpenTimer.Start();
                 scorePlayer.Open(new Uri(audio.Path));

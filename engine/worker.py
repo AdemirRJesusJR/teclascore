@@ -54,7 +54,8 @@ def main():
             if collapsed and (c['root'],c['quality'])==(collapsed[-1]['root'],collapsed[-1]['quality']):continue
             collapsed.append(c)
         harmony['events']=collapsed
-        document={'source':str(source),'sha256':parsed['sha256'],'config':config,'harmony':harmony,'reviewedProfile':reviewed,'ppq':parsed['ppq']}
+        points,rhythm_ready,rhythm_message=engine.review_points(parsed,config,harmony)
+        document={'source':str(source),'sha256':parsed['sha256'],'config':config,'harmony':harmony,'reviewedProfile':reviewed,'ppq':parsed['ppq'],'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
         analysis=workspace/'analysis.json';analysis.write_text(json.dumps(document,ensure_ascii=False,indent=2),encoding='utf8')
         fifths=harmony.get('key',{}).get('fifths',0)
         chords=[]
@@ -65,7 +66,7 @@ def main():
             step,alter=engine.spellings(active['fifths'],active.get('minor',False))[c['root']]
             name=step+('#'*alter if alter>0 else 'b'*(-alter))
             chords.append({'quarter':c['tick']/parsed['ppq'],'root':c.get('root_spelling') or name,'quality':c['quality'],'confidence':round(c.get('confidence',0),2)})
-        send('result',data={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation','')})
+        send('result',data={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation',''),'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message})
         return
     if mode!='generate':raise ValueError('Operação desconhecida.')
     data=json.loads(Path(req['analysisPath']).read_text(encoding='utf8'))
@@ -75,6 +76,7 @@ def main():
     for field in ('scoreTitle','scoreSubtitle','scoreComposer'):
         if field in req:config[field]=req[field]
     config['diagram_inversion']=engine.diagram_inversion(req.get('diagramInversion'))
+    config['transpose_semitones']=engine.transpose_semitones(req.get('transposeSemitones'))
     engine.score_metadata(config,engine.default_score_title(config['filename']))
     if edited is not None:
         if not edited:raise ValueError('A partitura precisa de pelo menos uma cifra.')
@@ -126,8 +128,8 @@ def main():
     notice='Partitura gerada e reaberta no MuseScore. Confira a prévia antes de considerar a revisão musical concluída.'
     collisions=report['melody_analysis']['quantized_attack_collisions']
     if collisions and not data['reviewedProfile']:notice+=f' {collisions} ataques próximos foram agrupados; revise os ornamentos.'
-    send('result',data={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'reviewedProfile':data['reviewedProfile'],'message':notice})
+    send('result',data={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'reviewedProfile':data['reviewedProfile'],'message':notice,'transposeSemitones':config['transpose_semitones']})
 if __name__=='__main__':
     try:main()
     except Exception as e:
-        send('error',message=str(e));traceback.print_exc(file=sys.stderr);sys.exit(1)
+        send('error',message=str(e),reviewPoints=getattr(e,'review_points',[]));traceback.print_exc(file=sys.stderr);sys.exit(1)
