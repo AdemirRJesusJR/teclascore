@@ -1,3 +1,21 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.11.0
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 85 testes Python passaram, incluindo contexto tonal, inversões/baixo, cromatismo explícito, melodia isolada, silêncios e discordância entre fontes.
+- 103 verificações MIDI/metadados/sugestões e 91 de persistência passaram; justificativas e alternativas sobrevivem à sessão e ao Histórico, com compatibilidade para dados antigos.
+- Resultado integral da análise anterior preservado nos 18 perfis reais aprovados; protocolo do perfil revisado idêntico ao publicado.
+- 80 verificações nativas passaram, incluindo 42 novos checks de diagnóstico: várias vozes, anacruses, ligaduras, grace, quiálteras, alturas, cifras/imagens, estruturas desconhecidas, cancelamento e preservação de bytes.
+- 20 verificações do fluxo nativo: diagnóstico automático após importar, falha/cancelamento após salvar preservando cópia e Histórico, diagnóstico de imagens ausentes mesmo com prévia indisponível e nova tentativa.
+- Luz divina com a pista de piano escolhida pelo usuário: análise com contexto em 0,266 s; geração e reabertura em 23,453 s neste computador. 6 páginas, 107 compassos, 746 ataques da linha melódica e 158 diagramas, sem sobreposições ou cortes. Conteúdo musical idêntico ao caso aprovado na versão 0.9.2; SHA-256 original preservado.
+- 36 verificações de comparação de fontes passaram: escolha explícita, velocidade, cancelamento sem áudio tardio, falha visível, histórico e reabertura. A fonte de piano escolhida em Luz divina ficou em 9º no ranking por ser polifônica; a ordem não substitui a escolha musical.
+- 24 verificações da geração WPF passaram; 7 verificações da interface de cifras confirmaram parsing, explicações, alternativas e limpeza após edição.
+- 118 verificações de dimensões/acessibilidade e 16 capturas do diagnóstico conferiram temas e janela mínima, com limitações recolhíveis e tabela legível.
+- Diagnóstico estrutural da partitura válida de Luz divina sem falsos positivos; diálogos claros/escuros e dimensão mínima conferidos visualmente.
+
+Sugestões de melodia e apoio harmônico são heurísticos; não foi medida uma taxa de acerto em corpus rotulado. O diagnóstico estrutural indica limitações para quiálteras, deslocamentos de posição e elementos desconhecidos; não avalia intenção musical nem substitui a inspeção da página renderizada. Localização usa a ordem de pautas/compassos/vozes do arquivo. Testes usam saídas isoladas e preservam configurações e originais.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.10.0
 13/10/2026
 

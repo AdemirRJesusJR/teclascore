@@ -165,5 +165,6 @@ if (args.Length >= 3)
         "Grand staff, independent voices, ties, slur, lyric, articulation, dynamics, tempo, key change and repeat survive native revision");
     nativeOutputs.Add(new { grandResult.Path, grandResult.PreviewPages, grandResult.Metadata });
 }
+DiagnosticsChecks.Run(Check, work);
 File.WriteAllText(Path.Combine(work, "report.json"), JsonSerializer.Serialize(new { checks, passed, nativeOutputs }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"PASS: {checks} native score editing checks.");

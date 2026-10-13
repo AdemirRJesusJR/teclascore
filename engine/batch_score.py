@@ -84,6 +84,9 @@ def review_points(parsed,config,harmony):
         if chord.get('confidence',0)<.65:
             add(chord['tick']/parsed['ppq'],'chord_low_confidence',
                 f"Acorde com confiança de {chord.get('confidence',0):.0%}. Confira a cifra ouvindo o acompanhamento.")
+    if harmony.get('context_advice'):
+        for diagnostic in harmony.get('diagnostics',[]):
+            add(diagnostic['tick']/parsed['ppq'],diagnostic['kind'],diagnostic['message'])
     try:
         _,_,report=melody_events(parsed,config,origin,end)
         for quarter in report.get('collision_original_quarters',[]):

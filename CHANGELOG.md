@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.11.0 — 13/10/2026
+
+- Comparação de pistas candidatas à melodia, com ordem de escuta explicada e trechos em velocidade reduzida; escolha sempre explícita.
+- Confirmar a mesma melodia preserva as cifras editadas; troca efetiva mantém a partitura anterior no Histórico e prepara uma nova análise.
+- Contexto harmônico para novas análises apresenta justificativas e alternativas com as mesmas notas comprovadas, preservando cromatismos e os 18 perfis revisados.
+- Revisão guiada localiza dúvidas de cifras, evidência insuficiente, lacunas de harmonia e tonalidade; avisos não bloqueiam a geração.
+- Diagnóstico de MuseScore por pauta, compasso e voz, disponível na Prévia e automático na importação e melhoria de apresentação. Originais e cópias já salvas são preservados mesmo quando o diagnóstico falha ou é cancelado.
+- Justificativas e alternativas de cifras permanecem salvas na biblioteca e no Histórico; editar a cifra remove a orientação antiga.
+
 ## 0.10.0 — 13/10/2026
 
 - Painel central animado mostra operação, arquivo, etapa atual, tempo decorrido e cancelamento durante importação, análise, geração, atualização de propriedades/diagramas/transposição e exportação PDF/ZIP.

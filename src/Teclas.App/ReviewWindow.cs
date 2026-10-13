@@ -18,7 +18,15 @@ public sealed record ScoreReviewPoint
     public string Kind { get; init; } = "";
     public string Message { get; init; } = "";
     public bool Blocking { get; init; }
-    public string KindLabel => Kind switch { "chord_low_confidence" => "Cifra", "rhythm_refined" => "Ritmo refinado", _ => "Revisão rítmica" };
+    public string KindLabel => Kind switch
+    {
+        "chord_low_confidence" or "chord_weak_evidence" => "Conferir cifra",
+        "chord_ambiguity" => "Cifra ambígua",
+        "harmony_gap" or "harmony_missing" => "Sem cifra",
+        "key_conflict" or "key_uncertain" => "Tonalidade",
+        "rhythm_refined" => "Ritmo refinado",
+        _ => "Revisão rítmica"
+    };
 }
 
 public sealed class ReviewWindow : Window

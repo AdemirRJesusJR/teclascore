@@ -106,7 +106,7 @@ def _bass_context(tick, bass, bass_starts, ppq):
     return max(candidates, key=weight)
 
 
-def _choose_candidate(pcs, weights, bass_pc, previous=None):
+def _choose_candidate(pcs, weights, bass_pc, previous=None, context_advice=False):
     """Return a fully supported chord, rejecting pitch sets with substantial extras."""
     total = sum(weights.values()) or 1.0
     significant = frozenset(pc for pc in pcs if weights.get(pc, 0) >= .105 * max(weights.values(), default=1))
@@ -138,11 +138,153 @@ def _choose_candidate(pcs, weights, bass_pc, previous=None):
     confidence = min(.98, .80 + .13 * winner[5] + .07 * (bass_pc == winner[1]))
     if ambiguous:
         confidence -= .17
-    return {'root': winner[1], 'quality': winner[2],
+    result = {'root': winner[1], 'quality': winner[2],
             'pitch_classes': sorted(winner[3]), 'confidence': confidence,
             'ambiguous': ambiguous, 'coverage': winner[4],
             'alternatives': [{'root': x[1], 'quality': x[2]} for x in candidates[1:3]
                              if winner[0] - x[0] < .05]}
+    if context_advice:
+        # Context may rename the SAME fully evidenced set. It must never turn
+        # a chromatic chord into a diatonic one by removing/adding chord tones.
+        result['context_candidates'] = [
+            {'root': x[1], 'quality': x[2], 'score': x[0]}
+            for x in candidates if x[3] == winner[3]]
+    return result
+
+
+def chord_label(root, quality, fifths=0):
+    """Short human-readable evidence label; output engraving owns full spelling."""
+    names = ('C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B') if fifths < 0 else (
+        'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B')
+    return names[root % 12] + quality
+
+
+def _contextualize_events(events, key, ppq):
+    """Break near ties between equivalent names, retaining the ambiguity.
+
+    Only independent, unambiguous neighboring events participate, so a guessed
+    name cannot propagate through a whole sequence. MIDI/key evidence is a
+    weak tie-breaker, not permission to impose a scale on played chromaticism.
+    Confidence is deliberately not raised by these heuristics.
+    """
+    stable = [(event['tick'], event['root'], event['quality'])
+              if not event['evidence']['ambiguous'] else None for event in events]
+    for index, event in enumerate(events):
+        evidence = event['evidence']
+        candidates = evidence.pop('context_candidates', [])
+        winner = next((c for c in candidates if (c['root'], c['quality']) == (
+            event['root'], event['quality'])), None)
+        reasons = ['Todas as notas da cifra foram identificadas no acompanhamento.']
+        if evidence.get('includes_bass_pitch'):
+            reasons.append('O baixo tocado completa as notas do acorde.')
+        elif evidence.get('bass_pc') == event['root']:
+            reasons.append('O baixo tocado apoia esta fundamental.')
+        elif evidence.get('bass_pc') in event['pitch_classes']:
+            reasons.append('O baixo toca outra nota do acorde; a inversão foi preservada.')
+        if evidence['method'] != 'simultaneous_onset':
+            reasons.append('Notas sustentadas ou de um arpejo apoiam esta leitura.')
+        if winner and len(candidates) > 1 and evidence['ambiguous']:
+            ranked = []
+            for candidate in candidates:
+                bonus = 0.; cues = []
+                if (key.get('confidence', 0) >= .75 and
+                        'midi_key_signature_conflict' not in key and
+                        candidate['root'] == key.get('root') and
+                        (3 in CHORD_INTERVALS[candidate['quality']]) == bool(key.get('minor'))):
+                    bonus += .010
+                    cues.append('A tonalidade sugerida favorece este nome entre leituras das mesmas notas.')
+                for other in (index-1, index+1):
+                    neighbor = stable[other] if 0 <= other < len(stable) else None
+                    if neighbor is None or abs(neighbor[0]-event['tick']) > ppq*8:
+                        continue
+                    if candidate['root'] == neighbor[1] and candidate['quality'] == neighbor[2]:
+                        bonus += .014
+                        cues.append('Um acorde vizinho identificado sem ambiguidade apoia a continuidade.')
+                    elif (neighbor[1]-candidate['root']) % 12 == 7:
+                        bonus += .008
+                        cues.append('A relação de quinta com um acorde vizinho favorece esta leitura.')
+                ranked.append((candidate['score']+bonus, candidate, cues))
+            ranked.sort(key=lambda row: row[0], reverse=True)
+            # Equal evidence remains unresolved; changing a name needs a real
+            # context preference, and never defeats a clear source/bass lead.
+            if ranked[0][0]-ranked[1][0] > .006 and ranked[0][2]:
+                candidate = ranked[0][1]
+                if abs(candidate['score']-winner['score']) < .035:
+                    evidence['context_changed_name'] = (event['root'], event['quality']) != (
+                        candidate['root'], candidate['quality'])
+                    event['root'], event['quality'] = candidate['root'], candidate['quality']
+                    reasons.extend(dict.fromkeys(ranked[0][2]))
+        if candidates:
+            evidence['alternatives'] = [dict(root=c['root'], quality=c['quality'])
+                for c in candidates if (c['root'], c['quality']) != (event['root'], event['quality'])]
+        if evidence.get('ambiguous') and evidence.get('alternatives'):
+            reasons.append('Mais de um nome descreve estas notas; confira a alternativa ouvindo o trecho.')
+        if evidence.get('source_disagreement'):
+            reasons.append('Fontes de acompanhamento diferentes discordam neste trecho.')
+        evidence['recommendation'] = ' '.join(reasons)
+
+
+def _evidence_gaps(parsed, observations, notes, ppq):
+    """Report long spans without newly played OR sustained harmonic support."""
+    if not notes:
+        return []
+    first = min(n['start'] for n in notes)
+    end = max(n['end'] for n in notes)
+    ranges = sorted((max(first, obs['source_tick']), min(end, obs['support_end_tick']))
+                    for obs in observations if obs.get('support_end_tick', 0) > obs['source_tick'])
+    gaps = []; cursor = first
+    for start, stop in ranges:
+        if start-cursor > ppq*16:
+            gaps.append({'start_tick': cursor, 'end_tick': start})
+        cursor = max(cursor, stop)
+    if end-cursor > ppq*16:
+        gaps.append({'start_tick': cursor, 'end_tick': end})
+    # A tacet/long rest needs no harmony. Only active pitched music can make
+    # lack of harmonic support useful to review; percussion alone is excluded.
+    return [gap for gap in gaps if any(note['start'] < gap['end_tick'] and
+            note['end'] > gap['start_tick'] for note in notes)]
+
+
+def _diagnostics(events, key, unsupported_gaps, notes):
+    result = []; last_issue = None
+    for event in events:
+        evidence = event['evidence']
+        label = chord_label(event['root'], event['quality'], key.get('fifths', 0))
+        issue = (event['root'], event['quality'], bool(evidence.get('ambiguous')),
+                 bool(evidence.get('source_disagreement')), event['confidence'] < .80)
+        # Repeated strums of one ambiguous chord form one review item; a later
+        # newly ambiguous occurrence after clear evidence still gets its time.
+        if issue == last_issue:
+            continue
+        last_issue = issue
+        if evidence.get('ambiguous'):
+            alternatives = ', '.join(chord_label(c['root'], c['quality'], key.get('fifths', 0))
+                                     for c in evidence.get('alternatives', []))
+            if evidence.get('source_disagreement'):
+                message = f'{label}: as fontes discordam neste trecho. Confira o acompanhamento.'
+            elif alternatives:
+                message = f'{label}: outra leitura possível: {alternatives}. Confira ouvindo o acompanhamento.'
+            else:
+                message = f'{label}: leitura harmônica incerta. Confira as notas do acompanhamento.'
+            result.append({'tick': event['tick'], 'kind': 'chord_ambiguity',
+                'message': message})
+        elif event['confidence'] < .80:
+            result.append({'tick': event['tick'], 'kind': 'chord_weak_evidence',
+                'message': f'{label}: evidência harmônica limitada; confira as notas sustentadas e o baixo.'})
+    for gap in unsupported_gaps:
+        result.append({'tick': gap['start_tick'], 'end_tick': gap['end_tick'], 'kind': 'harmony_gap',
+            'message': 'Trecho com mais de 16 tempos sem apoio de acorde completo; confira antes de prolongar a última cifra.'})
+    first = min((n['start'] for n in notes), default=0)
+    if not events and notes:
+        result.append({'tick': first, 'kind': 'harmony_missing',
+            'message': 'Não foi encontrado acompanhamento com acordes completos. A melodia isolada não determina as cifras.'})
+    if 'midi_key_signature_conflict' in key:
+        result.append({'tick': first, 'kind': 'key_conflict',
+            'message': 'A armadura gravada no MIDI difere da tonalidade sugerida pelas notas. Confira a armadura; acordes cromáticos foram preservados.'})
+    elif key.get('confidence', 0) < .65 and notes:
+        result.append({'tick': first, 'kind': 'key_uncertain',
+            'message': 'A tonalidade sugerida tem evidência limitada. Confira a armadura antes de gerar a partitura.'})
+    return result
 
 
 def _key_suggestion(parsed, notes, events):
@@ -193,13 +335,15 @@ def _key_suggestion(parsed, notes, events):
     return inferred
 
 
-def analyze_harmony(parsed, melody_sources=None):
+def analyze_harmony(parsed, melody_sources=None, context_advice=False):
     """Analyze MIDI accompaniment; return JSON-serializable evidence and warnings.
 
     No chord event is emitted without at least three supported pitch classes.
     Priority: repeated block chords, then sustained polyphony, then coherent
     short arpeggios from an independently established accompaniment source.
     Events are changes only, not a chord repeated on every accompaniment hit.
+    context_advice is opt-in: reviewed profiles and legacy callers keep their
+    exact results. New analyses receive conservative tie-breaks and diagnostics.
     """
     ppq = int(parsed['ppq'])
     if ppq <= 0:
@@ -277,7 +421,7 @@ def analyze_harmony(parsed, melody_sources=None):
                 pcs = set(weights)
                 if len(pcs) < 3 or len(pcs) > 6:
                     continue
-                candidate = _choose_candidate(pcs, weights, bass_pc)
+                candidate = _choose_candidate(pcs, weights, bass_pc, context_advice=context_advice)
                 # E.g. F#-A-C in an upper part + an actually played D bass is
                 # D7, not an invented D nor a freestanding F# diminished chord.
                 used_bass = False
@@ -285,7 +429,7 @@ def analyze_harmony(parsed, melody_sources=None):
                         and (candidate is None or candidate['quality'] in ('dim', 'dim7', 'aug'))):
                     joined = weights.copy()
                     joined[bass_pc] = max(weights.values())
-                    with_bass = _choose_candidate(set(joined), joined, bass_pc)
+                    with_bass = _choose_candidate(set(joined), joined, bass_pc, context_advice=context_advice)
                     if with_bass and with_bass['root'] == bass_pc:
                         candidate = with_bass; used_bass = True
                 # A complete ordinary triad is not renamed on every passing
@@ -299,6 +443,8 @@ def analyze_harmony(parsed, melody_sources=None):
                     candidate = {field:last_complete[field] for field in
                                  ('root','quality','pitch_classes','confidence','ambiguous','coverage','alternatives')}
                     candidate['confidence'] = min(candidate['confidence'], .93)
+                    if context_advice:
+                        candidate['context_candidates'] = last_complete.get('context_candidates', [])
                     used_bass = False
                     method = 'partial_strum_of_previously_complete_chord'
                 if candidate:
@@ -320,6 +466,11 @@ def analyze_harmony(parsed, melody_sources=None):
                            'includes_bass_pitch': used_bass,
                            'observed_pitch_classes': sorted(pcs)})
             observations.append(choice)
+            if context_advice:
+                supported_notes = list(evidence_notes) + ([bass_note] if used_bass else [])
+                ends = [max((n['end'] for n in supported_notes if n['pitch'] % 12 == pc), default=tick)
+                        for pc in choice['pitch_classes']]
+                choice['support_end_tick'] = min(ends, default=tick)
             if method != 'partial_strum_of_previously_complete_chord':
                 last_complete = choice
     observations.sort(key=lambda x:(x['tick'], -x['weight']))
@@ -362,9 +513,16 @@ def analyze_harmony(parsed, melody_sources=None):
                     'support_count': len(supporting), 'ambiguous': winner['ambiguous']}
         if winner['alternatives']:
             evidence['alternatives'] = winner['alternatives']
+        if context_advice:
+            evidence['context_candidates'] = winner.get('context_candidates', [])
+            if len(ranked) > 1 and vote_score(ranked[1][1]) > vote_score(supporting)*.7:
+                evidence['ambiguous'] = True
+                evidence['source_disagreement'] = True
         event = {field:winner[field] for field in ('root', 'quality', 'pitch_classes')}
         event.update(tick=tick, confidence=round(confidence, 3), evidence=evidence)
         selected.append(event)
+    if context_advice:
+        _contextualize_events(selected, _key_suggestion(parsed, notes, selected), ppq)
     # Keep real changes. A source that returns to an established chord within
     # one half beat may be a passing ornament; omit only weak alternatives.
     smoothed = []
@@ -372,7 +530,8 @@ def analyze_harmony(parsed, melody_sources=None):
         same = lambda a,b:(a['root'],a['quality']) == (b['root'],b['quality'])
         if (i and i+1 < len(selected) and same(selected[i-1],selected[i+1]) and
                 not same(event, selected[i-1]) and selected[i+1]['tick']-event['tick'] < ppq*.5
-                and event['confidence'] < .86):
+                and event['confidence'] < .86 and not (context_advice and
+                    event['evidence']['method'] == 'simultaneous_onset' and event['evidence']['coverage'] >= .94)):
             continue
         if smoothed and same(smoothed[-1], event):
             smoothed[-1]['evidence']['support_count'] += event['evidence']['support_count']
@@ -391,6 +550,8 @@ def analyze_harmony(parsed, melody_sources=None):
         warnings.append('Mudanças de acorde muito frequentes; há ornamentos ou vozes internas que exigem revisão antes de diagramar cada cifra.')
     harmonic_ticks = sorted(set(o['tick'] for o in observations))
     unsupported_gaps = [{'start_tick':a, 'end_tick':b} for a,b in zip(harmonic_ticks,harmonic_ticks[1:]) if b-a > ppq*16]
+    if context_advice:
+        unsupported_gaps = _evidence_gaps(parsed, observations, notes, ppq)
     if unsupported_gaps:
         warnings.append(f'{len(unsupported_gaps)} trechos com mais de 16 tempos sem apoio harmônico novo; não prolongar cifras automaticamente nesses trechos.')
     key = _key_suggestion(parsed, notes, smoothed)
@@ -411,7 +572,7 @@ def analyze_harmony(parsed, melody_sources=None):
         review_reasons.append('long_gaps_without_harmonic_evidence')
     if key['confidence'] < .65:
         review_reasons.append('uncertain_key_signature')
-    return {'events': smoothed, 'key': key,
+    result = {'events': smoothed, 'key': key,
             'review_required': bool(review_reasons), 'review_reasons': review_reasons,
             'statistics': {
         'pitched_notes': len(notes), 'source_count': len(groups),
@@ -425,6 +586,21 @@ def analyze_harmony(parsed, melody_sources=None):
         'last_evidence_tick': harmonic_ticks[-1] if harmonic_ticks else None,
         'mean_confidence': round(sum(e['confidence'] for e in smoothed)/max(1,len(smoothed)),3),
     }, 'warnings': warnings}
+    if context_advice:
+        result['context_advice'] = True
+        result['diagnostics'] = _diagnostics(selected, key, unsupported_gaps, notes)
+        if result['diagnostics']:
+            result['review_required'] = True
+            kinds = {'chord_ambiguity': 'ambiguous_chord_names',
+                     'chord_weak_evidence': 'low_confidence_chord_changes',
+                     'harmony_gap': 'long_gaps_without_harmonic_evidence',
+                     'harmony_missing': 'no_supported_chords',
+                     'key_conflict': 'conflicting_key_signature', 'key_uncertain': 'uncertain_key_signature'}
+            for diagnostic in result['diagnostics']:
+                reason = kinds[diagnostic['kind']]
+                if reason not in result['review_reasons']:
+                    result['review_reasons'].append(reason)
+    return result
 
 
 if __name__ == '__main__':

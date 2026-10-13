@@ -1,4 +1,14 @@
-TECLASCORE · PRÉVIA 0.10.0
+TECLASCORE · PRÉVIA 0.11.0
+
+NOVO NA VERSÃO 0.11.0
+Na aba Melodia, use Comparar pistas para ouvir trechos das fontes sugeridas e conferir as explicações.
+Ouvir não muda a escolha. Use Usar esta pista como melodia para confirmar; a mesma seleção preserva seus ajustes.
+Na aba Cifras, selecione um acorde para conferir justificativas e nomes alternativos quando disponíveis.
+A Revisão guiada mostra os compassos com dúvidas harmônicas para você conferir ouvindo.
+Na Prévia, Diagnóstico da partitura confere o arquivo MuseScore salvo sem modificar suas notas.
+Partituras MuseScore importadas e cópias melhoradas recebem essa conferência automaticamente.
+O diagnóstico informa suas limitações: não certifica a intenção musical nem a aparência de todas as páginas.
+Os 18 perfis aprovados e as configurações existentes são preservados.
 
 NOVO NA VERSÃO 0.10.0
 Um painel animado informa a operação, o arquivo, a etapa atual e o tempo decorrido.

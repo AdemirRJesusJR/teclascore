@@ -33,7 +33,7 @@ def main():
     os.environ['PARTITURAS_JOB']=str(workspace/'work')
     import batch_score as engine
     from inspect_midi import parse_midi
-    from batch_harmony import analyze_harmony,CHORD_INTERVALS
+    from batch_harmony import analyze_harmony,CHORD_INTERVALS,chord_label
     source=Path(req['inputMidi']).resolve()
     if not source.is_file():raise ValueError('O MIDI original não foi encontrado.')
     mode=req['mode']
@@ -52,7 +52,7 @@ def main():
             override=None
         config.update(filename=source.name,source_path=str(source))
         send('progress',message='Analisando acordes e tonalidade…')
-        harmony=analyze_harmony(parsed,config['melody_sources'])
+        harmony=analyze_harmony(parsed,config['melody_sources'],context_advice=not reviewed)
         if override:
             if override.get('deliverable') is False:raise ValueError(override.get('reason','Perfil ainda não aprovado.'))
             for field in ('key','key_changes'):
@@ -89,7 +89,13 @@ def main():
                 if change['tick']<=c['tick']:active=change
             step,alter=engine.spellings(active['fifths'],active.get('minor',False))[c['root']]
             name=step+('#'*alter if alter>0 else 'b'*(-alter))
-            chords.append({'quarter':c['tick']/parsed['ppq'],'root':c.get('root_spelling') or name,'quality':c['quality'],'confidence':round(c.get('confidence',0),2)})
+            chord={'quarter':c['tick']/parsed['ppq'],'root':c.get('root_spelling') or name,'quality':c['quality'],'confidence':round(c.get('confidence',0),2)}
+            if not reviewed:
+                evidence=c.get('evidence',{})
+                chord['recommendation']=evidence.get('recommendation','')
+                chord['alternatives']=', '.join(chord_label(option['root'],option['quality'],active['fifths'])
+                    for option in evidence.get('alternatives',[]))
+            chords.append(chord)
         send('progress',message='Análise concluída. Preparando as cifras e os pontos de revisão…')
         send('result',data={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation',''),'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message})
         return

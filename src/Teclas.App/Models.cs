@@ -27,6 +27,11 @@ public sealed class MidiRow : Observable
     public int TransposeSemitones{get;set;}
     public List<SavedScoreVersion> Versions{get;set;}=[];
     public List<ScoreReviewPoint> ReviewPoints{get;set;}=[];
+    private ScoreDiagnosticReport? diagnosticReport;
+    public ScoreDiagnosticReport? DiagnosticReport{get=>diagnosticReport;set{if(Set(ref diagnosticReport,value))Notify(nameof(DiagnosticSummary));}}
+    public string DiagnosticSummary=>DiagnosticReport is {} report
+        ? $"Diagnóstico: {report.Issues.Count(i=>i.Severity==ScoreDiagnosticSeverity.Error)} problemas · {report.Issues.Count(i=>i.Severity==ScoreDiagnosticSeverity.Review)} pontos para conferir · {report.Issues.Count(i=>i.Severity==ScoreDiagnosticSeverity.Information)} observações"
+        : "Use Diagnóstico da partitura para conferir estrutura, ritmo e apresentação do arquivo salvo.";
     public string Name=>Path.GetFileName(FullPath);
     private string? scoreTitle;
     public string ScoreTitle{get=>scoreTitle??ScoreMetadataDefaults.Title(FullPath);set=>Set(ref scoreTitle,value);}
@@ -54,7 +59,7 @@ public sealed class MidiRow : Observable
     public string? AnalysisPath{get;set;}
     public string? Workspace{get;set;}
     private string? scorePath;
-    public string? ScorePath{get=>scorePath;set{if(Set(ref scorePath,value))NotifyCategory();}}
+    public string? ScorePath{get=>scorePath;set{if(Set(ref scorePath,value)){DiagnosticReport=null;NotifyCategory();}}}
     public string? PreviewPath{get;set;}
     private int pageCount;
     public int PageCount{get=>pageCount;set{if(Set(ref pageCount,value))Notify(nameof(PageCountText));}}
@@ -99,21 +104,29 @@ public sealed class TrackRow : Observable
     public Action? Changed{get;set;}
     public required MidiSource Source{get;init;}
     public string InstrumentName{get;init;}="";
+    public MelodySourceSuggestion? MelodySuggestion{get;init;}
     public string Instrument=>string.IsNullOrEmpty(InstrumentName)?$"Instrumento GM {Source.Key.Program+1}":InstrumentName;
     public int Track=>Source.Key.Track+1;
     public int Channel=>Source.Key.Channel;
     public int Count=>Source.Count;
     public string Range=>$"{MidiReader.NoteName(Source.Minimum)}–{MidiReader.NoteName(Source.Maximum)}";
-    public string Hint=>Source.Hint;
+    public string Hint=>MelodySuggestion?.Label??Source.Hint;
+    public string SuggestionReason=>MelodySuggestion?.Reason??Source.Hint;
 }
 public sealed class ChordRow : Observable
 {
     private int? diagramInversion;
     public int? DiagramInversion{get=>diagramInversion;set{if(Set(ref diagramInversion,value))Notify(nameof(DiagramPositionLabel));}}
     public string DiagramPositionLabel=>DiagramInversion is {} value?ScoreMetadataDefaults.InversionLabel(value):"Padrão da partitura";
-    private double quarter;public double Quarter{get=>quarter;set=>Set(ref quarter,value);}
-    private string root="C";public string Root{get=>root;set=>Set(ref root,value);}
-    private string quality="";public string Quality{get=>quality;set=>Set(ref quality,value);}
+    private double quarter;public double Quarter{get=>quarter;set{if(Set(ref quarter,value))ClearAdvice();}}
+    private string root="C";public string Root{get=>root;set{if(Set(ref root,value))ClearAdvice();}}
+    private string quality="";public string Quality{get=>quality;set{if(Set(ref quality,value))ClearAdvice();}}
     public double Confidence{get;init;}
+    private string recommendation="";
+    public string Recommendation{get=>recommendation;set{if(Set(ref recommendation,value))Notify(nameof(Advice));}}
+    private string alternatives="";
+    public string Alternatives{get=>alternatives;set{if(Set(ref alternatives,value))Notify(nameof(Advice));}}
+    public string Advice=>string.Join(" ",new[]{Recommendation,string.IsNullOrWhiteSpace(Alternatives)?"":"Alternativas para conferir: "+Alternatives+"."}.Where(text=>!string.IsNullOrWhiteSpace(text)));
+    private void ClearAdvice(){Recommendation="";Alternatives="";}
 }
 

@@ -78,6 +78,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     }
     private void RefreshSelection()
     {
+        NotifyDiagnostics();
         NotifyLibraryActions();
         Notify(nameof(CanCustomizeDiagrams));
         foreach(var name in new[]{nameof(PreviewSourcePath),nameof(CanShowHistory),nameof(GenerateButtonLabel),nameof(LibraryCollections),nameof(CanEditMidi),nameof(CanReviewScore),nameof(CanTransposeScore)})Notify(name);
@@ -97,7 +98,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
+    private void SetBusy(bool value){busy=value;NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
     private void InvalidateAnalysis(MidiRow row)
     {
         RememberVersion(row);row.AnalysisPath=null;row.Chords.Clear();row.ReviewPoints.Clear();Notify(nameof(CanReviewScore));
@@ -117,9 +118,10 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         row.MetadataOrganizationNotice=header.Explanation;
         row.Status=row.HasReviewedProfile?"Perfil musical revisado":profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Sem melodia completa","partial_melody"=>"Somente melodia parcial",_=>"Escolha a pista de melodia"};
         var keys=profile?["config"]?["melody_sources"]?.AsArray().Select(s=>new SourceKey(s!["track"]!.GetValue<int>(),s["channel"]!.GetValue<int>(),s["program"]!.GetValue<int>())).ToHashSet()??[];
+        var suggestions=MelodySourceAdvisor.Analyze(document).ToDictionary(s=>s.Key);
         foreach(var source in document.Sources)
         {
-            var track=new TrackRow{Source=source,InstrumentName=source.Key.Channel==10?"Percussão":instruments[source.Key.Program],IsMelody=keys.Contains(source.Key)};
+            var track=new TrackRow{Source=source,InstrumentName=source.Key.Channel==10?"Percussão":instruments[source.Key.Program],IsMelody=keys.Contains(source.Key),MelodySuggestion=suggestions.GetValueOrDefault(source.Key)};
             track.Changed=()=>{if(!loading)InvalidateAnalysis(row);};row.Tracks.Add(track);
         }
         return row;
@@ -219,7 +221,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         row.AnalysisPath=result["analysisPath"]!.GetValue<string>();row.KeyFifths=result["keyFifths"]!.GetValue<int>();row.KeyMinor=result["keyMinor"]!.GetValue<bool>();
         var previousPositions=row.Chords.Where(c=>c.DiagramInversion is not null).ToArray();
         row.Chords.Clear();
-        foreach(var c in result["chords"]!.AsArray())row.Chords.Add(new(){Quarter=c!["quarter"]!.GetValue<double>(),Root=c["root"]!.GetValue<string>(),Quality=c["quality"]!.GetValue<string>(),Confidence=c["confidence"]!.GetValue<double>()});
+        foreach(var c in result["chords"]!.AsArray())row.Chords.Add(new(){Quarter=c!["quarter"]!.GetValue<double>(),Root=c["root"]!.GetValue<string>(),Quality=c["quality"]!.GetValue<string>(),Confidence=c["confidence"]!.GetValue<double>(),Recommendation=c["recommendation"]?.GetValue<string>()??"",Alternatives=c["alternatives"]?.GetValue<string>()??""});
         foreach(var chord in row.Chords)
             chord.DiagramInversion=previousPositions.FirstOrDefault(old=>Math.Abs(old.Quarter-chord.Quarter)<.000001 && old.Root==chord.Root && old.Quality==chord.Quality)?.DiagramInversion;
         row.HasOperationError=false;

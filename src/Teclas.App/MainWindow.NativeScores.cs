@@ -21,9 +21,47 @@ public partial class MainWindow
     private async Task PrepareNativePreview(MidiRow row)
     {
         var service=new ScoreEditingService(MuseScorePath,LocalJobsDirectory);
-        var result=await service.ImportAsync(row.FullPath,LocalJobsDirectory,CreateOperationProgress(),cancellation!.Token);
+        NativeScoreResult result;
+        try
+        {
+            result=await service.ImportAsync(row.FullPath,LocalJobsDirectory,CreateOperationProgress(),cancellation!.Token);
+        }
+        catch(OperationCanceledException){throw;}
+        catch
+        {
+            // A missing embedded image can prevent the preview while the original remains
+            // readable. Keep that useful report without replacing the primary import error.
+            try{await DiagnoseSavedScore(row);}
+            catch(OperationCanceledException){throw;}
+            catch(Exception){/* The preview failure remains the actionable error. */}
+            throw;
+        }
         row.ScorePath=result.Path;row.PreviewPath=result.PreviewPages.FirstOrDefault();row.PageCount=result.PreviewPages.Count;
         row.HasOperationError=false;row.Status="Importada · "+row.PageCountText;RememberVersion(row);
+        PersistPreferences();
+        await DiagnosePublishedNativeScore(row,row.Status,"Partitura importada. O diagnóstico está disponível junto à prévia.");
+    }
+    private async Task DiagnosePublishedNativeScore(MidiRow row,string completionStatus,string completionMessage)
+    {
+        // The copy and its version history have already been committed. A secondary read-only
+        // diagnostic must never turn that successful conversion into a failure or discard it.
+        row.DiagnosticReport=null;
+        try
+        {
+            await DiagnoseSavedScore(row);
+            if(row.DiagnosticReport is null)throw new IOException("A cópia salva não está disponível para leitura.");
+            Status=completionMessage;
+        }
+        catch(OperationCanceledException)
+        {
+            row.Status=completionStatus+" · diagnóstico cancelado";
+            Status="A partitura foi salva; somente o diagnóstico foi cancelado. Você pode executá-lo novamente pela prévia.";
+        }
+        catch(Exception error)
+        {
+            row.Status=completionStatus+" · diagnóstico pendente";
+            Status="A partitura foi salva, mas o diagnóstico não terminou: "+error.Message;
+        }
     }
     private async void ImproveNativeScoreClick(object sender,RoutedEventArgs e)
     {
@@ -41,7 +79,8 @@ public partial class MainWindow
             row.ScorePath=result.Path;row.PreviewPath=result.PreviewPages.FirstOrDefault();row.PageCount=result.PreviewPages.Count;row.GeneratedAt=DateTimeOffset.Now;
             row.ScoreTitle=result.Metadata.Title;row.ScoreSubtitle=result.Metadata.Subtitle;row.ScoreComposer=result.Metadata.Composer;row.ScoreArtist=result.Metadata.Artist;
             row.HasPendingScoreProperties=false;row.HasOperationError=false;row.Status="Apresentação atualizada · "+row.PageCountText;
-            RememberVersion(row);EditorTabs.SelectedIndex=2;Status="Nova cópia salva. Abra o Histórico para comparar com a original.";
+            RememberVersion(row);EditorTabs.SelectedIndex=2;PersistPreferences();
+            await DiagnosePublishedNativeScore(row,row.Status,"Nova cópia salva e diagnosticada. Abra o Histórico para comparar com a original.");
         },row,"Melhorando apresentação da partitura");
         PersistPreferences();
     }

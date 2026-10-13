@@ -1,8 +1,14 @@
 # TeclaScore
 
-Versão 0.10.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.11.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
-A versão 0.10.0 mostra um painel de progresso ao importar, preparar o áudio, analisar notas e acordes, gerar ou atualizar uma partitura e salvar PDF/ZIP. Ele apresenta o arquivo, a etapa real, o tempo decorrido e Cancelar operação. Importações múltiplas e lotes mostram quantos arquivos já foram processados; etapas de duração desconhecida usam animação, sem estimar porcentagens ou tempo restante. A revisão por compasso também indica a preparação do áudio.
+A versão 0.11.0 acrescenta sugestões de melodia com trechos para comparar, justificativas e alternativas de cifras, e diagnóstico estrutural de partituras MuseScore por pauta, compasso e voz. O painel de progresso continua acompanhando a preparação, análise e geração.
+
+Em **Comparar pistas**, a ordem de escuta considera notas simultâneas, legato, registro, repetição e duração. Ouça trechos a 25%, 50%, 75% ou 100%; somente **Usar esta pista como melodia** muda a seleção. Confirmar a mesma pista preserva as cifras já ajustadas. A ordem é uma sugestão heurística, sem garantia de identificar a melodia; compare especialmente fontes duplicadas ou com várias vozes.
+
+Na aba **Cifras**, selecione uma linha para ver a justificativa e eventuais nomes alternativos. O contexto tonal, o baixo e os acordes vizinhos ajudam a distinguir nomes que usam as mesmas notas; cromatismos explícitos são preservados. A Revisão guiada localiza ambiguidades, pouca evidência, lacunas de acompanhamento e conflitos de tonalidade. Esses avisos não bloqueiam a geração. As revisões musicais já aprovadas mantêm seus resultados anteriores.
+
+Na **Prévia**, **Diagnóstico da partitura** confere o arquivo salvo sem alterá-lo. Partituras .mscz importadas e cópias com apresentação melhorada recebem o diagnóstico automaticamente. Ele identifica notas inválidas/duplicadas, cifras repetidas na mesma posição, duração excessiva quando interpretável, imagens ausentes e problemas básicos de cabeçalho/página. Compassos são localizados pela ordem do arquivo, que pode diferir da numeração impressa. Quiálteras, posições especiais e estruturas desconhecidas têm limitações explícitas; a análise não decide a intenção musical nem certifica a aparência visual. Uma falha ou cancelamento dessa conferência preserva a cópia já salva e seu Histórico.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
 

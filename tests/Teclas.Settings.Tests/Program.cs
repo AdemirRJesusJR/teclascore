@@ -19,6 +19,30 @@ try
     Check(old.OutputDirectory == "Z:/partituras" && old.ThemeId == "classic", "Old settings migrate without erasing paths");
     Check(old.TrackAuditionSpeed == 1.0, "Settings without the audition speed field migrate to normal speed");
 
+    var advicePath = Path.Combine(folder, "harmonic-advice.json");
+    new Settings { Library = [new SavedMidi
+    {
+        FullPath = "Z:/harmonia.mid",
+        Chords = [new SavedChord { Root = "C", Quality = "6", Recommendation = "O baixo tocado apoia esta fundamental.", Alternatives = "Am7" }],
+        Versions = [new SavedScoreVersion { ScorePath = "Z:/harmonia.mscz",
+            Chords = [new SavedChord { Root = "A", Quality = "m7", Recommendation = "Confira as mesmas notas.", Alternatives = "C6" }] }]
+    }] }.Save(advicePath);
+    var advice = Settings.Load(advicePath).Library[0];
+    Check(advice.Chords[0].Recommendation == "O baixo tocado apoia esta fundamental." && advice.Chords[0].Alternatives == "Am7",
+        "Chord recommendation and alternatives roundtrip in current session");
+    Check(advice.Versions[0].Chords[0].Recommendation == "Confira as mesmas notas." && advice.Versions[0].Chords[0].Alternatives == "C6",
+        "Chord recommendation and alternatives roundtrip in version history");
+    foreach (var fields in new[] { "", ",\"Recommendation\":null,\"Alternatives\":null" })
+    {
+        File.WriteAllText(advicePath, "{\"Library\":[{\"FullPath\":\"Z:/old.mid\",\"Chords\":[{\"Root\":\"C\"" + fields +
+            "}],\"Versions\":[{\"ScorePath\":\"Z:/old.mscz\",\"Chords\":[{\"Root\":\"C\"" + fields + "}]}]}]}");
+        var compatible = Settings.Load(advicePath).Library[0];
+        Check(compatible.Chords[0].Recommendation == "" && compatible.Chords[0].Alternatives == "",
+            "Missing or null harmonic advice defaults to empty in current session");
+        Check(compatible.Versions[0].Chords[0].Recommendation == "" && compatible.Versions[0].Chords[0].Alternatives == "",
+            "Missing or null harmonic advice defaults to empty in version history");
+    }
+
     var speedPath = Path.Combine(folder, "speed.json");
     foreach (double speed in new[] { 0.25, 0.5, 0.75, 1.0, 1.25, 1.5 })
     {
