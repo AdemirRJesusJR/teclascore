@@ -7,8 +7,10 @@ namespace Teclas.App;
 public partial class MainWindow
 {
     public bool CanDiagnoseScore => IsIdle && SelectedScoreExists;
-    public bool CanSuggestMelody => IsIdle && selectedFile?.Document is not null;
-    public string MelodySuggestionSummary => selectedFile is { Document: not null } row
+    public bool CanSuggestMelody => CanEditMidi;
+    public string MelodySuggestionSummary => selectedFile?.UsesNativeScoreWorkflow==true
+        ? "Continue as alterações no Editor musical. As sugestões de pistas se referem ao MIDI original."
+        : selectedFile is { Document: not null } row
         && row.Tracks.Where(track => track.Source.Key.Channel != 10).OrderBy(track => track.MelodySuggestion?.Rank).FirstOrDefault() is { MelodySuggestion: { } suggestion } candidateTrack
         ? $"Primeira fonte para conferir: pista {candidateTrack.Track}, canal {candidateTrack.Channel} · {candidateTrack.Instrument} · {suggestion.Label}. Compare os trechos antes de escolher."
         : "Compare as pistas e escolha a que contém a melodia.";
@@ -39,8 +41,8 @@ public partial class MainWindow
             Status = "Diagnóstico concluído. Confira os pontos encontrados antes de ajustar a partitura.";
         }, operationTitle: "Diagnosticando a partitura", operationItem: row.ScoreTitle);
         if (operationsDisposed || row.DiagnosticReport is not { } report || selectedFile != row) return;
-        var dialog = new ScoreDiagnosticsWindow(report, row.IsNativeScore) { Owner = this };
-        if (dialog.ShowDialog() == true && row.IsNativeScore) ImproveNativeScoreClick(sender, e);
+        var dialog = new ScoreDiagnosticsWindow(report, row.UsesNativeScoreWorkflow) { Owner = this };
+        if (dialog.ShowDialog() == true && row.UsesNativeScoreWorkflow) ImproveNativeScoreClick(sender, e);
     }
 
     private void MelodySuggestionsClick(object sender, RoutedEventArgs e)
@@ -70,7 +72,7 @@ public partial class MainWindow
 
     private void ApplySuggestedMelody(MidiRow row, TrackRow selected)
     {
-        if (selectedFile != row || !row.Tracks.Contains(selected) || selected.Source.Key.Channel == 10) return;
+        if (row.UsesNativeScoreWorkflow || selectedFile != row || !row.Tracks.Contains(selected) || selected.Source.Key.Channel == 10) return;
         if (!row.UseReviewedProfile && selected.IsMelody && row.Tracks.Count(track => track.IsMelody) == 1)
         {
             Status = "Esta pista já é a melodia selecionada. Seus ajustes foram mantidos.";
@@ -91,14 +93,14 @@ public partial class MainWindow
 
     private async Task<string> PlaySuggestedMelody(MidiRow row, TrackRow track, double speed, CancellationToken token)
     {
-        if (row.Document is not { } document || !row.Tracks.Contains(track) || track.MelodySuggestion is not { } suggestion)
+        if (row.UsesNativeScoreWorkflow || row.Document is not { } document || !row.Tracks.Contains(track) || track.MelodySuggestion is not { } suggestion)
             return "Esta pista não está disponível.";
         StopTrackAudition(); ResetPlayback();
         var start = ReviewTimeAtQuarter(document, (double)suggestion.SampleStartTick / document.Ppq);
         var end = ReviewTimeAtQuarter(document, (double)suggestion.SampleEndTick / document.Ppq);
         var sequence = await Task.Run(() => MidiAuditionSequence.Create(document, track.Source.Key, trimLeadingSilence: false).Until(end), token);
         token.ThrowIfCancellationRequested();
-        if (trackAuditionDisposed || selectedFile != row) throw new OperationCanceledException(token);
+        if (trackAuditionDisposed || row.UsesNativeScoreWorkflow || selectedFile != row) throw new OperationCanceledException(token);
         if (start >= sequence.Duration) return "Não há notas disponíveis neste trecho.";
         auditionMidi = row; auditionTrack = track; track.IsAuditioning = true;
         trackPlayer!.PlaybackRate = speed; trackPlayer.Play(sequence, start);

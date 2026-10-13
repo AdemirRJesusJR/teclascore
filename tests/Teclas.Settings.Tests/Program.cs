@@ -126,6 +126,7 @@ try
     File.Delete(invalid);
     Check(Settings.Load(invalid).LoadWarning.Length > 0, "Missing primary with corrupt backup is visible");
 
+    MusicEditorStateChecks.Run(folder, Check);
     MetadataChecks.Run(folder, Check);
     CustomDiagramChecks.Run(folder, Check);
     ArtistMetadataChecks.Run(folder, Check);

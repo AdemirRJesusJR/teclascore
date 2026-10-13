@@ -1,3 +1,22 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.12.0
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 196 verificações nativas passaram: 180 sintéticas e 16 com MuseScore real. Edição de notas, durações compensadas, cifras e diagramas; origem intacta; prévia e publicação; rejeição de fonte alterada e de MSCZ/PNG adulterados.
+- Alteração cromática C4 para C#4 seguida de C4 validada com bequadro dependente. Exceção da conferência limitada a acidentes automáticos compatíveis na mesma linha diatônica, pauta e compasso. Testes negativos preservam grafia, oitava, outros compassos, ligações, acidentes manuais e microtonais.
+- Luz divina: mudança de C5 para C#5 e troca da primeira cifra/diagrama para C fundamental produziram seis páginas válidas no editor. Teste independente de Cm/primeira inversão também passou; recursos compartilhados e original preservados.
+- 60 verificações da interface real passaram: notas, cifras, prévia atual, desfazer/refazer, cancelamento, controles e telas mínima/clara/escura. Cinco capturas conferidas, incluindo páginas reais renderizadas.
+- 34 verificações de ciclo de vida passaram: binding imediato, rascunho, falhas, CTS descartado, progresso atrasado, prévia desatualizada, retorno à imagem original, cancelamento e fechamento durante preparação.
+- 39 verificações de áudio passaram com MediaPlayer real silenciado: reprodução, pausa, posição em tempo original, velocidade de 50%, cancelamento em diferentes etapas, timeout, falhas, troca de pedido e descarte do reprodutor.
+- 51 verificações de integração de sessão/Histórico passaram: aplicação de edição, bloqueio da regeneração pelo MIDI, retomada explícita pelo Histórico, MIDI alterado/ausente, cópia indisponível e classificação do dashboard.
+- 95 verificações de persistência, 103 de MIDI/metadados e 43 de dashboard passaram. Quatro novos casos de persistência cobrem versões editadas e compatibilidade com sessões antigas.
+- Regressões: 24 verificações do fluxo de geração de melodia e 20 do fluxo de importação/diagnóstico MuseScore passaram.
+- Tela Sobre e biblioteca renderizadas com versão 0.12.0 e sem avisos de bindings. Configurações reais e originais permanecem intactos.
+
+Esta etapa edita elementos existentes por tabela e exige compensação das durações na mesma voz. Ligações, quiálteras, partes vinculadas, transposição instrumental e imagens desconhecidas recebem restrições explícitas. A reprodução corresponde à partitura inteira, não ao compasso selecionado. O salvamento exige prévia atual, mas não certifica espaçamento visual: o usuário deve conferir as páginas. A confirmação visual de descarte de rascunho não foi automatizada; o rastreamento imediato de alterações e os fluxos de fechamento limpo/cancelado foram testados.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.11.0
 13/10/2026
 

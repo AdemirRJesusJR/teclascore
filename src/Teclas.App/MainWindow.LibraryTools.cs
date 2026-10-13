@@ -21,6 +21,7 @@ public partial class MainWindow
     {
         if(row.ScorePath is not {} path || !File.Exists(path) || row.HasPendingScoreProperties || row.Versions.Any(v=>string.Equals(v.ScorePath,path,StringComparison.OrdinalIgnoreCase)))return;
         row.Versions.Add(new SavedScoreVersion { ScorePath=path,PreviewPath=row.PreviewPath,PageCount=row.PageCount,CreatedAt=row.GeneratedAt??File.GetLastWriteTime(path),
+            HasMusicalEdits=row.HasMusicalEdits,
             SourceSha256=row.SourceSha256,UseReviewedProfile=row.UseReviewedProfile,AnalysisPath=row.AnalysisPath,Workspace=row.Workspace,
             MelodySources=row.Tracks.Where(t=>t.IsMelody).Select(t=>new SavedSource { Track=t.Source.Key.Track,Channel=t.Source.Key.Channel,Program=t.Source.Key.Program }).ToList(),
             Title=row.ScoreTitle,Subtitle=row.ScoreSubtitle,Composer=row.ScoreComposer,DefaultInversion=row.DefaultDiagramInversion,Inversion=row.DiagramInversion,
@@ -40,6 +41,7 @@ public partial class MainWindow
     {
         if(!File.Exists(version.ScorePath))throw new FileNotFoundException("A cópia desta versão não está disponível.",version.ScorePath);
         ResetPlayback();row.ScorePath=version.ScorePath;row.PreviewPath=version.PreviewPath;row.PageCount=version.PageCount;row.GeneratedAt=version.CreatedAt;
+        row.HasMusicalEdits=version.HasMusicalEdits;
         bool sameSource=row.SourceSha256 is not null && string.Equals(row.SourceSha256,version.SourceSha256,StringComparison.OrdinalIgnoreCase);
         loading=true;
         try
@@ -59,6 +61,7 @@ public partial class MainWindow
         row.HasPendingScoreProperties=false;row.HasOperationError=false;row.Status="Versão restaurada · "+row.PageCountText;
         if(unavailableSessionRows.TryGetValue(row.FullPath,out var remembered))
         {
+            remembered.HasMusicalEdits=version.HasMusicalEdits;
             remembered.Sha256=version.SourceSha256;remembered.UseReviewedProfile=version.UseReviewedProfile;
             remembered.MelodySources=version.MelodySources.Select(s=>new SavedSource {Track=s.Track,Channel=s.Channel,Program=s.Program}).ToList();
             remembered.Chords=version.Chords.Select(c=>new SavedChord {Quarter=c.Quarter,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence,DiagramInversion=c.DiagramInversion,Recommendation=c.Recommendation,Alternatives=c.Alternatives}).ToList();
@@ -66,6 +69,6 @@ public partial class MainWindow
             remembered.AnalysisPath=version.AnalysisPath;remembered.Workspace=version.Workspace;
         }
         RefreshSelection();PersistPreferences();Status="Versão ativa restaurada. Todas as cópias foram preservadas.";
-        if(!sameSource && !row.IsNativeScore)Status="Versão restaurada. A fonte MIDI mudou ou está indisponível; selecione a melodia e analise novamente antes de gerar.";
+        if(!sameSource && !row.UsesNativeScoreWorkflow)Status="Versão restaurada. A fonte MIDI mudou ou está indisponível; selecione a melodia e analise novamente antes de gerar.";
     }
 }

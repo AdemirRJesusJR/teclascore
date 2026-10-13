@@ -31,14 +31,16 @@ public partial class MainWindow
         }
     }
 
-    public bool CanAuditionTracks => IsIdle && selectedFile?.Document is not null;
+    public bool CanAuditionTracks => CanEditMidi;
     public bool CanPauseTrackAudition => trackPlayer is { IsPlaying: true } or { IsPaused: true };
     public bool CanStopTrackAudition => auditionTrack is not null;
     public bool CanSeekTrackAudition => auditionTrack is not null && TrackAuditionDurationSeconds > 0;
     public Visibility TrackAuditionVisible => auditionTrack is null ? Visibility.Collapsed : Visibility.Visible;
     public double ScoreEditorMinimumHeight => EditorTabs?.SelectedIndex == 2 ? 1120 : auditionTrack is null ? 620 : 760;
     public string TrackAuditionTitle => auditionTrack is { } track ? $"Pista {track.Track} · Canal {track.Channel} · {track.Instrument}" : "";
-    public string TrackSelectionHint => UseReviewedProfile
+    public string TrackSelectionHint => selectedFile?.UsesNativeScoreWorkflow==true
+        ? selectedFile.IsNativeScore ? "Ouça e ajuste a partitura atual no Editor musical." : "Ouça e ajuste a partitura atual no Editor musical. Para voltar às pistas do MIDI, restaure uma versão anterior às edições no Histórico."
+        : UseReviewedProfile
         ? "Ouça cada pista no botão ▶. Para escolher outra melodia, desmarque a revisão aprovada e marque a pista desejada."
         : "Ouça cada pista no botão ▶ e marque a que contém a melodia. Acompanhamento, baixo e guias de letra precisam de conferência.";
     public string TrackPauseLabel => trackPlayer?.IsPaused == true ? "▶  Continuar" : "Ⅱ  Pausar";
@@ -105,7 +107,7 @@ public partial class MainWindow
 
     private void OnTrackAuditionSelectionChanged()
     {
-        if (auditionMidi is not null && !ReferenceEquals(auditionMidi, selectedFile)) StopTrackAudition();
+        if (auditionMidi is not null && (!ReferenceEquals(auditionMidi, selectedFile) || auditionMidi.UsesNativeScoreWorkflow)) StopTrackAudition();
         NotifyTrackAudition();
     }
 
@@ -127,7 +129,7 @@ public partial class MainWindow
             {
                 var sequence = await Task.Run(() => MidiAuditionSequence.Create(document, track.Source.Key), token);
                 token.ThrowIfCancellationRequested();
-                if (trackAuditionDisposed || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
+                if (trackAuditionDisposed || row.UsesNativeScoreWorkflow || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
                 auditionMidi = row; auditionTrack = track; track.IsAuditioning = true;
                 trackPlayer!.Play(sequence);
                 TrackAuditionStatus = "Ouvindo somente esta pista, a partir da primeira nota."

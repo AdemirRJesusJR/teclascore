@@ -6,7 +6,7 @@ namespace Teclas.App;
 
 public partial class MainWindow
 {
-    public bool CanTransposeScore=>IsIdle && selectedFile?.Document is not null;
+    public bool CanTransposeScore=>CanEditMidi;
     private async void TransposeScoreClick(object sender,RoutedEventArgs e)
     {
         if(!CanTransposeScore || selectedFile is not {} row || !CommitEdits())return;

@@ -1,8 +1,8 @@
 # TeclaScore
 
-Versão 0.11.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.12.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
-A versão 0.11.0 acrescenta sugestões de melodia com trechos para comparar, justificativas e alternativas de cifras, e diagnóstico estrutural de partituras MuseScore por pauta, compasso e voz. O painel de progresso continua acompanhando a preparação, análise e geração.
+A versão 0.12.0 acrescenta um editor musical com rascunho, desfazer/refazer, prévia, reprodução e salvamento em nova versão. A versão anterior trouxe sugestões de melodia com trechos para comparar, justificativas e alternativas de cifras, e diagnóstico estrutural de partituras MuseScore por pauta, compasso e voz. O painel de progresso continua acompanhando a preparação, análise e geração.
 
 Em **Comparar pistas**, a ordem de escuta considera notas simultâneas, legato, registro, repetição e duração. Ouça trechos a 25%, 50%, 75% ou 100%; somente **Usar esta pista como melodia** muda a seleção. Confirmar a mesma pista preserva as cifras já ajustadas. A ordem é uma sugestão heurística, sem garantia de identificar a melodia; compare especialmente fontes duplicadas ou com várias vozes.
 
@@ -11,6 +11,18 @@ Na aba **Cifras**, selecione uma linha para ver a justificativa e eventuais nome
 Na **Prévia**, **Diagnóstico da partitura** confere o arquivo salvo sem alterá-lo. Partituras .mscz importadas e cópias com apresentação melhorada recebem o diagnóstico automaticamente. Ele identifica notas inválidas/duplicadas, cifras repetidas na mesma posição, duração excessiva quando interpretável, imagens ausentes e problemas básicos de cabeçalho/página. Compassos são localizados pela ordem do arquivo, que pode diferir da numeração impressa. Quiálteras, posições especiais e estruturas desconhecidas têm limitações explícitas; a análise não decide a intenção musical nem certifica a aparência visual. Uma falha ou cancelamento dessa conferência preserva a cópia já salva e seu Histórico.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
+
+## Editor musical
+
+Na **Prévia**, abra **Editor musical**. Escolha a pauta e o compasso; nas abas **Notas**, **Ritmo** e **Cifras**, ajuste os elementos existentes. Use notas como C4 (dó central), F#4 e Bb3. A posição indicada conta semínimas dentro do compasso; a numeração usa a ordem do arquivo, podendo diferir da impressa. A seleção controla a tabela de edição; as páginas da prévia são navegadas separadamente.
+
+**Desfazer** e **Refazer** atuam sobre o rascunho. **Atualizar prévia** verifica as mudanças e renderiza todas as páginas. **Ouvir partitura** reproduz o rascunho inteiro em 50%, 75% ou 100%, com pausa e controle de posição. Não é reprodução isolada do compasso. Confira as páginas e o som antes de **Salvar nova versão**; qualquer nova alteração exige outra atualização da prévia. Fechar com mudanças pede confirmação de descarte.
+
+Mudar uma duração exige compensar outra nota ou pausa da mesma voz e manter as posições de cifras, imagens, marcações e elementos não editados. Esta etapa edita elementos existentes: não inclui inserção/exclusão de notas, arraste na pauta ou edição de cadeias de ligaduras e quiálteras. Pautas transpositoras, tablaturas, percussão, partes vinculadas e estruturas especiais indicam restrições locais ou globais.
+
+Cifras simples reconhecidas podem ser alteradas. Quando a cifra tem um diagrama TeclaScore associado de forma inequívoca, o desenho e sua inversão acompanham apenas aquela ocorrência. Diagramas desconhecidos e associações ambíguas são preservados e orientam edição no MuseScore. A conferência estrutural não certifica espaçamento visual: revise todas as páginas renderizadas, principalmente depois de aumentar o texto de uma cifra.
+
+Ao salvar, o app cria uma nova cópia MSCZ e registra original e edição no Histórico. A partitura editada passa a ser a fonte para reprodução, PDF, propriedades e apresentação; as abas de preparação a partir do MIDI ficam desabilitadas para evitar perda das correções. Para voltar ao MIDI, restaure no Histórico uma versão anterior à edição. A cópia editada e seu estado continuam disponíveis mesmo se o MIDI original mudar ou ficar ausente.
 
 ## Para testar
 

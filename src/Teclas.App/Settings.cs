@@ -163,6 +163,7 @@ public sealed class Settings
 
 public sealed class SavedMidi
 {
+    public bool HasMusicalEdits { get; set; }
     public bool IsFavorite { get; set; }
     public string Collection { get; set; } = "";
     public string Genre { get; set; } = "";
@@ -195,6 +196,7 @@ public sealed class SavedMidi
 
 public sealed class SavedScoreVersion
 {
+    public bool HasMusicalEdits { get; set; }
     public string? SourceSha256 { get; set; }
     public bool UseReviewedProfile { get; set; }
     public List<SavedSource> MelodySources { get; set; } = [];

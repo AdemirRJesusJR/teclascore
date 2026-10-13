@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.12.0 — 13/10/2026
+
+- Editor musical por pauta, compasso e voz, disponível para partituras geradas e arquivos MuseScore 4 importados.
+- Edição de alturas e grafias, figuras rítmicas, pontos de aumento e cifras; desfazer/refazer e atualização da prévia antes de salvar.
+- Alterar cifras reconhecidas atualiza somente o diagrama de teclado daquela ocorrência, preservando imagens compartilhadas.
+- Reprodução independente do rascunho inteiro, com pausa, posição e velocidades de 50%, 75% e 100%; cancelamento sem áudio tardio.
+- Salvamento em nova versão, com conferência do conteúdo modificado, da origem e das páginas; cópias anteriores permanecem no Histórico.
+- Partituras editadas continuam pelo fluxo nativo, sem regeneração acidental a partir do MIDI; restauração de uma versão anterior permite voltar à preparação do MIDI.
+- Estruturas que exigem sincronização especial indicam sua limitação no editor. Durações devem conservar o total da voz e as posições de elementos não editados.
+
 ## 0.11.0 — 13/10/2026
 
 - Comparação de pistas candidatas à melodia, com ordem de escuta explicada e trechos em velocidade reduzida; escolha sempre explícita.

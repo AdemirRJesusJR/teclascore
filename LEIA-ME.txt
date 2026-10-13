@@ -1,4 +1,9 @@
-TECLASCORE · PRÉVIA 0.11.0
+TECLASCORE · PRÉVIA 0.12.0
+
+
+EDITOR MUSICAL
+Na Prévia, abra Editor musical para ajustar notas, ritmo e cifras por pauta/compasso. Atualize a prévia, confira as páginas, ouça o rascunho inteiro e use Salvar nova versão. Originais e Histórico são preservados.
+Durações devem ser compensadas na mesma voz; estruturas especiais mostram suas limitações. Diagramas TeclaScore reconhecidos acompanham a cifra daquela ocorrência. Após salvar, a partitura editada segue o fluxo nativo; para voltar ao MIDI, restaure uma versão anterior no Histórico.
 
 NOVO NA VERSÃO 0.11.0
 Na aba Melodia, use Comparar pistas para ouvir trechos das fontes sugeridas e conferir as explicações.

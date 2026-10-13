@@ -21,16 +21,18 @@ public partial class MainWindow
             PersistPreferences();
         }
     }
-    public bool CanEditScoreProperties => IsIdle && selectedFile is not null;
+    public bool CanEditScoreProperties => IsIdle && selectedFile is {} row
+        && (!row.UsesNativeScoreWorkflow || File.Exists(row.ScorePath));
     public string ScorePropertiesSummary => selectedFile is { } row
-        ? row.ScoreTitle + (string.IsNullOrWhiteSpace(row.ScoreArtist)?"":" · "+row.ScoreArtist) + " · " + (row.IsNativeScore ? "MuseScore · apresentação e metadados" : (row.Chords.Any(c=>c.DiagramInversion is not null)?"Diagramas personalizados · padrão: ":"") + ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion) + $" · transposição {row.TransposeSemitones:+0;-0;0}")
+        ? row.ScoreTitle + (string.IsNullOrWhiteSpace(row.ScoreArtist)?"":" · "+row.ScoreArtist) + " · " + (row.UsesNativeScoreWorkflow ? (row.HasMusicalEdits ? "Edição musical · apresentação e metadados" : "MuseScore · apresentação e metadados") : (row.Chords.Any(c=>c.DiagramInversion is not null)?"Diagramas personalizados · padrão: ":"") + ScoreMetadataDefaults.InversionLabel(row.EffectiveDiagramInversion) + $" · transposição {row.TransposeSemitones:+0;-0;0}")
           + (row.HasPendingScoreProperties ? " · atualização pendente" : "")
         : "Título, artista, subtítulo, autor e inversão dos diagramas.";
 
     private async void ScorePropertiesClick(object sender, RoutedEventArgs e)
     {
-        if (!CanEditScoreProperties || selectedFile is not { } row || !CommitEdits()) return;
-        if(row.IsNativeScore){ImproveNativeScoreClick(sender,e);return;}
+        if (!CanEditScoreProperties || selectedFile is not { } row) return;
+        if(row.UsesNativeScoreWorkflow){ImproveNativeScoreClick(sender,e);return;}
+        if(!CommitEdits())return;
         var dialog = new ScorePropertiesWindow(row.ScoreTitle, row.ScoreSubtitle, row.ScoreComposer,
             row.DiagramInversion, row.DefaultDiagramInversion, row.ScoreArtist, row.MetadataOrganizationNotice) { Owner = this };
         var suggestion=ScoreMetadataOrganizer.Suggest(row.FullPath,row.Document?.TextEvents);

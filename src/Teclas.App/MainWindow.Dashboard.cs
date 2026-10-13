@@ -120,6 +120,7 @@ public partial class MainWindow
     private void DashboardRowChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is not (nameof(MidiRow.ScorePath) or nameof(MidiRow.UseReviewedProfile)
+            or nameof(MidiRow.HasMusicalEdits)
             or nameof(MidiRow.HasOperationError) or nameof(MidiRow.PageCount) or nameof(MidiRow.GeneratedAt))) return;
         libraryDirty = true;
         RefreshDashboard();

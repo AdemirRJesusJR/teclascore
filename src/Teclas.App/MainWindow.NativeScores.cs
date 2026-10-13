@@ -8,7 +8,7 @@ namespace Teclas.App;
 public partial class MainWindow
 {
     private string LocalJobsDirectory=>Path.Combine(persistencePath is null?Settings.DataDirectory:Path.GetDirectoryName(Path.GetFullPath(persistencePath))!,"native-scores");
-    public string GenerateButtonLabel=>selectedFile?.IsNativeScore==true?"Melhorar apresentação →":"Gerar partitura →";
+    public string GenerateButtonLabel=>selectedFile?.UsesNativeScoreWorkflow==true?"Melhorar apresentação →":"Gerar partitura →";
     private MidiRow LoadNativeScore(string path)
     {
         path=Path.GetFullPath(path);
@@ -65,7 +65,7 @@ public partial class MainWindow
     }
     private async void ImproveNativeScoreClick(object sender,RoutedEventArgs e)
     {
-        if(!IsIdle || selectedFile is not{IsNativeScore:true,ScorePath:{} score} row)return;
+        if(!IsIdle || selectedFile is not{UsesNativeScoreWorkflow:true,ScorePath:{} score} row)return;
         NativeLayoutWindow dialog;
         try{dialog=new NativeLayoutWindow(NativeScoreDocument.Inspect(score)){Owner=this};}
         catch(Exception error) when(error is IOException or InvalidDataException or UnauthorizedAccessException){Status=error.Message;return;}

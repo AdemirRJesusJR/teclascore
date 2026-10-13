@@ -44,6 +44,18 @@ public partial class MainWindow
                     row = LoadMidi(saved.FullPath);
                     if (!string.IsNullOrEmpty(saved.Sha256) && string.Equals(row.SourceSha256, saved.Sha256, StringComparison.OrdinalIgnoreCase))
                         ApplySavedMidi(row, saved);
+                    else if (saved.HasMusicalEdits)
+                    {
+                        if (!string.IsNullOrEmpty(saved.Sha256)) changed++;
+                        // The edited score is now the musical source, independently of the MIDI.
+                        row.ScorePath = saved.ScorePath; row.PreviewPath = saved.PreviewPath;
+                        row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
+                        row.KeyFifths = saved.KeyFifths; row.KeyMinor = saved.KeyMinor;
+                        foreach (var chord in saved.Chords) row.Chords.Add(new ChordRow
+                        { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
+                        row.HasOperationError = saved.HasOperationError;
+                        row.Status = "Partitura editada preservada · arquivo de origem alterado ou sem identificação anterior";
+                    }
                     else if (!string.IsNullOrEmpty(saved.Sha256))
                     {
                         changed++;
@@ -110,12 +122,13 @@ public partial class MainWindow
         row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
         row.HasOperationError = saved.HasOperationError;
         if (!string.IsNullOrEmpty(saved.Status)) row.Status = saved.Status;
-        if (saved.AnalysisPath is not null && row.AnalysisPath is null)
+        if (!saved.HasMusicalEdits && saved.AnalysisPath is not null && row.AnalysisPath is null)
             row.Status = "Cifras restauradas · análise temporária indisponível; analise novamente antes de gerar";
     }
 
     private static void ApplySavedScoreProperties(MidiRow row, SavedMidi saved)
     {
+        row.HasMusicalEdits = saved.HasMusicalEdits;
         row.IsFavorite = saved.IsFavorite; row.Collection = saved.Collection; row.Genre = saved.Genre;
         row.TransposeSemitones = saved.TransposeSemitones; row.Versions = saved.Versions;
         row.ScoreTitle = saved.ScoreTitle ?? ScoreMetadataDefaults.Title(row.FullPath);
@@ -162,6 +175,7 @@ public partial class MainWindow
     {
         if (row.Document is null && unavailableSessionRows.TryGetValue(row.FullPath, out var remembered))
         {
+            remembered.HasMusicalEdits = row.HasMusicalEdits;
             remembered.ScoreTitle = row.ScoreTitle; remembered.ScoreSubtitle = row.ScoreSubtitle;
             remembered.ScoreComposer = row.ScoreComposer; remembered.DefaultDiagramInversion = row.DefaultDiagramInversion;
             remembered.ScoreArtist = row.ScoreArtist; remembered.MetadataOrganizationNotice = row.MetadataOrganizationNotice;
@@ -178,6 +192,7 @@ public partial class MainWindow
         }
         return new SavedMidi
         {
+            HasMusicalEdits = row.HasMusicalEdits,
             FullPath = row.FullPath, Sha256 = row.SourceSha256, UseReviewedProfile = row.UseReviewedProfile,
             IsFavorite = row.IsFavorite, Collection = row.Collection, Genre = row.Genre,
             TransposeSemitones = row.TransposeSemitones, Versions = row.Versions,

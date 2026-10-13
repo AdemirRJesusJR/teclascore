@@ -8,7 +8,7 @@ namespace Teclas.App;
 public partial class MainWindow
 {
     public IReadOnlyList<ScoreReviewPoint> ReviewPoints => selectedFile?.ReviewPoints ?? [];
-    public bool CanReviewScore => IsIdle && selectedFile?.Document is not null && ReviewPoints.Count > 0;
+    public bool CanReviewScore => CanEditMidi && ReviewPoints.Count > 0;
 
     private void ParseReviewPoints(MidiRow row, JsonElement result)
     {
@@ -40,7 +40,7 @@ public partial class MainWindow
     private void RestoreReviewPoints(MidiRow row)
     {
         row.ReviewPoints.Clear();
-        if (row.AnalysisPath is null || !File.Exists(row.AnalysisPath)) return;
+        if (row.UsesNativeScoreWorkflow || row.AnalysisPath is null || !File.Exists(row.AnalysisPath)) return;
         try { using var document = JsonDocument.Parse(File.ReadAllText(row.AnalysisPath)); ParseReviewPoints(row, document.RootElement); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }
     }
@@ -77,14 +77,14 @@ public partial class MainWindow
 
     private async Task<string> PlayReviewMeasure(MidiRow row, ScoreReviewPoint point, TrackRow track, double speed, CancellationToken token)
     {
-        if (row.Document is not { } document || !row.Tracks.Contains(track)) return "A fonte MIDI não está disponível.";
+        if (row.UsesNativeScoreWorkflow || row.Document is not { } document || !row.Tracks.Contains(track)) return "A fonte MIDI não está disponível.";
         StopTrackAudition(); ResetPlayback();
         try
         {
             var sequence = await Task.Run(() => MidiAuditionSequence.Create(document, track.Source.Key, trimLeadingSilence: false)
                 .Until(ReviewRegionEnd(row, point)), token);
             token.ThrowIfCancellationRequested();
-            if (trackAuditionDisposed || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
+            if (trackAuditionDisposed || row.UsesNativeScoreWorkflow || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
             var start = ReviewTimeAtQuarter(document, point.MeasureStartQuarter);
             if (start >= sequence.Duration) return "Esta pista já terminou antes deste compasso. Escolha outra pista.";
             auditionMidi = row; auditionTrack = track; track.IsAuditioning = true;

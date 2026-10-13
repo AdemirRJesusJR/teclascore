@@ -83,7 +83,7 @@ using (var cancelled = new CancellationTokenSource())
 }
 
 var nativeOutputs = new List<object>();
-if (args.Length >= 3)
+if (args.Length >= 3 && !args.Skip(3).Contains("music-editor-only", StringComparer.Ordinal))
 {
     string source = Path.GetFullPath(args[1]); string executable = Path.GetFullPath(args[2]);
     byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(source));
@@ -166,5 +166,8 @@ if (args.Length >= 3)
     nativeOutputs.Add(new { grandResult.Path, grandResult.PreviewPages, grandResult.Metadata });
 }
 DiagnosticsChecks.Run(Check, work);
+MusicEditorChecks.Run(Check, work);
+HarmonyEditingChecks.Run(Check, work);
+if (args.Length >= 3) await MusicEditorChecks.RunNativeAsync(Check, work, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
 File.WriteAllText(Path.Combine(work, "report.json"), JsonSerializer.Serialize(new { checks, passed, nativeOutputs }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"PASS: {checks} native score editing checks.");

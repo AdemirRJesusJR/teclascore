@@ -16,6 +16,9 @@ public sealed class MidiRow : Observable
 {
     public required string FullPath{get;init;}
     public bool IsNativeScore=>Path.GetExtension(FullPath).Equals(".mscz",StringComparison.OrdinalIgnoreCase);
+    private bool hasMusicalEdits;
+    public bool HasMusicalEdits{get=>hasMusicalEdits;set{if(Set(ref hasMusicalEdits,value)){Notify(nameof(UsesNativeScoreWorkflow));NotifyCategory();}}}
+    public bool UsesNativeScoreWorkflow=>IsNativeScore||HasMusicalEdits;
     public string? NativeSourceSha256{get;init;}
     public string? SourceSha256=>Document?.Sha256??NativeSourceSha256;
     private bool favorite;
@@ -67,15 +70,23 @@ public sealed class MidiRow : Observable
     public DateTimeOffset? GeneratedAt{get=>generatedAt;set{if(Set(ref generatedAt,value))Notify(nameof(GeneratedAtText));}}
     private bool hasOperationError;
     public bool HasOperationError{get=>hasOperationError;set{if(Set(ref hasOperationError,value))NotifyCategory();}}
-    public DashboardItem DashboardFacts=>new(SourceSha256 is not null,HasReviewedProfile,UseReviewedProfile,
-        ScorePath is not null && File.Exists(ScorePath),HasOperationError,PageCount);
+    public DashboardItem DashboardFacts
+    {
+        get
+        {
+            bool available=ScorePath is not null && File.Exists(ScorePath);
+            return new(UsesNativeScoreWorkflow?available:SourceSha256 is not null,
+                HasReviewedProfile && !UsesNativeScoreWorkflow,UseReviewedProfile && !UsesNativeScoreWorkflow,
+                available,HasOperationError,PageCount);
+        }
+    }
     public DashboardCategory Category=>DashboardFacts.Category;
     public string CategoryCode=>Category switch{DashboardCategory.Ready=>"ready",DashboardCategory.Generated=>"generated",DashboardCategory.Error=>"error",_=>"review"};
     public string CategoryLabel=>Category switch
     {
         DashboardCategory.Ready=>"Pronto para o lote",
         DashboardCategory.Generated=>"Partitura gerada",
-        DashboardCategory.Error=>Document is null?"Falha na leitura":"Falha na conversão",
+        DashboardCategory.Error=>UsesNativeScoreWorkflow?"Partitura indisponível":Document is null?"Falha na leitura":"Falha na conversão",
         _=>Profile?["config"]?["status"]?.GetValue<string>() switch
         {
             "no_melody"=>"Sem melodia completa",

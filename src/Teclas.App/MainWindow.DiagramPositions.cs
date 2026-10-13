@@ -5,7 +5,7 @@ namespace Teclas.App;
 
 public partial class MainWindow
 {
-    public bool CanCustomizeDiagrams=>IsIdle && selectedFile is { IsNativeScore:false } row && row.Chords.Count>0;
+    public bool CanCustomizeDiagrams=>IsIdle && selectedFile is { UsesNativeScoreWorkflow:false } row && row.Chords.Count>0;
     private async void DiagramPositionsClick(object sender,RoutedEventArgs e)
     {
         if(!CanCustomizeDiagrams || selectedFile is not {} row || !CommitEdits())return;
@@ -15,6 +15,7 @@ public partial class MainWindow
     }
     private async Task ApplyDiagramPositions(MidiRow row,IReadOnlyList<int?> values)
     {
+        RequireMidiWorkflow(row);
         if(values.Count!=row.Chords.Count || values.Any(value=>value is <0 or >2))
             throw new ArgumentException("Escolha uma posição válida para cada acorde.");
         if(row.Chords.Select(c=>c.DiagramInversion).SequenceEqual(values) && !row.HasPendingScoreProperties)return;
