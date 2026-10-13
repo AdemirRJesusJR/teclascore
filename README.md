@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.6.0 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável, edita as propriedades do cabeçalho, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.6.1 para Windows, em C# / WPF (.NET 10). Permite ouvir as pistas MIDI antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável, edita as propriedades do cabeçalho, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
 Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/teclascore).
 
@@ -11,7 +11,7 @@ Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/tecl
 3. Importe arquivos .mid, .midi ou .kar pelo botão ou arrastando-os para o app. A Biblioteca abre automaticamente com o primeiro MIDI novo selecionado, sem a busca ou os filtros anteriores. Um arquivo já importado é selecionado sem duplicação.
 4. Nos 18 MIDIs com perfil revisado, mantenha a revisão aprovada marcada. Use “Gerar lote revisado” para processar os que ainda não foram gerados.
 5. Na aba Melodia, use ▶ na coluna Ouvir para escutar cada fonte isoladamente. Compare as pistas, marque a melodia, clique em “Analisar acordes”, confira/edite as cifras e clique em “Gerar partitura”. Com a revisão aprovada habilitada, é possível ouvir; desmarque essa opção para mudar a seleção manualmente.
-6. Na aba Prévia, clique em “Reproduzir” para ouvir, “Pausar” para continuar depois e “Parar” para voltar ao início. A barra de posição permite avançar ou voltar. “Salvar PDF” exporta todas as páginas e “Salvar MuseScore” salva uma cópia .mscz no local escolhido.
+6. Na aba Prévia, clique em “Reproduzir” para ouvir, “Pausar” para continuar depois e “Parar” para voltar ao início. A barra de posição permite avançar ou voltar. “Salvar PDF” exporta todas as páginas. “Gerar partitura” já salva o arquivo .mscz automaticamente; use “Pasta de saída” para acessá-lo.
 7. Use o botão na parte inferior da barra lateral para alternar entre menus completos e somente ícones. Passe o mouse sobre um ícone para ver o nome do menu.
 8. Escolha seu tema em Configurações. Ao fechar e reabrir, o app restaura suas preferências e sua biblioteca.
 9. Para retirar um item da lista, selecione-o e clique em “Remover da biblioteca”. A última remoção pode ser desfeita enquanto o app estiver aberto. Seus arquivos MIDI e .mscz permanecem nas suas pastas.
@@ -32,7 +32,7 @@ O título vazio usa o nome do MIDI. Subtítulo e autor podem ficar vazios. Com o
 
 Em Configurações, escolha posição fundamental, 1ª inversão ou 2ª inversão como padrão. O padrão inicial continua sendo a 2ª inversão. A escolha vale para os MIDIs importados depois da mudança; os itens existentes mantêm o padrão adotado quando entraram na biblioteca. Nas propriedades, “Padrão adotado” usa essa escolha original, e uma inversão explícita altera somente a partitura selecionada. A mudança afeta os diagramas, preservando as notas da melodia e as cifras.
 
-Uma atualização automática mantém os arquivos gerados anteriormente. Se houver erro, o app informa a pendência e desabilita a reprodução e os botões Salvar PDF e Salvar MuseScore até concluir a atualização. O ZIP também pede que as partituras pendentes sejam atualizadas antes de exportar o lote. “Salvar MuseScore” copia o resultado mais recente, com os diagramas incorporados, sem depender de abrir o editor do MuseScore.
+Uma atualização automática mantém os arquivos gerados anteriormente. Se houver erro, o app informa a pendência e desabilita a reprodução e o botão Salvar PDF até concluir a atualização. O ZIP também pede que as partituras pendentes sejam atualizadas antes de exportar o lote. O arquivo .mscz gerado, com os diagramas incorporados, fica na pasta de saída.
 
 ## Painéis e biblioteca
 
@@ -100,6 +100,6 @@ Para verificar a edição e a persistência das propriedades em janelas WPF, exe
 
 O script histórico tools/prepare_engine.py copia o motor original das ferramentas externas do projeto musical. Ele sobrescreve adaptações posteriores em engine, incluindo a correção de quantização; não o execute para compilar ou atualizar o aplicativo. tools/qa_engine.py verifica os 18 perfis contra o lote original e exercita a conversão de um MIDI novo. A pasta engine já inclui o motor necessário para o aplicativo, sem exigir a regeneração. A ferramenta histórica engine/build_keyboard_diagrams.py é preservada como origem das funções vetoriais reutilizadas pelo motor; executá-la isoladamente requer a partitura piloto na pasta externa partituras.
 
-O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.6.0`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
+O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.6.1`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
 
-Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.6.0, destinada a testes no computador do usuário.
+Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.6.1, destinada a testes no computador do usuário.

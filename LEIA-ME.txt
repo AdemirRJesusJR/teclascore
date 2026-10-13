@@ -1,4 +1,4 @@
-TECLASCORE · PRÉVIA 0.6.0
+TECLASCORE · PRÉVIA 0.6.1
 
 Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 
@@ -19,7 +19,11 @@ Os diagramas são incorporados ao .mscz; uma mudança na cifra dentro do MuseSco
 
 Código-fonte e informações de desenvolvimento estão na pasta software do projeto Partituras de Teclado.
 
-NOVO NA VERSÃO 0.6.0
+NOVO NA VERSÃO 0.6.1
+O botão Salvar MuseScore foi removido da Prévia.
+Gerar partitura já salva o arquivo .mscz automaticamente; use Pasta de saída para acessá-lo.
+
+VERSÃO 0.6.0
 Na aba Prévia, use Propriedades da partitura para editar título, subtítulo, autor e inversão dos diagramas.
 Aplicar e atualizar gera um novo arquivo e recarrega a prévia automaticamente, com a melodia já preparada.
 Em Configurações, escolha a inversão padrão para os novos MIDIs importados; os existentes permanecem iguais.
@@ -27,7 +31,7 @@ As opções são posição fundamental, 1ª e 2ª inversão. A segunda continua 
 Nas propriedades, Padrão adotado usa a inversão que o MIDI recebeu ao entrar na biblioteca.
 Subtítulo automático acompanha a inversão; texto personalizado ou vazio é preservado.
 As propriedades ficam salvas ao fechar o app. As gerações anteriores são mantidas.
-Salvar MuseScore fica ao lado de Salvar PDF e permite escolher onde salvar a cópia .mscz.
+O botão Salvar MuseScore foi introduzido nesta versão e retirado na 0.6.1.
 O botão de geração agora se chama Gerar partitura.
 A biblioteca mantém o fundo do tema durante a conversão, sem a área branca.
 A lista continua bloqueada enquanto o processamento está em andamento.

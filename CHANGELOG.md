@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.6.1 — 12/10/2026
+
+- Removido o botão Salvar MuseScore da aba Prévia, conforme preferência do usuário.
+- Gerar partitura continua salvando o arquivo .mscz automaticamente na pasta de saída.
+
 ## 0.6.0 — 12/10/2026
 
 - Janela Propriedades da partitura para editar título, subtítulo, autor e inversão dos diagramas, com geração e atualização automática da prévia ao aplicar.

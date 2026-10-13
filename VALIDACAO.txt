@@ -1,3 +1,14 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.6.1
+12/10/2026
+
+- Removido o botão Salvar MuseScore da Prévia e o código exclusivo da cópia manual.
+- Build Release .NET 10 / WPF: sem erros ou avisos.
+- Prévia WPF renderizada em 1400 × 900 e 1100 × 740, no tema Grafite, com uma partitura existente. Layout conferido e nenhum erro de binding.
+- Salvar PDF, Abrir no MuseScore e Pasta de saída continuam na barra de ações.
+- Geração automática do arquivo .mscz, motor musical e reprodução não foram alterados; não foram repetidos os testes funcionais dessas operações nesta remoção de interface.
+- DLL validada SHA-256: 38979282f02e004c270ddb1b60aaad53f0bcc16e00e701f9682447a9a2243760.
+
+REGISTRO ANTERIOR — o botão Salvar MuseScore descrito abaixo existia na versão 0.6.0.
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.6.0
 12/10/2026
 

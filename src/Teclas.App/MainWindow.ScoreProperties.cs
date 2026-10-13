@@ -1,6 +1,5 @@
 using System.IO;
 using System.Windows;
-using Microsoft.Win32;
 
 namespace Teclas.App;
 
@@ -75,30 +74,4 @@ public partial class MainWindow
         PersistPreferences();
     }
 
-    private async void SaveMuseScoreClick(object sender, RoutedEventArgs e)
-    {
-        if (!CanExportPdf || CurrentScorePath is not { } source || !CommitEdits()) return;
-        var dialog = new SaveFileDialog
-        {
-            Title = "Salvar partitura no formato MuseScore", Filter = "Partitura MuseScore (*.mscz)|*.mscz",
-            DefaultExt = ".mscz", AddExtension = true, OverwritePrompt = true,
-            FileName = Path.GetFileName(source), InitialDirectory = Path.GetDirectoryName(source)
-        };
-        if (dialog.ShowDialog(this) != true) return;
-        await RunOperation(async () =>
-        {
-            await Task.Run(() => SaveMuseScoreCopy(source, dialog.FileName), cancellation!.Token);
-            Status = "Partitura MuseScore salva em " + dialog.FileName;
-        });
-    }
-
-    internal static void SaveMuseScoreCopy(string source, string destination)
-    {
-        source = Path.GetFullPath(source); destination = Path.GetFullPath(destination);
-        if (string.Equals(source, destination, StringComparison.OrdinalIgnoreCase)) return;
-        // Copy first, then replace atomically, so a failed write leaves an existing destination intact.
-        string temporary = Path.Combine(Path.GetDirectoryName(destination)!, ".teclascore-" + Guid.NewGuid().ToString("N") + ".tmp");
-        try { File.Copy(source, temporary); File.Move(temporary, destination, true); }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
-    }
 }
