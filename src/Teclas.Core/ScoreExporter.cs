@@ -77,6 +77,8 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
 
     public async Task<ScoreAudio> PrepareAudioAsync(string scorePath, IProgress<string>? progress, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+        progress?.Report("Conferindo a partitura e procurando um áudio já preparado…");
         ValidateScore(scorePath);
         Directory.CreateDirectory(cacheDirectory);
         string hash;
@@ -87,22 +89,31 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         string audioPath = Path.Combine(cacheDirectory, $"{hash}-{renderer}-pcm16.wav");
         if (File.Exists(audioPath))
         {
-            try { return new(audioPath, ReadWaveInfo(audioPath).Duration); }
+            try
+            {
+                var info = ReadWaveInfo(audioPath);
+                token.ThrowIfCancellationRequested();
+                progress?.Report("Áudio já preparado encontrado. Conferindo a reprodução…");
+                return new(audioPath, info.Duration);
+            }
             catch (Exception ex) when (ex is IOException or InvalidDataException) { TryDelete(audioPath); }
         }
         string raw = Path.Combine(cacheDirectory, ".render-" + Guid.NewGuid().ToString("N") + ".wav");
         string prepared = Path.Combine(cacheDirectory, ".audio-" + Guid.NewGuid().ToString("N") + ".wav");
         try
         {
-            progress?.Report("Preparando o áudio da partitura em segundo plano…");
+            progress?.Report("Gerando o áudio da partitura no MuseScore…");
             await ExportAsync(scorePath, raw, token);
+            progress?.Report("Preparando o áudio para o reprodutor do Windows…");
             var info = await Task.Run(() => ConvertToPcm16(raw, prepared, token), token);
+            progress?.Report("Conferindo se o áudio corresponde à partitura atual…");
             await using (var source = File.OpenRead(scorePath))
             {
                 string currentHash = Convert.ToHexString(await SHA256.HashDataAsync(source, token));
                 if (currentHash != hash) throw new IOException("A partitura foi alterada durante a preparação do áudio. Tente reproduzir novamente.");
             }
             token.ThrowIfCancellationRequested();
+            progress?.Report("Salvando o áudio preparado para as próximas reproduções…");
             File.Move(prepared, audioPath, true);
             return new(audioPath, info.Duration);
         }
@@ -111,6 +122,8 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
 
     public async Task ExportPdfAsync(string scorePath, string destination, IProgress<string>? progress, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+        progress?.Report("Conferindo a partitura e o destino do PDF…");
         ValidateScore(scorePath);
         if (!Path.IsPathFullyQualified(destination) || !string.Equals(Path.GetExtension(destination), ".pdf", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Escolha um arquivo PDF com caminho completo.");
@@ -123,6 +136,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         {
             progress?.Report("Exportando todas as páginas para PDF…");
             await ExportAsync(scorePath, temporary, token);
+            progress?.Report("Conferindo o PDF gerado…");
             await using (var stream = File.OpenRead(temporary))
             {
                 byte[] header = new byte[5];
@@ -131,6 +145,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
                     throw new InvalidDataException("O MuseScore não produziu um PDF válido. O arquivo anterior foi preservado.");
             }
             token.ThrowIfCancellationRequested();
+            progress?.Report("Salvando o PDF no destino escolhido…");
             File.Move(temporary, destination, true);
         }
         finally { TryDelete(temporary); }

@@ -1,4 +1,14 @@
-TECLASCORE · PRÉVIA 0.9.2
+TECLASCORE · PRÉVIA 0.10.0
+
+NOVO NA VERSÃO 0.10.0
+Um painel animado informa a operação, o arquivo, a etapa atual e o tempo decorrido.
+Ele aparece ao importar, preparar áudio, analisar notas e acordes, gerar/atualizar partituras e salvar PDF ou ZIP.
+Importações e lotes mostram quantos arquivos já foram processados. Nas outras etapas, a barra é animada.
+Use Cancelar operação para interromper; aguarde o painel desaparecer antes de tentar novamente.
+A reprodução só começa depois que a preparação termina. Cancelar impede que o áudio comece depois.
+Arquivos MuseScore importados também mostram o andamento da preparação e das melhorias de apresentação.
+Na Revisão guiada, Ouvir compasso mostra a preparação; Parar ou Fechar cancelam a escuta pendente.
+Os arquivos originais e as versões anteriores permanecem preservados.
 
 NOVO NA VERSÃO 0.9.2
 Ao trocar a pista de melodia, Gerar partitura refaz a análise necessária e cria uma nova cópia automaticamente.

@@ -201,7 +201,10 @@ public partial class App : Application
             }
             return Task.CompletedTask;
         };
-        var operation = (Task)runOperation.Invoke(window, [applyResult, row])!;
+        var operation = (Task)runOperation.Invoke(window, [applyResult, row, "Preparando prévia", null])!;
+        var wait = Stopwatch.StartNew();
+        while (!operation.IsCompleted && wait.Elapsed < TimeSpan.FromSeconds(5))
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         if (!operation.IsCompletedSuccessfully || window.CurrentFilter != "all"
             || !ReferenceEquals(window.SelectedFile, row) || !window.IsIdle)
             throw new InvalidOperationException("A conclusão da conversão perdeu a seleção do editor filtrado.");

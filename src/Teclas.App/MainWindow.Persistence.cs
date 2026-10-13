@@ -230,7 +230,7 @@ public partial class MainWindow
         if (!persistenceEnabled) return;
         if (busy)
         {
-            cancellation?.Cancel(); e.Cancel = true;
+            RequestOperationCancellation(); e.Cancel = true;
             Status = "Cancelando. Aguarde o término antes de fechar e salvar sua sessão.";
             return;
         }

@@ -66,7 +66,7 @@ public partial class MainWindow
         {
             await Generate(row);
             EditorTabs.SelectedIndex = 2;
-        }, row);
+        }, row, "Atualizando propriedades da partitura");
         PersistPreferences();
     }
 

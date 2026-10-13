@@ -19,6 +19,9 @@ module=ast.parse((WORK/'build_keyboard_diagrams.py').read_text(encoding='utf8'))
 exec(compile(ast.Module(body=[n for n in module.body if isinstance(n,ast.FunctionDef) and n.name in ('md4','svg_keyboard')],type_ignores=[]),'diagram_helpers','exec'))
 NS='{http://www.w3.org/2000/svg}';E.register_namespace('',NS[1:-1])
 
+def progress(message):
+    print(json.dumps({'kind':'progress','message':message},ensure_ascii=False),flush=True)
+
 class NeedsReview(Exception):
     def __init__(self,message,quarters=None,kind='rhythm_collision'):
         super().__init__(message)
@@ -510,6 +513,7 @@ def high_melody_layout(part,lines):
     return result
 
 def build_musicxml(parsed,config,harmony,out,title):
+    progress('Organizando a melodia e conferindo a duração das notas…')
     inversion=diagram_inversion(config.get('diagram_inversion'))
     event_inversions=[chord_diagram_inversion(chord,inversion) for chord in harmony['events']]
     custom_diagrams=any(value!=inversion for value in event_inversions)
@@ -558,6 +562,7 @@ def build_musicxml(parsed,config,harmony,out,title):
     chords=sorted(unique_chords.values(),key=lambda c:c['tick'])
     if not chords:raise NeedsReview('Nenhuma cifra suficientemente apoiada pelas notas do acompanhamento.')
     if len(chords)>len(bars)*3:raise NeedsReview('Harmonia excessivamente densa; revisar detecção de acordes.')
+    progress('Distribuindo notas e cifras pelos compassos e páginas…')
     # A large custom heading consumes first-page space. Rebalance page breaks,
     # retaining the same systems and events, instead of compressing the music.
     first_capacity=max(3,7-max(0,math.ceil((header['height']-16)/16)))
@@ -663,7 +668,14 @@ def keyboard_asset(rootpc,quality,inversion=2):
     return md4(data)+'.svg',data,pitches
 
 def call_musescore(args,log,timeout=90):
-    print(json.dumps({'kind':'progress','message':'MuseScore: '+log.stem.replace('_',' ')+'…'},ensure_ascii=False),flush=True)
+    messages={
+        'importacao':'Criando a partitura no formato MuseScore…',
+        'gravacao':'Salvando a partitura com os diagramas de teclado…',
+        'render':'Gerando as páginas da prévia para conferência…',
+        'ajuste_paginacao':'Reorganizando as quebras de página…',
+        'ajuste_espacamento':'Aplicando ajustes de espaço entre cifras e diagramas…',
+    }
+    progress(messages.get(log.stem,'Processando a partitura no MuseScore…'))
     p=subprocess.run([EXE]+args,capture_output=True,text=True,errors='replace',timeout=timeout)
     log.write_text(p.stdout+'\n'+p.stderr,encoding='utf8')
     if p.returncode:raise NeedsReview(f'MuseScore retornou {p.returncode}; veja {log.name}.')
@@ -672,6 +684,7 @@ def page_order(path):return int(path.stem.rsplit('-',1)[-1])
 
 def repair_orphan_pages(final,report,out):
     """Release planned page breaks when wider music creates an orphan interior page."""
+    progress('Conferindo a distribuição da música entre as páginas…')
     pages=[analyze_svg(p) for p in sorted(out.glob('qa-*.svg'),key=page_order)]
     if not any(len(page['rows'])<=1 for page in pages[1:-1]):return
     with zipfile.ZipFile(final) as archive:contents={name:archive.read(name) for name in archive.namelist()}
@@ -715,6 +728,7 @@ def repair_spacing(final,report,out):
     """Use the rendered geometry to reserve space, preserving musical content."""
     history=[];compacted=set()
     for attempt in range(10):
+        progress(f'Conferindo margens e diagramas — verificação {attempt+1} de até 10…')
         pages=[analyze_svg(p) for p in sorted(out.glob('qa-*.svg'),key=page_order)]
         offset=0;image_add=defaultdict(float);end_add=defaultdict(float);move_image=defaultdict(float);problems=0
         for page in pages:
@@ -852,6 +866,7 @@ def convert_score(xml,report,out,filename):
         n.text=val
     st=out/'estilo.mss';E.ElementTree(style).write(st,encoding='utf-8',xml_declaration=True)
     initial=out/'melodia_importada.mscz';call_musescore(['-S',str(st),'-o',str(initial),str(xml)],out/'importacao.log')
+    progress('Inserindo os diagramas de teclado junto às cifras…')
     with zipfile.ZipFile(initial) as z:contents={n:z.read(n) for n in z.namelist()}
     name=next(n for n in contents if n.endswith('.mscx'));root=E.fromstring(contents[name]);harmonies=root.findall('.//Harmony')
     if len(harmonies)!=len(report['chords']):raise NeedsReview(f'MuseScore importou {len(harmonies)} cifras de {len(report["chords"])}.')
@@ -921,6 +936,7 @@ def convert_score(xml,report,out,filename):
     (out/'render.json').write_text(json.dumps(job),encoding='utf8');call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
     repair_orphan_pages(final,report,out)
     repair_spacing(final,report,out)
+    progress('Conferindo notas, ritmos e diagramas na partitura salva…')
     with zipfile.ZipFile(final) as z:
         native=E.fromstring(z.read(next(n for n in z.namelist() if n.endswith('.mscx'))))
         assert len(native.findall('Score/Staff'))==1
@@ -945,6 +961,7 @@ def convert_score(xml,report,out,filename):
     assert len(reopened.findall('part/measure'))==report['measures']
     assert allnotes==[(n['start'],n['pitch']) for n in report['notes']],'Melody changed during MuseScore import'
     assert len(reopened.findall('.//grace'))==report['melody_analysis']['grace_notes_preserved']
+    progress('Preparando as miniaturas e a prévia da partitura…')
     pages=sorted(out.glob('pagina-*.png'),key=page_order);assert pages
     columns=min(3,len(pages));rows=math.ceil(len(pages)/columns)
     canvas=Image.new('RGB',(columns*350,rows*525),'#dedede');draw=ImageDraw.Draw(canvas)
@@ -959,7 +976,9 @@ def prepare(config):
     score_metadata(config,title);diagram_inversion(config.get('diagram_inversion'))
     index=config['index'];stem=f'{index+1:03d} - '+re.sub(r'[<>:"/\\|?*]','',title)[:83].rstrip(' .')
     out=BATCH/f'{index+1:03d}';out.mkdir(exist_ok=True)
+    progress('Lendo as notas da pista selecionada…')
     parsed=parse_midi(config['source_path'])
+    progress('Preparando a tonalidade e os acordes da partitura…')
     harmony=analyze_harmony(parsed,config['melody_sources'])
     for overridefile in WORK.glob('batch_harmony_overrides*.json'):
         entries=json.loads(overridefile.read_text(encoding='utf8'))
@@ -994,6 +1013,7 @@ def prepare(config):
     report['triage']=config
     suffix='posicoes personalizadas' if report['custom_diagram_inversions'] else ('posicao fundamental','1a inversao','2a inversao')[report['diagram_inversion']]
     final=convert_score(xml,report,out,stem+' - cifras '+suffix)
+    progress('Salvando o resultado da conferência musical e visual…')
     (out/'validacao.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
     return {'index':index,'filename':config['filename'],'status':'generated_pending_visual_review','path':str(final),'preview':str(out/'previa-geral.png'),'pages':report['pages'],'measures':report['measures'],'notes':report['melody_attacks_verified'],'harmony_warnings':harmony.get('warnings',[])}
 

@@ -32,18 +32,22 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
     {
         token.ThrowIfCancellationRequested();
         path = Path.GetFullPath(path);
+        progress?.Report("Lendo a partitura MuseScore e conferindo seu conteúdo…");
         byte[] originalHash = await HashAsync(path, token);
         var source = await Task.Run(() => NativeScoreArchive.Read(path), token);
-        string fingerprint = source.MusicalFingerprint();
+        string fingerprint = await Task.Run(source.MusicalFingerprint, token);
+        token.ThrowIfCancellationRequested();
         string job = CreateJob(outputDirectory, path, "prévia");
         string snapshot = Path.Combine(job, SafeName(path) + " - original.mscz");
         try
         {
             // The library's first version must survive moving or editing the user's source later.
+            progress?.Report("Preservando uma cópia da partitura original na biblioteca…");
             await Task.Run(() => File.Copy(path, snapshot, overwrite: false), token);
             await CheckSourceAsync(snapshot, originalHash, token);
             progress?.Report("Abrindo todas as páginas da partitura MuseScore…");
             var pages = await new ScoreExporter(museScorePath, cacheDirectory).ExportPreviewAsync(snapshot, Path.Combine(job, "pagina.png"), token);
+            progress?.Report("Conferindo o arquivo original e finalizando a importação…");
             await CheckSourceAsync(path, originalHash, token);
             return new(snapshot, pages, source.Metadata, fingerprint);
         }
@@ -56,11 +60,13 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
         token.ThrowIfCancellationRequested();
         ValidateOptions(options);
         path = Path.GetFullPath(path);
+        progress?.Report("Lendo a partitura e registrando notas, ritmos, cifras e diagramas…");
         byte[] originalHash = await HashAsync(path, token);
         var source = await Task.Run(() => NativeScoreArchive.Read(path), token);
         if (options.RedistributeSystems && source.Metadata.ImageCount > 0)
             throw new InvalidOperationException("Esta partitura contém diagramas ou imagens. Mantenha as quebras existentes para evitar imagens cortadas; margens, fontes e cabeçalho continuam disponíveis.");
-        string fingerprint = source.MusicalFingerprint();
+        string fingerprint = await Task.Run(source.MusicalFingerprint, token);
+        token.ThrowIfCancellationRequested();
         string job = CreateJob(outputDirectory, path, "revisada");
         string prepared = Path.Combine(job, ".preparada.mscz");
         string rendered = Path.Combine(job, ".validando.mscz");
@@ -68,18 +74,29 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
         try
         {
             progress?.Report("Ajustando margens, fontes e espaçamento da nova cópia…");
-            ApplyLayout(source, options);
-            if (source.MusicalFingerprint() != fingerprint)
-                throw new InvalidDataException("O ajuste de apresentação modificou conteúdo musical. A operação foi interrompida e o original permanece intacto.");
-            source.Save(prepared);
+            await Task.Run(() =>
+            {
+                ApplyLayout(source, options);
+                token.ThrowIfCancellationRequested();
+                if (source.MusicalFingerprint() != fingerprint)
+                    throw new InvalidDataException("O ajuste de apresentação modificou conteúdo musical. A operação foi interrompida e o original permanece intacto.");
+                token.ThrowIfCancellationRequested();
+                source.Save(prepared);
+            }, token);
+            token.ThrowIfCancellationRequested();
             var exporter = new ScoreExporter(museScorePath, cacheDirectory);
             progress?.Report("Conferindo a cópia no MuseScore e preservando notas, ritmos, cifras e diagramas…");
             await exporter.ExportNativeAsync(prepared, rendered, token);
+            progress?.Report("Verificando se a cópia preservou a música e o cabeçalho…");
             var final = await Task.Run(() => NativeScoreArchive.Read(rendered), token);
-            if (final.MusicalFingerprint() != fingerprint)
+            string finalFingerprint = await Task.Run(final.MusicalFingerprint, token);
+            token.ThrowIfCancellationRequested();
+            if (finalFingerprint != fingerprint)
                 throw new InvalidDataException("O MuseScore alterou uma estrutura da partitura ao salvá-la. A revisão não foi publicada; o arquivo original foi preservado. Abra e salve uma cópia no MuseScore antes de tentar novamente.");
             ValidateMetadata(final.Metadata, source.Metadata);
+            progress?.Report("Gerando todas as páginas da partitura revisada…");
             var pages = await exporter.ExportPreviewAsync(rendered, Path.Combine(job, "pagina.png"), token);
+            progress?.Report("Conferindo o arquivo original e salvando a versão revisada…");
             await CheckSourceAsync(path, originalHash, token);
             token.ThrowIfCancellationRequested();
             File.Move(rendered, destination); // New unique destination; no overwrite of any approved version.

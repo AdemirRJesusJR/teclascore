@@ -75,14 +75,16 @@ public partial class MainWindow
         }
     }
 
-    private string PlayReviewMeasure(MidiRow row, ScoreReviewPoint point, TrackRow track, double speed)
+    private async Task<string> PlayReviewMeasure(MidiRow row, ScoreReviewPoint point, TrackRow track, double speed, CancellationToken token)
     {
         if (row.Document is not { } document || !row.Tracks.Contains(track)) return "A fonte MIDI não está disponível.";
         StopTrackAudition(); ResetPlayback();
         try
         {
-            var sequence = MidiAuditionSequence.Create(document, track.Source.Key, trimLeadingSilence: false)
-                .Until(ReviewRegionEnd(row, point));
+            var sequence = await Task.Run(() => MidiAuditionSequence.Create(document, track.Source.Key, trimLeadingSilence: false)
+                .Until(ReviewRegionEnd(row, point)), token);
+            token.ThrowIfCancellationRequested();
+            if (trackAuditionDisposed || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
             var start = ReviewTimeAtQuarter(document, point.MeasureStartQuarter);
             if (start >= sequence.Duration) return "Esta pista já terminou antes deste compasso. Escolha outra pista.";
             auditionMidi = row; auditionTrack = track; track.IsAuditioning = true;
@@ -92,7 +94,14 @@ public partial class MainWindow
             return $"Ouvindo compasso {point.Measure} · pista {track.Track}, canal {track.Channel} · velocidade {speed:P0}."
                 + (sequence.Warnings.Count == 0 ? "" : " " + string.Join(" ", sequence.Warnings));
         }
-        catch (Exception error) { TrackAuditionFailed(error.Message); return "Não foi possível reproduzir o compasso. " + error.Message; }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception error)
+        {
+            token.ThrowIfCancellationRequested();
+            if (trackAuditionDisposed) throw new OperationCanceledException();
+            TrackAuditionFailed(error.Message);
+            return "Não foi possível reproduzir o compasso. " + error.Message;
+        }
     }
 
     private static TimeSpan ReviewRegionEnd(MidiRow row, ScoreReviewPoint point) =>

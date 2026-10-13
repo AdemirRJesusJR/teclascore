@@ -32,9 +32,11 @@ public sealed class ReviewWindow : Window
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(25) };
     private readonly Action stop;
     private TimeSpan regionEnd;
+    private CancellationTokenSource? preparation;
+    private bool closed;
     public ScoreReviewPoint? ChordToEdit { get; private set; }
 
-    public ReviewWindow(MidiRow row, Func<MidiRow, ScoreReviewPoint, TrackRow, double, string> play,
+    public ReviewWindow(MidiRow row, Func<MidiRow, ScoreReviewPoint, TrackRow, double, CancellationToken, Task<string>> play,
         Action stop, Func<TimeSpan> position, Func<bool> playing, Func<ScoreReviewPoint, TrackRow, TimeSpan> end)
     {
         this.stop = stop;
@@ -80,16 +82,63 @@ public sealed class ReviewWindow : Window
         var close = MakeButton("Fechar", "ReviewCloseButton"); close.IsCancel = true;
         playback.Children.Add(sources); playback.Children.Add(speeds); playback.Children.Add(listen); playback.Children.Add(stopButton); playback.Children.Add(chord); playback.Children.Add(close);
         controls.Children.Add(playback);
+        var preparationProgress = new ProgressBar
+        {
+            Name = "ReviewPreparationProgress", IsIndeterminate = true, Height = 5,
+            Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 9)
+        };
+        preparationProgress.SetResourceReference(ForegroundProperty, "Accent");
+        preparationProgress.SetResourceReference(BackgroundProperty, "ChartTrack");
+        System.Windows.Automation.AutomationProperties.SetName(preparationProgress, "Preparando áudio do compasso");
+        controls.Children.Add(preparationProgress);
         status = new TextBlock { Text = "Escolha um ponto e ouça com velocidade reduzida. A escuta conserva o tom do MIDI original.", FontSize = 12, TextWrapping = TextWrapping.Wrap };
         status.SetResourceReference(ForegroundProperty, "Muted"); controls.Children.Add(status);
         Grid.SetRow(controls, 2); grid.Children.Add(controls); Content = grid;
-        listen.Click += (_, _) =>
+        listen.Click += async (_, _) =>
         {
-            if (points.SelectedItem is not ScoreReviewPoint point || sources.SelectedValue is not TrackRow track || speeds.SelectedValue is not double speed) return;
-            StopRegion(); regionEnd = end(point, track); status.Text = play(row, point, track, speed);
-            if (playing()) timer.Start();
+            if (closed || preparation is not null || points.SelectedItem is not ScoreReviewPoint point || sources.SelectedValue is not TrackRow track || speeds.SelectedValue is not double speed) return;
+            StopRegion();
+            var request = new CancellationTokenSource();
+            preparation = request;
+            RefreshSelection();
+            status.Text = $"Preparando compasso {point.Measure} · pista {track.Track}, canal {track.Channel}…";
+            try
+            {
+                await System.Windows.Threading.Dispatcher.Yield(DispatcherPriority.Background);
+                request.Token.ThrowIfCancellationRequested();
+                regionEnd = end(point, track);
+                var message = await play(row, point, track, speed, request.Token);
+                request.Token.ThrowIfCancellationRequested();
+                if (!closed)
+                {
+                    status.Text = message;
+                    if (playing()) timer.Start();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                if (!closed)
+                {
+                    stop();
+                    status.Text = "Preparação cancelada. Você pode ouvir novamente ou escolher outro compasso.";
+                }
+            }
+            catch (Exception error)
+            {
+                if (!closed)
+                {
+                    stop();
+                    status.Text = "Não foi possível preparar o compasso. " + error.Message;
+                }
+            }
+            finally
+            {
+                if (ReferenceEquals(preparation, request)) preparation = null;
+                request.Dispose();
+                if (!closed) RefreshSelection();
+            }
         };
-        stopButton.Click += (_, _) => { StopRegion(); status.Text = "Reprodução parada."; };
+        stopButton.Click += (_, _) => { StopRegion(); status.Text = preparation is null ? "Reprodução parada." : "Cancelando a preparação do compasso…"; };
         chord.Click += (_, _) => { if (points.SelectedItem is ScoreReviewPoint point) { ChordToEdit = point; Close(); } };
         close.Click += (_, _) => Close();
         points.SelectionChanged += (_, _) =>
@@ -106,20 +155,23 @@ public sealed class ReviewWindow : Window
         {
             if (!playing() || position() >= regionEnd) { StopRegion(); status.Text = "Compasso concluído. Você pode ouvi-lo novamente ou conferir outro ponto."; }
         };
-        Closed += (_, _) => StopRegion();
+        Closed += (_, _) => { closed = true; StopRegion(); };
         SourceInitialized += (_, _) => ApplyNativeTheme();
         RefreshSelection();
         void RefreshSelection()
         {
-            listen.IsEnabled = points.SelectedItem is ScoreReviewPoint && sources.SelectedValue is TrackRow;
-            chord.IsEnabled = points.SelectedItem is ScoreReviewPoint && row.Chords.Count > 0;
+            bool idle = preparation is null;
+            preparationProgress.Visibility = idle ? Visibility.Collapsed : Visibility.Visible;
+            points.IsEnabled = sources.IsEnabled = speeds.IsEnabled = idle;
+            listen.IsEnabled = idle && points.SelectedItem is ScoreReviewPoint && sources.SelectedValue is TrackRow;
+            chord.IsEnabled = idle && points.SelectedItem is ScoreReviewPoint && row.Chords.Count > 0;
         }
         bool ActiveAtPoint(TrackRow track, ScoreReviewPoint? point) => point is not null && row.Document is { } document &&
             document.Notes.Any(note => note.Track == track.Source.Key.Track && note.Channel == track.Source.Key.Channel && note.Program == track.Source.Key.Program
                 && note.Start < point.MeasureEndQuarter * document.Ppq && note.End > point.MeasureStartQuarter * document.Ppq);
     }
 
-    private void StopRegion() { timer.Stop(); stop(); }
+    private void StopRegion() { preparation?.Cancel(); timer.Stop(); stop(); }
     private static Button MakeButton(string text, string name) => new()
         { Name = name, Content = text, MinHeight = 34, Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 8) };
     private sealed record ReviewSource(TrackRow Track) { public string Label => $"Pista {Track.Track} · canal {Track.Channel} · {Track.Instrument}"; }

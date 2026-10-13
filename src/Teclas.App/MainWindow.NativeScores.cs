@@ -21,7 +21,7 @@ public partial class MainWindow
     private async Task PrepareNativePreview(MidiRow row)
     {
         var service=new ScoreEditingService(MuseScorePath,LocalJobsDirectory);
-        var result=await service.ImportAsync(row.FullPath,LocalJobsDirectory,new Progress<string>(message=>Status=message),cancellation!.Token);
+        var result=await service.ImportAsync(row.FullPath,LocalJobsDirectory,CreateOperationProgress(),cancellation!.Token);
         row.ScorePath=result.Path;row.PreviewPath=result.PreviewPages.FirstOrDefault();row.PageCount=result.PreviewPages.Count;
         row.HasOperationError=false;row.Status="Importada · "+row.PageCountText;RememberVersion(row);
     }
@@ -37,12 +37,12 @@ public partial class MainWindow
         {
             if(!Path.IsPathFullyQualified(OutputDirectory))throw new InvalidOperationException("Escolha uma pasta de saída nas Configurações.");
             ResetPlayback();
-            var result=await new ScoreEditingService(MuseScorePath,LocalJobsDirectory).ImproveAsync(score,OutputDirectory,dialog.Options,new Progress<string>(message=>Status=message),cancellation!.Token);
+            var result=await new ScoreEditingService(MuseScorePath,LocalJobsDirectory).ImproveAsync(score,OutputDirectory,dialog.Options,CreateOperationProgress(),cancellation!.Token);
             row.ScorePath=result.Path;row.PreviewPath=result.PreviewPages.FirstOrDefault();row.PageCount=result.PreviewPages.Count;row.GeneratedAt=DateTimeOffset.Now;
             row.ScoreTitle=result.Metadata.Title;row.ScoreSubtitle=result.Metadata.Subtitle;row.ScoreComposer=result.Metadata.Composer;row.ScoreArtist=result.Metadata.Artist;
             row.HasPendingScoreProperties=false;row.HasOperationError=false;row.Status="Apresentação atualizada · "+row.PageCountText;
             RememberVersion(row);EditorTabs.SelectedIndex=2;Status="Nova cópia salva. Abra o Histórico para comparar com a original.";
-        },row);
+        },row,"Melhorando apresentação da partitura");
         PersistPreferences();
     }
     private void UpdatesClick(object sender,RoutedEventArgs e)=>new UpdateWindow(PythonPath,MuseScorePath){Owner=this}.ShowDialog();

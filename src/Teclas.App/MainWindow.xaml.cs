@@ -64,6 +64,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         settings=Settings.Load(settingsPath);
         ThemeManager.Apply(settings.ThemeId);
         InitializeComponent();
+        InitializeOperations();
         InitializePlayback();
         Closed+=(_,_)=>DisposePlayback();
         InitializeTrackAudition(midiOutputFactory);
@@ -134,16 +135,20 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     {
         var list=paths.Where(p=>new[]{".mid",".midi",".kar",".mscz"}.Contains(Path.GetExtension(p).ToLowerInvariant())).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         int imported=0;
+        int processed=0;
+        SetOperationItems(0,list.Length);
         MidiRow? firstImported=null,firstExisting=null;
         foreach(var path in list)
         {
             cancellation!.Token.ThrowIfCancellationRequested();
+            SetOperationItems(processed,list.Length,Path.GetFileName(path));
             var existing=Files.FirstOrDefault(f=>string.Equals(f.FullPath,Path.GetFullPath(path),StringComparison.OrdinalIgnoreCase));
-            if(existing is not null){firstExisting??=existing;continue;}
+            if(existing is not null){firstExisting??=existing;SetOperationItems(++processed,list.Length);continue;}
             Status="Lendo "+Path.GetFileName(path)+"…";
             MidiRow row;
             try{row=await Task.Run(()=>LoadMidi(path),cancellation.Token);}
             catch(Exception ex) when(ex is IOException or InvalidDataException or OverflowException){row=new(){FullPath=Path.GetFullPath(path),Status="Não foi possível ler: "+ex.Message};}
+            cancellation.Token.ThrowIfCancellationRequested();
             Files.Add(row);firstImported??=row;
             if(row.IsNativeScore && row.NativeSourceSha256 is not null)
             {
@@ -152,6 +157,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
                 catch(Exception ex){row.HasOperationError=true;row.Status="Partitura importada · prévia indisponível: "+ex.Message;}
             }
             imported++;
+            SetOperationItems(++processed,list.Length);
         }
         Status=imported>0?$"{imported} arquivos importados. Abra a prévia das partituras ou prepare os MIDIs.":firstExisting is not null?"Este arquivo já está na biblioteca.":"Nenhum MIDI ou arquivo MuseScore foi selecionado.";
         Notify(nameof(FileCountText));
@@ -161,7 +167,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     {
         if(busy || !CommitEdits())return;
         MidiRow? importedSelection=null;
-        await RunOperation(async()=>{importedSelection=await ImportAsync(paths);});
+        await RunOperation(async()=>{importedSelection=await ImportAsync(paths);}, operationTitle:"Importando para a biblioteca");
         if(importedSelection is null)return;
         // Select after RunOperation releases busy state, so stale filters are refreshed first.
         SearchText="";CurrentFilter="all";FavoritesOnly=false;CollectionFilter="";
@@ -170,18 +176,26 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         EditorTabs.SelectedIndex=importedSelection.IsNativeScore?2:0;
         Library.ScrollIntoView(importedSelection);
     }
-    private async Task RunOperation(Func<Task> action, MidiRow? rowOnError=null)
+    private async Task RunOperation(Func<Task> action, MidiRow? rowOnError=null, string operationTitle="Processando", string? operationItem=null)
     {
-        if(busy)return;cancellation=new();SetBusy(true);
-        try{await action();}
-        catch(OperationCanceledException){Status="Operação cancelada. Os MIDIs originais foram preservados.";if(rowOnError is not null)rowOnError.Status="Operação cancelada · tente novamente quando desejar";}
+        if(busy || operationsDisposed)return;cancellation=new();SetBusy(true);BeginOperation(operationTitle,operationItem??rowOnError?.Name);
+        try
+        {
+            // Let bindings, layout and animation render before any synchronous preparation.
+            await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+            OperationCancelButton.Focus();
+            cancellation.Token.ThrowIfCancellationRequested();
+            await action();
+        }
+        catch(OperationCanceledException){Status="Operação cancelada. Os arquivos originais foram preservados.";if(rowOnError is not null)rowOnError.Status="Operação cancelada · tente novamente quando desejar";}
         catch(Exception ex){Status=ex.Message;if(rowOnError is { } row){row.Status="Precisa de revisão: "+ex.Message;row.HasOperationError=true;}}
         finally
         {
             // Keep the result in the editor when an operation moves it to another category.
             if(rowOnError is not null && selectedFile==rowOnError && !MatchesLibraryFilter(rowOnError))
             {SearchText="";CurrentFilter="all";FavoritesOnly=false;CollectionFilter="";}
-            cancellation.Dispose();cancellation=null;SetBusy(false);RefreshSelection();PersistPreferences();
+            cancellation.Dispose();cancellation=null;SetBusy(false);EndOperation();
+            if(!operationsDisposed){RefreshSelection();PersistPreferences();}
         }
     }
     private void ValidateSettings(bool generating)
@@ -200,7 +214,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         var request=new JsonObject{["mode"]="analyze",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["useReviewedProfile"]=row.UseReviewedProfile,["melodySources"]=Sources(row)};
         row.Status="Analisando acordes…";
         var client=new EngineClient(PythonPath,engineDirectory);
-        var result=await client.RunAsync(request,row.Workspace,new Progress<string>(text=>Status=text),cancellation!.Token);
+        var result=await client.RunAsync(request,row.Workspace,CreateOperationProgress(),cancellation!.Token);
         ParseReviewPoints(row,JsonSerializer.SerializeToElement(result));
         row.AnalysisPath=result["analysisPath"]!.GetValue<string>();row.KeyFifths=result["keyFifths"]!.GetValue<int>();row.KeyMinor=result["keyMinor"]!.GetValue<bool>();
         var previousPositions=row.Chords.Where(c=>c.DiagramInversion is not null).ToArray();
@@ -234,7 +248,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         row.Status="Gerando e conferindo no MuseScore…";
         request["transposeSemitones"]=row.TransposeSemitones;
         request["scoreArtist"]=row.ScoreArtist;
-        var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace!,new Progress<string>(text=>Status=text),cancellation!.Token);
+        var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace!,CreateOperationProgress(),cancellation!.Token);
         row.ScorePath=result["scorePath"]!.GetValue<string>();row.PreviewPath=result["previewPath"]!.GetValue<string>();
         row.PageCount=result["pages"]!.GetValue<int>();row.GeneratedAt=DateTimeOffset.Now;row.HasOperationError=false;row.HasPendingScoreProperties=false;
         row.Status=$"Gerada · {row.PageCount} páginas";Status=result["message"]!.GetValue<string>();RememberVersion(row);RefreshSelection();
@@ -271,12 +285,12 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     }
     private void SelectedChordsChanged(object? sender,System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {Notify(nameof(CanCustomizeDiagrams));Notify(nameof(ScorePropertiesSummary));}
-    private async void AnalyzeClick(object sender,RoutedEventArgs e){if(selectedFile is { } row)await RunOperation(async()=>{await Analyze(row);EditorTabs.SelectedIndex=1;},row);}
+    private async void AnalyzeClick(object sender,RoutedEventArgs e){if(selectedFile is { } row)await RunOperation(async()=>{await Analyze(row);EditorTabs.SelectedIndex=1;},row,"Analisando notas e acordes");}
     private async void GenerateClick(object sender,RoutedEventArgs e)
     {
         if(!CommitEdits())return;
         if(selectedFile?.IsNativeScore==true){ImproveNativeScoreClick(sender,e);return;}
-        if(selectedFile is { } row)await RunOperation(async()=>{await Generate(row);EditorTabs.SelectedIndex=2;},row);
+        if(selectedFile is { } row)await RunOperation(async()=>{await Generate(row);EditorTabs.SelectedIndex=2;},row,"Gerando partitura");
     }
     private bool CommitEdits()
     {
@@ -298,15 +312,18 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         SearchText="";CurrentFilter="all";
         await RunOperation(async()=>{
             int complete=0,failed=0;
+            SetOperationItems(0,rows.Length);
             foreach(var row in rows)
             {
                 cancellation!.Token.ThrowIfCancellationRequested();Library.SelectedItem=row;
+                SetOperationItems(complete+failed,rows.Length,row.Name);
                 try{await Generate(row);complete++;}
                 catch(OperationCanceledException){row.Status="Operação cancelada · lote interrompido";throw;}
                 catch(Exception ex){failed++;row.Status="Revisar: "+ex.Message;row.HasOperationError=true;}
+                SetOperationItems(complete+failed,rows.Length);
             }
             Status=$"Lote concluído: {complete} partituras geradas; {failed} precisam de revisão.";
-        });
+        },operationTitle:"Gerando partituras em lote");
     }
     private async void ZipClick(object sender,RoutedEventArgs e)
     {
@@ -318,6 +335,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         var dialog=new SaveFileDialog{Title="Salvar pacote",Filter="Pacote ZIP|*.zip",FileName="Partituras de teclado.zip",OverwritePrompt=true};
         if(dialog.ShowDialog(this)!=true)return;
         await RunOperation(async()=>{
+            Status="Reunindo as partituras no pacote ZIP…";
             await Task.Run(()=>{
                 string temporary=Path.Combine(Path.GetDirectoryName(dialog.FileName)!,".teclas-"+Guid.NewGuid().ToString("N")+".tmp");
                 try
@@ -339,9 +357,9 @@ public partial class MainWindow : Window,INotifyPropertyChanged
                 finally{if(File.Exists(temporary))File.Delete(temporary);}
             },cancellation!.Token);
             Status=$"ZIP salvo com {scores.Length} partituras.";
-        });
+        },operationTitle:"Salvando pacote ZIP",operationItem:Path.GetFileName(dialog.FileName));
     }
-    private void CancelClick(object sender,RoutedEventArgs e)=>cancellation?.Cancel();
+    private void CancelClick(object sender,RoutedEventArgs e)=>RequestOperationCancellation();
     private void OpenScoreClick(object sender,RoutedEventArgs e)
     {
         if(selectedFile?.ScorePath is not { } path || !File.Exists(path)){Status="Gere a partitura primeiro.";return;}

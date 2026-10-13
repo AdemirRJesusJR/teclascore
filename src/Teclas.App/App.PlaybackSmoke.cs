@@ -121,8 +121,9 @@ public partial class App
             Require(window.CanPlayScore && window.CanExportPdf && Button("PlayerPlayButton").IsEnabled && Button("PdfExportButton").IsEnabled,
                 "An existing score did not enable the actual Play and PDF buttons.");
             checks["existing-score-enables-play-and-pdf"] = true;
-            // Selection changes close the previous MediaPlayer media state; mute only
-            // after the score selection is stable and immediately before actual playback.
+            // Selection changes replace the MediaPlayer to isolate delayed events.
+            // Fetch and mute the current instance immediately before actual playback.
+            player = (MediaPlayer)typeof(MainWindow).GetField("scorePlayer", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
             player.Volume = 0; player.IsMuted = true;
             Click("PlayerPlayButton");
             await Wait(() => !window.IsBusy, TimeSpan.FromSeconds(120), "MuseScore audio preparation did not complete.");

@@ -1,3 +1,18 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.10.0
+13/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros; 67 testes Python, 56 verificações MIDI/metadados e 85 de persistência passaram.
+- 32 verificações do painel: renderização antes da ação, bloqueio de cliques duplicados, etapas, contador real de arquivos, tempo decorrido, cancelamento imediato/em andamento, falha, retorno à interface e rejeição de mensagens atrasadas.
+- 24 verificações novas de áudio/revisão: nenhuma nota após cancelar preparação, cancelamento no MediaOpened antes de tocar, falha de abertura, timeout dirigido e fechamento da revisão com preparação pendente.
+- Reprodução real da partitura via MuseScore/PCM/Windows validada em 11 grupos; 22 verificações de pistas e velocidades passaram. Áudio dos testes silenciado; dispositivos e volume do usuário não alterados.
+- 24 verificações de geração WPF passaram: trocar a melodia produz outro MSCZ, análise automática, histórico, falhas e recuperação de análise indisponível mantidos.
+- 38 verificações nativas de MSCZ e 2 cancelamentos dirigidos passaram: importação/revisão de Luz divina, preservação musical, várias vozes, ligaduras, letra, articulações, andamento e limpeza de temporários sem publicação após cancelar.
+- Capturas do painel conferidas em tema escuro, claro e tamanho compacto; navegação, temas e barra lateral verificados na árvore visual real, sem erros de binding.
+- Testes usaram sessões/saídas isoladas. Originais, partituras anteriores e configurações reais permaneceram intactos.
+
+A barra mostra quantidade de arquivos processados quando disponível. Etapas de duração desconhecida usam animação e tempo decorrido, sem estimativa fictícia de porcentagem ou tempo restante. Foco de teclado em janela nativa não foi exercitado pelo teste visual sem janela; confinamento de Tab e região acessível foram verificados.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.9.2
 13/10/2026
 

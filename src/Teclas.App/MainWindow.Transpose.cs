@@ -19,7 +19,7 @@ public partial class MainWindow
         await RunOperation(async()=>
         {
             await Generate(row);EditorTabs.SelectedIndex=2;
-        },row);
+        },row,"Transpondo partitura");
     }
 }
 

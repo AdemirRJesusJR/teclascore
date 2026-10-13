@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.10.0 — 13/10/2026
+
+- Painel central animado mostra operação, arquivo, etapa atual, tempo decorrido e cancelamento durante importação, análise, geração, atualização de propriedades/diagramas/transposição e exportação PDF/ZIP.
+- Importações múltiplas e geração em lote mostram avanço por arquivos efetivamente processados. Etapas sem medição usam animação, sem porcentagens ou prazos artificiais.
+- Preparação de pistas e de compassos na Revisão guiada ocorre em segundo plano, mantendo a interface responsiva e permitindo cancelar antes da reprodução.
+- Preparação de áudio da partitura permanece visível até o reprodutor confirmar a abertura; falhas, timeout e cancelamento liberam a tela, sem reproduções tardias.
+- Importação e melhoria de arquivos MuseScore informam etapas; leitura, conferência musical e gravação da cópia são executadas em segundo plano, preservando originais e Histórico.
+- Cliques repetidos não iniciam processos simultâneos; mensagens atrasadas de uma operação encerrada não substituem o resultado nem o progresso seguinte.
+
 ## 0.9.2 — 13/10/2026
 
 - Gerar partitura analisa automaticamente a seleção de melodia atual quando a pista mudou ou a análise temporária não está disponível.

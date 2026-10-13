@@ -109,7 +109,7 @@ public partial class MainWindow
         NotifyTrackAudition();
     }
 
-    private void TrackAuditionClick(object sender, RoutedEventArgs e)
+    private async void TrackAuditionClick(object sender, RoutedEventArgs e)
     {
         if (!CanAuditionTracks || selectedFile is not { Document: { } document } row
             || sender is not FrameworkElement { Tag: TrackRow track } || !row.Tracks.Contains(track)) return;
@@ -118,21 +118,36 @@ public partial class MainWindow
         ResetPlayback();
         PlaybackStatus = SelectedScoreExists ? "Ouça esta partitura sem abrir o editor do MuseScore." : "Gere uma partitura para ouvir aqui no aplicativo.";
         NotifyPlaybackState();
-        try
+        await RunOperation(async () =>
         {
-            var sequence = MidiAuditionSequence.Create(document, track.Source.Key);
-            auditionMidi = row; auditionTrack = track; track.IsAuditioning = true;
-            trackPlayer!.Play(sequence);
-            TrackAuditionStatus = "Ouvindo somente esta pista, a partir da primeira nota."
-                + (sequence.Warnings.Count == 0 ? "" : " " + string.Join(" ", sequence.Warnings));
-            trackAuditionTimer.Start();
-            NotifyTrackAudition();
-            Dispatcher.InvokeAsync(() =>
+            var token = cancellation!.Token;
+            Status = "Separando as notas e preparando o andamento da pista…";
+            TrackAuditionStatus = "Preparando esta pista para ouvir…";
+            try
             {
-                if (!trackAuditionDisposed && ReferenceEquals(auditionTrack, track)) TrackAuditionPanel.BringIntoView();
-            }, DispatcherPriority.Loaded);
-        }
-        catch (Exception error) { TrackAuditionFailed(error.Message); }
+                var sequence = await Task.Run(() => MidiAuditionSequence.Create(document, track.Source.Key), token);
+                token.ThrowIfCancellationRequested();
+                if (trackAuditionDisposed || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
+                auditionMidi = row; auditionTrack = track; track.IsAuditioning = true;
+                trackPlayer!.Play(sequence);
+                TrackAuditionStatus = "Ouvindo somente esta pista, a partir da primeira nota."
+                    + (sequence.Warnings.Count == 0 ? "" : " " + string.Join(" ", sequence.Warnings));
+                Status = "Pista pronta. A reprodução acontece aqui no aplicativo.";
+                trackAuditionTimer.Start();
+                NotifyTrackAudition();
+                _ = Dispatcher.InvokeAsync(() =>
+                {
+                    if (!trackAuditionDisposed && ReferenceEquals(auditionTrack, track)) TrackAuditionPanel.BringIntoView();
+                }, DispatcherPriority.Loaded);
+            }
+            catch (OperationCanceledException)
+            {
+                StopTrackAudition();
+                TrackAuditionStatus = "Preparação da pista cancelada. Use ▶ para tentar novamente.";
+                throw;
+            }
+            catch (Exception error) { TrackAuditionFailed(error.Message); throw; }
+        }, operationTitle: "Preparando pista para ouvir", operationItem: $"{row.Name} · Pista {track.Track} · Canal {track.Channel} · {track.Instrument}");
     }
 
     private void PauseTrackAuditionClick(object sender, RoutedEventArgs e)

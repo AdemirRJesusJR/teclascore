@@ -28,6 +28,7 @@ def report_error(error,request_path=None):
 
 def main():
     req=json.loads(Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
+    send('progress',message='Preparando a análise musical…' if req['mode']=='analyze' else 'Preparando a geração da partitura…')
     workspace=Path(req['workspace']).resolve();workspace.mkdir(parents=True,exist_ok=True)
     os.environ['PARTITURAS_JOB']=str(workspace/'work')
     import batch_score as engine
@@ -76,6 +77,7 @@ def main():
             if collapsed and (c['root'],c['quality'])==(collapsed[-1]['root'],collapsed[-1]['quality']):continue
             collapsed.append(c)
         harmony['events']=collapsed
+        send('progress',message='Conferindo a melodia, o ritmo e os trechos que precisam de revisão…')
         points,rhythm_ready,rhythm_message=engine.review_points(parsed,config,harmony)
         document={'source':str(source),'sha256':parsed['sha256'],'config':config,'harmony':harmony,'reviewedProfile':reviewed,'ppq':parsed['ppq'],'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
         analysis=workspace/'analysis.json';analysis.write_text(json.dumps(document,ensure_ascii=False,indent=2),encoding='utf8')
@@ -88,9 +90,11 @@ def main():
             step,alter=engine.spellings(active['fifths'],active.get('minor',False))[c['root']]
             name=step+('#'*alter if alter>0 else 'b'*(-alter))
             chords.append({'quarter':c['tick']/parsed['ppq'],'root':c.get('root_spelling') or name,'quality':c['quality'],'confidence':round(c.get('confidence',0),2)})
+        send('progress',message='Análise concluída. Preparando as cifras e os pontos de revisão…')
         send('result',data={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation',''),'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message})
         return
     if mode!='generate':raise ValueError('Operação desconhecida.')
+    send('progress',message='Conferindo o MIDI e as opções escolhidas para a partitura…')
     data=json.loads(Path(req['analysisPath']).read_text(encoding='utf8'))
     if hashlib.sha256(source.read_bytes()).hexdigest()!=data['sha256']:raise ValueError('O MIDI mudou após a análise. Analise novamente.')
     if str(source)!=data['source']:raise ValueError('A análise pertence a outro MIDI.')
@@ -139,6 +143,7 @@ def main():
         inversion_label='posições personalizadas'
     send('progress',message=f'Preparando melodia, cifras e diagramas em {inversion_label}…')
     result=engine.prepare(config)
+    send('progress',message='Salvando a partitura e as páginas na pasta de saída…')
     final=Path(result['path']);targetdir=Path(req['outputDirectory']).resolve();targetdir.mkdir(parents=True,exist_ok=True)
     clean=re.sub(r'[<>:"/\\|?*]','',source.stem).strip(' .')[:110] or 'Partitura'
     dest=targetdir/(clean+' - teclado.mscz');counter=2

@@ -12,8 +12,10 @@ public sealed class ScoreStudyAudio(string museScorePath, string cacheDirectory)
     public async Task<ScoreAudio> PrepareAsync(string scorePath, double speed, IProgress<string>? progress, CancellationToken token)
     {
         if (!IsSupportedSpeed(speed)) throw new ArgumentOutOfRangeException(nameof(speed));
+        token.ThrowIfCancellationRequested();
         var exporter = new ScoreExporter(museScorePath, cacheDirectory);
         if (speed == 1) return await exporter.PrepareAudioAsync(scorePath, progress, token);
+        progress?.Report($"Conferindo a partitura para estudo a {speed:P0}…");
         Directory.CreateDirectory(cacheDirectory);
         var originalHash = await HashAsync(scorePath, token);
         var studyScore = Path.Combine(cacheDirectory, $"{originalHash}-study-v1-{(int)(speed * 100)}.mscz");
@@ -25,11 +27,14 @@ public sealed class ScoreStudyAudio(string museScorePath, string cacheDirectory)
                 progress?.Report($"Preparando estudo a {speed:P0}, mantendo a altura das notas…");
                 await Task.Run(() => CreateTempoCopy(scorePath, temporary, speed), token);
                 token.ThrowIfCancellationRequested();
+                progress?.Report("Salvando a cópia de estudo com o andamento escolhido…");
                 File.Move(temporary, studyScore, true);
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
+        else progress?.Report("Cópia de estudo encontrada. Procurando o áudio preparado…");
         var audio = await exporter.PrepareAudioAsync(studyScore, progress, token);
+        progress?.Report("Conferindo a partitura original antes de iniciar a reprodução…");
         if (await HashAsync(scorePath, token) != originalHash)
             throw new IOException("A partitura mudou durante a preparação do estudo. Tente novamente.");
         return audio;

@@ -9,12 +9,14 @@ namespace Teclas.App;
 
 public partial class MainWindow
 {
-    private readonly MediaPlayer scorePlayer = new();
+    private MediaPlayer scorePlayer = new();
     private readonly DispatcherTimer playbackTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private readonly DispatcherTimer audioOpenTimer = new() { Interval = TimeSpan.FromSeconds(20) };
     private string? playbackScoreIdentity;
     private string? loadedAudioPath;
-    private bool audioLoaded, audioOpening, audioPlaying, playWhenOpened;
+    private bool audioLoaded, audioOpening, audioPlaying, playbackDisposed;
+    private TaskCompletionSource<bool>? pendingAudioOpen;
+    private Exception? audioOpenFailure;
     private double playbackDuration;
     private string playbackStatus = "Gere uma partitura para ouvir aqui no aplicativo.";
     private string PlaybackCacheDirectory => Path.Combine(persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!, "audio-cache");
@@ -42,34 +44,7 @@ public partial class MainWindow
 
     private void InitializePlayback()
     {
-        scorePlayer.Volume = .85;
-        scorePlayer.SpeedRatio = 1;
-        scorePlayer.MediaOpened += (_, _) =>
-        {
-            if (loadedAudioPath is null) return;
-            audioOpenTimer.Stop();
-            audioOpening = false; audioLoaded = true;
-            if (scorePlayer.NaturalDuration.HasTimeSpan) playbackDuration = scorePlayer.NaturalDuration.TimeSpan.TotalSeconds * loadedAudioSpeed;
-            ClampStudyMarkers();
-            scorePlayer.Position = TimeSpan.FromSeconds(Math.Clamp(pendingPlaybackPosition, 0, playbackDuration) / loadedAudioSpeed);
-            pendingPlaybackPosition = 0;
-            if (playWhenOpened)
-            {
-                scorePlayer.Play(); audioPlaying = true; playbackTimer.Start();
-                PlaybackStatus = "Reproduzindo a partitura selecionada.";
-            }
-            else PlaybackStatus = "Áudio pronto para reproduzir.";
-            NotifyPlaybackState();
-        };
-        scorePlayer.MediaEnded += (_, _) => { if (!RepeatStudyLoop()) StopPlayback("Reprodução concluída. Você pode ouvir novamente."); };
-        scorePlayer.MediaFailed += (_, e) =>
-        {
-            if (loadedAudioPath is null) return;
-            ResetPlayback();
-            PlaybackStatus = "Não foi possível reproduzir o áudio. Confira o dispositivo de som do Windows e tente novamente.";
-            Status = PlaybackStatus + " " + e.ErrorException.Message;
-            NotifyPlaybackState();
-        };
+        InitializeScorePlayer(scorePlayer);
         playbackTimer.Tick += (_, _) =>
         {
             if (audioPlaying && LoopEnabled && loopEnd is { } end && PlaybackPositionSeconds >= end) RepeatStudyLoop();
@@ -77,9 +52,41 @@ public partial class MainWindow
         };
         audioOpenTimer.Tick += (_, _) =>
         {
+            audioOpenTimer.Stop();
+            pendingAudioOpen?.TrySetException(new TimeoutException("O Windows não abriu o áudio. Confira o dispositivo de som e tente novamente."));
+        };
+    }
+
+    private void InitializeScorePlayer(MediaPlayer player)
+    {
+        player.Volume = .85;
+        player.SpeedRatio = 1;
+        player.MediaOpened += (_, _) =>
+        {
+            if (playbackDisposed || !ReferenceEquals(player, scorePlayer) || loadedAudioPath is null || !audioOpening || pendingAudioOpen is null) return;
+            audioOpenTimer.Stop();
+            pendingAudioOpen.TrySetResult(true);
+        };
+        player.MediaEnded += (_, _) =>
+        {
+            if (playbackDisposed || !ReferenceEquals(player, scorePlayer) || loadedAudioPath is null) return;
+            if (!RepeatStudyLoop()) StopPlayback("Reprodução concluída. Você pode ouvir novamente.");
+        };
+        player.MediaFailed += (_, e) =>
+        {
+            if (playbackDisposed || !ReferenceEquals(player, scorePlayer) || loadedAudioPath is null) return;
+            const string message = "Não foi possível reproduzir o áudio. Confira o dispositivo de som do Windows e tente novamente.";
+            if (pendingAudioOpen is { } pending)
+            {
+                audioOpenTimer.Stop();
+                audioOpenFailure = new InvalidOperationException(message + " " + e.ErrorException.Message, e.ErrorException);
+                pending.TrySetException(audioOpenFailure);
+                return;
+            }
             ResetPlayback();
-            PlaybackStatus = "O Windows não abriu o áudio. Confira o dispositivo de som e tente novamente.";
-            Status = PlaybackStatus; NotifyPlaybackState();
+            PlaybackStatus = message;
+            Status = PlaybackStatus + " " + e.ErrorException.Message;
+            NotifyPlaybackState();
         };
     }
 
@@ -119,15 +126,25 @@ public partial class MainWindow
 
     private void ResetPlayback(bool preserveStudy = false)
     {
-        playbackTimer.Stop(); audioOpenTimer.Stop(); scorePlayer.Close();
-        loadedAudioPath = null; audioLoaded = false; audioOpening = false; audioPlaying = false; playWhenOpened = false; playbackDuration = 0;
+        playbackTimer.Stop(); audioOpenTimer.Stop();
+        pendingAudioOpen?.TrySetCanceled(); pendingAudioOpen = null;
+        audioOpenFailure = null;
+        loadedAudioPath = null; audioLoaded = false; audioOpening = false; audioPlaying = false; playbackDuration = 0;
+        var previousPlayer = scorePlayer;
+        // Each open belongs to its own player so delayed native events cannot complete a later request.
+        if (!playbackDisposed)
+        {
+            scorePlayer = new MediaPlayer();
+            InitializeScorePlayer(scorePlayer);
+        }
+        previousPlayer.Close();
         if (!preserveStudy) ResetStudyMarkers();
     }
-    private void DisposePlayback() { ResetPlayback(); }
+    private void DisposePlayback() { playbackDisposed = true; ResetPlayback(); }
     private void StopPlayback(string message = "Reprodução parada.")
     {
         if (audioOpening) { ResetPlayback(); PlaybackStatus = message; NotifyPlaybackState(); return; }
-        playWhenOpened = false; audioPlaying = false; playbackTimer.Stop();
+        audioPlaying = false; playbackTimer.Stop();
         pendingPlaybackPosition = 0;
         scorePlayer.Stop(); PlaybackStatus = message; NotifyPlaybackState();
     }
@@ -147,19 +164,45 @@ public partial class MainWindow
         var requestedSpeed = ScorePlaybackSpeed;
         await RunOperation(async () =>
         {
+            var token = cancellation!.Token;
             PlaybackStatus = "Preparando áudio… A primeira reprodução pode levar alguns segundos.";
             var exporter = new ScoreStudyAudio(MuseScorePath, PlaybackCacheDirectory);
             try
             {
-                var audio = await exporter.PrepareAsync(scorePath, requestedSpeed, new Progress<string>(text => Status = text), cancellation!.Token);
-                if (identity != SelectedScoreIdentity()) return;
+                var audio = await exporter.PrepareAsync(scorePath, requestedSpeed, CreateOperationProgress(), token);
+                token.ThrowIfCancellationRequested();
+                if (playbackDisposed || identity != SelectedScoreIdentity()) throw new OperationCanceledException();
                 loadedAudioSpeed = requestedSpeed;
                 loadedAudioPath = audio.Path; playbackDuration = audio.Duration.TotalSeconds * loadedAudioSpeed;
-                audioOpening = true; playWhenOpened = true;
+                audioOpening = true;
+                audioOpenFailure = null;
+                var opened = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                pendingAudioOpen = opened;
+                using var registration = token.Register(() => opened.TrySetCanceled(token));
+                PlaybackStatus = "Abrindo áudio da partitura…";
+                Status = "Áudio preparado. Aguardando o reprodutor do Windows…";
+                NotifyPlaybackState();
                 audioOpenTimer.Start();
                 scorePlayer.Open(new Uri(audio.Path));
-                PlaybackStatus = "Abrindo áudio da partitura…";
+                await opened.Task;
+                token.ThrowIfCancellationRequested();
+                if (playbackDisposed || identity != SelectedScoreIdentity() || !audioOpening) throw new OperationCanceledException();
+                if (audioOpenFailure is { } error) throw error;
+                audioOpening = false; audioLoaded = true;
+                if (scorePlayer.NaturalDuration.HasTimeSpan) playbackDuration = scorePlayer.NaturalDuration.TimeSpan.TotalSeconds * loadedAudioSpeed;
+                ClampStudyMarkers();
+                scorePlayer.Position = TimeSpan.FromSeconds(Math.Clamp(pendingPlaybackPosition, 0, playbackDuration) / loadedAudioSpeed);
+                pendingPlaybackPosition = 0;
+                pendingAudioOpen = null;
+                scorePlayer.Play(); audioPlaying = true; playbackTimer.Start();
+                PlaybackStatus = "Reproduzindo a partitura selecionada.";
                 Status = "Áudio preparado. A reprodução acontece aqui no aplicativo.";
+            }
+            catch (OperationCanceledException)
+            {
+                ResetPlayback(preserveStudy: true);
+                PlaybackStatus = "Preparação do áudio cancelada. Use Reproduzir para tentar novamente.";
+                throw;
             }
             catch
             {
@@ -168,7 +211,7 @@ public partial class MainWindow
                 throw;
             }
             finally { NotifyPlaybackState(); }
-        });
+        }, operationTitle: "Preparando áudio da partitura", operationItem: Path.GetFileNameWithoutExtension(scorePath));
     }
     private void PauseScoreClick(object sender, RoutedEventArgs e)
     {
@@ -190,8 +233,8 @@ public partial class MainWindow
         await RunOperation(async () =>
         {
             var exporter = new ScoreExporter(MuseScorePath, PlaybackCacheDirectory);
-            await exporter.ExportPdfAsync(scorePath, dialog.FileName, new Progress<string>(text => Status = text), cancellation!.Token);
+            await exporter.ExportPdfAsync(scorePath, dialog.FileName, CreateOperationProgress(), cancellation!.Token);
             Status = "PDF salvo com todas as páginas: " + dialog.FileName;
-        });
+        }, operationTitle: "Salvando partitura em PDF", operationItem: Path.GetFileNameWithoutExtension(scorePath));
     }
 }
