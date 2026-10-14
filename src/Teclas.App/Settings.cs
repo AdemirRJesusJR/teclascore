@@ -6,6 +6,7 @@ namespace Teclas.App;
 
 public sealed class Settings
 {
+    public bool FollowScorePlayback { get; set; } = true;
     public int SchemaVersion { get; set; } = 2;
     public string PythonPath { get; set; } = "";
     public string MuseScorePath { get; set; } = "";
@@ -95,6 +96,7 @@ public sealed class Settings
                 version.MelodySources ??= []; version.Chords ??= [];
                 version.ArrangementSummary = NormalizeArrangementSummary(version.ArrangementSummary);
                 version.MelodySourcePriority = NormalizeMelodySourcePriority(version.MelodySourcePriority);
+                version.MelodySections = CloneMelodySections(version.MelodySections);
                 version.MelodySources=version.MelodySources.Where(source=>source is not null).ToList();
                 version.Chords=version.Chords.Where(chord=>chord is not null && double.IsFinite(chord.Quarter) && double.IsFinite(chord.Confidence)).ToList();
                 version.Title ??= "";version.Composer ??= "";version.Artist ??= "";version.MetadataOrganizationNotice ??= "";
@@ -107,6 +109,7 @@ public sealed class Settings
             if (row.DiagramInversion is < 0 or > 2) row.DiagramInversion = null;
             row.MelodySources ??= []; row.Chords ??= [];
             row.MelodySourcePriority = NormalizeMelodySourcePriority(row.MelodySourcePriority);
+            row.MelodySections = CloneMelodySections(row.MelodySections);
             row.MelodySources = row.MelodySources.Where(source => source is not null).ToList();
             row.Chords = row.Chords.Where(chord => chord is not null && double.IsFinite(chord.Quarter)
                 && double.IsFinite(chord.Confidence)).ToList();
@@ -115,6 +118,17 @@ public sealed class Settings
             { chord.Recommendation ??= ""; chord.Alternatives ??= ""; if(chord.DiagramInversion is <0 or >2)chord.DiagramInversion=null; }
         }
     }
+
+    // Keep ranges exactly as saved; validation must report overlaps or unavailable sources,
+    // never silently move a section to different measures while reopening the session.
+    public static List<SavedMelodySection> CloneMelodySections(IEnumerable<SavedMelodySection>? sections) =>
+        (sections ?? []).Where(section => section is not null).Select(section => new SavedMelodySection
+        {
+            FirstMeasure = section.FirstMeasure, LastMeasure = section.LastMeasure,
+            Source = section.Source is { } source
+                ? new SavedSource { Track = source.Track, Channel = source.Channel, Program = source.Program }
+                : new SavedSource { Track = -1, Channel = 0, Program = -1 }
+        }).ToList();
 
     public static List<SavedSource> NormalizeMelodySourcePriority(IEnumerable<SavedSource>? priority) =>
         (priority ?? []).Where(source => source is not null && source.Track is >= 0 and < 65535 &&
@@ -194,6 +208,7 @@ public sealed class SavedMidi
     public bool UseReviewedProfile { get; set; }
     public List<SavedSource> MelodySources { get; set; } = [];
     public List<SavedSource> MelodySourcePriority { get; set; } = [];
+    public List<SavedMelodySection> MelodySections { get; set; } = [];
     public List<SavedChord> Chords { get; set; } = [];
     public int KeyFifths { get; set; }
     public bool KeyMinor { get; set; }
@@ -215,6 +230,7 @@ public sealed class SavedScoreVersion
     public bool UseReviewedProfile { get; set; }
     public List<SavedSource> MelodySources { get; set; } = [];
     public List<SavedSource> MelodySourcePriority { get; set; } = [];
+    public List<SavedMelodySection> MelodySections { get; set; } = [];
     public string? AnalysisPath { get; set; }
     public string? Workspace { get; set; }
     public string ScorePath { get; set; } = "";
@@ -252,4 +268,12 @@ public sealed class SavedChord
     public double Confidence { get; set; }
     public string Recommendation { get; set; } = "";
     public string Alternatives { get; set; } = "";
+}
+
+
+public sealed class SavedMelodySection
+{
+    public int FirstMeasure { get; set; }
+    public int LastMeasure { get; set; }
+    public SavedSource Source { get; set; } = new();
 }

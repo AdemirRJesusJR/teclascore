@@ -84,7 +84,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         NotifyLibraryActions();
         Notify(nameof(CanCustomizeDiagrams));
         foreach(var name in new[]{nameof(PreviewSourcePath),nameof(CanShowHistory),nameof(GenerateButtonLabel),nameof(LibraryCollections),nameof(CanEditMidi),nameof(CanReviewScore),nameof(CanTransposeScore)})Notify(name);
-        Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore)); Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
+        Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore)); Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
         foreach(var name in new[]{nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText)})Notify(name);
@@ -100,7 +100,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
+    private void SetBusy(bool value){busy=value;Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
     private void InvalidateAnalysis(MidiRow row)
     {
         if(row.UsesNativeScoreWorkflow)return;
@@ -223,7 +223,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(row.Document is null)throw new InvalidOperationException("Este arquivo não pôde ser lido como MIDI.");
         if(!row.UseReviewedProfile && !row.Tracks.Any(t=>t.IsMelody))throw new InvalidOperationException("Marque uma pista de melodia ou use o perfil revisado.");
         row.Workspace=Path.Combine(persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!,"jobs",Guid.NewGuid().ToString("N"));
-        var request=new JsonObject{["mode"]="analyze",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["useReviewedProfile"]=row.UseReviewedProfile,["melodySources"]=Sources(row)};
+        var request=new JsonObject{["mode"]="analyze",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["useReviewedProfile"]=row.UseReviewedProfile,["melodySources"]=Sources(row),["melodySections"]=MelodySections(row),["expectedSourceSha256"]=row.SourceSha256};
         row.Status="Analisando acordes…";
         var client=new EngineClient(PythonPath,engineDirectory);
         var result=await client.RunAsync(request,row.Workspace,CreateOperationProgress(),cancellation!.Token);

@@ -29,6 +29,7 @@ public partial class MainWindow
             if (row.UseReviewedProfile) return true;
             var config = data["config"];
             return JsonNode.DeepEquals(config?["melody_sources"], Sources(row)) &&
+                JsonNode.DeepEquals(config?["melody_sections"] ?? new JsonArray(), MelodySections(row)) &&
                 (GetOrderedMelodySources(row).Count < 2 || config?["merge_mode"]?.GetValue<string>() == "priority");
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) { return false; }
@@ -57,7 +58,7 @@ public partial class MainWindow
     private JsonObject QueueRevision(MidiRow row) => new()
     {
         ["sourceSha256"] = row.SourceSha256, ["useReviewedProfile"] = row.UseReviewedProfile,
-        ["melodySources"] = Sources(row), ["generation"] = QueueGenerationOptions(row),
+        ["melodySources"] = Sources(row), ["melodySections"] = MelodySections(row), ["generation"] = QueueGenerationOptions(row),
         ["scorePath"] = row.ScorePath, ["hasMusicalEdits"] = row.HasMusicalEdits,
         ["defaultInversion"] = row.DefaultDiagramInversion, ["inversion"] = row.DiagramInversion
     };
@@ -75,7 +76,7 @@ public partial class MainWindow
         options["librarySnapshot"] = snapshotJson;
         options["libraryRevision"] = QueueRevision(row);
         var recipe = new ConversionQueueRecipe(row.FullPath, PythonPath, engineDirectory, MuseScorePath, OutputDirectory,
-            new JsonObject { ["useReviewedProfile"] = row.UseReviewedProfile, ["melodySources"] = Sources(row) }, options,
+            new JsonObject { ["useReviewedProfile"] = row.UseReviewedProfile, ["melodySources"] = Sources(row), ["melodySections"] = MelodySections(row) }, options,
             HasCurrentMelodyAnalysis(row) && !row.ReviewPoints.Any(point => point.Blocking) ? row.AnalysisPath : null)
         { SourceSha256 = row.SourceSha256, DisplayName = row.ScoreTitle };
         await GetConversionQueue().EnqueueAsync(recipe, token);
@@ -133,6 +134,7 @@ public partial class MainWindow
                 {
                     SourceSha256 = item.SourceSha256, UseReviewedProfile = snapshot.UseReviewedProfile,
                     MelodySources = snapshot.MelodySources, MelodySourcePriority = snapshot.MelodySourcePriority,
+                    MelodySections = Settings.CloneMelodySections(snapshot.MelodySections),
                     ScorePath = result.ScorePath, PreviewPath = result.PreviewPath, PageCount = result.Pages,
                     CreatedAt = item.UpdatedAt, Title = snapshot.ScoreTitle ?? "", Subtitle = snapshot.ScoreSubtitle,
                     Composer = snapshot.ScoreComposer ?? "", Artist = snapshot.ScoreArtist ?? "",

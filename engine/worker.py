@@ -87,7 +87,7 @@ def report_error(error,request_path=None):
 
 def main():
     req=json.loads(Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
-    send('progress',message='Preparando a análise musical…' if req['mode']=='analyze' else 'Preparando a geração da partitura…')
+    send('progress',message='Lendo o mapa de compassos…' if req['mode']=='measureMap' else 'Preparando a análise musical…' if req['mode']=='analyze' else 'Preparando a geração da partitura…')
     workspace=Path(req['workspace']).resolve();workspace.mkdir(parents=True,exist_ok=True)
     if req['mode']=='generate':queue_receipt_path(req,workspace)
     os.environ['PARTITURAS_JOB']=str(workspace/'work')
@@ -97,19 +97,29 @@ def main():
     source=Path(req['inputMidi']).resolve()
     if not source.is_file():raise ValueError('O MIDI original não foi encontrado.')
     mode=req['mode']
+    from melody_sections import measure_map,normalize_sections,all_sources
+    if mode=='measureMap':
+        parsed=parse_midi(source)
+        send('result',data=measure_map(parsed,engine))
+        return
     if mode=='analyze':
         send('progress',message='Lendo pistas e notas do MIDI…')
         parsed=parse_midi(source)
+        expected=req.get('expectedSourceSha256')
+        if expected is not None and (not isinstance(expected,str) or expected.lower()!=parsed['sha256'].lower()):
+            raise ValueError('O MIDI mudou desde a importação. Reimporte a versão atual antes de aplicar pistas por trecho.')
         profiles=json.loads((Path(__file__).parent/'profiles.json').read_text(encoding='utf8'))
         profile=profiles.get(parsed['sha256']);reviewed=bool(req.get('useReviewedProfile') and profile and profile['config']['status']=='ready')
         if reviewed:
             config=copy.deepcopy(profile['config']);override=profile['harmony']
         else:
             config=manual_melody_config(req.get('melodySources',[]))
+            sections=normalize_sections(req.get('melodySections'),parsed,engine)
+            if sections:config['melody_sections']=sections
             override=None
         config.update(filename=source.name,source_path=str(source))
         send('progress',message='Analisando acordes e tonalidade…')
-        harmony=analyze_harmony(parsed,config['melody_sources'],context_advice=not reviewed)
+        harmony=analyze_harmony(parsed,all_sources(config),context_advice=not reviewed)
         if override:
             if override.get('deliverable') is False:raise ValueError(override.get('reason','Perfil ainda não aprovado.'))
             for field in ('key','key_changes'):

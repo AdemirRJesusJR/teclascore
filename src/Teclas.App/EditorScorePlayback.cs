@@ -14,12 +14,15 @@ public sealed class EditorScorePlayback : IDisposable
     private readonly Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
     private readonly DispatcherTimer positionTimer;
     private readonly ScoreStudyAudio audioService;
+    private readonly ScorePlaybackMapService mapService;
     private MediaPlayer? player;
     private CancellationTokenSource? requestCancellation;
     private CancellationTokenRegistration cancellationRegistration;
     private TaskCompletionSource<bool>? pendingOpen;
     private long generation;
     private double speed = 1, duration, volume = .85;
+    private double rangeStart;
+    private double? rangeEnd;
     private bool playing, paused, hasAudio, ended, disposed;
 
     public EditorScorePlayback(string museScorePath,string cacheDirectory)
@@ -27,9 +30,18 @@ public sealed class EditorScorePlayback : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(museScorePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
         audioService = new ScoreStudyAudio(museScorePath,Path.GetFullPath(cacheDirectory));
+        mapService = new ScorePlaybackMapService(museScorePath,Path.Combine(Path.GetFullPath(cacheDirectory),"maps"));
         positionTimer = new DispatcherTimer(DispatcherPriority.Background,dispatcher)
-            { Interval = TimeSpan.FromMilliseconds(100) };
-        positionTimer.Tick += (_, _) => Changed();
+            { Interval = TimeSpan.FromMilliseconds(20) };
+        positionTimer.Tick += (_, _) =>
+        {
+            if (playing && rangeEnd is { } end && PositionSeconds >= end && player is not null)
+            {
+                player.Pause(); player.Position = TimeSpan.FromSeconds(end / speed);
+                playing = false; paused = true; positionTimer.Stop();
+            }
+            Changed();
+        };
     }
 
     public event EventHandler? StateChanged;
@@ -59,9 +71,17 @@ public sealed class EditorScorePlayback : IDisposable
         }
     }
 
-    public async Task PlayAsync(string draftPath,double playbackSpeed,IProgress<string>? progress,CancellationToken token)
+    public Task<ScorePlaybackMap> PrepareMapAsync(string path,double playbackSpeed,IProgress<string>? progress,CancellationToken token) =>
+        mapService.PrepareAsync(path,playbackSpeed,progress,token);
+
+    public Task PlayAsync(string draftPath,double playbackSpeed,IProgress<string>? progress,CancellationToken token) =>
+        PlayRangeAsync(draftPath,playbackSpeed,0,null,progress,token);
+
+    public async Task PlayRangeAsync(string draftPath,double playbackSpeed,double startSeconds,double? endSeconds,IProgress<string>? progress,CancellationToken token)
     {
         VerifyAlive();
+        if (!double.IsFinite(startSeconds) || startSeconds < 0 || endSeconds is { } invalidEnd && (!double.IsFinite(invalidEnd) || invalidEnd <= startSeconds))
+            throw new ArgumentOutOfRangeException(nameof(startSeconds));
         StopCore();
         long requestedGeneration = generation;
         // Keep the linked source alive so cancellation remains effective
@@ -118,8 +138,10 @@ public sealed class EditorScorePlayback : IDisposable
             pendingOpen = null;
             if(requestedPlayer.NaturalDuration.HasTimeSpan)
                 duration = requestedPlayer.NaturalDuration.TimeSpan.TotalSeconds * speed;
+            if (startSeconds >= duration) throw new InvalidOperationException("O trecho selecionado não está dentro do áudio preparado.");
+            rangeStart = startSeconds; rangeEnd = endSeconds is { } requestedEnd ? Math.Min(requestedEnd,duration) : null;
             hasAudio = true; ended = false; paused = false;
-            requestedPlayer.Position = TimeSpan.Zero;
+            requestedPlayer.Position = TimeSpan.FromSeconds(rangeStart / speed);
             requestedPlayer.Play();
             EnsureCurrent(requestedGeneration,requestToken);
             playing = true; positionTimer.Start(); Changed();
@@ -153,7 +175,7 @@ public sealed class EditorScorePlayback : IDisposable
         if(!hasAudio || player is null || playing)return;
         try
         {
-            if(ended || PositionSeconds >= duration)player.Position = TimeSpan.Zero;
+            if(ended || PositionSeconds >= (rangeEnd ?? duration))player.Position = TimeSpan.FromSeconds(rangeStart / speed);
             ended = false; player.Play(); playing = true; paused = false;
             positionTimer.Start(); Changed();
         }
@@ -211,6 +233,7 @@ public sealed class EditorScorePlayback : IDisposable
         var previousCancellation = requestCancellation; requestCancellation = null;
         var previousPlayer = player; player = null;
         playing = paused = hasAudio = ended = false; duration = 0; speed = 1;
+        rangeStart = 0; rangeEnd = null;
         previousOpen?.TrySetCanceled();
         // A token callback only posts to the dispatcher, so registration disposal cannot
         // wait on a worker which is itself waiting synchronously for this UI thread.

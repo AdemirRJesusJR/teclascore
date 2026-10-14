@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.15.0 — 2026-10-14
+
+- Fontes de melodia por faixa de compassos, com mapa real de fórmulas/anacruse, prioridade geral fora das faixas e preservação na sessão, fila e Histórico.
+- Acompanhamento da pauta e das páginas baseado nas posições e nos tempos do MuseScore; clique para iniciar em um compasso/ataque, incluindo repetições.
+- Editor musical seleciona ataques na página e reproduz o compasso ou intervalo selecionado. Associação ambígua de vozes permanece explícita; estruturas não suportadas mantêm a tabela.
+- Revisão visual de MSCZ gerados/importados: achados localizados, proposta conservadora, comparação e nova versão com conteúdo musical conferido.
+- Backup portátil da biblioteca, arquivos, páginas e Histórico, com verificação de integridade e restauração que adiciona itens e preserva preferências locais.
+- Originais e versões anteriores preservados; nenhum destaque ou correção é apresentado como seguro quando não foi possível validar a estrutura.
+
+
 ## 0.14.0 — 13/10/2026
 
 - Arranjos por nível para partituras geradas de MIDI e MSCZ importados, com seleção explícita de pauta e voz.

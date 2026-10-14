@@ -23,6 +23,7 @@ public partial class MainWindow
 
     private void NotifyMelodyPriority()
     {
+        NotifyMelodySections();
         Notify(nameof(CanOrderMelodyTracks));
         Notify(nameof(MelodyPrioritySummary));
     }

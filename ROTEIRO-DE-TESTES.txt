@@ -1,4 +1,4 @@
-TECLASCORE 0.14.0 · ROTEIRO DE TESTES
+TECLASCORE 0.15.0 · ROTEIRO DE TESTES
 
 Use uma música conhecida em MIDI e uma partitura MuseScore 4. As cópias anteriores permanecem no Histórico. Os testes abaixo também servem para registrar o que você gostaria de refinar.
 
@@ -39,6 +39,21 @@ Adicione dois MIDIs à fila e inicie os pendentes. Pause uma conversão, feche e
 
 12. PREFERÊNCIAS E REABERTURA
 Mude o tema, recolha a barra lateral, marque favoritos e uma coleção. Feche e reabra o app. Confira preferências, música selecionada, versões e Histórico. Remover uma música da Biblioteca não apaga os arquivos MIDI ou MSCZ.
+
+13. PISTAS POR TRECHO
+Em Melodia, abra Pistas por trecho. Escolha uma fonte para a introdução e outra para a melodia em faixas sem sobreposição. Confira o mapa e a indicação do início da partitura. Fora das faixas, confira a prioridade geral; dentro delas, o silêncio da fonte não deve ser preenchido por outra. Gere e confira notas e nomes dos instrumentos. Mude uma faixa, gere novamente e compare no Histórico. Adicione à fila e confira a retomada com a mesma receita.
+
+14. REPRODUÇÃO ACOMPANHADA
+Na Prévia, prepare o acompanhamento ou clique em Reproduzir. Confira o destaque, a mudança automática de página, pausa, velocidade e clique para iniciar em outro compasso. Experimente uma partitura com repetições. Desmarque Acompanhar páginas, feche e reabra: a preferência deve permanecer. Se o mapa não for seguro, o app explica a limitação e mantém a reprodução inteira.
+
+15. EDIÇÃO PELA PAUTA
+Abra Editor musical e aguarde o mapa. Clique em um ataque da página e confira as notas selecionadas na tabela; acorde ou vozes simultâneas devem permitir escolher o elemento correto. Altere uma nota, atualize a prévia e confira o clique novamente. Teste Ouvir compasso e Ouvir seleção: são intervalos da partitura inteira, com suas pautas/vozes. Confira Desfazer/Refazer, cancelamento e Salvar nova versão.
+
+16. REVISÃO VISUAL E COMPARAÇÃO
+Abra Revisão visual em uma partitura gerada e outra MuseScore importada. Selecione um problema e confira o detalhe e a página. Prepare a proposta, compare Original / Proposta corrigida e salve somente depois de conferir todas as páginas. Notas, ritmos, cifras e diagramas devem permanecer iguais; o Histórico mantém a versão anterior. Quando não houver correção segura, leia a explicação. Cancele uma preparação e confira que nenhuma nova versão foi publicada.
+
+17. BACKUP E RESTAURAÇÃO
+Em Configurações, salve um backup da biblioteca. Use uma pasta vazia para restaurá-lo: as músicas devem ser adicionadas às existentes, com cabeçalhos, favoritos, coleções, escolhas e versões. Abra uma partitura e suas páginas e restaure uma versão antiga pelo Histórico. Feche e reabra. Repita a restauração na mesma pasta: não deve duplicar os itens. Se houver arquivo indisponível, confira a lista antes de confirmar um backup parcial. Em outro computador, configure Python e MuseScore locais; a fila e caches não são transportados.
 
 AO RELATAR UM PROBLEMA
 Informe a versão exibida em Sobre, a música, as pistas/pauta/voz selecionadas, o passo deste roteiro e o que esperava ver. Se houver mensagem de erro, copie o texto ou faça uma captura. Mantenha a partitura original para comparação.

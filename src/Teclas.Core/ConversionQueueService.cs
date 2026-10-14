@@ -324,6 +324,7 @@ public sealed class ConversionQueueService : IDisposable
         if (recipe.AnalyzeOptions["melodySources"] is not JsonArray selected || config["melody_sources"] is not JsonArray actual) return false;
         static string[] Keys(JsonArray array) => array.Select(node => node!.AsObject()).Select(node => $"{node["track"]?.GetValue<int>()}/{node["channel"]?.GetValue<int>()}/{node["program"]?.GetValue<int>()}").ToArray();
         if (reviewed) return Keys(selected).Order(StringComparer.Ordinal).SequenceEqual(Keys(actual).Order(StringComparer.Ordinal), StringComparer.Ordinal);
+        if (!JsonNode.DeepEquals(config["melody_sections"] ?? new JsonArray(), recipe.AnalyzeOptions["melodySections"] ?? new JsonArray())) return false;
         return (selected.Count < 2 || config["merge_mode"]?.GetValue<string>() == "priority") && Keys(selected).SequenceEqual(Keys(actual), StringComparer.Ordinal);
     }
     private void SetControlled(JsonObject request, Job job, string mode)

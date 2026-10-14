@@ -1,3 +1,25 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.15.0
+14/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- 139 testes Python passaram (cinco testes nativos opt-in fora dessa execução). As 18 revisões aprovadas mantiveram eventos, grades e estatísticas iguais à versão 0.14.0.
+- 39 verificações WPF de pistas por trecho e 16 verificações end-to-end com duas conversões reais passaram: faixas exclusivas, silêncio, remoção de faixas, receita congelada da fila, Histórico e reabertura.
+- 127 verificações de persistência, 38 da fila durável, dez do leitor de páginas e 22 de estudo passaram.
+- 20 verificações reais do mapa de reprodução passaram: repetições, mudança de andamento, fórmula 3/4, anacruse, velocidade 50%, vozes simultâneas e desativação de seleção em estruturas ambíguas.
+- 54 verificações WPF de acompanhamento/editor e 15 de integração na Biblioteca passaram: clique e zoom, seleção de ataques/notas, repetição atual, troca de página, pausa, posição, cancelamento e limpeza do mapa. A amostra Luz divina contém seis páginas e 107 compassos.
+- 48 verificações de áudio com MediaPlayer silenciado passaram, incluindo reprodução do intervalo selecionado, pausa no fim, velocidade e cancelamento sem som tardio. A parada usa temporizador da interface; não constitui corte de áudio com precisão por amostra.
+- 31 verificações nativas da revisão visual e 22 da janela passaram. Três colisões reais entre cifras e diagramas foram corrigidas para zero na amostra; texto deslocado além da página e paginação também foram exercitados. Publicação preservou notas, durações, recursos e originais; prévias/fonte adulteradas e cancelamento foram rejeitados.
+- Backup: 26 verificações do arquivo portátil, 17 de conteúdo/relocação e 18 da integração WPF passaram. Cópias e todas as páginas, cabeçalhos, escolhas por trecho e Histórico foram preservados. Repetir restauração não duplicou linhas; ausência do MIDI e falha ao gravar sessão mantiveram a biblioteca e os arquivos existentes.
+- Dashboard e Configurações renderizados com versão 0.15.0 e sem mensagens de binding. Capturas dos diálogos conferidas em temas claro/escuro e tamanho mínimo.
+- Após retomar: nove verificações adicionais confirmaram o clique na nota após rascunho com novo hash, desfazer e detecção de fonte externa alterada. Outras 15 verificações do cartão Backup confirmaram controles, rolagem e zero erros de binding.
+- Testes usaram cópias, sessões e saídas isoladas. Os originais e as configurações reais permaneceram preservados.
+
+A seleção direta associa ataques às notas existentes; acordes e vozes simultâneas exigem escolha na lista. Não inclui arraste livre, inserção ou remoção de notas. Quando o mapa não é seguro, o áudio inteiro e a tabela continuam disponíveis sem um destaque estimado. Ouvir compasso/seleção toca o intervalo com todas as pautas/vozes.
+
+A revisão visual cobre os elementos reconhecidos e correções conservadoras de apresentação; não certifica todos os símbolos, ligaduras ou intenção estética. Compare as páginas antes de salvar. O backup inclui a biblioteca e seus arquivos, mas não a fila, caches temporários ou caminhos das ferramentas de outro computador.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.14.0
 13/10/2026
 

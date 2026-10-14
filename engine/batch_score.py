@@ -382,6 +382,11 @@ def priority_melody_notes(selected,sources,ppq,onset_cluster_quarters=.04):
 def melody_events(parsed,config,origin,end):
     ppq=parsed['ppq'];sources=config['melody_sources']
     selected=sorted([n for n in parsed['notes'] if (not config.get('velocity_filter') or n['velocity'] in config['velocity_filter']) and any(source_matches(n,[s]) and s.get('start_quarter',-1)<=n['start']/ppq<s.get('end_quarter',float('inf')) and s.get('min_pitch',0)<=n['pitch']<=s.get('max_pitch',127) for s in sources)],key=lambda n:(n['start'],n['pitch']))
+    sections=config.get('melody_sections',[])
+    if sections:
+        import sys
+        from melody_sections import selected_notes
+        selected,sources,sections=selected_notes(parsed,config,sys.modules[__name__],origin,end)
     if len(selected)<20:raise NeedsReview('Poucas notas na fonte de melodia selecionada.')
     main_count=len(selected);solo_count=0
     grace_notes=config.get('grace_notes',[])
@@ -405,7 +410,7 @@ def melody_events(parsed,config,origin,end):
                 if added['end']>added['start']:selected.append(added);solo_count+=1
         selected.sort(key=lambda n:(n['start'],n['pitch']))
     merge_report=None
-    if config.get('merge_mode')=='priority' and len(sources)>1:
+    if sections or config.get('merge_mode')=='priority' and len(sources)>1:
         top,merge_report=priority_melody_notes(selected,sources,ppq,config.get('onset_cluster_quarters',.04))
     else:
         # Reviewed profiles and single-source selections retain their exact path.
@@ -447,6 +452,8 @@ def melody_events(parsed,config,origin,end):
     onsetmap={};collision=0;collision_quarters=[]
     for n in top:
         s=attack_positions.get(n['start']/ppq,snap(n['start']))-origin
+        if sections and not n['_section_start']<=s+origin<n['_section_end']:
+            raise NeedsReview('Um ataque próximo à troca de trecho ultrapassa o limite após quantização; confira este compasso antes de gerar.',[n['start']/ppq])
         if not 0<=s<end-origin:continue
         if s in onsetmap:
             collision+=1
@@ -460,6 +467,7 @@ def melody_events(parsed,config,origin,end):
         if i+1<len(onsets) and onsetmap[next_s]['start']-n['end']<=ppq*.28:stop=next_s
         beat=int((s+origin)//DIV);minimum=DIV//grids.get(beat,4)
         stop=min(next_s,end-origin,max(s+minimum,stop))
+        if sections:stop=min(stop,n['_section_end']-origin)
         if stop>s:
             event={'start':s,'end':stop,'pitch':n['pitch']}
             gs=[g['pitch'] for g in grace_notes if abs(n['start']/ppq-g['target_quarter'])<.001]
@@ -480,6 +488,9 @@ def melody_events(parsed,config,origin,end):
     if collision_quarters:report['collision_original_quarters']=sorted(set(collision_quarters))
     if merge_report is not None:
         merge_report['quantizedAttacks']=len(events)
+        if sections:
+            merge_report['sections']=sections
+            merge_report['message']=f"{len(sections)} trechos exclusivos; fora deles, " + merge_report['message']
         report['melody_merge']=merge_report
     return events,{b-int(origin//DIV):v for b,v in grids.items()},report
 

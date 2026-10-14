@@ -39,15 +39,18 @@ public partial class MainWindow
             if (!audioLoaded || !double.IsFinite(value)) return;
             scorePlayer.Position = TimeSpan.FromSeconds(Math.Clamp(value, 0, playbackDuration) / loadedAudioSpeed);
             Notify(nameof(PlaybackPositionSeconds)); Notify(nameof(PlaybackPositionText));
+            UpdateScoreSynchronization();
         }
     }
 
     private void InitializePlayback()
     {
         InitializeScorePlayer(scorePlayer);
+        MainScoreViewer.PositionSelected += ScorePositionSelected;
         playbackTimer.Tick += (_, _) =>
         {
             if (audioPlaying && LoopEnabled && loopEnd is { } end && PlaybackPositionSeconds >= end) RepeatStudyLoop();
+            UpdateScoreSynchronization();
             Notify(nameof(PlaybackPositionSeconds)); Notify(nameof(PlaybackPositionText));
         };
         audioOpenTimer.Tick += (_, _) =>
@@ -100,6 +103,7 @@ public partial class MainWindow
     {
         foreach (var name in new[] { nameof(CanPlayScore), nameof(CanPauseScore), nameof(CanStopScore), nameof(CanExportPdf), nameof(CanSeekScore), nameof(PlaybackPositionSeconds), nameof(PlaybackPositionText), nameof(PlaybackDurationSeconds), nameof(PlaybackDurationText) }) Notify(name);
         NotifyStudyState();
+        Notify(nameof(CanPrepareScoreSynchronization));
     }
 
     private string? SelectedScoreIdentity()
@@ -127,6 +131,7 @@ public partial class MainWindow
     private void ResetPlayback(bool preserveStudy = false)
     {
         playbackTimer.Stop(); audioOpenTimer.Stop();
+        ClearScoreSynchronization();
         pendingAudioOpen?.TrySetCanceled(); pendingAudioOpen = null;
         audioOpenFailure = null;
         loadedAudioPath = null; audioLoaded = false; audioOpening = false; audioPlaying = false; playbackDuration = 0;
@@ -146,7 +151,7 @@ public partial class MainWindow
         if (audioOpening) { ResetPlayback(); PlaybackStatus = message; NotifyPlaybackState(); return; }
         audioPlaying = false; playbackTimer.Stop();
         pendingPlaybackPosition = 0;
-        scorePlayer.Stop(); PlaybackStatus = message; NotifyPlaybackState();
+        scorePlayer.Stop(); UpdateScoreSynchronization(); PlaybackStatus = message; NotifyPlaybackState();
     }
 
     private async void PlayScoreClick(object sender, RoutedEventArgs e)
@@ -170,6 +175,7 @@ public partial class MainWindow
             try
             {
                 var audio = await exporter.PrepareAsync(scorePath, requestedSpeed, CreateOperationProgress(), token);
+                await PrepareScoreSynchronization(scorePath, requestedSpeed, token);
                 token.ThrowIfCancellationRequested();
                 if (playbackDisposed || identity != SelectedScoreIdentity()) throw new OperationCanceledException();
                 loadedAudioSpeed = requestedSpeed;
@@ -217,6 +223,7 @@ public partial class MainWindow
     {
         if (!CanPauseScore) return;
         scorePlayer.Pause(); audioPlaying = false; playbackTimer.Stop();
+        UpdateScoreSynchronization();
         PlaybackStatus = "Pausado. Reproduzir continua do mesmo ponto."; NotifyPlaybackState();
     }
     private void StopScoreClick(object sender, RoutedEventArgs e) => StopPlayback();

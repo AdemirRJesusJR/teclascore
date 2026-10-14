@@ -1,5 +1,14 @@
-TECLASCORE · PRÉVIA 0.14.0
+TECLASCORE · PRÉVIA 0.15.0
 
+
+NOVO NA VERSÃO 0.15.0
+Pistas por trecho: escolha uma fonte por faixa de compassos; fora delas vale a prioridade geral. As faixas ficam salvas na sessão, no Histórico e na receita da fila.
+Acompanhamento: prepare o mapa na Prévia ou reproduza a partitura para acompanhar compassos/páginas. Clique na pauta para ouvir a partir do ponto escolhido.
+Editor musical: clique em um ataque para localizar as notas na tabela. Ouvir compasso / Ouvir seleção reproduzem o intervalo selecionado, com todas as pautas e vozes.
+Revisão visual: confira achados, prepare uma correção conservadora e compare Original / Proposta corrigida antes de salvar uma nova versão.
+Backup: em Configurações, salve/restaure a biblioteca com arquivos, páginas, escolhas musicais e Histórico. A restauração adiciona as músicas sem substituir as atuais. A fila e caches temporários não são incluídos.
+Mapas e revisões informam limitações quando a estrutura não é interpretada com segurança. Os originais permanecem preservados.
+Veja os passos 13 a 17 do ROTEIRO-DE-TESTES.txt.
 
 NOVO NA VERSÃO 0.14.0
 Arranjo por nível está disponível na Prévia de partituras MIDI geradas e arquivos MuseScore importados.

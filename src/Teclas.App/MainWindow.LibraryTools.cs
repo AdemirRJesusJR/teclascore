@@ -23,6 +23,7 @@ public partial class MainWindow
         row.Versions.Add(new SavedScoreVersion { ScorePath=path,PreviewPath=row.PreviewPath,PageCount=row.PageCount,CreatedAt=row.GeneratedAt??File.GetLastWriteTime(path),
             HasMusicalEdits=row.HasMusicalEdits,ArrangementSummary=row.ArrangementSummary,
             MelodySourcePriority=SaveMelodyPriority(row.MelodySourcePriority),
+            MelodySections=Settings.CloneMelodySections(row.MelodySections),
             SourceSha256=row.SourceSha256,UseReviewedProfile=row.UseReviewedProfile,AnalysisPath=row.AnalysisPath,Workspace=row.Workspace,
             MelodySources=SaveMelodyPriority(GetOrderedMelodySources(row)),
             Title=row.ScoreTitle,Subtitle=row.ScoreSubtitle,Composer=row.ScoreComposer,DefaultInversion=row.DefaultDiagramInversion,Inversion=row.DiagramInversion,
@@ -50,6 +51,8 @@ public partial class MainWindow
             row.UseReviewedProfile=sameSource && version.UseReviewedProfile && row.HasReviewedProfile;
             row.MelodySourcePriority=sameSource || row.SourceSha256 is null || version.HasMusicalEdits
                 ? RestoreMelodyPriority(version.MelodySourcePriority) : [];
+            row.MelodySections=sameSource || row.SourceSha256 is null || version.HasMusicalEdits
+                ? Settings.CloneMelodySections(version.MelodySections) : [];
             foreach(var track in row.Tracks)track.IsMelody=sameSource && version.MelodySources.Any(s=>s.Track==track.Source.Key.Track && s.Channel==track.Source.Key.Channel && s.Program==track.Source.Key.Program);
             row.AnalysisPath=sameSource && File.Exists(version.AnalysisPath)?version.AnalysisPath:null;
             row.Workspace=sameSource?version.Workspace:null;
@@ -66,6 +69,7 @@ public partial class MainWindow
         {
             remembered.HasMusicalEdits=version.HasMusicalEdits;remembered.ArrangementSummary=version.ArrangementSummary;
             remembered.MelodySourcePriority=SaveMelodyPriority(RestoreMelodyPriority(version.MelodySourcePriority));
+            remembered.MelodySections=Settings.CloneMelodySections(version.MelodySections);
             remembered.Sha256=version.SourceSha256;remembered.UseReviewedProfile=version.UseReviewedProfile;
             remembered.MelodySources=version.MelodySources.Select(s=>new SavedSource {Track=s.Track,Channel=s.Channel,Program=s.Program}).ToList();
             remembered.Chords=version.Chords.Select(c=>new SavedChord {Quarter=c.Quarter,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence,DiagramInversion=c.DiagramInversion,Recommendation=c.Recommendation,Alternatives=c.Alternatives}).ToList();

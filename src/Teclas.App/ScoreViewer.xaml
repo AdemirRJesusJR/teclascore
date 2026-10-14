@@ -40,7 +40,10 @@
    <Border Grid.Column="1" BorderBrush="{DynamicResource Line}" BorderThickness="1" Background="{DynamicResource Background}" CornerRadius="6" ClipToBounds="True">
     <Grid>
      <ScrollViewer x:Name="PageScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="PageViewportChanged" PreviewMouseWheel="PageMouseWheel">
-      <Image x:Name="PageImage" Margin="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Top" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Página da partitura"/>
+      <Grid x:Name="PageSurface" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Top" Background="Transparent" MouseLeftButtonDown="PageSelected">
+       <Image x:Name="PageImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Top" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Página da partitura"/>
+       <Canvas x:Name="PositionOverlay" IsHitTestVisible="False" ClipToBounds="True"/>
+      </Grid>
      </ScrollViewer>
      <Border x:Name="ViewerMessagePanel" Background="{DynamicResource Background}" Padding="24">
       <TextBlock x:Name="ViewerMessage" Text="Gere ou selecione uma partitura para visualizar suas páginas." TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" MaxWidth="420"/>

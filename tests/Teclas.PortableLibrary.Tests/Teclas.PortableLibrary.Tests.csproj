@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Teclas.Core/Teclas.Core.csproj" />
+    <Compile Include="../../src/Teclas.App/Settings.cs" Link="Settings.cs" />
+    <Compile Include="../../src/Teclas.App/ScorePageFiles.cs" Link="ScorePageFiles.cs" />
+    <Compile Include="../../src/Teclas.App/LibraryBackupSnapshot.cs" Link="LibraryBackupSnapshot.cs" />
+  </ItemGroup>
+</Project>

@@ -32,7 +32,7 @@ public sealed class MusicEditorWindow : Window
     private readonly ScoreViewer viewer;
     private readonly TextBlock status, previewStatus, operationText, audioClock;
     private readonly StackPanel progressPanel;
-    private readonly Button undoButton, redoButton, previewButton, playButton, pauseButton, saveButton;
+    private readonly Button undoButton, redoButton, previewButton, playButton, pauseButton, saveButton, playMeasureButton, playSelectionButton;
     private readonly Slider seek;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private readonly Stopwatch elapsed = new();
@@ -41,6 +41,10 @@ public sealed class MusicEditorWindow : Window
     private int revision, preparedRevision = -1;
     private bool restoring, closed, pendingClose, discardConfirmed, updatingSeek;
     private string operationStage = "";
+    private ScorePlaybackMap? scoreMap;
+    private ScorePositionSelectedEventArgs? scoreSelection;
+    private readonly Dictionary<string, string> mappedEventIds = new(StringComparer.Ordinal);
+    private bool selectingFromScore;
     public NativeScoreResult? Result { get; private set; }
     public bool HasChanges => current.Notes.Count + current.Rhythms.Count + current.Harmonies.Count > 0;
 
@@ -61,7 +65,7 @@ public sealed class MusicEditorWindow : Window
         var header=new StackPanel{Margin=new(0,0,0,12)}; root.Children.Add(header);
         header.Children.Add(new TextBlock{Text="Editor musical",FontSize=24,FontWeight=FontWeights.SemiBold});
         header.Children.Add(new TextBlock{Text=model.Metadata.Title,TextWrapping=TextWrapping.Wrap,Margin=new(0,4,0,6)});
-        header.Children.Add(new TextBlock{Text="Edite por compasso, atualize a prévia e ouça. Salvar cria uma nova versão no Histórico.",TextWrapping=TextWrapping.Wrap});
+        header.Children.Add(new TextBlock{Text="Clique em um ataque na pauta para selecionar suas notas, ajuste à esquerda e atualize a prévia. Salvar cria uma nova versão no Histórico.",TextWrapping=TextWrapping.Wrap});
         var selectors=new WrapPanel{Margin=new(0,12,0,0)};header.Children.Add(selectors);
         selectors.Children.Add(new TextBlock{Text="Pauta",VerticalAlignment=VerticalAlignment.Center,Margin=new(0,0,8,8)});
         staff=new ComboBox{Name="MusicEditorStaff",Width=72,ItemsSource=model.Measures.Select(m=>m.Staff).Distinct().ToArray(),Margin=new(0,0,16,8)};
@@ -77,7 +81,7 @@ public sealed class MusicEditorWindow : Window
         var editing=new DockPanel();body.Children.Add(editing);
         var limitations=new Expander{Header="Orientações e limites desta partitura",Margin=new(0,8,0,0),
             Content=new ScrollViewer{MaxHeight=80,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,Content=new TextBlock{
-                Text="Notas: use C4, F#4 ou Bb3. C4 é o dó central. Ritmo: mantenha a soma da voz no compasso e as posições das cifras. A reprodução inclui a partitura inteira.\n"+string.Join("\n",model.Limitations),
+                Text="Notas: use C4, F#4 ou Bb3. C4 é o dó central. Um clique seleciona um ataque; se houver acorde ou vozes simultâneas, escolha a nota na lista. Ritmo: mantenha a soma da voz no compasso e as posições das cifras. Você pode ouvir a partitura inteira ou o trecho selecionado.\n"+string.Join("\n",model.Limitations),
                 TextWrapping=TextWrapping.Wrap,Margin=new(8)}}};
         DockPanel.SetDock(limitations,Dock.Bottom);editing.Children.Add(limitations);
         tabs=new TabControl();editing.Children.Add(tabs);
@@ -110,6 +114,7 @@ public sealed class MusicEditorWindow : Window
         previewStatus=new TextBlock{Text="Partitura salva · selecione o compasso no editor à esquerda.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,8)};
         DockPanel.SetDock(previewStatus,Dock.Top);preview.Children.Add(previewStatus);
         viewer=new ScoreViewer{FirstPagePath=initialPreview};preview.Children.Add(viewer);
+        viewer.PositionSelected += ScoreSelected;
         var footer=new StackPanel{Margin=new(0,12,0,0)};Grid.SetRow(footer,2);root.Children.Add(footer);
         progressPanel=new StackPanel{Visibility=Visibility.Collapsed};footer.Children.Add(progressPanel);
         progressPanel.Children.Add(new ProgressBar{Name="MusicEditorProgress",IsIndeterminate=true,Height=5});
@@ -120,6 +125,8 @@ public sealed class MusicEditorWindow : Window
         status=new TextBlock{Name="MusicEditorStatus",Text="As alterações ficam em rascunho até salvar.",TextWrapping=TextWrapping.Wrap,MinHeight=34};footer.Children.Add(status);
         var audio=new WrapPanel();footer.Children.Add(audio);
         playButton=Button("▶ Ouvir partitura","MusicEditorPlay",async(_,_)=>await Play());audio.Children.Add(playButton);
+        playMeasureButton=Button("Ouvir compasso","MusicEditorPlayMeasure",async(_,_)=>await PlaySelected(false));audio.Children.Add(playMeasureButton);
+        playSelectionButton=Button("Ouvir seleção","MusicEditorPlaySelection",async(_,_)=>await PlaySelected(true));audio.Children.Add(playSelectionButton);
         pauseButton=Button("Pausar","MusicEditorPause",(_,_)=>{if(playback.IsPaused)playback.Resume();else playback.Pause();Refresh();});audio.Children.Add(pauseButton);
         audio.Children.Add(Button("■ Parar","MusicEditorStop",(_,_)=>{operation?.Cancel();playback.Stop();status.Text="Reprodução parada.";}));
         speed=new ComboBox{Name="MusicEditorSpeed",Width=95,ItemsSource=new[]{.5,.75,1.0},SelectedItem=1.0,ItemStringFormat="{0:P0}",Margin=new(0,0,8,8)};audio.Children.Add(speed);
@@ -131,7 +138,7 @@ public sealed class MusicEditorWindow : Window
         saveButton=Button("Salvar nova versão","MusicEditorSave",async(_,_)=>await Save(),true);actions.Children.Add(saveButton);
         staff.SelectionChanged+=(_,_)=>{if(staff.SelectedItem is int s){measure.ItemsSource=model.Measures.Where(m=>m.Staff==s).ToArray();measure.SelectedIndex=0;}};
         measure.SelectionChanged+=(_,_)=>SelectMeasure();
-        speed.SelectionChanged+=(_,_)=>{playback.Stop();status.Text="Clique em Ouvir partitura para usar a velocidade selecionada.";};
+        speed.SelectionChanged+=(_,_)=>{playback.Stop();scoreMap=null;scoreSelection=null;viewer.SetPlaybackMap(null);status.Text="Clique em Ouvir para usar a velocidade selecionada e atualizar o acompanhamento.";Refresh();};
         seek.ValueChanged+=(_,_)=>{if(!updatingSeek&&playback.HasAudio)playback.Seek(seek.Value);};
         playback.StateChanged+=PlaybackChanged;
         playback.PlaybackFailed+=PlaybackFailed;
@@ -139,6 +146,7 @@ public sealed class MusicEditorWindow : Window
         Closing+=OnClosing;
         Closed+=(_,_)=>{closed=true;operation?.Cancel();timer.Stop();playback.StateChanged-=PlaybackChanged;playback.PlaybackFailed-=PlaybackFailed;playback.Dispose();};
         staff.SelectedIndex=0;Refresh();
+        Loaded += async (_, _) => await Run("Localizando notas e compassos na pauta", async token => await EnsureMap(model.SourcePath, token));
     }
 
     private static Button Button(string text,string name,RoutedEventHandler action,bool primary=false)
@@ -170,6 +178,13 @@ public sealed class MusicEditorWindow : Window
         noteGrid.ItemsSource=notes.Where(n=>n.Event.Staff==m.Staff&&n.Event.Measure==m.Number).ToArray();
         rhythmGrid.ItemsSource=rhythms.Where(n=>n.Event.Staff==m.Staff&&n.Event.Measure==m.Number).ToArray();
         harmonyGrid.ItemsSource=harmonies.Where(n=>n.Harmony.Staff==m.Staff&&n.Harmony.Measure==m.Number).ToArray();
+        if(!selectingFromScore)
+        {
+            scoreSelection=null;
+            if(scoreMap?.CanSynchronize==true && scoreMap.FindOccurrence(m.Number,null) is { } occurrence)
+                scoreSelection=new(m.Number,null,[],occurrence.StartSeconds,occurrence.EndSeconds,occurrence.Index)
+                    {MeasureStartSeconds=occurrence.StartSeconds,MeasureEndSeconds=occurrence.EndSeconds};
+        }
     }
     private DraftState Capture()=>new(
         notes.Where(n=>n.Value!=n.Note.Name).ToDictionary(n=>n.Note.Id,n=>n.Value),
@@ -184,6 +199,7 @@ public sealed class MusicEditorWindow : Window
     private void Invalidate()
     {
         revision++;prepared=null;preparedRevision=-1;playback.Stop();
+        scoreMap=null;scoreSelection=null;mappedEventIds.Clear();viewer.SetPlaybackMap(null);
         if(!HasChanges)viewer.FirstPagePath=originalPreview;
         previewStatus.Text=HasChanges?"Prévia anterior · atualize para conferir o rascunho.":"Partitura salva · nenhuma alteração no rascunho.";
         status.Text=HasChanges?"Rascunho alterado. Atualize a prévia antes de salvar.":"Rascunho igual à partitura salva.";Refresh();
@@ -228,7 +244,8 @@ public sealed class MusicEditorWindow : Window
         var result=await prepare(edits,Progress(),token);token.ThrowIfCancellationRequested();
         if(closed||expected!=revision)throw new OperationCanceledException(token);
         prepared=result;preparedRevision=revision;viewer.FirstPagePath=result.PreviewPages.FirstOrDefault();
-        previewStatus.Text="Prévia atual do rascunho · confira todas as páginas antes de salvar.";
+        await EnsureMap(result.Path,token);
+        if(scoreMap?.CanSynchronize==true)previewStatus.Text="Prévia atual do rascunho · clique na pauta para selecionar outro ataque; confira todas as páginas antes de salvar.";
         status.Text="Prévia atualizada. Você pode ouvir o rascunho ou salvar uma nova versão.";
     }
     private Task Prepare()=>Run("Atualizando a prévia",PrepareCurrent);
@@ -241,9 +258,11 @@ public sealed class MusicEditorWindow : Window
             if(Convert.ToHexString(await SHA256.HashDataAsync(stream,token))!=model.SourceSha256)
                 throw new IOException("A partitura mudou desde a abertura do editor. Reabra a versão atual antes de ouvir.");
         }
-        await playback.PlayAsync(prepared is not null&&preparedRevision==revision?prepared.Path:model.SourcePath,
+        string path=prepared is not null&&preparedRevision==revision?prepared.Path:model.SourcePath;
+        await EnsureMap(path,token);
+        await playback.PlayAsync(path,
             speed.SelectedItem is double rate?rate:1.0,Progress(),token);
-        token.ThrowIfCancellationRequested();status.Text="Reproduzindo a partitura inteira. O seletor de compasso controla a edição.";
+        token.ThrowIfCancellationRequested();status.Text="Reproduzindo a partitura inteira."+(scoreMap?.CanSynchronize==true?" A pauta acompanha os compassos.":" Acompanhamento indisponível para esta estrutura.");
     });
     private Task Save()=>Run("Salvando nova versão",async token=>
     {
@@ -268,6 +287,8 @@ public sealed class MusicEditorWindow : Window
         staff.IsEnabled=measure.IsEnabled=tabs.IsEnabled=speed.IsEnabled=idle;
         undoButton.IsEnabled=idle&&undo.Count>0;redoButton.IsEnabled=idle&&redo.Count>0;
         previewButton.IsEnabled=idle&&HasChanges;playButton.IsEnabled=idle;
+        playMeasureButton.IsEnabled=idle&&measure.SelectedItem is MusicMeasure;
+        playSelectionButton.IsEnabled=idle&&scoreSelection is not null&&scoreMap?.CanSynchronize==true;
         pauseButton.IsEnabled=idle&&playback.HasAudio;pauseButton.Content=playback.IsPaused?"Continuar":"Pausar";
         saveButton.IsEnabled=idle&&HasChanges&&prepared is not null&&preparedRevision==revision;
         progressPanel.Visibility=idle?Visibility.Collapsed:Visibility.Visible;
@@ -279,7 +300,96 @@ public sealed class MusicEditorWindow : Window
         if(operation is not null)operationText.Text=$"{operationStage} · {elapsed.Elapsed:mm\\:ss}";
         updatingSeek=true;try{seek.Maximum=Math.Max(1,playback.DurationSeconds);seek.Value=playback.PositionSeconds;}finally{updatingSeek=false;}
         audioClock.Text=$"{TimeSpan.FromSeconds(playback.PositionSeconds):m\\:ss} / {TimeSpan.FromSeconds(playback.DurationSeconds):m\\:ss}";
+        viewer.UpdatePlaybackPosition(playback.HasAudio?playback.PositionSeconds:double.NaN,playback.IsPlaying);
     }
+
+    private async Task EnsureMap(string path,CancellationToken token)
+    {
+        double rate=speed.SelectedItem is double selectedRate?selectedRate:1;
+        if(scoreMap is not null&&scoreMap.SourcePath.Equals(Path.GetFullPath(path),StringComparison.OrdinalIgnoreCase)&&scoreMap.Speed==rate)
+        {
+            await using var input=File.OpenRead(path);
+            if(Convert.ToHexString(await SHA256.HashDataAsync(input,token))==scoreMap.SourceSha256)return;
+            scoreMap=null;scoreSelection=null;viewer.SetPlaybackMap(null);
+            throw new IOException("A partitura mudou desde a preparação do mapa. Abra novamente a versão atual.");
+        }
+        int expectedRevision=revision;
+        try
+        {
+            var map=await playback.PrepareMapAsync(path,rate,Progress(),token);
+            token.ThrowIfCancellationRequested();
+            if(closed||revision!=expectedRevision)throw new OperationCanceledException(token);
+            // Native editing preserves event addresses. Hash portions change with edited
+            // pitches/durations, so rebind only a verified identical address inventory.
+            var renderedModel=await Task.Run(()=>NativeMusicEditor.Open(path,token),token);
+            token.ThrowIfCancellationRequested();
+            if(closed||revision!=expectedRevision)throw new OperationCanceledException(token);
+            if(renderedModel.SourceSha256!=map.SourceSha256)throw new IOException("A partitura mudou desde a preparação do mapa.");
+            var sourceEvents=model.Measures.SelectMany(m=>m.Events).ToDictionary(e=>Address(e.Id),StringComparer.Ordinal);
+            var renderedEvents=renderedModel.Measures.SelectMany(m=>m.Events).ToArray();
+            bool sameInventory=sourceEvents.Count==renderedEvents.Length&&renderedEvents.All(e=>
+                sourceEvents.TryGetValue(Address(e.Id),out var original)&&original.Kind==e.Kind&&original.Notes.Count==e.Notes.Count);
+            mappedEventIds.Clear();
+            if(sameInventory)foreach(var e in renderedEvents)mappedEventIds[e.Id]=sourceEvents[Address(e.Id)].Id;
+            scoreMap=map;scoreSelection=null;viewer.SetPlaybackMap(map);
+            if(!map.CanSynchronize)previewStatus.Text="Prévia disponível · "+map.Limitations.LastOrDefault();
+            else previewStatus.Text="Clique em uma nota ou ataque na pauta. Acordes e vozes simultâneas aparecem na lista para escolha.";
+        }
+        catch(OperationCanceledException){throw;}
+        catch(Exception error)when(error is IOException or InvalidDataException or InvalidOperationException or ArgumentException or TimeoutException)
+        {
+            scoreMap=null;scoreSelection=null;mappedEventIds.Clear();viewer.SetPlaybackMap(null);
+            previewStatus.Text="A pauta continua disponível; o acompanhamento não pôde ser preparado. "+error.Message;
+        }
+    }
+    private static string Address(string id)=>id.Split(':',2)[0];
+    private void ScoreSelected(object? sender,ScorePositionSelectedEventArgs e)
+    {
+        if(operation is not null||closed)return;
+        playback.Stop();
+        var ids=e.EventIds.Where(mappedEventIds.ContainsKey).Select(id=>mappedEventIds[id]).ToHashSet(StringComparer.Ordinal);
+        var candidates=notes.Where(n=>ids.Contains(n.Event.Id)).ToArray();
+        var selectedStaff=candidates.Any(n=>n.Event.Staff==(int?)staff.SelectedItem)?(int)staff.SelectedItem!:
+            candidates.FirstOrDefault()?.Event.Staff??(staff.SelectedItem is int currentStaff?currentStaff:1);
+        selectingFromScore=true;
+        try
+        {
+            staff.SelectedItem=selectedStaff;
+            measure.SelectedItem=model.Measures.FirstOrDefault(m=>m.Staff==selectedStaff&&m.Number==e.Measure);
+        }
+        finally{selectingFromScore=false;}
+        scoreSelection=e;
+        var selectedNotes=candidates.Where(n=>n.Event.Staff==selectedStaff).ToArray();
+        var target=selectedNotes.FirstOrDefault();
+        if(target is not null)
+        {
+            tabs.SelectedIndex=0;noteGrid.SelectedItem=target;noteGrid.ScrollIntoView(target);
+            rhythmGrid.SelectedItem=rhythms.FirstOrDefault(r=>r.Event.Id==target.Event.Id);
+            status.Text=selectedNotes.Length==1?"Nota selecionada na pauta. Ajuste a altura em Nota ou a duração em Ritmo.":
+                $"Este ataque contém {selectedNotes.Length} notas nesta pauta. Escolha a nota na lista; altura e duração continuam protegidas pelas validações.";
+        }
+        else if(ids.Count>0)
+        {
+            var rhythm=rhythms.FirstOrDefault(r=>ids.Contains(r.Event.Id)&&r.Event.Staff==selectedStaff);
+            tabs.SelectedIndex=1;rhythmGrid.SelectedItem=rhythm;if(rhythm is not null)rhythmGrid.ScrollIntoView(rhythm);
+            status.Text="Pausa ou evento selecionado. Ajuste a duração mantendo a soma do compasso.";
+        }
+        else status.Text="Compasso selecionado. Este ataque não tem associação segura com uma nota; use a lista de notas ou ritmos.";
+        Refresh();
+    }
+    private Task PlaySelected(bool attackOnly)=>Run("Preparando trecho selecionado",async token=>
+    {
+        int bar=scoreSelection?.Measure??(measure.SelectedItem as MusicMeasure)?.Number??1;
+        int? segment=attackOnly?scoreSelection?.SegmentId:null;
+        if(HasChanges)await PrepareCurrent(token);
+        string path=prepared is not null&&preparedRevision==revision?prepared.Path:model.SourcePath;
+        await EnsureMap(path,token);
+        if(scoreMap?.CanSynchronize!=true)throw new InvalidOperationException("Não foi possível determinar os tempos deste trecho. Use Ouvir partitura.");
+        var occurrence=scoreMap.FindOccurrence(bar,segment);
+        if(occurrence is null)throw new InvalidOperationException("Selecione novamente um trecho na prévia atual.");
+        await playback.PlayRangeAsync(path,speed.SelectedItem is double rate?rate:1,occurrence.StartSeconds,occurrence.EndSeconds,Progress(),token);
+        token.ThrowIfCancellationRequested();status.Text=attackOnly?"Reproduzindo o ataque selecionado.":"Reproduzindo o compasso selecionado.";
+    });
     private void OnClosing(object? sender,CancelEventArgs e)
     {
         if(discardConfirmed||Result is not null)return;

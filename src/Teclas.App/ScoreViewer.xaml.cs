@@ -5,7 +5,10 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
+using Teclas.Core;
 
 namespace Teclas.App;
 
@@ -37,6 +40,13 @@ public partial class ScoreViewer : UserControl
     private BitmapSource? pageBitmap;
     private Window? fullScreen;
     private Window? fullScreenHost;
+    private ScorePlaybackMap? playbackMap;
+    private ScorePlaybackOccurrence? playbackPosition;
+    private ScorePlaybackOccurrence? selectedPosition;
+    private double? playbackSeconds;
+    private bool followPlayback;
+    public ScorePlaybackMap? PlaybackMap => playbackMap;
+    public event EventHandler<ScorePositionSelectedEventArgs>? PositionSelected;
 
     public ScoreViewer()
     {
@@ -60,6 +70,8 @@ public partial class ScoreViewer : UserControl
     private static void SourceChanged(DependencyObject obj, DependencyPropertyChangedEventArgs e)
     {
         var viewer = (ScoreViewer)obj;
+        viewer.playbackMap = null; viewer.playbackPosition = null; viewer.selectedPosition = null;
+        viewer.playbackSeconds = null;
         if (viewer.IsLoaded) _ = viewer.ReloadAsync();
     }
 
@@ -91,13 +103,14 @@ public partial class ScoreViewer : UserControl
         imageRequest++;
         pageBitmap = null;
         PageImage.Source = null;
+        PositionOverlay.Children.Clear();
         pages.Clear();
         SetValue(PageCountPropertyKey, 0);
         RefreshControls();
-        SetMessage(string.IsNullOrWhiteSpace(FirstPagePath)
+        var path = playbackMap?.PreviewPages.FirstOrDefault() ?? FirstPagePath;
+        SetMessage(string.IsNullOrWhiteSpace(path)
             ? "Gere ou selecione uma partitura para visualizar suas páginas."
             : "Carregando as páginas da partitura…");
-        var path = FirstPagePath;
         try
         {
             var files = await Task.Run(() => ScorePageFiles.Discover(path), token);
@@ -159,6 +172,8 @@ public partial class ScoreViewer : UserControl
             PageScroll.ScrollToLeftEnd();
             ApplyFit();
             RefreshControls();
+            DrawPositions();
+            FollowPosition();
         }
         catch (Exception exception) when (IsImageFailure(exception))
         {
@@ -219,6 +234,8 @@ public partial class ScoreViewer : UserControl
         finally { settingZoom = false; }
         ViewerStatus.Text = PageCount == 0 ? "Miniaturas · zoom · tela cheia" :
             $"{PageCount} {(PageCount == 1 ? "página" : "páginas")} · zoom {Zoom:0}% · Ctrl + roda do mouse para ampliar";
+        if (playbackMap is not null)
+            ViewerStatus.Text += playbackMap.CanSynchronize ? " · clique no ataque ou compasso para selecionar" : " · acompanhamento indisponível: " + playbackMap.Limitations.LastOrDefault();
     }
 
     private void ApplyImageSize()
@@ -226,6 +243,8 @@ public partial class ScoreViewer : UserControl
         if (pageBitmap is null) return;
         PageImage.Width = pageBitmap.Width * Zoom / 100;
         PageImage.Height = pageBitmap.Height * Zoom / 100;
+        PageSurface.Width = PageImage.Width; PageSurface.Height = PageImage.Height;
+        DrawPositions();
     }
 
     private void ApplyFit()
@@ -309,6 +328,12 @@ public partial class ScoreViewer : UserControl
         viewer.FullscreenButton.Content = "Sair da tela cheia";
         viewer.FullscreenButton.ToolTip = "Voltar (Esc ou F11)";
         viewer.fullScreenHost = window;
+        viewer.playbackMap = playbackMap;
+        viewer.playbackPosition = playbackPosition;
+        viewer.selectedPosition = selectedPosition;
+        viewer.playbackSeconds = playbackSeconds;
+        viewer.followPlayback = followPlayback;
+        viewer.PositionSelected += (_, e) => PositionSelected?.Invoke(this, e);
         fullScreen = window;
         window.Closed += (_, _) =>
         {
@@ -322,6 +347,123 @@ public partial class ScoreViewer : UserControl
         };
         return window;
     }
+
+    /// <summary>Uses the exact pages exported with this map; never changes the library's preview binding.</summary>
+    public void SetPlaybackMap(ScorePlaybackMap? map)
+    {
+        Dispatcher.VerifyAccess();
+        playbackMap = map; playbackPosition = selectedPosition = null; playbackSeconds = null; followPlayback = false;
+        PositionOverlay.Children.Clear();
+        if (fullScreen?.Content is ScoreViewer child) child.SetPlaybackMap(map);
+        if (IsLoaded) _ = ReloadAsync();
+        else RefreshControls();
+    }
+
+    public void UpdatePlaybackPosition(double seconds, bool follow = true)
+    {
+        Dispatcher.VerifyAccess();
+        playbackSeconds = double.IsFinite(seconds) && seconds >= 0 ? seconds : null;
+        playbackPosition = playbackSeconds is { } current ? playbackMap?.At(current) : null;
+        followPlayback = follow;
+        if (fullScreen?.Content is ScoreViewer child) child.UpdatePlaybackPosition(seconds, follow);
+        if (follow && playbackPosition is { } position && playbackMap?.Measures.FirstOrDefault(m => m.Measure == position.Measure) is { } measure &&
+            measure.Bounds.Page != CurrentPage && measure.Bounds.Page <= PageCount)
+            SetCurrentValue(CurrentPageProperty, measure.Bounds.Page);
+        DrawPositions();
+        if (follow) FollowPosition();
+    }
+
+    public void SelectEvent(string eventId)
+    {
+        var segment = playbackMap?.Segments.FirstOrDefault(s => s.EventIds.Contains(eventId, StringComparer.Ordinal));
+        if (segment is null) return;
+        selectedPosition = playbackMap!.FindOccurrence(segment.Measure, segment.Id);
+        if (segment.Bounds.Page != CurrentPage && segment.Bounds.Page <= PageCount) SetCurrentValue(CurrentPageProperty, segment.Bounds.Page);
+        DrawPositions();
+    }
+
+    private void PageSelected(object sender, MouseButtonEventArgs e)
+    {
+        if (playbackMap?.CanSynchronize != true || pageBitmap is null || PageSurface.ActualWidth <= 0 || PageSurface.ActualHeight <= 0) return;
+        var point = e.GetPosition(PageSurface);
+        double x = point.X / PageSurface.ActualWidth, y = point.Y / PageSurface.ActualHeight;
+        e.Handled = TrySelectPosition(x, y);
+    }
+
+    private bool TrySelectPosition(double x, double y)
+    {
+        if (playbackMap?.CanSynchronize != true || !double.IsFinite(x) || !double.IsFinite(y)) return false;
+        // Native mpos spans all staves of a system. Vertical tolerance permits ledger notes,
+        // but clicks outside a real measure never invent a time position.
+        var measure = playbackMap.Measures.Where(m => m.Bounds.Page == CurrentPage && x >= m.Bounds.X && x <= m.Bounds.X + m.Bounds.Width &&
+            y >= m.Bounds.Y - .014 && y <= m.Bounds.Y + m.Bounds.Height + .014)
+            .OrderBy(m => Math.Abs(y - (m.Bounds.Y + m.Bounds.Height / 2))).FirstOrDefault();
+        if (measure is null) return false;
+        var segments = playbackMap.Segments.Where(s => s.Measure == measure.Measure && s.Bounds.Page == CurrentPage).ToArray();
+        var segment = segments.Where(s => x >= s.Bounds.X - .004 && x <= s.Bounds.X + Math.Max(.006, s.Bounds.Width) + .004)
+            .OrderBy(s => Math.Abs(x - (s.Bounds.X + s.Bounds.Width / 2))).FirstOrDefault();
+        var occurrence = playbackMap.FindOccurrence(measure.Measure, segment?.Id, followPlayback ? playbackSeconds : null);
+        if (occurrence is null) return false;
+        selectedPosition = occurrence;
+        DrawPositions();
+        var barOccurrence = playbackMap.MeasureTimeline.FirstOrDefault(t => t.Measure == occurrence.Measure &&
+            occurrence.StartSeconds >= t.StartSeconds - .0001 && occurrence.StartSeconds < t.EndSeconds);
+        PositionSelected?.Invoke(this, new(measure.Measure, segment?.Id, segment?.EventIds ?? [],
+            occurrence.StartSeconds, occurrence.EndSeconds, occurrence.Index)
+            { MeasureStartSeconds = barOccurrence?.StartSeconds ?? occurrence.StartSeconds, MeasureEndSeconds = barOccurrence?.EndSeconds ?? occurrence.EndSeconds });
+        return true;
+    }
+
+    private void DrawPositions()
+    {
+        PositionOverlay.Children.Clear();
+        if (playbackMap is null || pageBitmap is null || !double.IsFinite(PageImage.Width) || !double.IsFinite(PageImage.Height)) return;
+        void Draw(ScorePageRegion box, Color color, double opacity, double thickness)
+        {
+            if (box.Page != CurrentPage) return;
+            var rectangle = new Rectangle { Width = Math.Max(2, box.Width * PageImage.Width), Height = Math.Max(3, box.Height * PageImage.Height),
+                Fill = new SolidColorBrush(Color.FromArgb((byte)(opacity * 255), color.R, color.G, color.B)),
+                Stroke = new SolidColorBrush(color), StrokeThickness = thickness, RadiusX = 3, RadiusY = 3 };
+            Canvas.SetLeft(rectangle, box.X * PageImage.Width); Canvas.SetTop(rectangle, box.Y * PageImage.Height);
+            PositionOverlay.Children.Add(rectangle);
+        }
+        if (playbackPosition is { } playing)
+        {
+            var measure = playbackMap.Measures.FirstOrDefault(m => m.Measure == playing.Measure);
+            if (measure is not null) Draw(measure.Bounds, Color.FromRgb(31, 137, 209), .10, 1);
+            if (playing.SegmentId is { } id && playbackMap.Segments.FirstOrDefault(s => s.Id == id) is { } segment)
+                Draw(segment.Bounds, Color.FromRgb(31, 137, 209), .24, 1.5);
+        }
+        if (selectedPosition is { } selected)
+        {
+            var box = selected.SegmentId is { } id ? playbackMap.Segments.FirstOrDefault(s => s.Id == id)?.Bounds :
+                playbackMap.Measures.FirstOrDefault(m => m.Measure == selected.Measure)?.Bounds;
+            if (box is not null) Draw(box, Color.FromRgb(203, 124, 23), .12, 2);
+        }
+    }
+
+    private void FollowPosition()
+    {
+        if (!followPlayback || playbackPosition is null || playbackMap is null || pageBitmap is null) return;
+        var measure = playbackMap.Measures.FirstOrDefault(m => m.Measure == playbackPosition.Measure);
+        if (measure is null || measure.Bounds.Page != CurrentPage) return;
+        double top = measure.Bounds.Y * PageImage.Height + 12, bottom = top + measure.Bounds.Height * PageImage.Height;
+        if (top < PageScroll.VerticalOffset + 20 || bottom > PageScroll.VerticalOffset + PageScroll.ViewportHeight - 30)
+            PageScroll.ScrollToVerticalOffset(Math.Max(0, top - Math.Min(90, PageScroll.ViewportHeight / 4)));
+    }
+}
+
+public sealed class ScorePositionSelectedEventArgs(int measure, int? segmentId, IReadOnlyList<string> eventIds,
+    double startSeconds, double endSeconds, int occurrenceIndex) : EventArgs
+{
+    public int Measure { get; } = measure;
+    public int? SegmentId { get; } = segmentId;
+    public IReadOnlyList<string> EventIds { get; } = eventIds;
+    public double StartSeconds { get; } = startSeconds;
+    public double EndSeconds { get; } = endSeconds;
+    public int OccurrenceIndex { get; } = occurrenceIndex;
+    public double MeasureStartSeconds { get; init; } = startSeconds;
+    public double MeasureEndSeconds { get; init; } = endSeconds;
 }
 
 internal sealed class ScoreViewerPage(string path, int number) : INotifyPropertyChanged

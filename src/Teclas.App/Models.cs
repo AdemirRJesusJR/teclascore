@@ -63,6 +63,7 @@ public sealed class MidiRow : Observable
     public string ProfileReason=>Profile?["config"]?["reason"]?.GetValue<string>()??"MIDI novo: escolha a pista de melodia e confira as cifras sugeridas.";
     public ObservableCollection<TrackRow> Tracks{get;}=[];
     public List<SourceKey> MelodySourcePriority{get;set;}=[];
+    public List<SavedMelodySection> MelodySections{get;set;}=[];
     public ObservableCollection<ChordRow> Chords{get;}=[];
     public string? AnalysisPath{get;set;}
     public string? Workspace{get;set;}

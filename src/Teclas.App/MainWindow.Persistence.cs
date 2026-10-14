@@ -134,6 +134,9 @@ public partial class MainWindow
         row.MelodySourcePriority = row.SourceSha256 is null || saved.HasMusicalEdits ||
             string.Equals(row.SourceSha256, saved.Sha256, StringComparison.OrdinalIgnoreCase)
             ? RestoreMelodyPriority(saved.MelodySourcePriority) : [];
+        row.MelodySections = row.SourceSha256 is null || saved.HasMusicalEdits ||
+            string.Equals(row.SourceSha256, saved.Sha256, StringComparison.OrdinalIgnoreCase)
+            ? Settings.CloneMelodySections(saved.MelodySections) : [];
         row.IsFavorite = saved.IsFavorite; row.Collection = saved.Collection; row.Genre = saved.Genre;
         row.TransposeSemitones = saved.TransposeSemitones; row.Versions = saved.Versions;
         row.ScoreTitle = saved.ScoreTitle ?? ScoreMetadataDefaults.Title(row.FullPath);
@@ -183,6 +186,7 @@ public partial class MainWindow
             remembered.HasMusicalEdits = row.HasMusicalEdits;
             remembered.ArrangementSummary = row.ArrangementSummary;
             remembered.MelodySourcePriority = SaveMelodyPriority(row.MelodySourcePriority);
+            remembered.MelodySections = Settings.CloneMelodySections(row.MelodySections);
             remembered.ScoreTitle = row.ScoreTitle; remembered.ScoreSubtitle = row.ScoreSubtitle;
             remembered.ScoreComposer = row.ScoreComposer; remembered.DefaultDiagramInversion = row.DefaultDiagramInversion;
             remembered.ScoreArtist = row.ScoreArtist; remembered.MetadataOrganizationNotice = row.MetadataOrganizationNotice;
@@ -201,6 +205,7 @@ public partial class MainWindow
         {
             HasMusicalEdits = row.HasMusicalEdits, ArrangementSummary = row.ArrangementSummary,
             MelodySourcePriority = SaveMelodyPriority(row.MelodySourcePriority),
+            MelodySections = Settings.CloneMelodySections(row.MelodySections),
             FullPath = row.FullPath, Sha256 = row.SourceSha256, UseReviewedProfile = row.UseReviewedProfile,
             IsFavorite = row.IsFavorite, Collection = row.Collection, Genre = row.Genre,
             TransposeSemitones = row.TransposeSemitones, Versions = row.Versions,

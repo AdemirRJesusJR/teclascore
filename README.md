@@ -1,8 +1,8 @@
 # TeclaScore
 
-Versão 0.14.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.15.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
 
-A versão 0.14.0 acrescenta arranjos por nível para partituras geradas de MIDI e arquivos MuseScore importados, com mudanças explicadas, comparação e salvamento em nova versão. A versão 0.13.1 identifica automaticamente o instrumento na entrada e nas trocas de fonte da melodia combinada. A versão 0.13.0 acrescenta uma fila persistente de conversões MIDI, com retomada após interrupção ou falha, e combina várias pistas em uma única pauta com prioridade ajustável. A versão 0.12.0 acrescentou um editor musical com rascunho, desfazer/refazer, prévia, reprodução e salvamento em nova versão. A versão anterior trouxe sugestões de melodia com trechos para comparar, justificativas e alternativas de cifras, e diagnóstico estrutural de partituras MuseScore por pauta, compasso e voz. O painel de progresso continua acompanhando a preparação, análise e geração.
+A versão 0.15.0 acrescenta pistas por faixa de compassos, acompanhamento da pauta durante a reprodução, seleção de ataques na página, revisão visual com comparação e backup portátil da biblioteca. A versão 0.14.0 acrescenta arranjos por nível para partituras geradas de MIDI e arquivos MuseScore importados, com mudanças explicadas, comparação e salvamento em nova versão. A versão 0.13.1 identifica automaticamente o instrumento na entrada e nas trocas de fonte da melodia combinada. A versão 0.13.0 acrescenta uma fila persistente de conversões MIDI, com retomada após interrupção ou falha, e combina várias pistas em uma única pauta com prioridade ajustável. A versão 0.12.0 acrescentou um editor musical com rascunho, desfazer/refazer, prévia, reprodução e salvamento em nova versão. A versão anterior trouxe sugestões de melodia com trechos para comparar, justificativas e alternativas de cifras, e diagnóstico estrutural de partituras MuseScore por pauta, compasso e voz. O painel de progresso continua acompanhando a preparação, análise e geração.
 
 Em **Comparar pistas**, a ordem de escuta considera notas simultâneas, legato, registro, repetição e duração. Ouça trechos a 25%, 50%, 75% ou 100%; somente **Usar esta pista como melodia** muda a seleção. Confirmar a mesma pista preserva as cifras já ajustadas. A ordem é uma sugestão heurística, sem garantia de identificar a melodia; compare especialmente fontes duplicadas ou com várias vozes.
 
@@ -14,15 +14,39 @@ Repositório: [AdemirRJesusJR/teclascore](https://github.com/AdemirRJesusJR/tecl
 
 ## Editor musical
 
-Na **Prévia**, abra **Editor musical**. Escolha a pauta e o compasso; nas abas **Notas**, **Ritmo** e **Cifras**, ajuste os elementos existentes. Use notas como C4 (dó central), F#4 e Bb3. A posição indicada conta semínimas dentro do compasso; a numeração usa a ordem do arquivo, podendo diferir da impressa. A seleção controla a tabela de edição; as páginas da prévia são navegadas separadamente.
+Na **Prévia**, abra **Editor musical**. Escolha a pauta e o compasso; nas abas **Notas**, **Ritmo** e **Cifras**, ajuste os elementos existentes. Use notas como C4 (dó central), F#4 e Bb3. A posição indicada conta semínimas dentro do compasso; a numeração usa a ordem do arquivo, podendo diferir da impressa. O app prepara um mapa da página: clique em um ataque para selecionar suas notas na tabela. Acordes e vozes simultâneas mostram opções para escolha; o clique não escolhe uma voz arbitrariamente.
 
-**Desfazer** e **Refazer** atuam sobre o rascunho. **Atualizar prévia** verifica as mudanças e renderiza todas as páginas. **Ouvir partitura** reproduz o rascunho inteiro em 50%, 75% ou 100%, com pausa e controle de posição. Não é reprodução isolada do compasso. Confira as páginas e o som antes de **Salvar nova versão**; qualquer nova alteração exige outra atualização da prévia. Fechar com mudanças pede confirmação de descarte.
+**Desfazer** e **Refazer** atuam sobre o rascunho. **Atualizar prévia** verifica as mudanças e renderiza todas as páginas. **Ouvir partitura** reproduz o rascunho inteiro em 50%, 75% ou 100%, com pausa e controle de posição. Use **Ouvir compasso** para ouvir o compasso selecionado ou **Ouvir seleção** para ouvir o ataque selecionado; os trechos incluem todas as pautas e vozes que soam naquele intervalo. Confira as páginas e o som antes de **Salvar nova versão**; qualquer nova alteração exige outra atualização da prévia. Fechar com mudanças pede confirmação de descarte.
 
 Mudar uma duração exige compensar outra nota ou pausa da mesma voz e manter as posições de cifras, imagens, marcações e elementos não editados. Esta etapa edita elementos existentes: não inclui inserção/exclusão de notas, arraste na pauta ou edição de cadeias de ligaduras e quiálteras. Pautas transpositoras, tablaturas, percussão, partes vinculadas e estruturas especiais indicam restrições locais ou globais.
 
 Cifras simples reconhecidas podem ser alteradas. Quando a cifra tem um diagrama TeclaScore associado de forma inequívoca, o desenho e sua inversão acompanham apenas aquela ocorrência. Diagramas desconhecidos e associações ambíguas são preservados e orientam edição no MuseScore. A conferência estrutural não certifica espaçamento visual: revise todas as páginas renderizadas, principalmente depois de aumentar o texto de uma cifra.
 
 Ao salvar, o app cria uma nova cópia MSCZ e registra original e edição no Histórico. A partitura editada passa a ser a fonte para reprodução, PDF, propriedades e apresentação; as abas de preparação a partir do MIDI ficam desabilitadas para evitar perda das correções. Para voltar ao MIDI, restaure no Histórico uma versão anterior à edição. A cópia editada e seu estado continuam disponíveis mesmo se o MIDI original mudar ou ficar ausente.
+
+## Pistas por trecho
+
+Na aba **Melodia**, abra **Pistas por trecho**. Defina faixas sem sobreposição, como compassos 1–8 para guitarra e 9–32 para piano. A janela mostra o mapa de compassos, incluindo anacruse e mudanças de fórmula; compasso 1 é o primeiro compasso da partitura, após o corte do silêncio inicial indicado na janela.
+
+Dentro de uma faixa, a fonte escolhida prevalece mesmo se não estiver marcada na seleção geral; seus silêncios permanecem silenciosos. Fora das faixas vale a prioridade geral das pistas. Não se reinicia uma nota que começou fora do trecho permitido. As indicações de instrumento acompanham as mudanças reais de fonte. Aplicar uma mudança invalida a análise anterior e exige nova geração; a cópia anterior fica no Histórico. A fila congela as faixas junto com a receita. Perfis revisados continuam usando a revisão aprovada até você desmarcar essa opção.
+
+## Acompanhamento da partitura
+
+Na **Prévia**, **Preparar acompanhamento** permite clicar em compassos e ataques para iniciar a reprodução naquele ponto. **Reproduzir** também prepara esse mapa. O destaque usa posições e tempos exportados pelo MuseScore, incluindo repetições e mudanças de andamento; **Acompanhar páginas durante a reprodução** controla a troca automática de páginas e fica salvo nas preferências.
+
+No Editor musical, clicar na pauta seleciona os elementos existentes para corrigir notas e durações na tabela. Depois de editar, atualize a prévia para reconstruir as posições antes de clicar ou ouvir trechos. Não inclui arraste livre ou inserção de notas. Quando não há associação segura com os eventos, o app informa a limitação e mantém a edição pela tabela. Se o mapa de uma estrutura não puder ser validado, a reprodução inteira continua disponível sem um destaque estimado.
+
+## Revisão visual
+
+Na **Prévia**, abra **Revisão visual** em uma partitura MIDI já gerada ou MSCZ importada. A lista localiza colisões entre cifras, diagramas e textos reconhecidos, elementos além das margens e alguns problemas de paginação. Escolha um achado para conferir a página e o detalhe ampliado.
+
+Prepare a proposta, compare **Original / Proposta corrigida** e salve uma nova versão. Os ajustes são conservadores: espaçamento local, reposicionamento automático e paginação quando seguros. Notas, durações, cifras e imagens são conferidas novamente; propostas sem melhoria validada não são publicadas. A revisão não cobre toda a tipografia musical, colisões entre todas as notas/articulações nem a intenção estética. Leia as limitações e confira as páginas.
+
+## Backup portátil da biblioteca
+
+Em **Configurações**, use **Salvar backup** para criar um arquivo .teclasbackup com MIDIs, MSCZ, páginas de prévia, versões do Histórico, cabeçalhos, coleções e escolhas musicais. Arquivos indisponíveis são listados para você decidir se deseja um backup parcial. As análises e os áudios temporários não são incluídos; são refeitos quando necessários.
+
+**Restaurar backup** confere a integridade, pede uma pasta de destino e adiciona as músicas à biblioteca atual. Mantém as músicas e preferências existentes; as configurações de Python/MuseScore permanecem próprias de cada computador. Restaurar o mesmo backup na mesma pasta não duplica as músicas; arquivos restaurados que foram alterados são preservados e exigem outro destino. A fila de conversões não faz parte do backup. No outro computador, instale os componentes necessários para gerar e reproduzir partituras.
 
 ## Arranjos por nível
 
