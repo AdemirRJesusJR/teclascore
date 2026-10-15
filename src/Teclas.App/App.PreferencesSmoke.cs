@@ -57,6 +57,9 @@ public partial class App
             string settingsPath = Path.Combine(directory, "settings.json");
             string chosenOutput = Path.Combine(directory, "partituras");
             var first = Open(settingsPath);
+            Require(first.CurrentPage == "dashboard" && first.DashboardVisible == Visibility.Visible,
+                "A new session must open on Visão geral.");
+            checks["fresh-session-starts-on-dashboard"] = true;
             first.ImportForSmoke(midi);
             var row = first.Files.Single();
             Require(row.Document is not null && row.Tracks.Count > 0, "The MIDI fixture cannot exercise melody selections.");
@@ -71,6 +74,10 @@ public partial class App
             first.OutputDirectory = chosenOutput;
             first.SetThemeForSmoke("graphite");
             first.SetSidebarForSmoke(true);
+            first.IsPreviewControlsCompact = true;
+            first.TrackAuditionSpeed = .75;
+            first.ScorePlaybackSpeed = .5;
+            first.FollowScorePlayback = false;
             first.Width = 1170; first.Height = 780;
             first.Left = Math.Max(SystemParameters.WorkArea.Left, 32);
             first.Top = Math.Max(SystemParameters.WorkArea.Top, 28);
@@ -98,8 +105,12 @@ public partial class App
             Require(second.SelectedTheme.Id == "graphite" && second.IsSidebarCollapsed, "Theme or compact sidebar was forgotten.");
             Require(second.PythonPath == Environment.ProcessPath && second.MuseScorePath == Environment.ProcessPath
                 && second.OutputDirectory == chosenOutput, "Tool paths or output folder were forgotten.");
-            Require(second.CurrentPage == "library" && second.SearchText == "repertorio" && second.CurrentFilter == "review"
-                && ((TabControl)second.FindName("EditorTabs")).SelectedIndex == 1, "Navigation, search, filter or editor tab was forgotten.");
+            Require(second.CurrentPage == "dashboard" && second.DashboardVisible == Visibility.Visible
+                && second.SearchText == "repertorio" && second.CurrentFilter == "review"
+                && ((TabControl)second.FindName("EditorTabs")).SelectedIndex == 1,
+                "Startup must show Visão geral while preserving search, filter and editor tab.");
+            Require(second.IsPreviewControlsCompact && second.TrackAuditionSpeed == .75 && second.ScorePlaybackSpeed == .5
+                && !second.FollowScorePlayback, "Preview layout or study preferences were changed by dashboard startup.");
             Require(!restored.UseReviewedProfile && restored.Tracks[0].IsMelody && restored.Tracks.Count(t => t.IsMelody) == 1,
                 "The user's melody selection was not restored.");
             Require(restored.KeyFifths == -2 && restored.KeyMinor && restored.Chords.Count == 2
@@ -108,19 +119,32 @@ public partial class App
             Require(Math.Abs(second.Width - expectedWidth) < 2 && Math.Abs(second.Height - expectedHeight) < 2
                 && Math.Abs(second.Left - expectedLeft) < 2 && Math.Abs(second.Top - expectedTop) < 2,
                 "Normal window dimensions or position were not restored.");
-            checks["native-reopen-restores-all-preferences"] = true;
+            checks["dashboard-startup-preserves-all-other-preferences"] = true;
             checks["melody-and-musical-edits-restored"] = true;
             checks["window-bounds-restored"] = true;
             Close(second);
 
-            var about = Open(settingsPath);
-            about.SelectPageForSmoke("about");
-            Close(about);
-            var reopenedAbout = Open(settingsPath);
-            Require(reopenedAbout.CurrentPage == "about" && reopenedAbout.AboutVisible == Visibility.Visible,
-                "The new About page was not restored after closing.");
-            Close(reopenedAbout);
-            checks["about-page-restored"] = true;
+            foreach (string previousPage in new[] { "dashboard", "library", "production", "settings", "about" })
+            {
+                var navigating = Open(settingsPath);
+                navigating.SelectPageForSmoke(previousPage, 1);
+                Require(navigating.CurrentPage == previousPage, "Normal in-session navigation was forced back to the dashboard.");
+                Close(navigating);
+                Require(Settings.Load(settingsPath).CurrentPage == previousPage, "The saved session does not exercise the requested last page.");
+                var reopened = Open(settingsPath);
+                Require(reopened.CurrentPage == "dashboard" && reopened.DashboardVisible == Visibility.Visible
+                    && reopened.LibraryVisible == Visibility.Collapsed && reopened.ProductionVisible == Visibility.Collapsed
+                    && reopened.SettingsVisible == Visibility.Collapsed && reopened.AboutVisible == Visibility.Collapsed,
+                    "Visão geral must be the only startup page after closing " + previousPage + ".");
+                Require(reopened.Files.Count == 1 && reopened.SelectedFile?.FullPath == midi
+                    && reopened.SearchText == "repertorio" && reopened.CurrentFilter == "review"
+                    && ((TabControl)reopened.FindName("EditorTabs")).SelectedIndex == 1
+                    && reopened.SelectedTheme.Id == "graphite" && reopened.IsSidebarCollapsed && reopened.IsPreviewControlsCompact,
+                    "Starting on the dashboard must not clear the previous work or appearance.");
+                Close(reopened);
+                checks["starts-on-dashboard-after-" + previousPage] = true;
+            }
+            checks["normal-navigation-remains-available"] = true;
 
             listener.Flush();
             Require(string.IsNullOrEmpty(bindingOutput.ToString()), "Roundtrip exposed data-binding errors: " + bindingOutput);

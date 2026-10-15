@@ -1,3 +1,16 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.19.2
+15/10/2026
+
+- Runner local: 32 etapas aprovadas, zero falhas e quatro grupos opcionais não executados (integrações nativas, coleção pessoal, fixtures especiais e dispositivo de áudio). Compilação, suítes C#, Python, interface WPF, benchmarks e testes do instalador foram executados.
+- Prévia dos diagramas: 789 verificações aprovadas. Inclui as 720 combinações suportadas de raiz, tipo e inversão; marcadores reais do desenho, exemplos independentes, transposição, aplicação à mesma cifra, retorno ao padrão, sugestões, cancelamento, cache e reciclagem das linhas. A paridade existente compara também as notas C# com o SVG usado na partitura.
+- Inspeção visual nos temas claro e escuro, em janelas de 800×580 e 900×730. Teclados, seletores e ações legíveis; nenhuma advertência de binding. As cifras permanecem no tom de origem; quando há transposição, a mensagem informa que o teclado mostra o tom final.
+- Inicialização: 16 resultados de preferências confirmam Visão geral após fechar em qualquer uma das cinco páginas, preservando biblioteca, seleção, filtros, tema, dimensões, player compacto e demais preferências. Teste separado de importação com 12 verificações confirma a abertura automática da Biblioteca ao importar.
+- Publicação Windows x64 self-contained: compilação sem avisos ou erros, com .NET Desktop Runtime 10.0.10 e suas licenças. EXE e ZIP usam o mesmo aplicativo.
+- Esta atualização não altera a análise musical, a geração, as posições confortáveis nem o áudio. Os testes novos usam acordes e arquivos sintéticos, sem abrir músicas ou configurações pessoais.
+
+Python/Pillow e MuseScore continuam necessários para as operações que os utilizam; configure-os em Configurações > Preparar este computador. O instalador não possui certificado de assinatura de código.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.19.1
 15/10/2026
 

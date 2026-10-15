@@ -127,6 +127,10 @@ try {
         $app=Binary 'Teclas.App' 'Teclas.Partituras.exe'
         [void](Invoke-Check 'wpf-ui' $app @('--verify-v018-ui',(Join-Path $reports 'wpf-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-ui.json'))
         [void](Invoke-Check 'wpf-v019-ui' $app @('--verify-v019-ui',(Join-Path $reports 'wpf-v019-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v019-ui.json'))
+        [void](Invoke-Check 'wpf-diagram-preview-ui' $app @('--verify-diagram-preview-ui',(Join-Path $reports 'wpf-diagram-preview-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-diagram-preview-ui.json'))
+        if ($fixturesReady) {
+            [void](Invoke-Check 'wpf-preferences-ui' $app @('--verify-preferences',(Join-Path $reports 'wpf-preferences-ui.json'),(Join-Path $fixtures 'synthetic.mid')) $work -JsonReport (Join-Path $reports 'wpf-preferences-ui.json'))
+        } else { Record-Skip 'wpf-preferences-ui' 'Synthetic MIDI fixture was not created.' }
         [void](Invoke-Check 'synthetic-benchmarks' $dotnet @((Binary 'Teclas.Benchmarks' ''),'--output',(Join-Path $reports 'benchmarks.json'),'--iterations',"$BenchmarkIterations") $work -JsonReport (Join-Path $reports 'benchmarks.json'))
     } else { Record-Skip 'wpf-ui' 'Solution build failed.';Record-Skip 'synthetic-benchmarks' 'Solution build failed.' }
     $windowsPowerShell=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'

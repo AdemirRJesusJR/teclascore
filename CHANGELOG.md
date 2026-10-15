@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.19.2 — 2026-10-15
+
+- Prévia de teclado ao lado de cada cifra em Posições dos diagramas, atualizada imediatamente ao escolher a inversão, restaurar o padrão ou aplicar posições em lote. As teclas correspondem às mesmas notas e oitavas do diagrama na partitura, incluindo a transposição.
+- A abertura do aplicativo sempre apresenta Visão geral. Biblioteca, filtros e demais preferências continuam salvos.
+
 ## 0.19.1 — 2026-10-15
 
 - Instalador EXE Windows x64 com assistente em português, instalação por usuário, atalhos e desinstalador. Biblioteca, configurações e partituras permanecem preservadas.

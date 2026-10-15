@@ -91,7 +91,9 @@ public partial class MainWindow
             }
             SearchText = settings.SearchText;
             CurrentFilter = settings.CurrentFilter;
-            SetCurrentPage(settings.CurrentPage);
+            // Restore the working session, but always greet the user on Visão geral.
+            // Navigation during the session (including import) still uses SetCurrentPage normally.
+            SetCurrentPage("dashboard");
             var selected = Files.FirstOrDefault(row => string.Equals(row.FullPath, settings.SelectedMidiPath, StringComparison.OrdinalIgnoreCase)
                 && MatchesLibraryFilter(row));
             if (selected is not null) Library.SelectedItem = selected;

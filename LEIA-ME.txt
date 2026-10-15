@@ -1,8 +1,13 @@
-TECLASCORE · PRÉVIA 0.19.1
+TECLASCORE · PRÉVIA 0.19.2
+
+NOVO NA VERSÃO 0.19.2
+Posições dos diagramas: a imagem do teclado aparece ao lado da cifra e muda imediatamente com a inversão. O desenho usa as notas e oitavas da partitura; a descrição mostra as notas do grave ao agudo. Confirmar aplica; Cancelar preserva as posições anteriores.
+Ao abrir o app, a primeira tela é sempre Visão geral. As demais preferências e a biblioteca continuam salvas.
+Instale a atualização com TeclaScore-0.19.2-Setup-x64.exe.
 
 NOVO NA VERSÃO 0.19.1
 Na Prévia, Compactar controles reduz o player e recolhe as ferramentas, liberando espaço para a partitura. Reproduzir, pausar, parar e posição permanecem acessíveis; Expandir controles traz as opções de volta. A escolha fica salva.
-Execute TeclaScore-0.19.1-Setup-x64.exe e siga o assistente em português. A instalação é por usuário, com pasta própria, atalhos e desinstalador disponível nos Aplicativos instalados do Windows.
+Execute TeclaScore-0.19.2-Setup-x64.exe e siga o assistente em português. A instalação é por usuário, com pasta própria, atalhos e desinstalador disponível nos Aplicativos instalados do Windows.
 O .NET Desktop Runtime 10 está incluído no EXE e no ZIP: não é preciso instalá-lo separadamente. Python/Pillow e MuseScore continuam necessários; use Configurações > Preparar este computador.
 A desinstalação preserva sua biblioteca, configurações, partituras e versões anteriores instaladas pelo ZIP. Abra o TeclaScore pelo atalho após concluir.
 
