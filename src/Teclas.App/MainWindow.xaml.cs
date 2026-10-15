@@ -197,7 +197,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             measurement?.Success();
         }
         catch(OperationCanceledException){measurement?.Cancelled();Status="Operação cancelada. Os arquivos originais foram preservados.";if(rowOnError is not null)rowOnError.Status="Operação cancelada · tente novamente quando desejar";}
-        catch(Exception ex){if(ex is TimeoutException)measurement?.TimedOut();else measurement?.Failure();Status=ex.Message;if(rowOnError is { } row){row.Status="Precisa de revisão: "+ex.Message;row.HasOperationError=true;}}
+        catch(Exception ex){if(ex is TimeoutException)measurement?.TimedOut();else measurement?.Failure();Status=ex.Message;if(rowOnError is { } row){row.Status="Precisa de revisão: "+ex.Message;row.HasOperationError=true;ApplyEngineReviewFailure(row,ex);}}
         finally
         {
             if(measurement is not null)

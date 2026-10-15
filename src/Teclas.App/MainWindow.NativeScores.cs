@@ -84,7 +84,24 @@ public partial class MainWindow
         },row,"Melhorando apresentação da partitura");
         PersistPreferences();
     }
-    private void UpdatesClick(object sender,RoutedEventArgs e)=>new UpdateWindow(PythonPath,MuseScorePath){Owner=this}.ShowDialog();
+    private void UpdatesClick(object sender,RoutedEventArgs e)
+    {
+        if(!IsIdle)return;
+        new UpdateWindow(PythonPath,MuseScorePath,ApplyDependencyPaths){Owner=this}.ShowDialog();
+    }
+
+    private void DependencySetupClick(object sender,RoutedEventArgs e)
+    {
+        if(!IsIdle)return;
+        var dialog=new DependencySetupWindow(PythonPath,MuseScorePath){Owner=this};
+        if(dialog.ShowDialog()==true)ApplyDependencyPaths(dialog.SelectedPythonPath,dialog.SelectedMuseScorePath);
+    }
+
+    private void ApplyDependencyPaths(string python,string museScore)
+    {
+        PythonPath=python;MuseScorePath=museScore;PersistPreferences();
+        Status="Ferramentas verificadas e caminhos salvos. O computador está preparado para gerar e reproduzir partituras.";
+    }
     private async void ImportMuseScoreClick(object sender,RoutedEventArgs e)
     {
         if(!IsIdle || !CommitEdits())return;

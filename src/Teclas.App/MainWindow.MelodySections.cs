@@ -22,6 +22,9 @@ public partial class MainWindow
         row.UseReviewedProfile ? new JsonArray() : MelodySectionRules.ToJson(row.MelodySections);
 
     private async void MelodySectionsClick(object sender, RoutedEventArgs e)
+        => await OpenMelodySections();
+
+    private async Task OpenMelodySections(int? initialMeasure = null)
     {
         if (!CanEditMelodySections || selectedFile is not { Document: { } document } row || !CommitEdits()) return;
         MelodyMeasureMap? map = null;
@@ -37,7 +40,7 @@ public partial class MainWindow
             cancellation.Token.ThrowIfCancellationRequested(); map = result;
         }, operationTitle: "Lendo compassos da música", operationItem: row.ScoreTitle);
         if (operationsDisposed || map is null || selectedFile != row || row.Document != document || !CanEditMelodySections) return;
-        var dialog = new MelodySectionsWindow(map, row.Tracks.Where(track => track.Channel != 10).ToArray(), row.MelodySections) { Owner = this };
+        var dialog = new MelodySectionsWindow(map, row.Tracks.Where(track => track.Channel != 10).ToArray(), row.MelodySections, initialMeasure) { Owner = this };
         if (dialog.ShowDialog() == true) ApplyMelodySections(row, map, dialog.Sections);
     }
 

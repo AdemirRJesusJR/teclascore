@@ -135,8 +135,17 @@ class ReviewTests(unittest.TestCase):
         self.assertFalse(ready);self.assertEqual(len(points),4)
         self.assertEqual([point['measure'] for point in points],[1,2,2,2])
         self.assertTrue(all(point['blocking'] for point in points))
+        self.assertTrue(all(point['notes'] and 'MIDI ' in point['message'] for point in points))
+        for point in points:
+            self.assertTrue(all(abs(note['quarter']-point['quarter'])<1e-6 for note in point['notes']))
+            self.assertTrue(all(note['track']==1 and note['channel']==1 for note in point['notes']))
         with tempfile.TemporaryDirectory() as directory,self.assertRaises(engine.NeedsReview) as caught:
             engine.build_musicxml(parsed,config,harmony,Path(directory),'Teste')
         self.assertEqual(caught.exception.review_points,points)
+        import worker,io
+        from contextlib import redirect_stdout,redirect_stderr
+        output=io.StringIO()
+        with redirect_stdout(output),redirect_stderr(io.StringIO()):worker.report_error(caught.exception)
+        self.assertEqual(json.loads(output.getvalue())['reviewPoints'],points)
 
 if __name__=='__main__':unittest.main(verbosity=2)

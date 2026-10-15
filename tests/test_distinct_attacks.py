@@ -1,6 +1,7 @@
 """Bounded recovery for distinct piano attacks that nearest-grid rounding merges."""
 from pathlib import Path
 import os, sys, tempfile, unittest
+import xml.etree.ElementTree as E
 
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,6 +46,42 @@ class DistinctAttackTests(unittest.TestCase):
             engine._separate_quantized_attacks(phases,grids,{0:BINARY},0,960)
         self.assertEqual(failure.exception.quarters,[.49,.5,.51,.52])
         self.assertEqual(grids,{0:16})  # Failure cannot partially alter the original grids.
+
+    def test_fast_run_refines_only_failed_beat_without_losing_any_pitch(self):
+        # Synthetic performance: consecutive descending attacks faster than
+        # the old 64th-note grid, with ordinary beats on either side.
+        run=[110.48,110+255/480,110+281/480,110+307/480,110+331/480,
+             110+351/480,110+373/480,110+393/480,110+418/480]
+        quarters=list(range(90,110))+run+[112,113]
+        parsed,config=fixture(quarters,480)
+        config.update(merge_mode='priority',melody_sources=config['melody_sources']+[dict(track=6,channel=4,program=0)])
+        for note,pitch in zip(parsed['notes'][20:],[69,68,66,64,63,61,59,57,56]):note['pitch']=pitch
+        events,grids,report=engine.melody_events(parsed,config,88*960,116*960)
+        self.assertEqual([event['pitch'] for event in events],[note['pitch'] for note in parsed['notes']])
+        self.assertEqual(len(events),len(quarters))
+        self.assertEqual(report['quantized_attack_collisions'],0)
+        self.assertEqual(report['boundary_grid_refinements'],[{'beat_original':110,'from':16,'to':32}])
+        self.assertEqual({beat+88 for beat,grid in grids.items() if grid==32},{110})
+        for original,event in zip(quarters[20:29],events[20:29]):
+            self.assertLessEqual(abs(event['start']/960+88-original),1/32+1e-9)
+        for event in events:
+            self.assertGreater(event['end'],event['start'])
+            self.assertEqual(sum(piece[1] for piece in engine.pieces(event['start'],event['end'],grids)),event['end']-event['start'])
+        measure=E.Element('measure')
+        engine.emit_note(measure,0,30,False,dict(start=0,end=30,pitch=60),engine.spellings(0))
+        self.assertEqual(measure.findtext('note/type'),'128th')
+
+    def test_finer_triplet_grid_preserves_family_and_emits_supported_duration(self):
+        phases={0:[.23,.28,.33,.38,.43,.48],3:[.13]};grids={0:12,3:4}
+        positions,refinements,_=engine._separate_quantized_attacks(phases,grids,{0:TERNARY,3:BINARY},0,4*960)
+        self.assertEqual(grids,{0:24,3:4})
+        self.assertEqual(len(positions),7)
+        self.assertEqual(list(positions.values()),sorted(set(positions.values())))
+        self.assertEqual(positions[3.13],3*960+240)
+        measure=E.Element('measure')
+        engine.emit_note(measure,0,40,True,dict(start=0,end=40,pitch=60),engine.spellings(0))
+        self.assertEqual(measure.findtext('note/type'),'64th')
+        self.assertEqual(measure.findtext('note/time-modification/actual-notes'),'3')
 
     def test_ternary_and_mixed_grids_keep_their_note_families(self):
         for left in (TERNARY,BINARY):

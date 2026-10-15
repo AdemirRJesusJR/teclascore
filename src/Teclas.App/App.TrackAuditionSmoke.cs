@@ -252,7 +252,7 @@ public partial class App
             Require(!window.CanStopTrackAudition && Silent(), "Changing MIDI selection did not stop audition.");
             checks["changing-midi-stops-audition"] = true;
             ((Selector)window.FindName("Library")).SelectedItem = row; Flush();
-            await Listen(firstTrack); ClickNamed("RemoveLibraryButton");
+            await Listen(firstTrack); Descendants((DependencyObject)window.FindName("Library")).OfType<Button>().Single(b => b.Name == "RemoveLibraryCardButton" && ReferenceEquals(b.Tag, row)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Require(!window.CanStopTrackAudition && Silent() && window.Files.Count == 1 && File.Exists(first),
                 "Removing the playing MIDI left notes active or deleted the source file.");
             checks["removing-playing-midi-stops-with-source-preserved"] = true;

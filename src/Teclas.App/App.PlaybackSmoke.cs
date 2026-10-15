@@ -155,7 +155,7 @@ public partial class App
             checks["resume-and-stop-reset-position"] = true;
             Click("PlayerPlayButton");
             await Wait(() => window.CanPauseScore, TimeSpan.FromSeconds(3), "A prepared score could not play again.");
-            Click("RemoveLibraryButton"); Flush();
+            Descendants((DependencyObject)window.FindName("Library")).OfType<System.Windows.Controls.Button>().Single(b => b.Name == "RemoveLibraryCardButton" && ReferenceEquals(b.Tag, window.SelectedFile)).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Flush();
             Require(window.SelectedFile?.FullPath == second && !window.CanPauseScore && !window.CanStopScore
                 && !window.CanSeekScore && !window.CanPlayScore && !window.CanExportPdf && window.PlaybackDurationSeconds == 0,
                 "Removing the playing row did not release playback and disable unavailable actions.");

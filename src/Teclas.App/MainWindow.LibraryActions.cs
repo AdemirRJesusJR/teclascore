@@ -32,6 +32,12 @@ public partial class MainWindow
         RemoveLibraryItem(row);
     }
 
+    private void RemoveLibraryCardClick(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        RemoveProductionItemClick(sender, e);
+    }
+
     private void RemoveLibraryItem(MidiRow row)
     {
         var visible = LibraryView.Cast<MidiRow>().ToList();

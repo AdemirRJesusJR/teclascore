@@ -10,6 +10,14 @@ public partial class MainWindow
     public IReadOnlyList<ScoreReviewPoint> ReviewPoints => selectedFile?.ReviewPoints ?? [];
     public bool CanReviewScore => CanEditMidi && ReviewPoints.Count > 0;
 
+    private void ApplyEngineReviewFailure(MidiRow row, Exception error)
+    {
+        if (row.UsesNativeScoreWorkflow || error is not EngineOperationException engine) return;
+        var details = JsonSerializer.SerializeToElement(engine.Details);
+        if (details.TryGetProperty("reviewPoints", out var points) && points.ValueKind == JsonValueKind.Array && points.GetArrayLength() > 0)
+            ParseReviewPoints(row, details);
+    }
+
     private void ParseReviewPoints(MidiRow row, JsonElement result)
     {
         row.ReviewPoints.Clear();
@@ -54,7 +62,7 @@ public partial class MainWindow
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }
     }
 
-    private void ReviewScoreClick(object sender, RoutedEventArgs e)
+    private async void ReviewScoreClick(object sender, RoutedEventArgs e)
     {
         if (!CanReviewScore || selectedFile is not { Document: { } } row) return;
         CommitEdits();
@@ -82,6 +90,8 @@ public partial class MainWindow
             if (trackPlayer is not null) trackPlayer.PlaybackRate = settings.TrackAuditionSpeed;
             NotifyPlaybackState();
         }
+        if (window.MelodyToEdit is { } melodyPoint && selectedFile == row && CanEditMelodySections)
+            await OpenMelodySections(melodyPoint.Measure);
     }
 
     private async Task<string> PlayReviewMeasure(MidiRow row, ScoreReviewPoint point, TrackRow track, double speed, CancellationToken token)

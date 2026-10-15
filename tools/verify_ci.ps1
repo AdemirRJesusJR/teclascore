@@ -89,9 +89,9 @@ try {
     $dotnet=(Get-Command dotnet -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
     $python=(Get-Command $PythonPath -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
     [void](Invoke-Check 'dotnet-version' $dotnet @('--version'))
-    $pythonReady=Invoke-Check 'python-dependencies' $python @('-c','import sys,PIL; assert sys.version_info >= (3,10); print(sys.version); print("Pillow",PIL.__version__)')
+    $pythonReady=Invoke-Check 'python-dependencies' $python @('-c','import sys,PIL; assert sys.version_info >= (3,11); print(sys.version); print("Pillow",PIL.__version__)')
     $built=Invoke-Check 'build-solution' $dotnet @('build',(Join-Path $repo 'Teclas.Partituras.sln'),'--configuration',$configuration,'--artifacts-path',$artifacts,'--nologo','-m:1','/p:UseSharedCompilation=false') $repo
-    $directorySuites=@('Teclas.Arrangement.Tests','Teclas.Backup.Tests','Teclas.BatchPdf.Tests','Teclas.Export.Tests','Teclas.PortableLibrary.Tests','Teclas.Presentation.Tests','Teclas.Queue.Tests','Teclas.Recovery.Tests','Teclas.ScoreEditing.Tests','Teclas.Study.Tests','Teclas.Voicing.Tests')
+    $directorySuites=@('Teclas.Arrangement.Tests','Teclas.Backup.Tests','Teclas.BatchPdf.Tests','Teclas.Dependencies.Tests','Teclas.Export.Tests','Teclas.PortableLibrary.Tests','Teclas.Presentation.Tests','Teclas.Queue.Tests','Teclas.Recovery.Tests','Teclas.ScoreEditing.Tests','Teclas.Study.Tests','Teclas.Transposition.Tests','Teclas.Voicing.Tests')
     $noArgumentSuites=@('Teclas.Dashboard.Tests','Teclas.Settings.Tests','Teclas.Updates.Tests','Teclas.Viewer.Tests','Teclas.PerformanceTests')
     $projects=Get-ChildItem -LiteralPath (Join-Path $repo 'tests') -Directory -Filter 'Teclas.*' | Sort-Object Name
     foreach ($project in $projects) {
@@ -119,8 +119,11 @@ try {
     if ($built) {
         $app=Binary 'Teclas.App' 'Teclas.Partituras.exe'
         [void](Invoke-Check 'wpf-ui' $app @('--verify-v018-ui',(Join-Path $reports 'wpf-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-ui.json'))
+        [void](Invoke-Check 'wpf-v019-ui' $app @('--verify-v019-ui',(Join-Path $reports 'wpf-v019-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v019-ui.json'))
         [void](Invoke-Check 'synthetic-benchmarks' $dotnet @((Binary 'Teclas.Benchmarks' ''),'--output',(Join-Path $reports 'benchmarks.json'),'--iterations',"$BenchmarkIterations") $work -JsonReport (Join-Path $reports 'benchmarks.json'))
     } else { Record-Skip 'wpf-ui' 'Solution build failed.';Record-Skip 'synthetic-benchmarks' 'Solution build failed.' }
+    $windowsPowerShell=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    [void](Invoke-Check 'installer-runtime' $windowsPowerShell @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',(Join-Path $repo 'tests\test_installer_runtime.ps1'),'-OutputDirectory',(Join-Path $work 'installer-runtime')) $work -JsonReport (Join-Path $work 'installer-runtime\report.json'))
     if ($MuseScorePath -and $built -and $fixturesReady) {
         if (-not [IO.File]::Exists($MuseScorePath)) { throw 'The explicitly requested MuseScore executable does not exist.' }
         $native=Join-Path $fixtures 'synthetic.mscz'

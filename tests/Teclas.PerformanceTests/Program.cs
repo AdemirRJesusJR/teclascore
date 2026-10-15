@@ -6,10 +6,16 @@ using Teclas.Core;
 // The same test executable is a deterministic, local fake worker/renderer. It never opens MuseScore.
 if (args.Length >= 3 && args[0] == "-u")
 {
+    Console.OutputEncoding = new System.Text.UTF8Encoding(false);
     var request = JsonNode.Parse(await File.ReadAllTextAsync(args[2]))!;
     string testCase = request["syntheticCase"]?.GetValue<string>() ?? "success";
     if (testCase == "cancel") { await Task.Delay(30000); return 0; }
     if (testCase == "failure") { Console.Error.WriteLine("PRIVATE music-title source-path exception-message"); return 9; }
+    if (testCase == "review")
+    {
+        Console.WriteLine("{\"kind\":\"error\",\"message\":\"Revisão rítmica necessária\",\"reviewPoints\":[{\"quarter\":110.875,\"measure\":28,\"beat\":3.875,\"measureStartQuarter\":108,\"measureEndQuarter\":112,\"blocking\":true,\"kind\":\"rhythm_collision\"}],\"diagnosticPath\":\"local-diagnostic.json\"}");
+        return 1;
+    }
     BurnCpu();
     Console.WriteLine("{\"kind\":\"result\",\"data\":{\"pages\":7,\"chords\":[{},{}],\"title\":\"PRIVATE music-title\"}}");
     return 0;
@@ -93,6 +99,17 @@ Check(!blocked.ReadReport().StorageAvailable && !blocked.ExportReport(Path.Combi
 
 string executable = Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "Teclas.PerformanceTests.exe" : "Teclas.PerformanceTests");
 Check(File.Exists(executable), "fake subprocess apphost exists");
+try
+{
+    await new EngineClient(executable, directory).RunAsync(new JsonObject { ["mode"] = "generate", ["syntheticCase"] = "review" }, Folder("worker-review"), null, CancellationToken.None);
+    throw new Exception("structured worker failure accepted");
+}
+catch (EngineOperationException error)
+{
+    Check(error.Message == "Revisão rítmica necessária", "structured engine failure keeps readable message");
+    Check(error.Details["reviewPoints"] is JsonArray { Count: 1 } points && points[0]!["measure"]!.GetValue<int>() == 28 && points[0]!["blocking"]!.GetValue<bool>(), "structured engine failure preserves actionable review points");
+    Check(error.Details["diagnosticPath"]!.GetValue<string>() == "local-diagnostic.json", "structured engine failure preserves local diagnostic reference");
+}
 string processDirectory = Folder("processes"); Directory.CreateDirectory(processDirectory);
 var processRecorder = new LocalPerformanceRecorder(Folder("process-records"));
 var engine = new EngineClient(executable, processDirectory, processRecorder);

@@ -73,6 +73,26 @@ def locate_review_point(quarter,origin,bars,kind,message,blocking=False):
             'measureEndQuarter':(bar['end']+origin)/DIV,
             'kind':kind,'message':message,'blocking':blocking}
 
+def rhythm_failure_points(error,parsed,config,origin,bars):
+    """Carry the actual source attacks into both analysis and generation errors."""
+    from melody_sections import all_sources
+    sources=all_sources(config)+config.get('solo_sources',[])
+    points=[]
+    for quarter in error.quarters:
+        point=locate_review_point(quarter,origin,bars,error.kind,str(error),True)
+        if point is None:continue
+        notes=[n for n in parsed['notes'] if abs(n['start']/parsed['ppq']-quarter)<1e-7
+               and source_matches(n,sources)]
+        point['notes']=[{'pitch':n['pitch'],'track':n['track'],'channel':n['channel'],'program':n['program'],
+                         'quarter':n['start']/parsed['ppq'],'durationQuarters':(n['end']-n['start'])/parsed['ppq']}
+                        for n in notes]
+        if notes:
+            names=('C','C#','D','D#','E','F','F#','G','G#','A','A#','B')
+            evidence=', '.join(f"{names[n['pitch']%12]}{n['pitch']//12-1} (MIDI {n['pitch']}, pista {n['track']+1}, canal {n['channel']})" for n in notes)
+            point['message']+=f' Ataque original: {evidence}. Ouça o compasso e escolha uma fonte por trecho, se necessário.'
+        points.append(point)
+    return points
+
 def review_points(parsed,config,harmony,*,include_melody_report=False):
     """Locate review evidence with the exact bar origin used by score generation."""
     points=[];message='';ready=True
@@ -119,7 +139,7 @@ def review_points(parsed,config,harmony,*,include_melody_report=False):
                     f'Combinação por prioridade: {suppressed} ataques omitidos e {trimmed} caudas encurtadas neste compasso. Confira a ordem das pistas e ouça o trecho.')
     except NeedsReview as error:
         ready=False;message=str(error)
-        for quarter in error.quarters:add(quarter,error.kind,str(error),True)
+        points.extend(rhythm_failure_points(error,parsed,config,origin,bars))
     unique={(point['quarter'],point['kind']):point for point in points}
     result=(sorted(unique.values(),key=lambda point:(point['quarter'],point['kind'])),ready,message)
     return (*result,report) if include_melody_report else result
@@ -280,24 +300,34 @@ def _separate_quantized_attacks(bybeat,grids,choices,origin,end):
     if not affected:return {},[],[]
     refined=dict(grids)
     for beat in affected:refined[beat]=max(choices[beat])
-    layers=[];states={None:(0.,0)}
-    for index,(beat,quarter,nearest) in enumerate(records):
-        if beat in affected:
-            div=refined[beat];step=DIV//div;source=quarter*DIV
-            candidates=[beat*DIV+index*step for index in range(div+1)
-                if origin<=beat*DIV+index*step<end
-                and abs(beat*DIV+index*step-source)<=step+1e-7]
-        else:candidates=[nearest]
-        layer={}
-        for position in candidates:
-            options=[((cost[0]+(position-quarter*DIV)**2,
-                       cost[1]+abs(position-nearest)),previous)
-                     for previous,cost in states.items() if previous is None or previous<position]
-            if options:layer[position]=min(options,key=lambda item:item[0])
-        if not layer:
+    # Keep every already supported passage unchanged. Only a failed local
+    # assignment may use one further subdivision (128ths / 64th triplets).
+    # The displacement bound also shrinks with that finer grid: this is not
+    # permission to stretch or discard an arbitrarily dense ornament.
+    while True:
+        layers=[];states={None:(0.,0)}
+        for index,(beat,quarter,nearest) in enumerate(records):
+            if beat in affected:
+                div=refined[beat];step=DIV//div;source=quarter*DIV
+                candidates=[beat*DIV+slot*step for slot in range(div+1)
+                    if origin<=beat*DIV+slot*step<end
+                    and abs(beat*DIV+slot*step-source)<=step+1e-7]
+            else:candidates=[nearest]
+            layer={}
+            for position in candidates:
+                options=[((cost[0]+(position-quarter*DIV)**2,
+                           cost[1]+abs(position-nearest)),previous)
+                         for previous,cost in states.items() if previous is None or previous<position]
+                if options:layer[position]=min(options,key=lambda item:item[0])
+            if not layer:break
+            layers.append(layer);states={position:item[0] for position,item in layer.items()}
+        else:break
+        local={beat,records[max(0,index-1)][0]} & affected
+        finer=[b for b in local if refined[b]==max(choices[b])]
+        if not finer:
             raise NeedsReview(f'Ataques próximos ao tempo {quarter:.3f} excedem a resolução rítmica suportada; requer revisão rítmica individual.',
-                [record[1] for record in records[:index+1] if quarter-record[1]<=2/refined[beat]])
-        layers.append(layer);states={position:item[0] for position,item in layer.items()}
+                [record[1] for record in records[:index+1] if quarter-record[1]<=2/max(choices[beat])])
+        for b in finer:refined[b]=2*max(choices[b])
     position=min(states,key=states.get);assigned=[]
     for layer in reversed(layers):
         assigned.append(position);position=layer[position][1]
@@ -533,14 +563,14 @@ def make_bars(parsed,meters):
     if len(bars)>700:raise NeedsReview('Duração excessiva ou nota sem término; requer verificação.')
     return origin,start,bars
 
-TYPES={3840:('whole',0),2880:('half',1),1920:('half',0),1440:('quarter',1),960:('quarter',0),720:('eighth',1),480:('eighth',0),360:('16th',1),240:('16th',0),120:('32nd',0),60:('64th',0)}
+TYPES={3840:('whole',0),2880:('half',1),1920:('half',0),1440:('quarter',1),960:('quarter',0),720:('eighth',1),480:('eighth',0),360:('16th',1),240:('16th',0),120:('32nd',0),60:('64th',0),30:('128th',0)}
 
 def pieces(start,end,grids):
     t=start
     while t<end:
         beat=t//DIV;beatend=(beat+1)*DIV;mode=grids.get(beat,4)
         if mode%3==0:
-            d=max([x for x in (640,320,160,80) if x<=min(end,beatend)-t] or [0])
+            d=max([x for x in (640,320,160,80,40) if x<=min(end,beatend)-t] or [0])
             if not d:raise NeedsReview(f'Duração de tercina indefinida no tempo {t/DIV:.3f}.')
             yield t,d,True;t+=d;continue
         triplenext=min([b*DIV for b,v in grids.items() if v%3==0 and b*DIV>t] or [end])
@@ -563,7 +593,7 @@ def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
     if tieout:sub(n,'tie',type='start')
     sub(n,'voice',1)
     if not full_rest:
-        typ,dots=({640:('quarter',0),320:('eighth',0),160:('16th',0),80:('32nd',0)}[dur] if triplet else TYPES[dur])
+        typ,dots=({640:('quarter',0),320:('eighth',0),160:('16th',0),80:('32nd',0),40:('64th',0)}[dur] if triplet else TYPES[dur])
         sub(n,'type',typ)
         for _ in range(dots):sub(n,'dot')
     if triplet:
@@ -652,8 +682,7 @@ def build_musicxml(parsed,config,harmony,out,title):
     summary,meters,tempos=meta(parsed);origin,end,bars=make_bars(parsed,meters)
     try:notes,grids,note_report=melody_events(parsed,config,origin,end)
     except NeedsReview as error:
-        error.review_points=[point for quarter in error.quarters
-            if (point:=locate_review_point(quarter,origin,bars,error.kind,str(error),True)) is not None]
+        error.review_points=rhythm_failure_points(error,parsed,config,origin,bars)
         raise
     transpose=config.get('melody_transpose_semitones',0)
     assert transpose%12==0,'Only octave placement may change without changing the key'

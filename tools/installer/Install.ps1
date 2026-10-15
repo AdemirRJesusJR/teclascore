@@ -2,7 +2,8 @@
 param(
     [string]$SourceDirectory = $PSScriptRoot,
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'Programs\TeclaScore'),
-    [switch]$NoShortcuts
+    [switch]$NoShortcuts,
+    [switch]$PrepareComputer
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -34,7 +35,7 @@ if ($manifest.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Versao invalida no m
 if ($manifest.product -ne 'TeclaScore') { throw 'O pacote nao pertence ao TeclaScore.' }
 $entries = @($manifest.files.PSObject.Properties)
 if ($entries.Count -lt 5 -or $entries.Count -gt 10000) { throw 'Manifesto de instalacao invalido.' }
-foreach ($required in @('Teclas.Partituras.exe', 'Teclas.Partituras.dll', 'Teclas.Core.dll', 'Teclas.Partituras.runtimeconfig.json', 'engine/worker.py')) {
+foreach ($required in @('Teclas.Partituras.exe', 'Teclas.Partituras.dll', 'Teclas.Core.dll', 'Teclas.Partituras.runtimeconfig.json', 'engine/worker.py', 'RuntimePrerequisite.ps1')) {
     if ($required -notin $entries.Name) { throw "Arquivo obrigatorio nao listado: $required" }
 }
 foreach ($entry in $entries) {
@@ -44,6 +45,10 @@ foreach ($entry in $entries) {
     if ((Get-Item -LiteralPath $file).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Links de arquivos nao sao permitidos no pacote.' }
     if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $entry.Value) { throw "Arquivo alterado ou corrompido: $($entry.Name)" }
 }
+
+# Load the prerequisite helper only after every package hash has been verified.
+. (Join-Path $source 'RuntimePrerequisite.ps1')
+$runtimeStatus = Get-TeclaScoreRuntimeStatus (Join-Path $source 'Teclas.Partituras.exe')
 
 $installBase = [IO.Path]::GetFullPath($InstallRoot)
 $versions = Assert-ChildPath $installBase (Join-Path $installBase 'versions')
@@ -88,8 +93,9 @@ try {
     $complete = $true
     Write-Output ("TeclaScore {0} instalado em {1}" -f $manifest.version, $destination)
     Write-Output 'Biblioteca, configuracoes e partituras anteriores preservadas.'
-    Write-Output 'Requisitos: .NET Desktop Runtime 10, MuseScore 4 e Python 3.10+ com Pillow.'
-    Write-Output 'O diagnostico dessas dependencias esta disponivel na tela Sobre do aplicativo.'
+    Write-Output 'Requisitos: .NET Desktop Runtime 10, MuseScore 4 e Python 3.11+ com Pillow.'
+    try { Show-TeclaScoreRuntimeGuidance $runtimeStatus -Interactive:$PrepareComputer }
+    catch { Write-Output 'Instalacao concluida. Consulte LEIA-ME.txt para preparar as dependencias.' }
 }
 finally {
     if (-not $complete) {

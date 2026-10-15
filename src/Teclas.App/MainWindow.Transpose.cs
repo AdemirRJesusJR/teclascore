@@ -1,15 +1,18 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using Teclas.Core;
 
 namespace Teclas.App;
 
 public partial class MainWindow
 {
-    public bool CanTransposeScore=>CanEditMidi;
+    public bool CanTransposeScore=>CanEditMidi || IsIdle && selectedFile?.UsesNativeScoreWorkflow == true && SelectedScoreExists;
     private async void TransposeScoreClick(object sender,RoutedEventArgs e)
     {
-        if(!CanTransposeScore || selectedFile is not {} row || !CommitEdits())return;
+        if(!CanTransposeScore || selectedFile is not {} row)return;
+        if(row.UsesNativeScoreWorkflow) { await TransposeNativeScore(row); return; }
+        if(!CommitEdits())return;
         var dialog=new TransposeWindow(row.TransposeSemitones){Owner=this};
         if(dialog.ShowDialog()!=true || dialog.Semitones==row.TransposeSemitones)return;
         RememberVersion(row);
@@ -20,6 +23,35 @@ public partial class MainWindow
         {
             await Generate(row);EditorTabs.SelectedIndex=2;
         },row,"Transpondo partitura");
+    }
+
+    private async Task TransposeNativeScore(MidiRow row)
+    {
+        if(row.ScorePath is not {} path || !SelectedScoreExists)return;
+        if(!File.Exists(MuseScorePath)){Status="Use Preparar este computador em Configurações para localizar o MuseScore Studio 4.";return;}
+        StopTrackAudition();ResetPlayback();
+        TranspositionPlan? initial=null;
+        await RunOperation(async()=>
+        {
+            var token=cancellation!.Token;
+            var opened=await Task.Run(()=>NativeScoreTransposition.CreatePlan(path,new(0),token),token);
+            token.ThrowIfCancellationRequested();
+            initial=opened;
+        },operationTitle:"Conferindo a partitura para transposição",operationItem:row.ScoreTitle);
+        if(operationsDisposed || initial is null || selectedFile!=row || row.ScorePath!=path)return;
+        string cache=Path.Combine(LocalJobsDirectory,"transposition");
+        var service=new NativeScoreTranspositionService(MuseScorePath,cache);
+        using var audio=new EditorScorePlayback(MuseScorePath,Path.Combine(cache,"audio"));
+        var dialog=new NativeTransposeWindow(initial,row.PreviewPath,
+            (options,progress,token)=>Task.Run(()=>NativeScoreTransposition.CreatePlan(path,options,token),token),
+            (plan,progress,token)=>service.PrepareAsync(plan,progress,token),
+            (plan,prepared,progress,token)=>service.PublishAsync(plan,prepared,OutputDirectory,progress,token),audio){Owner=this};
+        if(dialog.ShowDialog()==true && dialog.Result is {} result)
+        {
+            ApplyMusicalEditorResult(row,result);
+            row.Status="Transposição salva · "+row.PageCountText;PersistPreferences();
+            Status="Transposição salva como nova versão. A anterior continua no Histórico.";
+        }
     }
 }
 

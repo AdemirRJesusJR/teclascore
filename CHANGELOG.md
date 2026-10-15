@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.19.0 — 2026-10-15
+
+- Transposição de MSCZ importados e cópias editadas, com intervalo relativo à versão aberta, comparação, reprodução e publicação de uma nova versão. Notas, armaduras, cifras e diagramas reconhecidos são conferidos; desenhos externos exigem escolha explícita e estruturas incompatíveis não são alteradas parcialmente.
+- Assistente Preparar este computador em Configurações e Instalação e atualizações: detecção e teste funcional de Python/Pillow e MuseScore, caminhos validados e preparo opcional de um ambiente Python próprio. O instalador orienta o .NET Desktop Runtime correto para a arquitetura.
+- Refinamento rítmico local adicional para passagens rápidas, preservando ataques. Falhas de geração agora encaminham os pontos localizados à Revisão guiada, com ação para escolher a pista do compasso.
+- Ícone vermelho Remover no próprio card da Biblioteca, substituindo o botão inferior; desfazer e preservação dos arquivos mantidos.
+
 ## 0.18.0 — 2026-10-15
 
 - Testes automáticos no GitHub para cada atualização da branch principal e pull request: compilação Windows, suítes C# executáveis, testes Python, paridade dos diagramas e verificação WPF com biblioteca sintética isolada. Casos que exigem MuseScore aparecem como opcionais e são executáveis localmente.

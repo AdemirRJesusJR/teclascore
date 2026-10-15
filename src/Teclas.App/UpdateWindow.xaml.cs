@@ -16,17 +16,19 @@ namespace Teclas.App;
 
 public partial class UpdateWindow : Window
 {
-    private readonly string pythonPath;
-    private readonly string museScorePath;
+    private string pythonPath;
+    private string museScorePath;
+    private readonly Action<string, string>? applyDependencies;
     private readonly CancellationTokenSource lifetime = new();
     private ReleaseUpdate? availableRelease;
     private bool installing;
     private readonly Version installedVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new(0, 0, 0);
 
-    public UpdateWindow(string pythonPath, string museScorePath)
+    public UpdateWindow(string pythonPath, string museScorePath, Action<string, string>? applyDependencies = null)
     {
         this.pythonPath = pythonPath;
         this.museScorePath = museScorePath;
+        this.applyDependencies = applyDependencies;
         InitializeComponent();
         InstalledVersionText.Text = $"Versão instalada: {installedVersion.ToString(3)}";
         SourceInitialized += (_, _) => ApplyNativeTheme();
@@ -60,13 +62,13 @@ public partial class UpdateWindow : Window
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException) { UpdateStatusText.Text = "Não foi possível abrir o navegador. Endereço: " + ReleaseUpdateService.ReleasesUrl; }
     }
 
-    private async void DiagnosticsClick(object sender, RoutedEventArgs e)
+    private void DiagnosticsClick(object sender, RoutedEventArgs e)
     {
-        DiagnosticsButton.IsEnabled = false;
-        DiagnosticsText.Text = "Conferindo as dependências…";
-        try { DiagnosticsText.Text = await DependencyDiagnostics.CheckAsync(pythonPath, museScorePath, lifetime.Token); }
-        catch (OperationCanceledException) { if (!lifetime.IsCancellationRequested) DiagnosticsText.Text = "O diagnóstico excedeu o tempo de espera. Confira os caminhos em Configurações."; }
-        finally { DiagnosticsButton.IsEnabled = true; }
+        var dialog = new DependencySetupWindow(pythonPath, museScorePath) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        pythonPath = dialog.SelectedPythonPath; museScorePath = dialog.SelectedMuseScorePath;
+        applyDependencies?.Invoke(pythonPath, museScorePath);
+        DiagnosticsText.Text = applyDependencies is null ? "Programas conferidos. Os caminhos estão disponíveis nesta janela." : "Python/Pillow e MuseScore conferidos; os caminhos foram aplicados às configurações.";
     }
 
     private async void InstallUpdateClick(object sender, RoutedEventArgs e)

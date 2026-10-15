@@ -13,7 +13,7 @@ def prepare():
     version = ET.parse(BASE / 'src/Teclas.App/Teclas.App.csproj').findtext('.//Version')
     if not (APP / 'Teclas.Partituras.exe').is_file():
         raise RuntimeError('Publique o aplicativo antes de preparar o instalador.')
-    for name in ('Install.ps1', 'Instalar.cmd'):
+    for name in ('Install.ps1', 'Instalar.cmd', 'RuntimePrerequisite.ps1'):
         shutil.copy2(BASE / 'tools/installer' / name, APP / name)
     # Installer verifies the executable/runtime content, not mutable readme copies.
     files = {}

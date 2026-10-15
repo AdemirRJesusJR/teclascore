@@ -1,4 +1,11 @@
-TECLASCORE · PRÉVIA 0.18.0
+TECLASCORE · PRÉVIA 0.19.0
+
+NOVO NA VERSÃO 0.19.0
+MuseScore importado: Prévia > Transpor. Escolha o intervalo relativo à versão aberta, prepare a prévia, compare e ouça antes de Salvar nova versão. Original e Histórico preservados. Diagramas reconhecidos acompanham o tom; imagens e diagramas não reconhecidos nos compassos exigem a escolha explícita de removê-los apenas da cópia. Leia as limitações de estruturas especiais.
+Configurações > Preparar este computador: Detectar e verificar procura e testa Python/Pillow e MuseScore. Se necessário, os botões abrem downloads oficiais e Preparar Python do TeclaScore cria um ambiente separado com Pillow. Só Usar estas configurações salva os caminhos. O preparo de Pillow exige internet; nada é instalado ao abrir.
+Instalar.cmd orienta o .NET Desktop Runtime 10 e a arquitetura quando esse componente não é encontrado. Depois de instalá-lo pelo site oficial da Microsoft, abra o app e conclua o assistente.
+Biblioteca: a lixeira vermelha aparece no próprio card. Remover preserva os arquivos e permite desfazer a última remoção durante a sessão.
+MIDI: passagens rápidas recebem refinamento local sem apagar ataques. Falhas que precisam de decisão aparecem na Revisão guiada com compasso e acesso à escolha da pista do trecho.
 
 NOVO NA VERSÃO 0.18.0
 Produção: cada partitura tem o botão Remover. O rodapé permite Desfazer remoção durante a sessão. Os arquivos de origem e saída continuam nas suas pastas.

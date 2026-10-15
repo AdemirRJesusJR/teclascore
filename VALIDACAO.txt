@@ -1,3 +1,20 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.19.0
+15/10/2026
+
+- Runner completo local: 34 etapas aprovadas, zero falhas e três grupos opcionais explicitamente não executados. Compilação Release .NET 10 / WPF sem avisos ou erros; 20 suítes console, testes Python, interface, benchmark e integrações nativas executados de fato.
+- Transposição MuseScore: 160 verificações aprovadas, incluindo publicação separada, várias pautas e vozes, instrumento transpositor fixo, modo de concerto, notas/TPC, armaduras, cifras/baixo, diagramas reconhecidos, oitava e confronto independente com MIDI/MusicXML exportados pelo MuseScore real. Origem ou prévia alteradas e cancelamento impedem publicação incompleta.
+- Assistente de preparação: 31 checks Core e 48 de interface aprovados. Detecção, caminhos inválidos, respostas antigas, cancelamento, ambiente separado e confirmação exercitados. Os testes de preparo usam subprocessos controlados; não instalaram dependências no computador do usuário. Verificação funcional real de Python 3.12.14/Pillow 12.3.0 e MuseScore 4.7.5 também passou, com imagem e partitura sintéticas.
+- Biblioteca: lixeira vermelha por card testada com item diferente do selecionado, operação ocupada, desfazer, filtros, persistência e arquivos intactos. Interface e botões conferidos em temas claro e escuro e tamanho mínimo.
+- Comparação nativa: 13 verificações adicionais confirmaram páginas reais e miniaturas carregadas, alternância Original/Proposta e legibilidade das ações. A tabela identifica armaduras de concerto quando há instrumento transpositor.
+- Festa na roça: erro original no tempo 110.871 reproduzido antes da correção. O worker completo gerou 11 páginas e a reabertura nativa confirmou 388 ataques, 85 compassos e zero colisões detectadas. Os oito ataques da passagem rápida foram preservados; o maior ajuste local foi 0,0146 semínima. Os 18 perfis revisados mantiveram exatamente os resultados da versão 0.18.0.
+- Suíte Python: 173 casos descobertos, 167 aprovados e seis casos nativos opcionais identificados como skipped. As integrações reais de PDF em lote, áudio de estudo e mapa de reprodução passaram separadamente. A bateria de desempenho inclui 40 verificações; benchmarks usam cargas sintéticas e não impõem limites de velocidade em máquinas compartilhadas.
+- Revisão guiada: 11 checks WPF confirmaram erro estruturado, exibição de compasso/tempo e abertura da escolha de pista exatamente no compasso 27. Cancelar preservou a música e encerrou o indicador de operação. As 48 verificações da interface e as 11 da revisão foram repetidas no aplicativo publicado após os ajustes finais.
+- Instalador: 45 verificações no Windows PowerShell 5.1 passaram, incluindo arquitetura, versões de runtime e precedência de descoberta do apphost. Um dotnet isolado no PATH ou outra instalação não mascara a ausência do runtime na raiz selecionada.
+- Prévia do aplicativo renderizada com versão 0.19.0 e sem mensagens de binding. Testes usam sessões, arquivos e saídas isolados; biblioteca real, configurações e MIDIs pessoais não foram alterados nem incluídos no Git.
+
+A transposição é relativa à versão aberta e salva outra cópia. Não transpõe parcialmente estruturas incompatíveis. Imagens/diagramas desconhecidos nos compassos exigem remoção explícita da cópia; cabeçalhos permanecem. A correção rítmica refina a grade apenas quando necessário e não resolve automaticamente toda ambiguidade musical. Python, Pillow, MuseScore e .NET continuam requisitos externos; o assistente não os instala ao ser aberto. As verificações não substituem a revisão musical e visual do usuário.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.18.0
 15/10/2026
 

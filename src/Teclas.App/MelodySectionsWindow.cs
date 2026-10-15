@@ -26,7 +26,7 @@ public sealed class MelodySectionsWindow : Window
     private readonly Button update, remove, apply;
     public IReadOnlyList<SavedMelodySection> Sections => Settings.CloneMelodySections(items.Select(item => item.Value));
 
-    public MelodySectionsWindow(MelodyMeasureMap map, IReadOnlyList<TrackRow> tracks, IEnumerable<SavedMelodySection> current)
+    public MelodySectionsWindow(MelodyMeasureMap map, IReadOnlyList<TrackRow> tracks, IEnumerable<SavedMelodySection> current, int? initialMeasure = null)
     {
         ArgumentNullException.ThrowIfNull(map); ArgumentNullException.ThrowIfNull(tracks);
         this.map = map;
@@ -110,6 +110,15 @@ public sealed class MelodySectionsWindow : Window
         }, true);
         apply.Name = "MelodySectionsApply"; apply.IsDefault = true; actions.Children.Add(apply);
         Refresh();
+        if (initialMeasure is { } measure && measure >= 1 && measure <= map.Measures.Count)
+        {
+            // Opening review never changes a saved section. Select an existing
+            // covering section, or prefill a one-bar draft that needs Add + Apply.
+            var existing = items.FirstOrDefault(item => item.First <= measure && item.Last >= measure);
+            if (existing is not null) list.SelectedItem = existing;
+            else first.Text = last.Text = measure.ToString(CultureInfo.InvariantCulture);
+            validation.Text = $"Revisão do compasso {measure}. Compare as pistas antes de adicionar ou atualizar o trecho.";
+        }
     }
 
     private static SourceKey Key(SavedSource value) => new(value.Track, value.Channel, value.Program);

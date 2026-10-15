@@ -39,12 +39,14 @@ public sealed class ReviewWindow : Window
     private readonly TextBlock status;
     private readonly Button listen;
     private readonly Button chord;
+    private readonly Button melody;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(25) };
     private readonly Action stop;
     private TimeSpan regionEnd;
     private CancellationTokenSource? preparation;
     private bool closed;
     public ScoreReviewPoint? ChordToEdit { get; private set; }
+    public ScoreReviewPoint? MelodyToEdit { get; private set; }
 
     public ReviewWindow(MidiRow row, Func<MidiRow, ScoreReviewPoint, TrackRow, double, CancellationToken, Task<string>> play,
         Action stop, Func<TimeSpan> position, Func<bool> playing, Func<ScoreReviewPoint, TrackRow, TimeSpan> end)
@@ -64,7 +66,7 @@ public sealed class ReviewWindow : Window
         var guidance = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Text =
             "Ouça o compasso na pista original e confira a cifra. Ritmos refinados são avisos para conferência. " +
             "Para pistas sobrepostas, compare as fontes e ajuste a Prioridade das pistas na aba Melodia. " +
-            "Quando houver bloqueio rítmico, escolha outra pista de melodia ou revise o MIDI no editor; esta tela não altera notas automaticamente." };
+            "Quando houver bloqueio rítmico, use Escolher pista do compasso para revisar a fonte desse trecho, ou revise o MIDI no editor." };
         guidance.SetResourceReference(ForegroundProperty, "Muted"); heading.Children.Add(guidance);
         grid.Children.Add(heading);
         points = new DataGrid { Name = "ReviewPointsGrid", ItemsSource = row.ReviewPoints, AutoGenerateColumns = false,
@@ -90,8 +92,10 @@ public sealed class ReviewWindow : Window
         listen = MakeButton("Ouvir compasso", "ReviewListenButton");
         var stopButton = MakeButton("Parar", "ReviewStopButton");
         chord = MakeButton("Editar cifra", "ReviewChordButton");
+        melody = MakeButton("Escolher pista do compasso", "ReviewMelodyButton");
+        melody.ToolTip = row.UseReviewedProfile ? "Desative o perfil revisado na aba Melodia para usar escolhas por trecho." : "Abre as pistas por trecho no compasso selecionado; só aplicar confirma a mudança.";
         var close = MakeButton("Fechar", "ReviewCloseButton"); close.IsCancel = true;
-        playback.Children.Add(sources); playback.Children.Add(speeds); playback.Children.Add(listen); playback.Children.Add(stopButton); playback.Children.Add(chord); playback.Children.Add(close);
+        playback.Children.Add(sources); playback.Children.Add(speeds); playback.Children.Add(listen); playback.Children.Add(stopButton); playback.Children.Add(chord); playback.Children.Add(melody); playback.Children.Add(close);
         controls.Children.Add(playback);
         var preparationProgress = new ProgressBar
         {
@@ -151,6 +155,7 @@ public sealed class ReviewWindow : Window
         };
         stopButton.Click += (_, _) => { StopRegion(); status.Text = preparation is null ? "Reprodução parada." : "Cancelando a preparação do compasso…"; };
         chord.Click += (_, _) => { if (points.SelectedItem is ScoreReviewPoint point) { ChordToEdit = point; Close(); } };
+        melody.Click += (_, _) => { if (points.SelectedItem is ScoreReviewPoint point) { MelodyToEdit = point; Close(); } };
         close.Click += (_, _) => Close();
         points.SelectionChanged += (_, _) =>
         {
@@ -176,6 +181,7 @@ public sealed class ReviewWindow : Window
             points.IsEnabled = sources.IsEnabled = speeds.IsEnabled = idle;
             listen.IsEnabled = idle && points.SelectedItem is ScoreReviewPoint && sources.SelectedValue is TrackRow;
             chord.IsEnabled = idle && points.SelectedItem is ScoreReviewPoint && row.Chords.Count > 0;
+            melody.IsEnabled = idle && points.SelectedItem is ScoreReviewPoint && !row.UseReviewedProfile && !row.UsesNativeScoreWorkflow;
         }
         bool ActiveAtPoint(TrackRow track, ScoreReviewPoint? point) => point is not null && row.Document is { } document &&
             document.Notes.Any(note => note.Track == track.Source.Key.Track && note.Channel == track.Source.Key.Channel && note.Program == track.Source.Key.Program

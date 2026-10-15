@@ -1,6 +1,6 @@
 @echo off
 setlocal
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1" -SourceDirectory "%~dp0."
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1" -SourceDirectory "%~dp0." -PrepareComputer
 if errorlevel 1 (
   echo.
   echo A instalacao nao foi concluida. Confira a mensagem acima.

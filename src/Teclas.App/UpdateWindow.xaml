@@ -20,9 +20,9 @@
     </Border>
     <Border Style="{StaticResource Card}"><StackPanel>
      <TextBlock Text="Dependências para gerar partituras" FontSize="17" FontWeight="SemiBold"/>
-     <TextBlock x:Name="DiagnosticsText" Text="Confira o .NET, o Python com Pillow e o MuseScore configurados." Style="{StaticResource MutedText}" Margin="0,9,0,14"/>
-     <Button x:Name="DiagnosticsButton" Content="Executar diagnóstico" Click="DiagnosticsClick" HorizontalAlignment="Left"/>
-     <TextBlock Text="Ajuste os caminhos do Python e do MuseScore em Configurações quando necessário." Style="{StaticResource MutedText}" FontSize="12" Margin="0,12,0,0"/>
+     <TextBlock x:Name="DiagnosticsText" Text="O assistente encontra os programas, confere Python/Pillow e testa uma página no MuseScore." Style="{StaticResource MutedText}" Margin="0,9,0,14"/>
+     <Button x:Name="DiagnosticsButton" Content="Preparar este computador…" Click="DiagnosticsClick" HorizontalAlignment="Left"/>
+     <TextBlock Text="Downloads e preparação dependem da sua escolha. Os caminhos atuais são preservados até aplicar as configurações verificadas." Style="{StaticResource MutedText}" FontSize="12" Margin="0,12,0,0"/>
     </StackPanel></Border>
    </StackPanel>
   </ScrollViewer>

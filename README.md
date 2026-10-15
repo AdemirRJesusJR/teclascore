@@ -1,6 +1,16 @@
 # TeclaScore
 
-Versão 0.18.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.19.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+
+A versão **0.19.0** permite transpor partituras MuseScore importadas e versões editadas: em **Prévia → Transpor**, escolha o intervalo em relação à versão aberta, prepare a prévia, compare **Original / Proposta transposta**, ouça e use **Salvar nova versão**. O original e as versões anteriores ficam preservados no Histórico. Abrir novamente Transpor inicia outro intervalo relativo à cópia então selecionada; não reutiliza o deslocamento do MIDI original.
+
+Notas, grafia, armaduras e cifras compatíveis mudam juntas. Diagramas TeclaScore reconhecidos são regenerados com sua inversão. Imagens e diagramas não reconhecidos dentro dos compassos bloqueiam a proposta até você escolher explicitamente removê-los apenas da cópia; as observações identificam os trechos afetados. Estruturas não suportadas são explicadas e não são transpostas parcialmente. Compare todas as páginas antes de salvar.
+
+Em **Configurações → Preparar este computador**, use **Detectar e verificar** para localizar e testar Python 3.11+ com Pillow e MuseScore Studio 4. Os testes usam uma imagem em memória e uma partitura sintética. Se faltar Pillow, **Preparar Python do TeclaScore** cria um ambiente próprio e baixa a versão validada do PyPI; exige internet e não modifica o Python global. Os botões de download abrem os sites oficiais. **Usar estas configurações** aplica apenas caminhos que passaram nos testes; fechar ou cancelar não altera os caminhos salvos. O instalador identifica a arquitetura e orienta a instalação do .NET Desktop Runtime 10 quando necessário, antes de abrir o aplicativo.
+
+A Biblioteca agora tem uma **lixeira vermelha no próprio card**, com descrição **Remover** e acesso por teclado. O rodapé oferece desfazer a última remoção da sessão, preservando os arquivos nas pastas.
+
+Passagens MIDI muito rápidas recebem refinamento rítmico local adicional quando necessário, sem remover ataques para fazê-los caber. Se ainda houver um bloqueio, a **Revisão guiada** recebe o compasso, a posição e os detalhes enviados pelo motor, com acesso à escolha de pista para aquele trecho. O ajuste automático não certifica a intenção musical: ouça e confira a notação.
 
 Em **Produção**, cada partitura tem **Remover**, com **Desfazer remoção** no rodapé. A remoção fica salva na biblioteca; os arquivos MIDI, MuseScore e PDF continuam nas pastas. O desfazer recupera o último item removido durante a sessão.
 
@@ -44,7 +54,7 @@ Na **Prévia**, abra **Editor musical**. Escolha a pauta e o compasso; nas abas 
 
 **Desfazer** e **Refazer** atuam sobre o rascunho. **Atualizar prévia** verifica as mudanças e renderiza todas as páginas. **Ouvir partitura** reproduz o rascunho inteiro em 50%, 75% ou 100%, com pausa e controle de posição. Use **Ouvir compasso** para ouvir o compasso selecionado ou **Ouvir seleção** para ouvir o ataque selecionado; os trechos incluem todas as pautas e vozes que soam naquele intervalo. Confira as páginas e o som antes de **Salvar nova versão**; qualquer nova alteração exige outra atualização da prévia. Fechar com mudanças pede confirmação de descarte.
 
-Mudar uma duração exige compensar outra nota ou pausa da mesma voz e manter as posições de cifras, imagens, marcações e elementos não editados. Esta etapa edita elementos existentes: não inclui inserção/exclusão de notas, arraste na pauta ou edição de cadeias de ligaduras e quiálteras. Pautas transpositoras, tablaturas, percussão, partes vinculadas e estruturas especiais indicam restrições locais ou globais.
+Mudar uma duração exige compensar outra nota ou pausa da mesma voz e manter as posições de cifras, imagens, marcações e elementos não editados. Também é possível inserir notas em pausas, excluir notas preservando a duração e copiar vozes entre compassos compatíveis. Arraste livre na pauta e edição de cadeias de ligaduras ou quiálteras continuam restritos. Pautas transpositoras, tablaturas, percussão, partes vinculadas e estruturas especiais indicam restrições locais ou globais.
 
 Cifras simples reconhecidas podem ser alteradas. Quando a cifra tem um diagrama TeclaScore associado de forma inequívoca, o desenho e sua inversão acompanham apenas aquela ocorrência. Diagramas desconhecidos e associações ambíguas são preservados e orientam edição no MuseScore. A conferência estrutural não certifica espaçamento visual: revise todas as páginas renderizadas, principalmente depois de aumentar o texto de uma cifra.
 
@@ -60,7 +70,7 @@ Dentro de uma faixa, a fonte escolhida prevalece mesmo se não estiver marcada n
 
 Na **Prévia**, **Preparar acompanhamento** permite clicar em compassos e ataques para iniciar a reprodução naquele ponto. **Reproduzir** também prepara esse mapa. O destaque usa posições e tempos exportados pelo MuseScore, incluindo repetições e mudanças de andamento; **Acompanhar páginas durante a reprodução** controla a troca automática de páginas e fica salvo nas preferências.
 
-No Editor musical, clicar na pauta seleciona os elementos existentes para corrigir notas e durações na tabela. Depois de editar, atualize a prévia para reconstruir as posições antes de clicar ou ouvir trechos. Não inclui arraste livre ou inserção de notas. Quando não há associação segura com os eventos, o app informa a limitação e mantém a edição pela tabela. Se o mapa de uma estrutura não puder ser validado, a reprodução inteira continua disponível sem um destaque estimado.
+No Editor musical, clicar na pauta seleciona os elementos existentes para corrigir notas e durações na tabela. Depois de editar, atualize a prévia para reconstruir as posições antes de clicar ou ouvir trechos. A inserção em pausas é feita pelos controles do editor; o clique na página não oferece arraste livre. Quando não há associação segura com os eventos, o app informa a limitação e mantém a edição pela tabela. Se o mapa de uma estrutura não puder ser validado, a reprodução inteira continua disponível sem um destaque estimado.
 
 ## Revisão visual
 
@@ -96,7 +106,7 @@ Veja [ROTEIRO-DE-TESTES.txt](ROTEIRO-DE-TESTES.txt) para conferir as fases entre
 6. Na aba Prévia, clique em “Reproduzir” para ouvir, “Pausar” para continuar depois e “Parar” para voltar ao início. A barra de posição permite avançar ou voltar. “Salvar PDF” exporta todas as páginas. “Gerar partitura” já salva o arquivo .mscz automaticamente; use “Pasta de saída” para acessá-lo.
 7. Use o botão na parte inferior da barra lateral para alternar entre menus completos e somente ícones. Passe o mouse sobre um ícone para ver o nome do menu.
 8. Escolha seu tema em Configurações. Ao fechar e reabrir, o app restaura suas preferências e sua biblioteca.
-9. Para retirar um item da lista, selecione-o e clique em “Remover da biblioteca”. A última remoção pode ser desfeita enquanto o app estiver aberto. Seus arquivos MIDI e .mscz permanecem nas suas pastas.
+9. Para retirar um item da lista, use o ícone vermelho de lixeira no próprio card da Biblioteca. A última remoção pode ser desfeita enquanto o app estiver aberto. Seus arquivos MIDI e .mscz permanecem nas suas pastas.
 
 A escuta de pistas funciona antes da análise, pelo sintetizador MIDI do Windows, sem abrir o MuseScore. Cada linha identifica uma combinação de pista, canal e instrumento, importante para MIDIs que concentram vários instrumentos na mesma pista. A escuta começa na primeira nota dessa fonte, oferece pausa, controle de posição e velocidades de 25%, 50%, 75%, 100%, 125% e 150% e não marca Melodia automaticamente. Ao trocar de fonte, MIDI, aba ou tela, o áudio anterior para. Timbres personalizados por SysEx podem soar diferentes no sintetizador General MIDI.
 
@@ -164,7 +174,7 @@ No modo de estudo, marque **A** na posição inicial e **B** na final para repet
 
 Após Analisar acordes, **Revisão guiada** lista os pontos identificados, com compasso e tempo. Escolha uma pista e ouça apenas aquele compasso, inclusive mais devagar. Editar cifra abre o acorde correspondente na tabela. A revisão aponta incertezas da análise e refinamentos rítmicos; não garante a identificação de todos os erros musicais. Problemas rítmicos que não possam ser resolvidos automaticamente exigem rever a pista ou editar a cópia no MuseScore.
 
-**Transpor**, na Prévia de um MIDI, permite deslocar de −12 a +12 semitons. O intervalo é relativo ao MIDI original, sem acumular alterações. A nova partitura atualiza notas, armadura, modulações, cifras e diagramas. A tabela de cifras continua no tom original. O arquivo MIDI e as versões anteriores permanecem intactos. A transposição não se aplica a arquivos .mscz importados, cujos diagramas externos podem ser imagens sem informação musical.
+**Transpor**, na Prévia de um MIDI, permite deslocar de −12 a +12 semitons. O intervalo é relativo ao MIDI original, sem acumular alterações. A nova partitura atualiza notas, armadura, modulações, cifras e diagramas. A tabela de cifras continua no tom original. O arquivo MIDI e as versões anteriores permanecem intactos. Para arquivos .mscz importados e versões editadas, Transpor oferece um fluxo separado de comparação e salvamento; o intervalo parte da versão aberta e diagramas externos exigem tratamento explícito.
 
 ## Melhorar partituras MuseScore
 
@@ -176,7 +186,7 @@ Arquivos de versões antigas devem ser abertos e salvos em uma nova cópia pelo 
 
 Extraia o ZIP completo e execute **Instalar.cmd**, ou continue usando Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
 
-Na tela **Sobre → Instalação e atualizações**, confira dependências e consulte a última versão publicada no GitHub. A consulta só ocorre ao clicar. Baixe o ZIP pela página da versão e selecione-o no app; o instalador confere SHA-256 e conteúdo antes de instalar. Se a consulta não estiver disponível, selecione também o arquivo SHA256SUMS da mesma versão. A nova instalação não fecha o app sem sua escolha e não instala Python ou MuseScore automaticamente.
+Na tela **Sobre → Instalação e atualizações**, confira dependências e consulte a última versão publicada no GitHub. A consulta só ocorre ao clicar. Baixe o ZIP pela página da versão e selecione-o no app; o instalador confere SHA-256 e conteúdo antes de instalar. Se a consulta não estiver disponível, selecione também o arquivo SHA256SUMS da mesma versão. A nova instalação não fecha o app sem sua escolha. O assistente localiza e valida Python/MuseScore e oferece o preparo isolado de Pillow; instalar Python ou MuseScore continua pelo instalador oficial.
 
 ## Dependências desta versão
 
@@ -186,7 +196,7 @@ Na tela **Sobre → Instalação e atualizações**, confira dependências e con
 
 A interface, a leitura inicial do MIDI, a biblioteca, o controle das operações e a criação de ZIP são em C#. A preparação musical detalhada usa o motor Python validado no lote anterior. Este protótipo ainda não é uma implementação musical integralmente em C# e o instalador não inclui as dependências externas.
 
-No computador usado para preparar o projeto, as dependências já existem e o programa procura seus caminhos automaticamente. Em outro computador, configure os executáveis na interface. O aplicativo não instala programas, não baixa dependências e não envia os MIDIs pela internet.
+No computador usado para preparar o projeto, as dependências já existem e o programa procura seus caminhos automaticamente. Em outro computador, use Preparar este computador. Downloads oficiais e preparo do ambiente Python exigem uma ação explícita; nada é instalado ao abrir o assistente. Os MIDIs não são enviados pela internet.
 
 A barra de título nativa acompanha as cores do tema no Windows 11. Em versões anteriores do Windows, usa os atributos de aparência suportados pelo sistema, mantendo os botões e o redimensionamento nativos.
 
@@ -194,7 +204,7 @@ A barra de título nativa acompanha as cores do tema no Windows 11. Em versões 
 
 - A análise automática de um MIDI novo é uma proposta para revisão. O programa não recria uma melodia ausente, nem distingue com certeza uma voz de um acompanhamento.
 - Os perfis conhecidos são reconhecidos pelo conteúdo SHA-256, não pelo nome. Há 18 revisões completas, 79 casos sem melodia completa e 14 com melodia parcial no catálogo.
-- O Editor musical altera notas, durações e cifras existentes. Inserção/exclusão livre de elementos e estruturas não suportadas continuam disponíveis pelo MuseScore.
+- O Editor musical altera notas, durações e cifras, permite inserir notas em pausas e excluir preservando a duração. Estruturas complexas e arraste livre continuam pelo MuseScore.
 - Os diagramas são imagens vetoriais incorporadas. Ao mudar uma cifra dentro do MuseScore, atualize também seu desenho.
 - Arquivos de saída existentes recebem outro nome, sem sobrescrita. MIDIs originais não são modificados.
 - Cada geração inclui uma pasta de revisão com imagens de todas as páginas, MusicXML e relatório de validação.
@@ -231,7 +241,7 @@ O script histórico tools/prepare_engine.py copia o motor original das ferrament
 
 O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.14.0`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
 
-Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.17.0, destinada a testes no computador do usuário.
+Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.19.0, destinada a testes no computador do usuário.
 
 ## Fila de conversões e várias pistas
 

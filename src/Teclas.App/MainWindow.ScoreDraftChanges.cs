@@ -49,7 +49,7 @@ public partial class MainWindow
         row.HasPendingScoreProperties = true;
         row.Status = "Cifras ou armadura alteradas · gere para atualizar a partitura";
         NotifyPlaybackState(); Notify(nameof(PreviewMessage)); Notify(nameof(ScorePropertiesSummary));
-        foreach (string name in new[] { nameof(CanOpenMusicEditor), nameof(CanArrangeScore), nameof(CanDiagnoseScore), nameof(CanPrepareScoreSynchronization), nameof(CanReviewVisualScore) }) Notify(name);
+        foreach (string name in new[] { nameof(CanTransposeScore), nameof(CanOpenMusicEditor), nameof(CanArrangeScore), nameof(CanDiagnoseScore), nameof(CanPrepareScoreSynchronization), nameof(CanReviewVisualScore) }) Notify(name);
     }
     private static string ScoreDraftMusicalFingerprint(MidiRow row) => JsonSerializer.Serialize(new
     {

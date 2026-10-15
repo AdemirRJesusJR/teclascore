@@ -1,3 +1,12 @@
+TESTES DA VERSÃO 0.19.0
+
+A. Importe um MSCZ e abra Transpor. Prepare +2, compare as páginas e ouça. Salve nova versão e confira Histórico, reprodução e PDF. Abra Transpor novamente e use -2: o intervalo parte da versão atual. Confirme que o arquivo original não mudou. Cancelar ou mudar o intervalo invalida a prévia anterior.
+B. Confira cifras e diagramas. Imagens e diagramas não reconhecidos nos compassos devem exigir a opção explícita de removê-los apenas da nova cópia; revise os trechos indicados. Estruturas incompatíveis devem explicar a limitação sem salvar uma transposição parcial.
+C. Em Configurações > Preparar este computador, use Detectar e verificar. Os testes devem mostrar progresso e cancelamento. Fechar não muda os caminhos. Usar estas configurações aplica os caminhos validados. Preparar Python do TeclaScore só deve começar após seu clique e não deve modificar o Python global.
+D. Em uma cópia do app num computador sem .NET Desktop Runtime 10, execute Instalar.cmd e confira a orientação da arquitetura e do download oficial. Instalar o aplicativo não instala dependências silenciosamente.
+E. Na Biblioteca, remova pelo ícone vermelho um card diferente do selecionado. Só esse card deve sair. Desfaça e confira as edições; MIDI, MSCZ e PDF nas pastas devem permanecer.
+F. Gere Festa na roça com a pista rápida selecionada e ouça a descida de notas. Não deve falhar no antigo ponto 110.871. Se outro trecho não couber, a Revisão guiada deve mostrar o compasso e permitir acessar Pistas por trecho.
+
 TECLASCORE 0.18.0 · ROTEIRO DE TESTES
 
 PRIORIDADES DA 0.18.0
