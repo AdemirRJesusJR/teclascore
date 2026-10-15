@@ -78,9 +78,17 @@ public partial class App
             first.TrackAuditionSpeed = .75;
             first.ScorePlaybackSpeed = .5;
             first.FollowScorePlayback = false;
-            first.Width = 1170; first.Height = 780;
-            first.Left = Math.Max(SystemParameters.WorkArea.Left, 32);
-            first.Top = Math.Max(SystemParameters.WorkArea.Top, 28);
+            // Hosted Windows runners can have a desktop smaller than the app's minimum
+            // width. Exercise normal restoration with bounds that do not need the
+            // production off-screen recovery to move or resize them on the next open.
+            var workArea = SystemParameters.WorkArea;
+            var desktop = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+                SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
+            first.WindowState = WindowState.Normal;
+            first.Width = Math.Clamp(1170, first.MinWidth, Math.Max(first.MinWidth, workArea.Width - 64));
+            first.Height = Math.Clamp(780, first.MinHeight, Math.Max(first.MinHeight, workArea.Height - 56));
+            first.Left = Math.Clamp(workArea.Left + 32, desktop.Left, Math.Max(desktop.Left, desktop.Right - first.Width));
+            first.Top = Math.Clamp(workArea.Top + 28, desktop.Top, Math.Max(desktop.Top, desktop.Bottom - first.Height));
             first.SearchText = "repertorio";
             first.CurrentFilter = "review";
             first.SelectPageForSmoke("library", 1);
@@ -94,9 +102,15 @@ public partial class App
             var editor = Descendants(grid).OfType<TextBox>().Single();
             editor.Text = "F#"; // LostFocus binding remains pending until normal close commits it.
             Require(row.Chords[0].Root == "D", "The fixture does not exercise a pending edit.");
-            double expectedWidth = first.Width, expectedHeight = first.Height, expectedLeft = first.Left, expectedTop = first.Top;
+            double expectedWidth = first.ActualWidth, expectedHeight = first.ActualHeight, expectedLeft = first.Left, expectedTop = first.Top;
             Close(first);
             Require(File.Exists(settingsPath), "Closing did not create the isolated preferences file.");
+            var savedPreferences = Settings.Load(settingsPath);
+            Require(savedPreferences.WindowWidth is { } savedWidth && Math.Abs(savedWidth - expectedWidth) < 2
+                && savedPreferences.WindowHeight is { } savedHeight && Math.Abs(savedHeight - expectedHeight) < 2
+                && savedPreferences.WindowLeft is { } savedLeft && Math.Abs(savedLeft - expectedLeft) < 2
+                && savedPreferences.WindowTop is { } savedTop && Math.Abs(savedTop - expectedTop) < 2,
+                "Closing did not save the actual normal window bounds.");
             checks["native-close-saves-pending-grid-edit"] = true;
 
             var second = Open(settingsPath);
@@ -118,7 +132,8 @@ public partial class App
                 "Edited chords or key were not restored.");
             Require(Math.Abs(second.Width - expectedWidth) < 2 && Math.Abs(second.Height - expectedHeight) < 2
                 && Math.Abs(second.Left - expectedLeft) < 2 && Math.Abs(second.Top - expectedTop) < 2,
-                "Normal window dimensions or position were not restored.");
+                $"Normal window dimensions or position were not restored. Expected {expectedWidth}x{expectedHeight} at ({expectedLeft},{expectedTop}); "
+                + $"restored {second.Width}x{second.Height} at ({second.Left},{second.Top}); desktop {desktop}, work area {workArea}.");
             checks["dashboard-startup-preserves-all-other-preferences"] = true;
             checks["melody-and-musical-edits-restored"] = true;
             checks["window-bounds-restored"] = true;

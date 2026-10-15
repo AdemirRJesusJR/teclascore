@@ -7,6 +7,7 @@ TECLASCORE · VALIDAÇÃO DA VERSÃO 0.19.2
 - Inicialização: 16 resultados de preferências confirmam Visão geral após fechar em qualquer uma das cinco páginas, preservando biblioteca, seleção, filtros, tema, dimensões, player compacto e demais preferências. Teste separado de importação com 12 verificações confirma a abertura automática da Biblioteca ao importar.
 - Publicação Windows x64 self-contained: compilação sem avisos ou erros, com .NET Desktop Runtime 10.0.10 e suas licenças. EXE e ZIP usam o mesmo aplicativo.
 - Esta atualização não altera a análise musical, a geração, as posições confortáveis nem o áudio. Os testes novos usam acordes e arquivos sintéticos, sem abrir músicas ou configurações pessoais.
+- A primeira execução no GitHub detectou uma suposição incorreta no teste de dimensões da janela: a tela virtual do servidor é menor que a dimensão fixa da fixture. O teste foi ajustado à área disponível, preservando a conferência das dimensões salvas e restauradas; o código de posicionamento do aplicativo permaneceu inalterado.
 
 Python/Pillow e MuseScore continuam necessários para as operações que os utilizam; configure-os em Configurações > Preparar este computador. O instalador não possui certificado de assinatura de código.
 
