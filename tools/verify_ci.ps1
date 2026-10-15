@@ -84,8 +84,10 @@ function Binary([string]$Project,[string]$Name) {
 }
 
 try {
-    $dotnet=(Get-Command dotnet -CommandType Application -ErrorAction Stop).Source
-    $python=(Get-Command $PythonPath -CommandType Application -ErrorAction Stop).Source
+    # A machine can expose several matching installations. Use the first PATH match,
+    # exactly as an ordinary invocation does, rather than joining executable paths.
+    $dotnet=(Get-Command dotnet -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+    $python=(Get-Command $PythonPath -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
     [void](Invoke-Check 'dotnet-version' $dotnet @('--version'))
     $pythonReady=Invoke-Check 'python-dependencies' $python @('-c','import sys,PIL; assert sys.version_info >= (3,10); print(sys.version); print("Pillow",PIL.__version__)')
     $built=Invoke-Check 'build-solution' $dotnet @('build',(Join-Path $repo 'Teclas.Partituras.sln'),'--configuration',$configuration,'--artifacts-path',$artifacts,'--nologo','-m:1','/p:UseSharedCompilation=false') $repo
