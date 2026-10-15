@@ -2,7 +2,7 @@ namespace Teclas.Core;
 
 public sealed record MidiAuditionEvent(TimeSpan At, uint Message);
 
-public sealed class MidiAuditionSequence
+public sealed partial class MidiAuditionSequence
 {
     private sealed record OrderedEvent(long Tick, int Track, int Order, int Priority, uint Message);
     public SourceKey Source { get; }
@@ -10,16 +10,19 @@ public sealed class MidiAuditionSequence
     public TimeSpan LeadingSilenceTrimmed { get; }
     public IReadOnlyList<MidiAuditionEvent> Events { get; }
     public IReadOnlyList<string> Warnings { get; }
+    public IReadOnlyList<int> Channels { get; }
+    public bool IsFullDocument { get; }
 
-    private MidiAuditionSequence(SourceKey source, TimeSpan duration, TimeSpan trim, IReadOnlyList<MidiAuditionEvent> events, IReadOnlyList<string> warnings)
-    { Source = source; Duration = duration; LeadingSilenceTrimmed = trim; Events = events; Warnings = warnings; }
+    private MidiAuditionSequence(SourceKey source, TimeSpan duration, TimeSpan trim, IReadOnlyList<MidiAuditionEvent> events, IReadOnlyList<string> warnings, IReadOnlyList<int>? channels = null)
+    { Source = source; Duration = duration; LeadingSilenceTrimmed = trim; Events = events; Warnings = warnings;
+        Channels = channels ?? [source.Channel]; IsFullDocument = channels is not null; }
 
     /// <summary>Ends before events at the boundary, preserving original time and controller history for seeking.</summary>
     public MidiAuditionSequence Until(TimeSpan end)
     {
         if (end < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(end));
         if (end >= Duration) return this;
-        return new(Source, end, LeadingSilenceTrimmed, Events.Where(item => item.At < end).ToArray(), Warnings);
+        return new(Source, end, LeadingSilenceTrimmed, Events.Where(item => item.At < end).ToArray(), Warnings, IsFullDocument ? Channels : null);
     }
 
     public static uint Message(int kind, int channel, int first, int second = 0)
@@ -118,23 +121,33 @@ public sealed class MidiAuditionSequence
 
 internal sealed class MidiAuditionVoices
 {
-    internal sealed class Voice(int pitch, int velocity)
-    { public int Pitch { get; } = pitch; public int Velocity { get; } = velocity; public bool Down { get; set; } = true; public bool Sostenuto { get; set; } }
+    internal sealed class Voice(int pitch, int velocity, int program, int bankMsb, int bankLsb)
+    { public int Pitch { get; } = pitch; public int Velocity { get; } = velocity;
+        public int Program { get; } = program; public int BankMsb { get; } = bankMsb; public int BankLsb { get; } = bankLsb;
+        public bool Down { get; set; } = true; public bool Sostenuto { get; set; } }
     public List<Voice> Voices { get; } = [];
+    public int Program { get; private set; }
+    public int BankMsb { get; private set; }
+    public int BankLsb { get; private set; }
+    public int ProgramBankMsb { get; private set; }
+    public int ProgramBankLsb { get; private set; }
     private bool sustain, sostenuto;
     public void Apply(uint message)
     {
         int kind = (int)((message >> 4) & 15), first = (int)((message >> 8) & 127), second = (int)((message >> 16) & 127);
-        if (kind == 9 && second > 0) Voices.Add(new(first, second));
+        if (kind == 9 && second > 0) Voices.Add(new(first, second, Program, ProgramBankMsb, ProgramBankLsb));
         else if (kind == 8 || kind == 9 && second == 0)
         {
             var voice = Voices.FirstOrDefault(v => v.Pitch == first && v.Down);
             if (voice is not null) voice.Down = false;
         }
+        else if (kind == 12) { Program = first; ProgramBankMsb = BankMsb; ProgramBankLsb = BankLsb; }
         else if (kind == 11)
         {
             switch (first)
             {
+                case 0: BankMsb = second; break;
+                case 32: BankLsb = second; break;
                 case 64: sustain = second >= 64; break;
                 case 66:
                     if (second >= 64 && !sostenuto) foreach (var v in Voices.Where(v => v.Down)) v.Sostenuto = true;

@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.20.0 — 2026-10-15
+
+- Posições dos diagramas agrupadas por cifra, com contagem das ocorrências. Escolher uma inversão aplica a mesma posição a todas as repetições do acorde; a prévia continua imediata. Variações antigas ficam preservadas até a escolha explícita de uma posição comum.
+- Sugestões de posições confortáveis consideram as transições da música mantendo uma posição por cifra no diálogo agrupado. Escolhas manuais e variações anteriores permanecem protegidas.
+- Reprodução do MIDI completo diretamente no card da Biblioteca, com todas as pistas, pausa, continuação, parada e indicação de tempo. Preparação cancelável e integração com a escuta de pistas e partituras para evitar sobreposição de áudios.
+
 ## 0.19.2 — 2026-10-15
 
 - Prévia de teclado ao lado de cada cifra em Posições dos diagramas, atualizada imediatamente ao escolher a inversão, restaurar o padrão ou aplicar posições em lote. As teclas correspondem às mesmas notas e oitavas do diagrama na partitura, incluindo a transposição.

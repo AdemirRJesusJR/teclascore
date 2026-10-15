@@ -17,6 +17,10 @@ public record MidiDocument(string Path,string Sha256,int Format,int Ppq,IReadOnl
 {
     public IReadOnlyList<MidiTempoChange> TempoChanges { get; init; } = [];
     public IReadOnlyList<MidiChannelEvent> ChannelEvents { get; init; } = [];
+    // Original channel messages, including note-offs and zero-velocity note-ons.
+    // Null denotes a programmatically built document without an original event stream.
+    // Notes and ChannelEvents retain their existing analysis/source-isolation contracts.
+    public IReadOnlyList<MidiChannelEvent>? PlaybackEvents { get; init; }
     public IReadOnlyList<MidiTextEvent> TextEvents { get; init; } = [];
     public long EndTick { get; init; }
     public bool HasSystemExclusive { get; init; }
@@ -117,12 +121,14 @@ public static class MidiReader
             return new MidiSource(g.Key,names.GetValueOrDefault(g.Key.Track,$"Pista {g.Key.Track+1}"),g.Count(),pitches.Min(),pitches.Max(),distinct,simultaneous,hint);
         }).ToList();
         if(notes.Count==0)throw new InvalidDataException("O MIDI não contém notas.");
+        var playbackEvents=events.OrderBy(e=>e.Tick).ThenBy(e=>e.Track).ThenBy(e=>e.Order)
+            .Select(e=>new MidiChannelEvent(e.Tick,e.Track,e.Order,e.Channel,e.Kind,e.A,e.B)).ToArray();
         return new(path,Convert.ToHexStringLower(SHA256.HashData(original)),format,ppq,notes,sources,warnings)
         {
             TempoChanges=tempos.OrderBy(t=>t.Tick).ThenBy(t=>t.Track).ThenBy(t=>t.Order).ToArray(),
             TextEvents=textEvents.ToArray(),
-            ChannelEvents=events.Where(e=>e.Kind is >=10 and <=14).OrderBy(e=>e.Tick).ThenBy(e=>e.Track).ThenBy(e=>e.Order)
-                .Select(e=>new MidiChannelEvent(e.Tick,e.Track,e.Order,e.Channel,e.Kind,e.A,e.B)).ToArray(),
+            ChannelEvents=playbackEvents.Where(e=>e.Kind is >=10 and <=14).ToArray(),
+            PlaybackEvents=playbackEvents,
             EndTick=last,HasSystemExclusive=hasSysEx
         };
     }

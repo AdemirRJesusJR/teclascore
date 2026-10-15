@@ -17,6 +17,11 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-library-playback-ui")
+        {
+            VerifyLibraryPlaybackUi(e.Args[1]);
+            return;
+        }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-diagram-preview-ui")
         {
             VerifyDiagramPreviewUi(e.Args[1]);

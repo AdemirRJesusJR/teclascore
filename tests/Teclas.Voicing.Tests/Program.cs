@@ -68,5 +68,6 @@ for (int a = 0; a < 3; a++) for (int b = 0; b < 3; b++) for (int c = 0; c < 3; c
 Check(Math.Abs(optimal.AfterMovement - best) < .000001, "Dynamic programming matches exhaustive global optimum across mixed chord sizes");
 var withGap = ComfortableVoicingService.Suggest([Chord("C", inversion: 0), Chord("F", inversion: 0), Chord("unknown"), Chord("B", inversion: 1)]);
 Check(withGap.Suggestions[^1].SuggestedInversion == 1, "Unknown chords separate optimization segments rather than inventing a transition");
+GroupedChecks.Run(Check);
 File.WriteAllText(Path.Combine(directory, "report.json"), JsonSerializer.Serialize(new { status = "passed", checks, parityCases = parity.Count }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"PASS: {checks.Count} voicing checks; {parity.Count} renderer parity cases exported");

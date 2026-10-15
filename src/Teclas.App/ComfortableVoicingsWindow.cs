@@ -16,15 +16,17 @@ public sealed class ComfortableVoicingsWindow : Window
     private readonly TextBlock summary;
     private readonly Button apply;
     private readonly bool allowReleasingChoices;
+    private readonly bool groupRepeatedChords;
     private readonly Dictionary<int, bool> preservation = [];
     public ComfortableVoicingPlan Plan { get; private set; }
 
-    public ComfortableVoicingsWindow(IReadOnlyList<VoicingOccurrence> sequence, int maximumSpan = 12, bool allowReleasingChoices = false)
+    public ComfortableVoicingsWindow(IReadOnlyList<VoicingOccurrence> sequence, int maximumSpan = 12, bool allowReleasingChoices = false, bool groupRepeatedChords = false)
     {
         this.sequence = sequence.ToArray();
-        this.allowReleasingChoices = allowReleasingChoices;
+        this.groupRepeatedChords = groupRepeatedChords;
+        this.allowReleasingChoices = allowReleasingChoices && !groupRepeatedChords;
         maximumSpan = maximumSpan is 7 or 9 or 10 or 12 ? maximumSpan : 12;
-        Plan = ComfortableVoicingService.Suggest(this.sequence, maximumSpan);
+        Plan = Suggest(this.sequence, maximumSpan);
         Title = "Sugerir posições confortáveis";
         Width = 1080; Height = 740; MinWidth = 770; MinHeight = 590;
         ShowInTaskbar = false; UseLayoutRounding = true;
@@ -38,7 +40,9 @@ public sealed class ComfortableVoicingsWindow : Window
         heading.Children.Add(new TextBlock { Text = "Menos saltos entre os acordes", FontSize = 23, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
         heading.Children.Add(Muted("Compare as notas dos diagramas no tom final. A sugestão combina posições fundamentais, primeiras e segundas inversões, mantendo todas as notas do acorde.", 7));
         heading.Children.Add(Muted("Suas escolhas individuais permanecem fixas. Alcance e movimento são medidas entre notas; não substituem experimentar a posição no teclado.", 7));
-        if (allowReleasingChoices)
+        if (groupRepeatedChords)
+            heading.Children.Add(Muted("Uma posição por cifra, considerando todas as repetições na música. A busca é aproximada; cifras com escolhas individuais ou posições diferentes já existentes ficam preservadas.", 7));
+        if (this.allowReleasingChoices)
             heading.Children.Add(Muted("As posições da partitura importada começam protegidas. Desmarque Preservar somente nas ocorrências para as quais deseja receber uma sugestão.", 7));
         var options = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) }; heading.Children.Add(options);
         options.Children.Add(new TextBlock { Text = "Alcance máximo da mão", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
@@ -52,7 +56,7 @@ public sealed class ComfortableVoicingsWindow : Window
             CanUserAddRows = false, CanUserDeleteRows = false, CanUserSortColumns = false, CanUserResizeRows = false,
             SelectionMode = DataGridSelectionMode.Single, EnableRowVirtualization = true, RowHeight = double.NaN, MinRowHeight = 48 };
         RegisterName(table.Name, table); AutomationProperties.SetName(table, "Comparação das posições atuais e sugeridas");
-        if (allowReleasingChoices)
+        if (this.allowReleasingChoices)
         {
             var check = new FrameworkElementFactory(typeof(CheckBox));
             check.SetBinding(CheckBox.IsCheckedProperty, new Binding(nameof(ComparisonRow.Preserve)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
@@ -61,7 +65,7 @@ public sealed class ComfortableVoicingsWindow : Window
             check.SetValue(AutomationProperties.NameProperty, "Preservar a posição atual desta ocorrência");
             table.Columns.Add(new DataGridTemplateColumn { Header = "Preservar", CellTemplate = new DataTemplate { VisualTree = check }, Width = 75, MinWidth = 75 });
         }
-        table.Columns.Add(new DataGridTextColumn { Header = "Trecho / cifra", Binding = new Binding(nameof(ComparisonRow.Label)), Width = 135, MinWidth = 135 });
+        table.Columns.Add(new DataGridTextColumn { Header = groupRepeatedChords ? "Cifra / ocorrências" : "Trecho / cifra", Binding = new Binding(nameof(ComparisonRow.Label)), Width = 135, MinWidth = 135 });
         table.Columns.Add(new DataGridTextColumn { Header = "Atual · grave → agudo", Binding = new Binding(nameof(ComparisonRow.Before)), Width = 215, MinWidth = 215 });
         table.Columns.Add(new DataGridTextColumn { Header = "Sugestão · grave → agudo", Binding = new Binding(nameof(ComparisonRow.After)), Width = 215, MinWidth = 215 });
         table.Columns.Add(new DataGridTextColumn { Header = "Alcance", Binding = new Binding(nameof(ComparisonRow.Span)), Width = 95, MinWidth = 95 });
@@ -85,17 +89,23 @@ public sealed class ComfortableVoicingsWindow : Window
     private void Recalculate()
     {
         if (reach.SelectedItem is not Reach selected) return;
-        Plan = ComfortableVoicingService.Suggest(sequence.Select((item, index) => preservation.TryGetValue(index, out bool preserve)
+        Plan = Suggest(sequence.Select((item, index) => preservation.TryGetValue(index, out bool preserve)
             ? item with { PreserveChoice = preserve } : item).ToArray(), selected.Semitones);
         RefreshPlan();
     }
+    private ComfortableVoicingPlan Suggest(IReadOnlyList<VoicingOccurrence> source, int maximumSpan) => groupRepeatedChords
+        ? ComfortableVoicingService.SuggestGrouped(source, maximumSpan)
+        : ComfortableVoicingService.Suggest(source, maximumSpan);
     private void RefreshPlan()
     {
-        table.ItemsSource = Plan.Suggestions.Select((s, index) => new ComparisonRow(s, value =>
-        {
-            if (!allowReleasingChoices) return;
-            preservation[index] = value; Recalculate();
-        })).ToArray();
+        var groups = groupRepeatedChords
+            ? Plan.Suggestions.GroupBy(suggestion => ComfortableVoicingService.GetChordGroupKey(suggestion.Source)).Select(group => group.ToArray()).ToArray()
+            : Plan.Suggestions.Select(suggestion => new[] { suggestion }).ToArray();
+        table.ItemsSource = groups.Select((items, index) => new ComparisonRow(items, groupRepeatedChords, value =>
+            {
+                if (!allowReleasingChoices) return;
+                preservation[index] = value; Recalculate();
+            })).ToArray();
         apply.IsEnabled = Plan.ChangeCount > 0;
         string before = Plan.BeforeMovement.ToString("0.#", CultureInfo.CurrentCulture);
         string after = Plan.AfterMovement.ToString("0.#", CultureInfo.CurrentCulture);
@@ -105,7 +115,10 @@ public sealed class ComfortableVoicingsWindow : Window
             : Plan.AfterMovement > Plan.BeforeMovement + .000001
                 ? "O alcance escolhido exige mais movimento entre acordes; confira a comparação."
                 : "Movimento estimado igual ao atual.";
-        summary.Text = $"{Plan.ChangeCount} posições sugeridas · {Plan.PreservedCount} escolhas individuais preservadas. " +
+        string changes = groupRepeatedChords
+            ? $"{groups.Count(items => items.Any(item => item.Changed))} cifras com nova posição · {Plan.ChangeCount} ocorrências atualizadas · {groups.Length} cifras na comparação. "
+            : $"{Plan.ChangeCount} posições sugeridas · {Plan.PreservedCount} escolhas individuais preservadas. ";
+        summary.Text = changes +
             $"Movimento acumulado: {before} → {after} (média por transição, somada em semitons). {comparison}" +
             (outside > 0 ? $" {outside} ocorrências ainda excedem o alcance: foram mantidas e estão indicadas acima." : "") +
             (Plan.ChangeCount == 0 ? " Nenhuma mudança necessária nas posições disponíveis." : "");
@@ -116,16 +129,22 @@ public sealed class ComfortableVoicingsWindow : Window
         result.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); return result;
     }
     private sealed record Reach(int Semitones, string Label);
-    private sealed class ComparisonRow(VoicingSuggestion item, Action<bool> changed) : Observable
+    private sealed class ComparisonRow(IReadOnlyList<VoicingSuggestion> items, bool grouped, Action<bool> changed) : Observable
     {
-        private bool preserve = item.Source.PreserveChoice;
+        private VoicingSuggestion Item => items[0];
+        private bool preserve = items[0].Source.PreserveChoice;
         public bool Preserve { get => preserve; set { if (Set(ref preserve, value)) changed(value); } }
-        public string Label => item.Source.Location + "\n" + item.Source.Root + item.Source.Quality +
-            (item.Source.TransposeSemitones == 0 ? "" : $" ({item.Source.TransposeSemitones:+0;-0} semitons)");
-        public string Before => Inversion(item.Source.CurrentInversion) + "\n" + Notes(item.BeforePitches);
-        public string After => Inversion(item.SuggestedInversion) + "\n" + Notes(item.AfterPitches);
-        public string Span => item.AfterPitches.Count == 0 ? "—" : item.Span + " semitons";
-        public string Status => item.Limitation.Length > 0 ? item.Limitation : item.Changed ? "Nova posição sugerida" : "Manter posição atual";
+        public string Label => (grouped ? Item.Source.Root.Trim() + Item.Source.Quality.Trim() + "\n" + items.Count + (items.Count == 1 ? " ocorrência" : " ocorrências")
+            : Item.Source.Location + "\n" + Item.Source.Root + Item.Source.Quality)
+            + (items.All(item => item.Source.TransposeSemitones == Item.Source.TransposeSemitones)
+                ? Item.Source.TransposeSemitones == 0 ? "" : $" ({Item.Source.TransposeSemitones:+0;-0} semitons)" : " · transposições diferentes");
+        public string Before => string.Join("\n\n", items.Select(item => Inversion(item.Source.CurrentInversion) + "\n" + Notes(item.BeforePitches)).Distinct());
+        public string After => string.Join("\n\n", items.Select(item => Inversion(item.SuggestedInversion) + "\n" + Notes(item.AfterPitches)).Distinct());
+        public string Span => items.All(item => item.AfterPitches.Count == 0) ? "—"
+            : string.Join(" / ", items.Where(item => item.AfterPitches.Count > 0).Select(item => item.Span).Distinct().Order()) + " semitons";
+        public string Status => items.Any(item => item.Limitation.Length > 0)
+            ? string.Join(" ", items.Select(item => item.Limitation).Where(text => text.Length > 0).Distinct())
+            : items.Any(item => item.Changed) ? "Nova posição sugerida" : "Manter posição atual";
         private static string Inversion(int value) => value switch { 0 => "Fundamental", 1 => "1ª inversão", _ => "2ª inversão" };
         private static string Notes(IReadOnlyList<int> pitches) => pitches.Count == 0 ? "Não reconhecido" : string.Join("–", pitches.Select(p =>
             new[] { "Dó", "Dó♯", "Ré", "Ré♯", "Mi", "Fá", "Fá♯", "Sol", "Sol♯", "Lá", "Lá♯", "Si" }[p % 12] + (p / 12 - 1)));

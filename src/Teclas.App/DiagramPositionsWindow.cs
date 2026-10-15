@@ -10,12 +10,14 @@ namespace Teclas.App;
 public sealed class DiagramPositionsWindow : Window
 {
     private readonly List<DiagramDraft> drafts;
+    private readonly VoicingOccurrence[] occurrences;
+    private readonly int?[] occurrenceInversions;
     private readonly DataGrid table;
     private readonly TextBlock summary;
     private readonly int defaultInversion;
     private readonly int transpose;
 
-    public IReadOnlyList<int?> Inversions => drafts.Select(draft => draft.Inversion).ToArray();
+    public IReadOnlyList<int?> Inversions => occurrenceInversions.ToArray();
     public int ComfortableMaximumSpan { get; private set; }
 
     public DiagramPositionsWindow(MidiRow row) : this(row, 12) { }
@@ -30,7 +32,15 @@ public sealed class DiagramPositionsWindow : Window
         defaultInversion = row.EffectiveDiagramInversion;
         transpose = row.TransposeSemitones;
         var previews = new KeyboardDiagramPreview();
-        drafts = row.Chords.Select(chord => new DiagramDraft(chord, defaultInversion, transpose, previews)).ToList();
+        occurrenceInversions = row.Chords.Select(chord => chord.DiagramInversion).ToArray();
+        occurrences = row.Chords.Select((chord, index) => new VoicingOccurrence(
+            index.ToString(System.Globalization.CultureInfo.InvariantCulture), $"Semínima {chord.Quarter:0.###}",
+            chord.Root, chord.Quality, chord.DiagramInversion ?? defaultInversion,
+            chord.DiagramInversion.HasValue, transpose)).ToArray();
+        drafts = Enumerable.Range(0, occurrences.Length)
+            .GroupBy(index => ComfortableVoicingService.GetChordGroupKey(occurrences[index]))
+            .Select(group => new DiagramDraft(occurrences[group.First()], group.ToArray(), occurrenceInversions,
+                defaultInversion, transpose, previews)).ToList();
         ComfortableMaximumSpan = comfortableMaximumSpan is 7 or 9 or 10 or 12 ? comfortableMaximumSpan : 12;
 
         var root = new Grid { Margin = new Thickness(24) };
@@ -43,13 +53,13 @@ public sealed class DiagramPositionsWindow : Window
         root.Children.Add(heading);
         heading.Children.Add(new TextBlock { Text = "Escolha a posição de cada acorde", FontSize = 23,
             FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
-        heading.Children.Add(Muted("Escolha uma posição para ver as teclas marcadas ao lado da cifra. Cada ocorrência pode ter uma posição diferente.", 7));
+        heading.Children.Add(Muted("Cada cifra aparece uma vez. A posição escolhida vale automaticamente para todas as suas ocorrências na música.", 7));
         heading.Children.Add(Muted("Exemplo em C, da nota mais grave para a mais aguda: fundamental Dó–Mi–Sol · 1ª Mi–Sol–Dó · 2ª Sol–Dó–Mi.", 8));
         if (row.TransposeSemitones != 0)
             heading.Children.Add(Muted($"Cifras no tom de origem; os teclados já mostram a transposição de {transpose:+0;-0;0} semitons no tom final da partitura.", 8));
 
         var options = new[] { "Usar padrão · " + InversionLabel(row.EffectiveDiagramInversion),
-            "Posição fundamental", "1ª inversão", "2ª inversão" };
+            "Posição fundamental", "1ª inversão", "2ª inversão", "Variações salvas · escolher" };
         table = new DataGrid
         {
             Name = "DiagramPositionsTable", ItemsSource = drafts, AutoGenerateColumns = false,
@@ -58,12 +68,12 @@ public sealed class DiagramPositionsWindow : Window
             SelectionUnit = DataGridSelectionUnit.FullRow, RowHeight = 82, MaxHeight = 600,
             VerticalAlignment = VerticalAlignment.Stretch, EnableRowVirtualization = true
         };
-        AutomationProperties.SetName(table, "Posição dos diagramas por ocorrência da cifra");
+        AutomationProperties.SetName(table, "Posição dos diagramas por cifra, aplicada a todas as ocorrências");
         ScrollViewer.SetVerticalScrollBarVisibility(table, ScrollBarVisibility.Auto);
         RegisterName(table.Name, table);
         Grid.SetRow(table, 1); root.Children.Add(table);
-        table.Columns.Add(new DataGridTextColumn { Header = "Semínima",
-            Binding = new Binding(nameof(DiagramDraft.Quarter)) { StringFormat = "0.###" }, Width = 100 });
+        table.Columns.Add(new DataGridTextColumn { Header = "Ocorrências",
+            Binding = new Binding(nameof(DiagramDraft.OccurrenceCount)), Width = 100 });
         var chordPanel = new FrameworkElementFactory(typeof(StackPanel));
         chordPanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
         chordPanel.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -86,7 +96,7 @@ public sealed class DiagramPositionsWindow : Window
         image.SetBinding(AutomationProperties.NameProperty, new Binding(nameof(DiagramDraft.PreviewDescription)));
         previewPanel.AppendChild(image);
         var unavailable = new FrameworkElementFactory(typeof(TextBlock));
-        unavailable.SetValue(TextBlock.TextProperty, "Diagrama indisponível\nConfira a cifra.");
+        unavailable.SetBinding(TextBlock.TextProperty, new Binding(nameof(DiagramDraft.PreviewPlaceholder)));
         unavailable.SetValue(TextBlock.FontSizeProperty, 11d);
         unavailable.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
         unavailable.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(DiagramDraft.PreviewUnavailableVisibility)));
@@ -103,6 +113,11 @@ public sealed class DiagramPositionsWindow : Window
         combo.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         combo.SetValue(Control.FontSizeProperty, 12d);
         combo.SetValue(AutomationProperties.NameProperty, "Posição deste diagrama");
+        var optionStyle = new Style(typeof(ComboBoxItem));
+        var mixedOption = new DataTrigger { Binding = new Binding(), Value = options[4] };
+        mixedOption.Setters.Add(new Setter(UIElement.IsEnabledProperty, false));
+        optionStyle.Triggers.Add(mixedOption);
+        combo.SetValue(ItemsControl.ItemContainerStyleProperty, optionStyle);
         combo.SetBinding(ComboBox.SelectedIndexProperty, new Binding(nameof(DiagramDraft.SelectedIndex))
             { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
         table.Columns.Add(new DataGridTemplateColumn { Header = "Posição do acorde",
@@ -112,11 +127,6 @@ public sealed class DiagramPositionsWindow : Window
         Grid.SetRow(footer, 2); root.Children.Add(footer);
         var bulk = new WrapPanel { Margin = new Thickness(-4, 0, 0, 0) };
         footer.Children.Add(bulk);
-        var same = DialogUi.Button("Aplicar à mesma cifra", (_, _) => ApplyToSameChord());
-        same.Name = "ApplySameChordButton";
-        same.ToolTip = "Copiar a posição da linha selecionada para todas as ocorrências da mesma cifra.";
-        same.IsEnabled = drafts.Count > 0;
-        RegisterName(same.Name, same); bulk.Children.Add(same);
         var reset = DialogUi.Button("Usar padrão em todos", (_, _) =>
         {
             foreach (var draft in drafts) draft.Inversion = null;
@@ -125,10 +135,10 @@ public sealed class DiagramPositionsWindow : Window
         RegisterName(reset.Name, reset); bulk.Children.Add(reset);
         var suggest = DialogUi.Button("Sugerir posições confortáveis", (_, _) => SuggestComfortablePositions());
         suggest.Name = "SuggestComfortableVoicingsButton"; suggest.IsEnabled = drafts.Count > 0;
-        suggest.ToolTip = "Comparar posições que reduzem saltos da mão; suas escolhas individuais serão preservadas.";
+        suggest.ToolTip = "Sugerir uma posição por cifra, considerando a sequência da música e preservando suas escolhas salvas.";
         RegisterName(suggest.Name, suggest); bulk.Children.Add(suggest);
         summary = Muted("", 8); footer.Children.Add(summary);
-        footer.Children.Add(Muted("A posição conta semínimas desde o início do MIDI. Ao aplicar, a partitura será atualizada automaticamente.", 5));
+        footer.Children.Add(Muted("Ao aplicar, todas as ocorrências das cifras alteradas serão atualizadas na partitura. Cancelar mantém as escolhas anteriores.", 5));
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, -4, 0) };
@@ -140,46 +150,44 @@ public sealed class DiagramPositionsWindow : Window
         apply.Name = "ApplyDiagramPositionsButton"; apply.IsDefault = true; apply.IsEnabled = drafts.Count > 0;
         RegisterName(apply.Name, apply); actions.Children.Add(apply);
 
-        foreach (var draft in drafts) draft.PropertyChanged += (_, _) => RefreshSummary();
-        table.SelectionChanged += (_, _) => same.IsEnabled = table.SelectedItem is DiagramDraft;
+        foreach (var draft in drafts) draft.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(DiagramDraft.Inversion)) RefreshSummary();
+        };
         if (drafts.Count > 0) table.SelectedIndex = 0;
         RefreshSummary();
     }
 
     private void SuggestComfortablePositions()
     {
-        var sequence = drafts.Select((draft, index) => new VoicingOccurrence(index.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            $"Semínima {draft.Quarter:0.###}", draft.Root, draft.Quality, draft.Inversion ?? defaultInversion,
-            draft.Inversion.HasValue, transpose)).ToArray();
-        var dialog = new ComfortableVoicingsWindow(sequence, ComfortableMaximumSpan) { Owner = this };
+        var sequence = occurrences.Select((source, index) => source with
+        {
+            CurrentInversion = occurrenceInversions[index] ?? defaultInversion,
+            PreserveChoice = occurrenceInversions[index].HasValue
+        }).ToArray();
+        var dialog = new ComfortableVoicingsWindow(sequence, ComfortableMaximumSpan, groupRepeatedChords: true) { Owner = this };
         if (dialog.ShowDialog() != true) return;
         ComfortableMaximumSpan = dialog.Plan.MaximumSpan;
-        for (int i = 0; i < drafts.Count; i++)
+        foreach (var draft in drafts)
         {
-            var suggestion = dialog.Plan.Suggestions[i];
-            if (suggestion.Changed && !drafts[i].Inversion.HasValue)
-                drafts[i].Inversion = suggestion.SuggestedInversion;
+            if (draft.HasMixedPositions || draft.ContainsCustomChoices) continue;
+            var suggestions = draft.Indices.Select(index => dialog.Plan.Suggestions[index]).ToArray();
+            var choices = suggestions.Select(suggestion => suggestion.SuggestedInversion).Distinct().ToArray();
+            if (choices.Length == 1 && suggestions.Any(suggestion => suggestion.Changed))
+                draft.Inversion = choices[0];
         }
         RefreshSummary();
     }
 
-    private void ApplyToSameChord()
-    {
-        if (table.SelectedItem is not DiagramDraft selected) return;
-        foreach (var draft in drafts)
-            if (NormalizeRoot(draft.Root).Equals(NormalizeRoot(selected.Root), StringComparison.OrdinalIgnoreCase)
-                && draft.Quality.Trim().Equals(selected.Quality.Trim(), StringComparison.Ordinal))
-                draft.Inversion = selected.Inversion;
-    }
-
     private void RefreshSummary()
     {
-        var custom = drafts.Count(draft => draft.Inversion.HasValue);
+        int custom = drafts.Count(draft => !draft.HasMixedPositions && draft.Inversion.HasValue);
+        int mixed = drafts.Count(draft => draft.HasMixedPositions);
         summary.Text = drafts.Count == 0 ? "Não há cifras nesta partitura. Analise os acordes primeiro."
-            : $"{custom} de {drafts.Count} ocorrências com posição personalizada. As demais seguem o padrão da partitura.";
+            : $"{drafts.Count} cifras · {occurrences.Length} ocorrências · {custom} cifras com posição personalizada."
+                + (mixed > 0 ? $" {mixed} cifras têm variações salvas; escolha uma posição para unificá-las." : "");
     }
 
-    private static string NormalizeRoot(string value) => value.Trim().Replace('♯', '#').Replace('♭', 'b');
     private static string InversionLabel(int inversion) => inversion switch
         { 1 => "1ª inversão", 2 => "2ª inversão", _ => "fundamental" };
     private static TextBlock Muted(string text, double topMargin)
@@ -194,38 +202,55 @@ public sealed class DiagramPositionsWindow : Window
     {
         private readonly int defaultInversion, transpose;
         private readonly KeyboardDiagramPreview previews;
-        public double Quarter { get; }
+        private readonly int?[] occurrenceInversions;
+        public int[] Indices { get; }
+        public int OccurrenceCount => Indices.Length;
+        public bool HasMixedPositions => Indices.Any(index => occurrenceInversions[index] != occurrenceInversions[Indices[0]]);
+        public bool ContainsCustomChoices => Indices.Any(index => occurrenceInversions[index].HasValue);
         public string Root { get; }
         public string Quality { get; }
         public string Symbol => Root + Quality;
-        public DrawingImage? PreviewImage => previews.GetImage(Root, Quality, Inversion ?? defaultInversion, transpose);
-        public string PreviewDescription => KeyboardDiagramPreview.Describe(Root, Quality, Inversion ?? defaultInversion, transpose);
+        public DrawingImage? PreviewImage => HasMixedPositions ? null
+            : previews.GetImage(Root, Quality, Inversion ?? defaultInversion, transpose);
+        public string PreviewDescription => HasMixedPositions
+            ? $"{Symbol}: há configurações diferentes salvas. Escolha uma posição para aplicar às {OccurrenceCount} ocorrências."
+            : KeyboardDiagramPreview.Describe(Root, Quality, Inversion ?? defaultInversion, transpose);
+        public string PreviewPlaceholder => HasMixedPositions ? "Variações salvas\nEscolha uma posição."
+            : "Diagrama indisponível\nConfira a cifra.";
         public Visibility PreviewVisibility => PreviewImage is null ? Visibility.Collapsed : Visibility.Visible;
         public Visibility PreviewUnavailableVisibility => PreviewImage is null ? Visibility.Visible : Visibility.Collapsed;
-        private int? inversion;
         public int? Inversion
         {
-            get => inversion;
+            get => HasMixedPositions ? null : occurrenceInversions[Indices[0]];
             set
             {
-                if (!Set(ref inversion, value)) return;
+                if (value is < 0 or > 2) return;
+                if (Indices.All(index => occurrenceInversions[index] == value)) return;
+                foreach (int index in Indices) occurrenceInversions[index] = value;
+                Notify();
+                Notify(nameof(HasMixedPositions));
+                Notify(nameof(ContainsCustomChoices));
                 Notify(nameof(SelectedIndex));
                 Notify(nameof(PreviewImage));
                 Notify(nameof(PreviewDescription));
+                Notify(nameof(PreviewPlaceholder));
                 Notify(nameof(PreviewVisibility));
                 Notify(nameof(PreviewUnavailableVisibility));
             }
         }
         public int SelectedIndex
         {
-            get => Inversion is int value ? value + 1 : 0;
-            set => Inversion = value is >= 1 and <= 3 ? value - 1 : null;
+            get => HasMixedPositions ? 4 : Inversion is int value ? value + 1 : 0;
+            set { if (value is >= 0 and <= 3) Inversion = value == 0 ? null : value - 1; }
         }
-        public DiagramDraft(ChordRow chord, int defaultInversion, int transpose, KeyboardDiagramPreview previews)
+        public DiagramDraft(VoicingOccurrence chord, int[] indices, int?[] occurrenceInversions,
+            int defaultInversion, int transpose, KeyboardDiagramPreview previews)
         {
             this.defaultInversion = defaultInversion; this.transpose = transpose; this.previews = previews;
-            Quarter = chord.Quarter; Root = chord.Root; Quality = chord.Quality;
-            inversion = chord.DiagramInversion;
+            Indices = indices; this.occurrenceInversions = occurrenceInversions;
+            string root = chord.Root.Trim().Replace('♯', '#').Replace('♭', 'b');
+            Root = root.Length > 0 ? char.ToUpperInvariant(root[0]) + root[1..] : root;
+            Quality = chord.Quality.Trim();
         }
     }
 }

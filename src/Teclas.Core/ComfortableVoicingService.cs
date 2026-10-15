@@ -2,6 +2,7 @@ namespace Teclas.Core;
 
 public sealed record VoicingOccurrence(string Id, string Location, string Root, string Quality,
     int CurrentInversion, bool PreserveChoice = false, int TransposeSemitones = 0);
+public readonly record struct VoicingChordKey(string Root, string Quality);
 public sealed record VoicingSuggestion(VoicingOccurrence Source, int SuggestedInversion,
     IReadOnlyList<int> BeforePitches, IReadOnlyList<int> AfterPitches, string Limitation)
 {
@@ -57,6 +58,111 @@ public static class ComfortableVoicingService
             after += Movement(results[i - 1].AfterPitches, results[i].AfterPitches);
         }
         return new(results, maximumSpan, before, after);
+    }
+
+    /// <summary>Written chord identity: accidental spelling is preserved; quality is case-sensitive.</summary>
+    public static VoicingChordKey GetChordGroupKey(VoicingOccurrence source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return new(NormalizeRoot(source.Root).ToUpperInvariant(), (source.Quality ?? "").Trim());
+    }
+
+    /// <summary>
+    /// Assigns one position to every repetition of a written chord, using all original transitions.
+    /// Deterministic bounded coordinate descent is an approximation, not a global optimum claim.
+    /// Groups with manual choices or different existing positions remain entirely unchanged.
+    /// </summary>
+    public static ComfortableVoicingPlan SuggestGrouped(IReadOnlyList<VoicingOccurrence> sequence, int maximumSpan = 12)
+    {
+        ArgumentNullException.ThrowIfNull(sequence);
+        if (maximumSpan is < 5 or > 12) throw new ArgumentOutOfRangeException(nameof(maximumSpan), "Escolha um alcance entre 5 e 12 semitons.");
+        if (sequence.Count > 100000) throw new ArgumentException("A sequência contém cifras demais para uma única revisão.", nameof(sequence));
+        var entries = sequence.Select(source => Create(source with
+        { Root = NormalizeRoot(source.Root), Quality = (source.Quality ?? "").Trim() }, maximumSpan) with { Source = source }).ToArray();
+        var groups = sequence.Select((source, index) => (Key: GetChordGroupKey(source), Index: index))
+            .GroupBy(item => item.Key).Select(group => group.Select(item => item.Index).ToArray()).ToArray();
+        var groupAt = new int[entries.Length];
+        var choices = entries.Select(entry => entry.Source.CurrentInversion).ToArray();
+        var pitches = entries.Select(entry => entry.Original).ToArray();
+        var limitations = entries.Select(entry => entry.Limitation).ToArray();
+        var allowed = new int[groups.Length][];
+        var edges = new int[groups.Length][];
+        for (int group = 0; group < groups.Length; group++)
+        {
+            var indices = groups[group];
+            foreach (int index in indices) groupAt[index] = group;
+            bool mixed = indices.Select(index => entries[index].Source.CurrentInversion).Distinct().Skip(1).Any();
+            bool manual = indices.Any(index => entries[index].Source.PreserveChoice);
+            bool unknown = indices.Any(index => entries[index].Original.Length == 0);
+            allowed[group] = mixed || manual || unknown ? [] : Enumerable.Range(0, 3)
+                .Where(inversion => indices.All(index => entries[index].Candidates.Any(candidate => candidate.Inversion == inversion))).ToArray();
+            if (mixed || manual)
+            {
+                string protectedReason = mixed
+                    ? "Posições diferentes já existentes para esta cifra: grupo preservado. Escolha uma posição no diálogo de diagramas para unificar."
+                    : "Escolha individual preservada em todas as ocorrências desta cifra.";
+                foreach (int index in indices) limitations[index] = protectedReason
+                    + (entries[index].Original.Length == 0 ? " Cifra não reconhecida; alcance não estimado."
+                        : entries[index].Original[^1] - entries[index].Original[0] > maximumSpan ? " Excede o alcance selecionado." : "");
+            }
+            if (allowed[group].Length > 0)
+            {
+                int selected = allowed[group].Contains(choices[indices[0]]) ? choices[indices[0]] : allowed[group][0];
+                foreach (int index in indices)
+                {
+                    choices[index] = selected;
+                    pitches[index] = entries[index].Candidates.Single(candidate => candidate.Inversion == selected).Pitches;
+                }
+            }
+            edges[group] = indices.SelectMany(index => new[] { index, index + 1 })
+                .Where(edge => edge > 0 && edge < entries.Length).Distinct().Order().ToArray();
+        }
+        // Each pass visits every original edge at most twice per candidate. The hard cap
+        // bounds long songs; strict lexicographic improvements avoid cycles and arbitrary churn.
+        for (int pass = 0; pass < 24; pass++)
+        {
+            bool changed = false;
+            for (int group = 0; group < groups.Length; group++)
+            {
+                if (allowed[group].Length < 2) continue;
+                var indices = groups[group]; int current = choices[indices[0]], best = current;
+                var candidates = allowed[group].ToDictionary(inversion => inversion,
+                    inversion => indices.ToDictionary(index => index, index => entries[index].Candidates.Single(candidate => candidate.Inversion == inversion).Pitches));
+                Cost Evaluate(int inversion)
+                {
+                    var proposed = candidates[inversion];
+                    double motion = edges[group].Sum(edge => Movement(
+                        groupAt[edge - 1] == group ? proposed[edge - 1] : pitches[edge - 1],
+                        groupAt[edge] == group ? proposed[edge] : pitches[edge]));
+                    return new(motion, indices.Count(index => entries[index].Source.CurrentInversion != inversion));
+                }
+                var bestCost = Evaluate(current);
+                foreach (int inversion in allowed[group])
+                {
+                    var cost = Evaluate(inversion);
+                    if (cost.Motion < bestCost.Motion - .000000001 || Math.Abs(cost.Motion - bestCost.Motion) <= .000000001 && cost.Changes < bestCost.Changes)
+                    { best = inversion; bestCost = cost; }
+                }
+                if (best == current) continue;
+                foreach (int index in indices) { choices[index] = best; pitches[index] = candidates[best][index]; }
+                changed = true;
+            }
+            if (!changed) break;
+        }
+        var results = entries.Select((entry, index) => new VoicingSuggestion(entry.Source, choices[index], entry.Original, pitches[index], limitations[index])).ToArray();
+        double before = 0, after = 0;
+        for (int index = 1; index < results.Length; index++)
+        {
+            before += Movement(results[index - 1].BeforePitches, results[index].BeforePitches);
+            after += Movement(results[index - 1].AfterPitches, results[index].AfterPitches);
+        }
+        return new(results, maximumSpan, before, after);
+    }
+
+    private static string NormalizeRoot(string? root)
+    {
+        string value = (root ?? "").Trim().Replace('♯', '#').Replace('♭', 'b');
+        return value.Length == 0 ? value : char.ToUpperInvariant(value[0]) + value[1..].Replace('B', 'b');
     }
 
     // Corresponding pitch-height positions, resampled when chord sizes differ. This is a comparison

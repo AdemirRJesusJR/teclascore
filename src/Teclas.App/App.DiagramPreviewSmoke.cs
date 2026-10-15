@@ -45,6 +45,10 @@ public partial class App
         void Flush() => Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         static object? Value(object draft, string name) => draft.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance)!.GetValue(draft);
         static DataGrid Table(DiagramPositionsWindow window) => (DataGrid)window.FindName("DiagramPositionsTable");
+        static object Draft(DataGrid table, string root, string quality) => table.Items.Cast<object>().Single(item =>
+            ((string)Value(item, "Root")!).Trim().Replace('♯', '#').Replace('♭', 'b').Equals(root, StringComparison.OrdinalIgnoreCase)
+            && ((string)Value(item, "Quality")!).Trim() == quality);
+        static void Position(object draft, int selectedIndex) => draft.GetType().GetProperty("SelectedIndex")!.SetValue(draft, selectedIndex);
         static Button Button(Window window, string name) => (Button)window.FindName(name);
         static void Click(Button button) => ((IInvokeProvider)new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke)).Invoke();
         static string Snapshot(MidiRow row) => JsonSerializer.Serialize(row.Chords.Select(chord => new
@@ -145,15 +149,50 @@ public partial class App
             await V018Wait(() => table.ItemContainerGenerator.ContainerFromItem(item) is DataGridRow);
             return (DataGridRow)table.ItemContainerGenerator.ContainerFromItem(item);
         }
+        async Task InspectSuggestions(DiagramPositionsWindow parent, Action<ComfortableVoicingsWindow> inspect, bool accept)
+        {
+            Exception? failure = null; bool finished = false;
+            _ = Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+            {
+                var suggestion = Current.Windows.OfType<ComfortableVoicingsWindow>().SingleOrDefault();
+                if (suggestion is null) { failure = new InvalidOperationException("The grouped suggestion window did not open."); return; }
+                try
+                {
+                    inspect(suggestion);
+                    Click(Button(suggestion, accept ? "ApplyComfortableVoicingsButton" : "CancelComfortableVoicingsButton"));
+                    finished = true;
+                }
+                catch (Exception ex) { failure = ex; suggestion.Close(); }
+            }));
+            Click(Button(parent, "SuggestComfortableVoicingsButton"));
+            await V018Wait(() => finished || failure is not null); Flush();
+            if (failure is not null) throw failure;
+        }
         try
         {
             ThemeManager.Apply("graphite");
-            var row = Music(("C", "", null), ("C", "", 1), ("C", "9", 1), ("F♯", "m7", null), ("H", "", null), ("C", "unsupported", null));
+            var row = Music(("C", "", null), ("F♯", "m7", null), ("C", "", 1), ("C", "m", 2),
+                ("C", "9", 1), ("C", "7", 0), ("C", "maj7", 2), ("C", "mMaj7", 1),
+                ("F#", " m7 ", null), ("B♭", "", 0), ("Bb", "", 0), ("C", "m", 2),
+                ("H", "", null), ("C", "unsupported", null));
             string original = Snapshot(row);
             var dialog = new DiagramPositionsWindow(row);
             var table = Table(dialog); object first = table.Items[0];
-            Pitches(first, [55, 60, 64], "default-second-inversion");
-            Pitches(table.Items[2], [52, 55, 58, 60, 62], "ninth-first-inversion-keeps-all-five-notes");
+            var originalInversions = row.Chords.Select(chord => chord.DiagramInversion).ToArray();
+            Check(table.Items.Count == 10 && table.Items.Cast<object>().Sum(item => (int)Value(item, "OccurrenceCount")!) == 14,
+                "repeated-chords-collapse-to-ten-groups-with-fourteen-occurrences");
+            Check(table.Columns.Any(column => column.Header?.ToString() == "Ocorrências")
+                && table.Columns.All(column => !column.Header!.ToString()!.Contains("Semínima"))
+                && dialog.FindName("ApplySameChordButton") is null, "grouped-editor-shows-occurrences-without-obsolete-copy-action");
+            Check((int)Value(first, "OccurrenceCount")! == 2 && (bool)Value(first, "HasMixedPositions")!
+                && (int)Value(first, "SelectedIndex")! == 4 && Value(first, "PreviewImage") is null
+                && !string.IsNullOrWhiteSpace(Value(first, "PreviewDescription") as string), "mixed-group-explains-saved-positions-without-false-preview");
+            Check(dialog.Inversions.SequenceEqual(originalInversions), "opening-keeps-every-original-occurrence-inversion");
+            Check((int)Value(Draft(table, "F#", "m7"), "OccurrenceCount")! == 2
+                && (int)Value(Draft(table, "Bb", ""), "OccurrenceCount")! == 2, "unicode-accidentals-and-quality-spaces-share-groups");
+            Check(new[] { "", "m", "7", "maj7", "mMaj7", "9" }.Select(quality => Draft(table, "C", quality)).Distinct().Count() == 6,
+                "major-minor-dominant-and-major-seventh-qualities-remain-distinct");
+            Pitches(Draft(table, "C", "9"), [52, 55, 58, 60, 62], "ninth-first-inversion-keeps-all-five-notes");
             bool? accepted = Modal(dialog, async () =>
             {
                 var firstRow = await Realize(table, first);
@@ -163,29 +202,38 @@ public partial class App
                 Check(combo.IsTabStop && !string.IsNullOrWhiteSpace(AutomationProperties.GetName(combo)), "inversion-combo-is-keyboard-accessible");
                 Check(AutomationProperties.GetName(image) == Value(first, "PreviewDescription") as string
                     || image.ToolTip?.ToString() == Value(first, "PreviewDescription") as string, "image-exposes-complete-note-description");
-                var previousImage = image.Source;
+                Position(first, -1); Position(first, 4); Flush();
+                Check(dialog.Inversions.SequenceEqual(originalInversions) && (bool)Value(first, "HasMixedPositions")!,
+                    "unselected-and-mixed-sentinel-never-overwrite-saved-positions");
+                dialog.Width = 800; dialog.Height = 580; Flush(); Capture(dialog, "diagram-preview-mixed-graphite-800");
                 combo.SelectedIndex = 1; Flush();
                 Pitches(first, [60, 64, 67], "combo-fundamental-updates-markers");
-                Check(!ReferenceEquals(previousImage, image.Source) && ReferenceEquals(image.Source, Value(first, "PreviewImage")), "combo-refreshes-rendered-cell-immediately");
+                Check(image.Source is not null && ReferenceEquals(image.Source, Value(first, "PreviewImage")), "combo-refreshes-rendered-cell-immediately");
+                Check(dialog.Inversions[0] == 0 && dialog.Inversions[2] == 0 && !(bool)Value(first, "HasMixedPositions")!,
+                    "choosing-a-position-updates-all-repeated-occurrences-immediately");
+                Check(dialog.Inversions.Where((_, index) => index is not 0 and not 2).SequenceEqual(originalInversions.Where((_, index) => index is not 0 and not 2)),
+                    "choosing-major-chord-leaves-other-groups-and-qualities-intact");
                 combo.SelectedIndex = 2; Flush(); Pitches(first, [52, 55, 60], "combo-first-inversion-updates-markers");
                 combo.SelectedIndex = 3; Flush(); Pitches(first, [55, 60, 64], "combo-second-inversion-updates-markers");
-                Check(ReferenceEquals(previousImage, image.Source), "equivalent-position-reuses-cached-image");
+                var secondInversionImage = image.Source;
+                combo.SelectedIndex = 1; Flush(); combo.SelectedIndex = 3; Flush();
+                Check(ReferenceEquals(secondInversionImage, image.Source), "equivalent-position-reuses-cached-image");
                 combo.SelectedIndex = 0; Flush();
-                Check(Value(first, "Inversion") is null, "combo-default-clears-only-draft-override");
+                Check(Value(first, "Inversion") is null && dialog.Inversions[0] is null && dialog.Inversions[2] is null,
+                    "choosing-default-clears-overrides-for-the-whole-group");
                 Pitches(first, [55, 60, 64], "combo-default-restores-adopted-position");
-                combo.SelectedIndex = 1; Flush(); Click(Button(dialog, "ApplySameChordButton")); Flush();
-                Pitches(table.Items[1], [60, 64, 67], "same-chord-updates-other-occurrence-preview");
-                Check((int?)Value(table.Items[2], "Inversion") == 1, "same-chord-does-not-change-other-quality");
+                Check((int?)Value(Draft(table, "C", "9"), "Inversion") == 1, "group-default-does-not-change-other-quality");
                 Click(Button(dialog, "ResetDiagramPositionsButton")); Flush();
-                Check(dialog.Inversions.All(value => value is null), "reset-clears-every-draft-override");
-                Pitches(table.Items[1], [55, 60, 64], "reset-refreshes-every-occurrence-preview");
-                foreach (int index in new[] { 4, 5 })
+                Check(dialog.Inversions.Count == 14 && dialog.Inversions.All(value => value is null)
+                    && table.Items.Cast<object>().All(item => !(bool)Value(item, "HasMixedPositions")!), "reset-clears-every-occurrence-and-mixed-group");
+                Pitches(first, [55, 60, 64], "reset-refreshes-group-preview");
+                foreach (var (root, quality) in new[] { ("H", ""), ("C", "unsupported") })
                 {
-                    object unsupported = table.Items[index]; var unsupportedRow = await Realize(table, unsupported);
+                    object unsupported = Draft(table, root, quality); var unsupportedRow = await Realize(table, unsupported);
                     Check(Value(unsupported, "PreviewImage") is null && Value(unsupported, "PreviewUnavailableVisibility") is Visibility.Visible
-                        && !string.IsNullOrWhiteSpace(Value(unsupported, "PreviewDescription") as string), "unsupported-chord-has-no-fallback-" + index);
+                        && !string.IsNullOrWhiteSpace(Value(unsupported, "PreviewDescription") as string), "unsupported-chord-has-no-fallback-" + root + quality);
                     Check(Descendants(unsupportedRow).OfType<TextBlock>().Any(block => block.IsVisible && block.Text.Contains("indispon", StringComparison.OrdinalIgnoreCase)),
-                        "unsupported-chord-shows-unavailable-label-" + index);
+                        "unsupported-chord-shows-unavailable-label-" + root + quality);
                 }
                 foreach (string theme in new[] { "graphite", "light" })
                 {
@@ -197,7 +245,7 @@ public partial class App
                         combo = Descendants(firstRow).OfType<ComboBox>().Single();
                         Capture(dialog, $"diagram-preview-{theme}-{size.Width}");
                         Check(image.ActualHeight >= 45 && FullyVisible(image, dialog) && FullyVisible(combo, dialog), $"diagram-and-selector-visible-{theme}-{size.Width}");
-                        Check(new[] { "ApplySameChordButton", "ResetDiagramPositionsButton", "SuggestComfortableVoicingsButton", "CancelDiagramPositionsButton", "ApplyDiagramPositionsButton" }
+                        Check(new[] { "ResetDiagramPositionsButton", "SuggestComfortableVoicingsButton", "CancelDiagramPositionsButton", "ApplyDiagramPositionsButton" }
                             .All(name => FullyVisible(Button(dialog, name), dialog)), $"dialog-actions-fit-{theme}-{size.Width}");
                     }
                 }
@@ -205,6 +253,45 @@ public partial class App
                 Click(Button(dialog, "CancelDiagramPositionsButton"));
             });
             Check(accepted != true && Snapshot(row) == original, "cancel-preserves-original-inversions-and-music");
+
+            var legacy = Music(("C", "", null), ("G", "", 0), ("C", "", 2), ("D", "", 0), ("D", "", 1),
+                ("C#", "m", 0), (" C♯ ", "m", 0), ("Db", "m", 0), ("C", "M", 0), ("C", "m", 1));
+            var legacyOriginal = Snapshot(legacy); var legacyInversions = legacy.Chords.Select(chord => chord.DiagramInversion).ToArray();
+            var legacyDialog = new DiagramPositionsWindow(legacy); var legacyTable = Table(legacyDialog);
+            Check(legacyTable.Items.Count == 7 && !ReferenceEquals(Draft(legacyTable, "C#", "m"), Draft(legacyTable, "Db", "m"))
+                && !ReferenceEquals(Draft(legacyTable, "C", "M"), Draft(legacyTable, "C", "m")), "enharmonic-spelling-and-quality-case-do-not-merge");
+            Check((bool)Value(Draft(legacyTable, "C", ""), "HasMixedPositions")!
+                && (bool)Value(Draft(legacyTable, "D", ""), "HasMixedPositions")!
+                && legacyDialog.Inversions.SequenceEqual(legacyInversions), "legacy-default-and-matching-explicit-position-stay-mixed-without-mutation");
+            bool? legacyAccepted = Modal(legacyDialog, async () =>
+            {
+                await InspectSuggestions(legacyDialog, suggestion =>
+                {
+                    var comparison = (DataGrid)suggestion.FindName("ComfortableVoicingsComparison");
+                    Check(comparison.Items.Count == 7 && suggestion.Plan.Suggestions.Count == 10,
+                        "comfortable-comparison-groups-labels-but-keeps-all-occurrence-results");
+                    Check(suggestion.Plan.Suggestions[0].SuggestedInversion == 2 && suggestion.Plan.Suggestions[2].SuggestedInversion == 2
+                        && suggestion.Plan.Suggestions[3].SuggestedInversion == 0 && suggestion.Plan.Suggestions[4].SuggestedInversion == 1,
+                        "comfortable-suggestions-preserve-legacy-mixed-choices");
+                }, accept: false);
+                Check(legacyDialog.Inversions.SequenceEqual(legacyInversions), "canceling-grouped-suggestions-preserves-all-draft-choices");
+                Position(Draft(legacyTable, "G", ""), 2); Flush();
+                Check(legacyDialog.Inversions[0] is null && legacyDialog.Inversions[2] == 2
+                    && legacyDialog.Inversions[3] == 0 && legacyDialog.Inversions[4] == 1,
+                    "editing-another-group-does-not-flatten-legacy-mixed-positions");
+                var dRow = await Realize(legacyTable, Draft(legacyTable, "D", ""));
+                Descendants(dRow).OfType<ComboBox>().Single().SelectedIndex = 1; Flush();
+                Check(legacyDialog.Inversions[3] == 0 && legacyDialog.Inversions[4] == 0,
+                    "choosing-first-occurrence-position-still-updates-the-other-occurrence");
+                var cRow = await Realize(legacyTable, Draft(legacyTable, "C", ""));
+                Descendants(cRow).OfType<ComboBox>().Single().SelectedIndex = 0; Flush();
+                Check(legacyDialog.Inversions[0] is null && legacyDialog.Inversions[2] is null,
+                    "choosing-default-directly-from-mixed-clears-every-occurrence");
+                Click(Button(legacyDialog, "ApplyDiagramPositionsButton"));
+            });
+            Check(legacyAccepted == true && legacyDialog.Inversions.SequenceEqual(new int?[] { null, 1, null, 0, 0, 0, 0, 0, 0, 1 }),
+                "apply-returns-every-occurrence-in-original-interleaved-order");
+            Check(Snapshot(legacy) == legacyOriginal, "accepted-dialog-defers-source-mutation-to-caller");
 
             var transposed = Music(("C", "", null), ("F♯", " sus4 ", 1), ("Bbb", "dim", 2), ("G♭", "aug", 0));
             transposed.DefaultDiagramInversion = 0; transposed.DiagramInversion = 1; transposed.TransposeSemitones = -2;
@@ -214,7 +301,8 @@ public partial class App
             {
                 var chord = transposed.Chords[index]; KeyboardDiagramVoicing.TryRootPitchClass(chord.Root, out int pc);
                 Pitches(shiftedTable.Items[index], KeyboardDiagramVoicing.Pitches(pc - 2, chord.Quality.Trim(), chord.DiagramInversion ?? 1), "transposed-unicode-and-double-accidental-" + index);
-                Check((string?)Value(shiftedTable.Items[index], "Symbol") == chord.Root + chord.Quality, "transposition-keeps-source-symbol-" + index);
+                Check((string?)Value(shiftedTable.Items[index], "Symbol") == chord.Root.Trim().Replace('♯', '#').Replace('♭', 'b') + chord.Quality.Trim(),
+                    "transposition-keeps-source-key-in-normalized-symbol-" + index);
             }
             Check(Descendants((DependencyObject)shifted.Content).OfType<TextBlock>().Any(block => block.Text.Contains("tom", StringComparison.OrdinalIgnoreCase)
                 && block.Text.Contains("origem", StringComparison.OrdinalIgnoreCase)), "transposition-has-explicit-source-and-final-key-explanation");
@@ -234,50 +322,64 @@ public partial class App
                 foreach (string quality in KeyboardDiagramVoicing.Qualities)
                     for (int inversion = 0; inversion < 3; inversion++) matrix.Chords.Add(new ChordRow
                     { Quarter = matrix.Chords.Count, Root = root, Quality = quality, DiagramInversion = inversion });
-            var matrixDialog = new DiagramPositionsWindow(matrix); var matrixTable = Table(matrixDialog);
+            var previews = new KeyboardDiagramPreview();
             for (int index = 0; index < matrix.Chords.Count; index++)
             {
                 var chord = matrix.Chords[index]; KeyboardDiagramVoicing.TryRootPitchClass(chord.Root, out int pc);
-                Check(Value(matrixTable.Items[index], "PreviewImage") is DrawingImage drawing
+                Check(previews.GetImage(chord.Root, chord.Quality, chord.DiagramInversion!.Value, 0) is DrawingImage drawing
                     && Markers(drawing).SequenceEqual(KeyboardDiagramVoicing.Pitches(pc, chord.Quality, chord.DiagramInversion!.Value)), "rendering-parity-" + index);
             }
             Check(matrix.Chords.Count == 720, "parity-covers-all-720-supported-voicings");
+            var matrixDialog = new DiagramPositionsWindow(matrix); var matrixTable = Table(matrixDialog);
+            Check(matrixTable.Items.Count == 240 && matrixTable.Items.Cast<object>().All(item => (int)Value(item, "OccurrenceCount")! == 3
+                && (bool)Value(item, "HasMixedPositions")!), "large-sequence-has-240-unique-rows-preserving-720-legacy-choices");
+            var matrixOriginal = matrix.Chords.Select(chord => chord.DiagramInversion).ToArray();
             Modal(matrixDialog, async () =>
             {
                 object last = matrixTable.Items[matrixTable.Items.Count - 1]; var lastRow = await Realize(matrixTable, last);
+                Descendants(lastRow).OfType<ComboBox>().Single().SelectedIndex = 3; Flush();
                 var lastImage = Descendants(lastRow).OfType<Image>().Single();
-                Check(ReferenceEquals(lastImage.Source, Value(last, "PreviewImage")), "virtualized-last-row-has-correct-chord-image");
+                Check(lastImage.Source is DrawingImage && ReferenceEquals(lastImage.Source, Value(last, "PreviewImage")), "virtualized-last-row-has-correct-chord-image");
                 Check(matrixTable.EnableRowVirtualization && Descendants(matrixTable).OfType<DataGridRow>().Count() < 40,
                     "large-chord-list-keeps-row-virtualization");
                 object start = matrixTable.Items[0]; var startRow = await Realize(matrixTable, start);
-                Check(ReferenceEquals(Descendants(startRow).OfType<Image>().Single().Source, Value(start, "PreviewImage")), "recycled-first-row-restores-correct-preview");
+                Check((bool)Value(start, "HasMixedPositions")! && Value(start, "PreviewImage") is null
+                    && matrixDialog.Inversions.Take(717).SequenceEqual(matrixOriginal.Take(717)), "recycling-rows-does-not-resolve-unedited-mixed-groups");
+                Descendants(startRow).OfType<ComboBox>().Single().SelectedIndex = 2; Flush();
+                Check(Descendants(startRow).OfType<Image>().Single().Source is DrawingImage
+                    && ReferenceEquals(Descendants(startRow).OfType<Image>().Single().Source, Value(start, "PreviewImage")), "recycled-first-row-restores-correct-preview");
+                Check(matrixDialog.Inversions.Take(3).All(value => value == 1) && matrixDialog.Inversions.Skip(717).All(value => value == 2),
+                    "virtualized-group-edits-reach-the-correct-original-occurrences");
                 Click(Button(matrixDialog, "CancelDiagramPositionsButton"));
             });
+            Check(matrix.Chords.Select(chord => chord.DiagramInversion).SequenceEqual(matrixOriginal), "large-group-cancel-preserves-original-sequence");
 
             var comfortable = Music(("C", "", null), ("F", "", null), ("G", "", null), ("C", "", null));
             comfortable.DefaultDiagramInversion = 0; string comfortableOriginal = Snapshot(comfortable);
             var comfortableDialog = new DiagramPositionsWindow(comfortable);
             Modal(comfortableDialog, async () =>
             {
-                Exception? suggestionFailure = null; ComfortableVoicingPlan? expectedPlan = null;
-                _ = Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+                ComfortableVoicingPlan? expectedPlan = null;
+                await InspectSuggestions(comfortableDialog, suggestion =>
                 {
-                    var suggestion = Current.Windows.OfType<ComfortableVoicingsWindow>().Single();
-                    try
-                    {
-                        expectedPlan = suggestion.Plan;
-                        Check(expectedPlan.ChangeCount > 0, "comfortable-fixture-offers-position-changes");
-                        Check(Snapshot(comfortable) == comfortableOriginal, "comfortable-comparison-preserves-source-before-acceptance");
-                        Click(Button(suggestion, "ApplyComfortableVoicingsButton"));
-                    }
-                    catch (Exception ex) { suggestionFailure = ex; suggestion.Close(); }
-                }));
-                Click(Button(comfortableDialog, "SuggestComfortableVoicingsButton"));
-                await V018Wait(() => expectedPlan is not null || suggestionFailure is not null); Flush();
-                if (suggestionFailure is not null) throw suggestionFailure;
+                    var comparison = (DataGrid)suggestion.FindName("ComfortableVoicingsComparison");
+                    Check(comparison.Items.Count == 3 && suggestion.Plan.Suggestions.Count == 4,
+                        "comfortable-repeated-sequence-shows-one-row-per-chord");
+                    Check(((string?)Value(comparison.Items[0], "Label"))?.Contains('2') == true,
+                        "comfortable-comparison-shows-repeated-chord-occurrence-count");
+                    var reach = (ComboBox)suggestion.FindName("ComfortableVoicingsReach");
+                    reach.SelectedValue = 9; Flush(); reach.SelectedValue = 12; Flush();
+                    expectedPlan = suggestion.Plan;
+                    Check(expectedPlan.ChangeCount > 0, "comfortable-fixture-offers-position-changes");
+                    Check(expectedPlan.Suggestions[0].SuggestedInversion == expectedPlan.Suggestions[3].SuggestedInversion,
+                        "comfortable-recalculation-keeps-repeated-chord-position-consistent");
+                    Check(Snapshot(comfortable) == comfortableOriginal, "comfortable-comparison-preserves-source-before-acceptance");
+                }, accept: true);
                 var comfortableTable = Table(comfortableDialog);
-                for (int index = 0; index < comfortable.Chords.Count; index++)
+                for (int index = 0; index < comfortableTable.Items.Count; index++)
                     Pitches(comfortableTable.Items[index], expectedPlan!.Suggestions[index].AfterPitches.ToArray(), "comfortable-accepted-preview-updates-" + index);
+                Check(comfortableDialog.Inversions.Count == 4 && comfortableDialog.Inversions[0] == comfortableDialog.Inversions[3],
+                    "comfortable-acceptance-propagates-to-every-repeated-occurrence");
                 Check(Snapshot(comfortable) == comfortableOriginal, "comfortable-preview-still-preserves-source-until-parent-apply");
                 Click(Button(comfortableDialog, "CancelDiagramPositionsButton"));
             });

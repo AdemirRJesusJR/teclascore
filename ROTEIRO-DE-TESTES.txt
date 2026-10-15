@@ -1,14 +1,22 @@
+TECLASCORE 0.20.0 · TESTES DA ATUALIZAÇÃO
+
+1. Abra Posições dos diagramas em uma música com cifras repetidas. Cada cifra deve aparecer uma vez com a contagem. Escolha uma inversão, aplique e confira todas as repetições na partitura. C, Cm e C7 devem continuar separados.
+2. Em uma música com diferentes inversões antigas para a mesma cifra, confira Variações salvas. Cancele ou altere outra cifra: as variações devem permanecer. Escolha uma posição para unificar; Usar padrão também deve alcançar todas as repetições.
+3. Use Sugerir posições confortáveis e confira que a mesma cifra recebe uma única sugestão na sequência. Escolhas manuais e variações antigas continuam protegidas.
+4. No card da Biblioteca, reproduza o MIDI completo antes de gerar. Confira introdução, melodia, acompanhamento e percussão. Pause, continue e pare. Ouça outro card e uma pista individual: o áudio anterior deve parar. A escolha das pistas de melodia não deve mudar ao ouvir.
+5. Durante o preparo, teste Cancelar. Remova um item que está tocando e feche o aplicativo durante a reprodução: não deve restar som. Teste também um arquivo indisponível, um MSCZ e os temas claro e escuro.
+
 TECLASCORE 0.19.2 · TESTES DA ATUALIZAÇÃO
 
 1. Na Prévia de um MIDI com cifras, abra Posições dos diagramas. Alterne fundamental, 1ª inversão, 2ª inversão e Usar padrão: o teclado deve mudar imediatamente ao lado da cifra. Passe o mouse e confira a ordem das notas.
-2. Experimente Aplicar à mesma cifra, Usar padrão em todos e Sugerir posições confortáveis. Confira os desenhos antes de Aplicar e atualizar. Cancele uma alteração e reabra: as posições anteriores devem continuar.
+2. Experimente escolher uma posição para todas as repetições da cifra, Usar padrão em todos e Sugerir posições confortáveis. Confira os desenhos antes de Aplicar e atualizar. Cancele uma alteração e reabra: as posições anteriores devem continuar.
 3. Em uma música transposta, observe a mensagem de tom final e compare a imagem com o diagrama da partitura. Confira também o tema claro e o escuro.
 4. Feche o app em Biblioteca, Produção ou Configurações. Ao reabrir, Visão geral deve aparecer, mantendo a biblioteca, filtros, tema e modo compacto. Importar continua abrindo a Biblioteca normalmente.
 
-TESTES DO INSTALADOR 0.19.2
+TESTES DO INSTALADOR 0.20.0
 
-1. Execute TeclaScore-0.19.2-Setup-x64.exe. Confira idioma português, pasta de destino e opção de atalho na área de trabalho. A versão aparece em Aplicativos instalados do Windows.
-2. Abra o aplicativo e confira 0.19.2 em Sobre. O .NET está incluído; Python/Pillow e MuseScore são preparados em Configurações > Preparar este computador.
+1. Execute TeclaScore-0.20.0-Setup-x64.exe. Confira idioma português, pasta de destino e opção de atalho na área de trabalho. A versão aparece em Aplicativos instalados do Windows.
+2. Abra o aplicativo e confira 0.20.0 em Sobre. O .NET está incluído; Python/Pillow e MuseScore são preparados em Configurações > Preparar este computador.
 3. Com uma biblioteca existente, confira músicas, histórico, tema e caminhos depois de instalar. O instalador não deve fechar à força o app nem reiniciar o computador.
 4. Se testar a desinstalação, faça-a pelos Aplicativos instalados. As partituras nas pastas e a biblioteca devem permanecer. Instalar novamente deve recuperar as preferências salvas.
 5. O ZIP permanece compatível com a instalação pelo aplicativo. SHA256SUMS contém uma entrada para o ZIP e outra para o EXE.
@@ -45,7 +53,7 @@ Analise os acordes, confira justificativas e alternativas. Abra Revisão guiada 
 Gere a partitura. A preparação deve mostrar progresso por etapa e permitir cancelamento. Confira a única pauta, os solos e a melodia. Os nomes dos instrumentos devem acompanhar as mudanças efetivas de fonte conforme a prioridade. Alterar a seleção e gerar novamente deve produzir outra versão.
 
 5. DIAGRAMAS E PROPRIEDADES
-Experimente uma inversão geral e depois uma posição diferente para uma ocorrência em Posições dos diagramas. Confira o desenho ao lado da cifra. Alterar o padrão em Configurações vale para novas importações; as músicas existentes mantêm o padrão adotado.
+Experimente uma inversão geral e depois uma posição por cifra em Posições dos diagramas; todas as repetições da cifra escolhida devem acompanhar. Confira o desenho ao lado da cifra. Alterar o padrão em Configurações vale para novas importações; as músicas existentes mantêm o padrão adotado.
 
 6. LEITURA, ÁUDIO E PDF
 Passe por todas as páginas, abra miniaturas e use zoom ou Tela cheia. Reproduza, pause, mude a velocidade e marque A/B para repetir um trecho. Exporte PDF e confira todas as páginas e o cabeçalho.

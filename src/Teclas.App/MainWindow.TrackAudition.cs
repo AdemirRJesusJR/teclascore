@@ -62,12 +62,17 @@ public partial class MainWindow
 
     private void InitializeTrackAudition(Func<IMidiOutputTransport>? outputFactory)
     {
+        InitializeLibraryPlayback(outputFactory);
         trackPlayer = new MidiTrackPlayer(outputFactory) { PlaybackRate = settings.TrackAuditionSpeed };
         trackPlayer.StateChanged += (_, _) => QueueTrackAuditionUpdate();
         trackPlayer.PlaybackFailed += (_, error) =>
         {
-            if (!Dispatcher.HasShutdownStarted)
-                Dispatcher.InvokeAsync(() => { if (!trackAuditionDisposed) TrackAuditionFailed(error.Message); });
+            if (!Dispatcher.HasShutdownStarted && error.Generation == trackPlayer.PlaybackGeneration)
+                Dispatcher.InvokeAsync(() =>
+                {
+                    if (!trackAuditionDisposed && error.Generation == trackPlayer.PlaybackGeneration && auditionTrack is not null)
+                        TrackAuditionFailed(error.Message);
+                });
         };
         trackAuditionTimer.Tick += (_, _) => NotifyTrackAudition();
         EditorTabs.SelectionChanged += (_, e) =>
@@ -107,6 +112,7 @@ public partial class MainWindow
 
     private void OnTrackAuditionSelectionChanged()
     {
+        OnLibraryPlaybackSelectionChanged();
         if (auditionMidi is not null && (!ReferenceEquals(auditionMidi, selectedFile) || auditionMidi.UsesNativeScoreWorkflow)) StopTrackAudition();
         NotifyTrackAudition();
     }
@@ -176,10 +182,11 @@ public partial class MainWindow
 
     private void StopTrackAudition(string message = "Reprodução da pista parada. Use ▶ para ouvir uma pista.")
     {
+        StopLibraryPlayback();
         if (auditionTrack is null) return;
         trackAuditionTimer.Stop();
         auditionTrack.IsAuditioning = false; auditionTrack = null; auditionMidi = null;
-        trackPlayer?.Stop();
+        trackPlayer?.Stop(releaseOutput: true);
         TrackAuditionStatus = message;
         NotifyTrackAudition();
     }

@@ -1,3 +1,17 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.0
+15/10/2026
+
+- Runner completo local: 33 etapas aprovadas, zero falhas e 4 grupos opcionais explicitamente não executados. Suítes C#, Python, interface WPF, paridade de diagramas, preferências, instalador e benchmarks sintéticos executados pelo mesmo runner usado no GitHub.
+- Posições dos diagramas: 810 verificações WPF aprovadas, incluindo 720 desenhos, agrupamento por cifra, contagem, aplicação a todas as repetições, escolha do padrão, posições antigas diferentes, cancelamento, ordem original, sugestões e virtualização. Capturas em temas claro e escuro conferidas no tamanho mínimo de 800 × 580.
+- MIDI completo nos cards: 35 verificações WPF aprovadas, com transportes silenciosos e arquivos sintéticos. Reprodução antes da análise/geração, todos os canais e percussão, pausa/continuação, parada, troca de card/pista, seleção, operação, remoção, cancelamento, resultado atrasado e fechamento exercitados. Nenhum aviso de binding. Controles conferidos em temas claro e escuro.
+- Testes de áudio incluem andamento original, mudanças de programa, bancos, pedais, canais compartilhados, encerramento de notas entre pistas, retomada e liberação do dispositivo. Erros antigos não interrompem uma reprodução nova; falhas da sessão atual continuam visíveis. Os fluxos de análise e reprodução isolada mantêm seus testes de regressão.
+- Sugestões agrupadas mantêm uma posição por cifra, preservam escolhas manuais e posições antigas distintas e consideram todas as transições. Busca determinística limitada, sem promessa de ótimo global. Paridade das notas e oitavas com o gerador Python conferida em 720 casos.
+- Testes usam arquivos e sessões isolados. MIDIs, partituras, biblioteca e preferências pessoais não são alterados nem incluídos no Git. Reprodução em dispositivo físico e integrações opcionais com MuseScore não foram executadas nesta rodada; constam como skips, não como sucesso.
+
+A sonorização usa o sintetizador General MIDI do Windows. Timbres personalizados por SysEx podem soar diferentes. Os testes de transporte não substituem a escuta no equipamento do usuário.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.19.2
 15/10/2026
 

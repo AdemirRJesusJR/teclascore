@@ -8,10 +8,10 @@ public interface IMidiOutputTransport : IDisposable
     void Reset();
 }
 
-public sealed class MidiPlaybackErrorEventArgs(string message) : EventArgs
-{ public string Message { get; } = message; }
+public sealed class MidiPlaybackErrorEventArgs(string message, long generation = 0) : EventArgs
+{ public string Message { get; } = message; public long Generation { get; } = generation; }
 
-/// <summary>Schedules only one selected MIDI source. The transport can be replaced by a silent test recorder.</summary>
+/// <summary>Schedules a selected source or complete MIDI document. The transport can be replaced by a silent test recorder.</summary>
 public class MidiAuditionPlayer : IDisposable
 {
     private readonly object gate = new();
@@ -24,6 +24,7 @@ public class MidiAuditionPlayer : IDisposable
     private double playbackRate = 1.0;
     private int nextEvent;
     private bool playing, paused, disposed;
+    private long playbackGeneration;
     public event EventHandler? StateChanged;
     public event EventHandler<MidiPlaybackErrorEventArgs>? PlaybackFailed;
     public MidiAuditionPlayer(Func<IMidiOutputTransport> outputFactory)
@@ -36,6 +37,7 @@ public class MidiAuditionPlayer : IDisposable
     public TimeSpan Duration { get { lock (gate) return sequence?.Duration ?? TimeSpan.Zero; } }
     public bool IsPlaying { get { lock (gate) return playing; } }
     public bool IsPaused { get { lock (gate) return paused; } }
+    public long PlaybackGeneration { get { lock (gate) return playbackGeneration; } }
     /// <summary>Changes only scheduling speed. Position and Duration always use the original MIDI timeline.</summary>
     public double PlaybackRate
     {
@@ -105,24 +107,27 @@ public class MidiAuditionPlayer : IDisposable
             if (canResume) StartLocked(); else paused = true;
         });
     }
-    public void Stop()
+    public void Stop(bool releaseOutput = false)
     {
         bool changed;
         lock (gate)
         {
             if (disposed) return;
+            playbackGeneration++;
             changed = playing || paused || offset != TimeSpan.Zero;
             playing = false; paused = false; clock.Reset(); offset = TimeSpan.Zero; nextEvent = 0;
             timer.Change(Timeout.Infinite, Timeout.Infinite); SilenceLocked();
+            if (releaseOutput) { try { output?.Dispose(); } catch { } output = null; }
         }
         if (changed) StateChanged?.Invoke(this, EventArgs.Empty);
     }
     private void Change(Action action)
     {
-        Exception? failure = null;
+        Exception? failure = null; long generation;
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
+            generation = ++playbackGeneration;
             try { action(); }
             catch (Exception ex) { FailLocked(); failure = ex; }
         }
@@ -130,7 +135,7 @@ public class MidiAuditionPlayer : IDisposable
         if (failure is not null)
         {
             string message = "Não foi possível reproduzir esta fonte MIDI. " + failure.Message;
-            PlaybackFailed?.Invoke(this, new(message));
+            PlaybackFailed?.Invoke(this, new(message, generation));
             throw new InvalidOperationException(message, failure);
         }
     }
@@ -145,7 +150,7 @@ public class MidiAuditionPlayer : IDisposable
     { clock.Restart(); playing = true; paused = false; timer.Change(0, 5); }
     private void Tick(object? state)
     {
-        bool changed = false; string? failure = null;
+        bool changed = false; string? failure = null; long generation = 0;
         lock (gate)
         {
             if (disposed || !playing || sequence is null || output is null) return;
@@ -160,44 +165,66 @@ public class MidiAuditionPlayer : IDisposable
                     timer.Change(Timeout.Infinite, Timeout.Infinite); SilenceLocked(); changed = true;
                 }
             }
-            catch (Exception ex) { FailLocked(); failure = "A reprodução MIDI foi interrompida. " + ex.Message; changed = true; }
+            catch (Exception ex) { generation = playbackGeneration; FailLocked(); failure = "A reprodução MIDI foi interrompida. " + ex.Message; changed = true; }
         }
         if (changed) StateChanged?.Invoke(this, EventArgs.Empty);
-        if (failure is not null) PlaybackFailed?.Invoke(this, new(failure));
+        if (failure is not null) PlaybackFailed?.Invoke(this, new(failure, generation));
     }
 
     private void RestoreLocked(TimeSpan position, bool restoreNotes)
     {
         if (sequence is null || output is null) return;
-        var voices = new MidiAuditionVoices();
-        var pressure = new Dictionary<int, uint>();
+        var channels = sequence.Channels.ToDictionary(channel => channel, _ => new MidiAuditionVoices());
+        var pressure = new Dictionary<(int Channel, int Pitch), uint>();
         nextEvent = 0;
         while (nextEvent < sequence.Events.Count && sequence.Events[nextEvent].At <= position)
         {
             uint message = sequence.Events[nextEvent++].Message;
-            voices.Apply(message);
-            if ((message & 0xf0) == 0xa0) pressure[(int)((message >> 8) & 127)] = message;
+            int channel = (int)(message & 15) + 1;
+            channels[channel].Apply(message);
+            if ((message & 0xf0) == 0xa0) pressure[(channel, (int)((message >> 8) & 127))] = message;
             else if (MidiAuditionSequence.IsControl(message)) output.Send(message);
         }
         if (!restoreNotes) return;
-        int channel = sequence.Source.Channel;
-        bool hasSostenuto = voices.Voices.Any(v => v.Sostenuto);
-        if (hasSostenuto)
+        foreach (var (channel, voices) in channels)
         {
-            output.Send(MidiAuditionSequence.Message(11, channel, 66));
-            foreach (var voice in voices.Voices.Where(v => v.Sostenuto)) output.Send(MidiAuditionSequence.Message(9, channel, voice.Pitch, voice.Velocity));
-            output.Send(MidiAuditionSequence.Message(11, channel, 66, 127));
+            int program = voices.Program, bankMsb = voices.ProgramBankMsb, bankLsb = voices.ProgramBankLsb;
+            void SelectProgram(int requestedProgram, int msb, int lsb)
+            {
+                output.Send(MidiAuditionSequence.Message(11, channel, 0, msb));
+                output.Send(MidiAuditionSequence.Message(11, channel, 32, lsb));
+                output.Send(MidiAuditionSequence.Message(12, channel, requestedProgram));
+                program = requestedProgram; bankMsb = msb; bankLsb = lsb;
+            }
+            void RestoreVoice(MidiAuditionVoices.Voice voice)
+            {
+                if (program != voice.Program || bankMsb != voice.BankMsb || bankLsb != voice.BankLsb)
+                    SelectProgram(voice.Program, voice.BankMsb, voice.BankLsb);
+                output.Send(MidiAuditionSequence.Message(9, channel, voice.Pitch, voice.Velocity));
+            }
+            bool hasSostenuto = voices.Voices.Any(v => v.Sostenuto);
+            if (hasSostenuto)
+            {
+                output.Send(MidiAuditionSequence.Message(11, channel, 66));
+                foreach (var voice in voices.Voices.Where(v => v.Sostenuto)) RestoreVoice(voice);
+                output.Send(MidiAuditionSequence.Message(11, channel, 66, 127));
+            }
+            foreach (var voice in voices.Voices.Where(v => !hasSostenuto || !v.Sostenuto)) RestoreVoice(voice);
+            foreach (var voice in voices.Voices.Where(v => !v.Down)) output.Send(MidiAuditionSequence.Message(8, channel, voice.Pitch));
+            foreach (var voice in voices.Voices) if (pressure.TryGetValue((channel, voice.Pitch), out uint message)) output.Send(message);
+            // Held notes can originate before a program change. Restore those timbres, then the
+            // current program and pending bank selection for future events on this channel.
+            if (program != voices.Program || bankMsb != voices.ProgramBankMsb || bankLsb != voices.ProgramBankLsb)
+                SelectProgram(voices.Program, voices.ProgramBankMsb, voices.ProgramBankLsb);
+            output.Send(MidiAuditionSequence.Message(11, channel, 0, voices.BankMsb));
+            output.Send(MidiAuditionSequence.Message(11, channel, 32, voices.BankLsb));
         }
-        foreach (var voice in voices.Voices.Where(v => !hasSostenuto || !v.Sostenuto)) output.Send(MidiAuditionSequence.Message(9, channel, voice.Pitch, voice.Velocity));
-        foreach (var voice in voices.Voices.Where(v => !v.Down)) output.Send(MidiAuditionSequence.Message(8, channel, voice.Pitch));
-        foreach (var voice in voices.Voices) if (pressure.TryGetValue(voice.Pitch, out uint message)) output.Send(message);
     }
     private void SilenceLocked()
     {
         if (output is null) return;
-        if (sequence is not null)
+        foreach (int channel in sequence?.Channels ?? [])
         {
-            int channel = sequence.Source.Channel;
             // Explicit pedal release and note-offs complement midiOutReset on devices with sustained voices.
             TrySend(MidiAuditionSequence.Message(11, channel, 64)); TrySend(MidiAuditionSequence.Message(11, channel, 66));
             for (int pitch = 0; pitch < 128; pitch++) TrySend(MidiAuditionSequence.Message(8, channel, pitch));
@@ -216,7 +243,7 @@ public class MidiAuditionPlayer : IDisposable
         lock (gate)
         {
             if (disposed) return;
-            disposed = true; playing = false; paused = false; clock.Reset(); timer.Dispose();
+            disposed = true; playbackGeneration++; playing = false; paused = false; clock.Reset(); timer.Dispose();
             SilenceLocked(); try { output?.Dispose(); } catch { } output = null;
         }
         GC.SuppressFinalize(this);
