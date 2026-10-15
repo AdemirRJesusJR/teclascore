@@ -116,9 +116,10 @@ public partial class App
             Check(NoteCount() == 0 && outputs.Count == 0 && first.LibraryPlayback.CanPlay, "import-and-selection-never-start-audio");
             Check(native.LibraryMidiPlaybackVisibility == Visibility.Collapsed, "native-score-card-hides-source-midi-controls");
             Click(first, "PlayLibraryMidiButton");
-            Check(window.IsBusy && window.OperationVisibility == Visibility.Visible && window.CanCancelOperation, "full-midi-preparation-uses-visible-cancellable-operation");
+            Check(window.OperationVisibility == Visibility.Collapsed, "full-midi-preparation-never-opens-central-dialog");
             await Wait(() => !window.IsBusy && first.LibraryPlayback.IsPlaying);
             var player = Field<MidiAuditionPlayer>("libraryMidiPlayer");
+            var firstTimeline = player.Sequence;
             Check(player.Sequence?.IsFullDocument == true && player.Sequence.Channels.SequenceEqual([1, 2, 10])
                 && outputs.SelectMany(output => output.Messages).Where(message => (message & 0xf0) == 0x90 && (message >> 16 & 127) > 0)
                     .Select(message => (int)(message & 15) + 1).Distinct().Order().SequenceEqual([1, 2, 10]), "card-play-sends-all-instruments-and-percussion-without-generation");
@@ -142,6 +143,8 @@ public partial class App
             Click(second, "StopLibraryMidiButton");
             Check(Silent() && !second.LibraryPlayback.CanStop && player.Position == TimeSpan.Zero, "card-stop-silences-and-rewinds");
             Click(first, "PlayLibraryMidiButton"); await Wait(() => !window.IsBusy && first.LibraryPlayback.IsPlaying);
+            Check(ReferenceEquals(player.Sequence, firstTimeline) && window.OperationVisibility == Visibility.Collapsed,
+                "returning-to-previous-card-reuses-prepared-midi-without-overlay");
             library.SelectedItem = second; Flush();
             Check(Silent() && !first.LibraryPlayback.CanStop, "selection-change-stops-library-playback");
             Click(first, "PlayLibraryMidiButton"); await Wait(() => !window.IsBusy && first.LibraryPlayback.IsPlaying);

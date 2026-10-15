@@ -73,9 +73,9 @@ public partial class MainWindow
         RememberVersion(row);
         await RunOperation(async()=>
         {
-            if(!Path.IsPathFullyQualified(OutputDirectory))throw new InvalidOperationException("Escolha uma pasta de saída nas Configurações.");
+            string outputDirectory = await PrepareOutputDirectoryAsync(cancellation!.Token);
             ResetPlayback();
-            var result=await new ScoreEditingService(MuseScorePath,LocalJobsDirectory).ImproveAsync(score,OutputDirectory,dialog.Options,CreateOperationProgress(),cancellation!.Token);
+            var result=await new ScoreEditingService(MuseScorePath,LocalJobsDirectory).ImproveAsync(score,outputDirectory,dialog.Options,CreateOperationProgress(),cancellation!.Token);
             row.ScorePath=result.Path;row.PreviewPath=result.PreviewPages.FirstOrDefault();row.PageCount=result.PreviewPages.Count;row.GeneratedAt=DateTimeOffset.Now;
             row.ScoreTitle=result.Metadata.Title;row.ScoreSubtitle=result.Metadata.Subtitle;row.ScoreComposer=result.Metadata.Composer;row.ScoreArtist=result.Metadata.Artist;row.ArrangementSummary=result.Metadata.ArrangementSummary;
             row.HasPendingScoreProperties=false;row.HasOperationError=false;row.Status="Apresentação atualizada · "+row.PageCountText;

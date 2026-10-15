@@ -129,6 +129,9 @@ try {
         [void](Invoke-Check 'wpf-v019-ui' $app @('--verify-v019-ui',(Join-Path $reports 'wpf-v019-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v019-ui.json'))
         [void](Invoke-Check 'wpf-diagram-preview-ui' $app @('--verify-diagram-preview-ui',(Join-Path $reports 'wpf-diagram-preview-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-diagram-preview-ui.json'))
         [void](Invoke-Check 'wpf-library-playback-ui' $app @('--verify-library-playback-ui',(Join-Path $reports 'wpf-library-playback-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-library-playback-ui.json'))
+        [void](Invoke-Check 'wpf-audio-preparation-ui' $app @('--verify-audio-preparation-ui',(Join-Path $reports 'wpf-audio-preparation-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-audio-preparation-ui.json'))
+        [void](Invoke-Check 'wpf-output-directory-ui' $app @('--verify-output-directory-ui',(Join-Path $reports 'wpf-output-directory-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-output-directory-ui.json'))
+        [void](Invoke-Check 'wpf-score-audio-ui' $app @('--verify-score-audio-ui',(Join-Path $reports 'wpf-score-audio-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-score-audio-ui.json'))
         if ($fixturesReady) {
             [void](Invoke-Check 'wpf-preferences-ui' $app @('--verify-preferences',(Join-Path $reports 'wpf-preferences-ui.json'),(Join-Path $fixtures 'synthetic.mid')) $work -JsonReport (Join-Path $reports 'wpf-preferences-ui.json'))
         } else { Record-Skip 'wpf-preferences-ui' 'Synthetic MIDI fixture was not created.' }

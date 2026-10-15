@@ -1,6 +1,10 @@
 # TeclaScore
 
-Versão 0.20.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.20.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+
+A preparação de áudio aparece discretamente no rodapé, com progresso e cancelamento, sem abrir a caixa central nem recarregar a imagem da partitura. MIDIs completos, pistas e mapas de acompanhamento já preparados são reutilizados durante a sessão, dentro de limites de memória. A primeira preparação de uma partitura ainda depende da renderização do MuseScore. Desmarcar **Acompanhar páginas durante a reprodução** evita preparar automaticamente o mapa visual.
+
+Em **Configurações → Pasta de saída padrão**, escolha ou digite uma pasta e clique em **Salvar pasta padrão**. A escolha é restaurada nas próximas aberturas e vale para novas gerações e versões. Partituras existentes permanecem nos seus locais; trabalhos já enfileirados conservam o destino registrado. O app confere a disponibilidade da pasta quando precisa gravar o resultado.
 
 O aplicativo sempre inicia em **Visão geral**, mantendo biblioteca e demais preferências salvas. No card da Biblioteca, reproduza o **MIDI completo**, com todas as pistas, antes de escolher a melodia ou gerar a partitura. Os controles permitem pausar, continuar e parar; somente uma reprodução permanece ativa. A sonorização usa o sintetizador MIDI do Windows, respeitando os canais, programas e andamento do arquivo.
 
@@ -74,7 +78,7 @@ Dentro de uma faixa, a fonte escolhida prevalece mesmo se não estiver marcada n
 
 ## Acompanhamento da partitura
 
-Na **Prévia**, **Preparar acompanhamento** permite clicar em compassos e ataques para iniciar a reprodução naquele ponto. **Reproduzir** também prepara esse mapa. O destaque usa posições e tempos exportados pelo MuseScore, incluindo repetições e mudanças de andamento; **Acompanhar páginas durante a reprodução** controla a troca automática de páginas e fica salvo nas preferências.
+Na **Prévia**, **Preparar acompanhamento** permite clicar em compassos e ataques para iniciar a reprodução naquele ponto. **Reproduzir** também prepara esse mapa quando **Acompanhar páginas durante a reprodução** está marcado. O destaque usa posições e tempos exportados pelo MuseScore, incluindo repetições e mudanças de andamento; a opção controla a troca automática de páginas e fica salva nas preferências. Mapas válidos são reutilizados durante a sessão; alterações na partitura, velocidade ou páginas exigem nova preparação.
 
 No Editor musical, clicar na pauta seleciona os elementos existentes para corrigir notas e durações na tabela. Depois de editar, atualize a prévia para reconstruir as posições antes de clicar ou ouvir trechos. A inserção em pausas é feita pelos controles do editor; o clique na página não oferece arraste livre. Quando não há associação segura com os eventos, o app informa a limitação e mantém a edição pela tabela. Se o mapa de uma estrutura não puder ser validado, a reprodução inteira continua disponível sem um destaque estimado.
 
@@ -190,7 +194,7 @@ Arquivos de versões antigas devem ser abertos e salvos em uma nova cópia pelo 
 
 ## Instalação e atualizações
 
-Baixe **TeclaScore-0.20.0-Setup-x64.exe** na página da versão e siga o assistente em português. Escolha a pasta e os atalhos. A instalação é para o usuário atual e não exige permissões de administrador. O desinstalador fica disponível nos Aplicativos instalados do Windows; ele preserva biblioteca, configurações e partituras. Também é possível extrair o ZIP completo e executar **Instalar.cmd**, ou abrir Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
+Baixe **TeclaScore-0.20.1-Setup-x64.exe** na página da versão e siga o assistente em português. Escolha a pasta e os atalhos. A instalação é para o usuário atual e não exige permissões de administrador. O desinstalador fica disponível nos Aplicativos instalados do Windows; ele preserva biblioteca, configurações e partituras. Também é possível extrair o ZIP completo e executar **Instalar.cmd**, ou abrir Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
 
 Na tela **Sobre → Instalação e atualizações**, confira dependências e consulte a última versão publicada no GitHub. A consulta só ocorre ao clicar. Baixe o ZIP pela página da versão e selecione-o no app; o instalador confere SHA-256 e conteúdo antes de instalar. Se a consulta não estiver disponível, selecione também o arquivo SHA256SUMS da mesma versão. A nova instalação não fecha o app sem sua escolha. O assistente localiza e valida Python/MuseScore e oferece o preparo isolado de Pillow; instalar Python ou MuseScore continua pelo instalador oficial.
 

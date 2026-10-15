@@ -135,11 +135,12 @@ try
     OffsetChecks.Run(Check);
     await FullPlaybackChecks.Run(Check);
     CrossTrackNoteChecks.Run(Check);
+    var cacheTimings = await PreparationCacheChecks.Run(Check);
     Console.WriteLine($"Audition QA passed: {checks.Count} checks; synthetic MIDIs and fake transports only.");
     if (args.Length > 0)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(args[0]))!);
-        System.IO.File.WriteAllText(args[0], JsonSerializer.Serialize(new { status = "passed", checks }, new JsonSerializerOptions { WriteIndented = true }));
+        System.IO.File.WriteAllText(args[0], JsonSerializer.Serialize(new { status = "passed", checks, cacheTimings }, new JsonSerializerOptions { WriteIndented = true }));
     }
 }
 catch (Exception error)

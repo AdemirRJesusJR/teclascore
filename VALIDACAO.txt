@@ -1,3 +1,19 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.1
+15/10/2026
+
+- Runner completo local: 36 etapas aprovadas, zero falhas e 4 grupos opcionais explicitamente não executados. Compilação, suítes C#, Python, interface, preferências, instalador e benchmarks sintéticos executados pelo runner usado no GitHub.
+- Preparação de áudio: 30 verificações WPF aprovadas. Fluxos rápidos sem atraso artificial ou painel central; operações demoradas com cancelamento no rodapé. Falha, fechamento, progresso atrasado, foco, preservação da imagem carregada e ausência de gravação desnecessária das preferências exercitados. Conversão mantém painel central e persistência.
+- Player dos cards: 36 verificações aprovadas, incluindo reutilização da sequência ao voltar a um MIDI, todos os instrumentos, exclusividade de reprodução, cancelamento e liberação do dispositivo. Os testes usam transportes silenciosos.
+- Áudio e acompanhamento da partitura: 14 verificações WPF aprovadas, incluindo a preferência de acompanhamento e reutilização do mapa ativo. Cache separado confere SHA da partitura, velocidade, identidade do MuseScore e páginas; falhas, cancelamento, arquivos alterados e limites de retenção exercitados.
+- Pasta de saída padrão: 28 verificações WPF aprovadas e suíte Settings com 164 checks. Rascunho separado, salvar/reabrir, caminhos inválidos, rollback após falha de persistência, destino indisponível e cancelamento conferidos. A fila anterior conserva o destino original; próximos trabalhos usam a nova pasta. MIDIs, partituras e versões anteriores permanecem intactos.
+- Medição isolada de sequência MIDI sintética de 10.000 notas: uma construção em duas solicitações; 10,36 ms na primeira e 0,013 ms no cache nesta máquina. Não inclui abertura do dispositivo ou latência física do som.
+- Integração nativa separada com MuseScore: 24 verificações aprovadas. Quatro solicitações do mesmo mapa exigiram uma exportação e três reutilizações; 1.029 ms na primeira e 0,27–0,96 ms nas seguintes, na fixture sintética. A medição inclui validação dos arquivos e se refere ao mapa visual, não à renderização inicial do áudio. Não há limiar absoluto de desempenho.
+- Capturas dos controles de áudio e pasta padrão conferidas nos temas claro e escuro. Testes usam sessões e arquivos isolados, sem abrir biblioteca ou configurações pessoais.
+
+A primeira preparação do áudio de uma partitura ainda depende do MuseScore. Caches em memória têm limites e duram a sessão. Dispositivo físico de som e coleção musical pessoal não foram testados nesta rodada; os quatro grupos opcionais do runner continuam identificados como skips, embora a integração nativa do mapa tenha sido executada separadamente.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.0
 15/10/2026
 

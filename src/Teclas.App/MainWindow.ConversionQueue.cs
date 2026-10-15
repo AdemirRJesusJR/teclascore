@@ -68,6 +68,7 @@ public partial class MainWindow
         RequireMidiWorkflow(row); ValidateSettings(true);
         if (row.Document is null || (!row.UseReviewedProfile && !row.Tracks.Any(track => track.IsMelody)))
             throw new InvalidOperationException("Escolha as pistas de melodia antes de adicionar à fila.");
+        string outputDirectory = await PrepareOutputDirectoryAsync(token);
         var options = QueueGenerationOptions(row);
         var snapshot = CaptureMidi(row);
         // History is kept in the library; each queue recipe only needs the selected version.
@@ -75,7 +76,7 @@ public partial class MainWindow
         snapshotJson.Remove(nameof(SavedMidi.Versions));
         options["librarySnapshot"] = snapshotJson;
         options["libraryRevision"] = QueueRevision(row);
-        var recipe = new ConversionQueueRecipe(row.FullPath, PythonPath, engineDirectory, MuseScorePath, OutputDirectory,
+        var recipe = new ConversionQueueRecipe(row.FullPath, PythonPath, engineDirectory, MuseScorePath, outputDirectory,
             new JsonObject { ["useReviewedProfile"] = row.UseReviewedProfile, ["melodySources"] = Sources(row), ["melodySections"] = MelodySections(row) }, options,
             HasCurrentMelodyAnalysis(row) && !row.ReviewPoints.Any(point => point.Blocking) ? row.AnalysisPath : null)
         { SourceSha256 = row.SourceSha256, DisplayName = row.ScoreTitle };

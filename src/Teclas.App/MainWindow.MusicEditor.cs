@@ -43,7 +43,7 @@ public partial class MainWindow
         using var audio = new EditorScorePlayback(MuseScorePath, Path.Combine(cache, "audio"));
         var dialog = new MusicEditorWindow(model, recovery is null ? row?.PreviewPath : null,
             (edits, progress, token) => service.PrepareAsync(model, edits, progress, token),
-            (prepared, progress, token) => service.PublishAsync(model, prepared, OutputDirectory, progress, token),
+            async (prepared, progress, token) => await service.PublishAsync(model, prepared, await PrepareOutputDirectoryAsync(token), progress, token),
             audio, persistenceEnabled ? DraftRecoveryDirectory : null, recovery) { Owner = this, ComfortableDiagramMaximumSpan = settings.ComfortableDiagramMaximumSpan };
         if (dialog.ShowDialog() == true && dialog.Result is { } result)
         {

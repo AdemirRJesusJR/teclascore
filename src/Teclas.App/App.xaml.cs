@@ -17,6 +17,15 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-score-audio-ui")
+        { VerifyScoreAudioUi(e.Args[1]); return; }
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-output-directory-ui")
+        { VerifyOutputDirectoryUi(e.Args[1]); return; }
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-audio-preparation-ui")
+        {
+            VerifyAudioPreparationUi(e.Args[1]);
+            return;
+        }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-library-playback-ui")
         {
             VerifyLibraryPlaybackUi(e.Args[1]);

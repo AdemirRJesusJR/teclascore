@@ -28,7 +28,7 @@ public partial class MainWindow
         if (operationsDisposed || report is null || selectedFile != row || row.ScorePath != path) return;
         var dialog = new NativeVisualReviewWindow(report,
             (progress, token) => service.PrepareAsync(report, progress, token),
-            (proposal, progress, token) => service.PublishAsync(report, proposal, OutputDirectory, progress, token)) { Owner = this };
+            async (proposal, progress, token) => await service.PublishAsync(report, proposal, await PrepareOutputDirectoryAsync(token), progress, token)) { Owner = this };
         if (dialog.ShowDialog() == true && dialog.Result is { } result)
         {
             ApplyMusicalEditorResult(row, result);

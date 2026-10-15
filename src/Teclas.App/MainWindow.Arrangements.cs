@@ -37,7 +37,7 @@ public partial class MainWindow
                 return await Task.Run(() => NativeScoreArrangement.CreatePlan(model.SourcePath, options, token), token);
             },
             (plan, progress, token) => service.PrepareAsync(plan, progress, token),
-            (plan, prepared, progress, token) => service.PublishAsync(plan, prepared, OutputDirectory, progress, token),
+            async (plan, prepared, progress, token) => await service.PublishAsync(plan, prepared, await PrepareOutputDirectoryAsync(token), progress, token),
             audio) { Owner = this };
         if (dialog.ShowDialog() == true && dialog.Result is { } result)
             ApplyArrangementResult(row, result);

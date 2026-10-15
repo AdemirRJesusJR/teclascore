@@ -1,3 +1,12 @@
+TECLASCORE 0.20.1 · TESTES DA ATUALIZAÇÃO
+
+1. Ouça um MIDI completo no card, pare, ouça outro e volte ao primeiro. Repita em pistas individuais: o som e o andamento devem permanecer corretos, sem caixa central de carregamento. O rodapé mostra a preparação; se demorar, Cancelar deve impedir o início do som.
+2. Na Prévia, reproduza, pare e repita. A página não deve piscar ou desaparecer. Desmarque Acompanhar páginas durante a reprodução e confira que ouvir não prepara o mapa visual. Ligue novamente e confira o acompanhamento e a posição. Prepare acompanhamento também deve funcionar pelo botão.
+3. Gere outra versão ou mude a velocidade e confira que áudio e destaque correspondem à nova versão. Análise, conversão e exportação continuam com o painel central e cancelamento.
+4. Em Configurações, escolha uma Pasta de saída padrão e clique em Salvar pasta padrão. Feche e reabra: a escolha deve permanecer. Gere uma partitura e confira o destino. Digitar sem salvar não deve alterar a preferência.
+5. Teste um caminho relativo ou inválido: a tela deve explicar o problema e preservar o destino salvo. Uma pasta válida nova só deve ser criada ao gravar um resultado; destino indisponível deve produzir erro compreensível sem substituir a partitura existente.
+6. Enfileire uma música, mude a pasta padrão e enfileire outra. Cada trabalho deve conservar seu destino. Confira que partituras e versões anteriores continuam nos locais originais.
+
 TECLASCORE 0.20.0 · TESTES DA ATUALIZAÇÃO
 
 1. Abra Posições dos diagramas em uma música com cifras repetidas. Cada cifra deve aparecer uma vez com a contagem. Escolha uma inversão, aplique e confira todas as repetições na partitura. C, Cm e C7 devem continuar separados.
@@ -13,10 +22,10 @@ TECLASCORE 0.19.2 · TESTES DA ATUALIZAÇÃO
 3. Em uma música transposta, observe a mensagem de tom final e compare a imagem com o diagrama da partitura. Confira também o tema claro e o escuro.
 4. Feche o app em Biblioteca, Produção ou Configurações. Ao reabrir, Visão geral deve aparecer, mantendo a biblioteca, filtros, tema e modo compacto. Importar continua abrindo a Biblioteca normalmente.
 
-TESTES DO INSTALADOR 0.20.0
+TESTES DO INSTALADOR 0.20.1
 
-1. Execute TeclaScore-0.20.0-Setup-x64.exe. Confira idioma português, pasta de destino e opção de atalho na área de trabalho. A versão aparece em Aplicativos instalados do Windows.
-2. Abra o aplicativo e confira 0.20.0 em Sobre. O .NET está incluído; Python/Pillow e MuseScore são preparados em Configurações > Preparar este computador.
+1. Execute TeclaScore-0.20.1-Setup-x64.exe. Confira idioma português, pasta de destino e opção de atalho na área de trabalho. A versão aparece em Aplicativos instalados do Windows.
+2. Abra o aplicativo e confira 0.20.1 em Sobre. O .NET está incluído; Python/Pillow e MuseScore são preparados em Configurações > Preparar este computador.
 3. Com uma biblioteca existente, confira músicas, histórico, tema e caminhos depois de instalar. O instalador não deve fechar à força o app nem reiniciar o computador.
 4. Se testar a desinstalação, faça-a pelos Aplicativos instalados. As partituras nas pastas e a biblioteca devem permanecer. Instalar novamente deve recuperar as preferências salvas.
 5. O ZIP permanece compatível com a instalação pelo aplicativo. SHA256SUMS contém uma entrada para o ZIP e outra para o EXE.

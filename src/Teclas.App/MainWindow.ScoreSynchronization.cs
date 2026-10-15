@@ -6,8 +6,10 @@ namespace Teclas.App;
 
 public partial class MainWindow
 {
+    private readonly ScorePlaybackMapCache scoreMapCache = new();
     private ScorePlaybackMap? scorePlaybackMap;
     private string? scoreMapIdentity;
+    private bool preparingScoreSynchronization;
     private string scoreSynchronizationStatus = "Prepare o acompanhamento para clicar nos compassos e acompanhar a reprodução.";
     public string ScoreSynchronizationStatus
     { get => scoreSynchronizationStatus; private set { scoreSynchronizationStatus = value; Notify(); } }
@@ -20,6 +22,9 @@ public partial class MainWindow
             if (settings.FollowScorePlayback == value) return;
             settings.FollowScorePlayback = value; Notify(); PersistPreferences();
             UpdateScoreSynchronization();
+            if (value && audioLoaded && IsIdle && !preparingScoreSynchronization
+                && (scorePlaybackMap is null || scoreMapIdentity != SelectedScoreIdentity() || scorePlaybackMap.Speed != ScorePlaybackSpeed))
+                PrepareScoreSynchronizationClick(this, new RoutedEventArgs());
         }
     }
     private void ClearScoreSynchronization()
@@ -36,11 +41,12 @@ public partial class MainWindow
     private async Task PrepareScoreSynchronization(string path, double speed, CancellationToken token)
     {
         string? identity = SelectedScoreIdentity();
-        if (scorePlaybackMap is not null && scoreMapIdentity == identity && scorePlaybackMap.Speed == speed) return;
         try
         {
             var service = new ScorePlaybackMapService(MuseScorePath, Path.Combine(PlaybackCacheDirectory, "score-maps"));
-            var map = await service.PrepareAsync(path, speed, CreateOperationProgress(), token);
+            var progress = CreateOperationProgress();
+            var map = await scoreMapCache.GetOrPrepareAsync(path, MuseScorePath, speed,
+                request => service.PrepareAsync(path, speed, progress, request), progress, token);
             token.ThrowIfCancellationRequested();
             if (playbackDisposed || identity != SelectedScoreIdentity()) throw new OperationCanceledException(token);
             if (!map.CanSynchronize)
@@ -49,8 +55,9 @@ public partial class MainWindow
                 ScoreSynchronizationStatus = "Acompanhamento indisponível nesta partitura: " + string.Join(" ", map.Limitations);
                 return;
             }
+            bool sameMap = ReferenceEquals(scorePlaybackMap, map) && scoreMapIdentity == identity;
             scorePlaybackMap = map; scoreMapIdentity = identity;
-            MainScoreViewer.SetPlaybackMap(map);
+            if (!sameMap) MainScoreViewer.SetPlaybackMap(map);
             ScoreSynchronizationStatus = "Clique em um compasso ou ataque para ouvir a partir dali. O destaque segue a reprodução." +
                 (map.Limitations.Count > 0 ? " " + string.Join(" ", map.Limitations) : "");
         }
@@ -63,19 +70,25 @@ public partial class MainWindow
     }
     private async void PrepareScoreSynchronizationClick(object sender, RoutedEventArgs e)
     {
+        if (preparingScoreSynchronization) return;
         OnPlaybackSelectionChanged();
         if (!CanPrepareScoreSynchronization || CurrentScorePath is not { } path) return;
-        bool resume = audioPlaying, completed = false;
-        if (resume) PauseScoreClick(sender, e);
-        StopTrackAudition();
-        await RunOperation(async () =>
+        preparingScoreSynchronization = true;
+        try
         {
-            await PrepareScoreSynchronization(path, ScorePlaybackSpeed, cancellation!.Token);
-            cancellation.Token.ThrowIfCancellationRequested();
-            Status = ScoreSynchronizationStatus;
-            completed = true;
-        }, operationTitle: "Preparando acompanhamento da partitura");
-        if (completed && resume && !operationsDisposed && CurrentScorePath == path && audioLoaded) PlayScoreClick(sender, e);
+            bool resume = audioPlaying, completed = false;
+            if (resume) PauseScoreClick(sender, e);
+            StopTrackAudition();
+            await RunAudioOperation(async () =>
+            {
+                await PrepareScoreSynchronization(path, ScorePlaybackSpeed, cancellation!.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
+                Status = ScoreSynchronizationStatus;
+                completed = true;
+            }, operationTitle: "Preparando acompanhamento da partitura");
+            if (completed && resume && !operationsDisposed && CurrentScorePath == path && audioLoaded) PlayScoreClick(sender, e);
+        }
+        finally { preparingScoreSynchronization = false; }
     }
     private void ScorePositionSelected(object? sender, ScorePositionSelectedEventArgs e)
     {

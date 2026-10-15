@@ -34,6 +34,37 @@ public sealed class Settings
     [JsonIgnore] public string LoadWarning { get; private set; } = "";
     public static string DataDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeclasPartituras");
     public static string DefaultPath => Path.Combine(DataDirectory, "settings.json");
+    /// <summary>Validates the preference without inspecting or creating anything in the selected folder.</summary>
+    public static bool TryValidateOutputDirectory(string? value, out string normalized, out string error)
+    {
+        normalized = ""; error = "";
+        string candidate = (value ?? "").Trim();
+        if (candidate.Length == 0) { error = "Escolha ou informe a pasta de saída padrão."; return false; }
+        try
+        {
+            if (!Path.IsPathFullyQualified(candidate) || candidate.StartsWith(@"\\?\", StringComparison.Ordinal)
+                || candidate.StartsWith(@"\\.\", StringComparison.Ordinal)
+                || candidate.Any(character => char.IsControl(character) || "<>\"|?*".Contains(character))
+                || candidate.Where((character, index) => character == ':' && index != 1).Any())
+                throw new ArgumentException();
+            string full = Path.GetFullPath(candidate);
+            string root = Path.GetPathRoot(full)!;
+            if (root.StartsWith(@"\\", StringComparison.Ordinal)
+                && root.Split('\\', StringSplitOptions.RemoveEmptyEntries).Length != 2) throw new ArgumentException();
+            // Validate the spelling before GetFullPath silently removes trailing dots/spaces.
+            foreach (string part in candidate[Path.GetPathRoot(candidate)!.Length..].Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (part is "." or "..") continue;
+                string stem = part.Split('.')[0].TrimEnd().ToUpperInvariant();
+                if (part.Length > 255 || part.EndsWith(' ') || part.EndsWith('.') || stem is "CON" or "PRN" or "AUX" or "NUL"
+                    || stem.Length == 4 && (stem.StartsWith("COM", StringComparison.Ordinal) || stem.StartsWith("LPT", StringComparison.Ordinal)) && (stem[3] is >= '1' and <= '9' or '¹' or '²' or '³'))
+                    throw new ArgumentException();
+            }
+            normalized = full; return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        { error = "Informe um caminho completo de pasta válido, como C:\\Partituras, sem caracteres reservados."; return false; }
+    }
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public static Settings Load(string? filePath = null)

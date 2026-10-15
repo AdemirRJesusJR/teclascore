@@ -45,7 +45,7 @@ public partial class MainWindow
         var dialog=new NativeTransposeWindow(initial,row.PreviewPath,
             (options,progress,token)=>Task.Run(()=>NativeScoreTransposition.CreatePlan(path,options,token),token),
             (plan,progress,token)=>service.PrepareAsync(plan,progress,token),
-            (plan,prepared,progress,token)=>service.PublishAsync(plan,prepared,OutputDirectory,progress,token),audio){Owner=this};
+            async (plan,prepared,progress,token)=>await service.PublishAsync(plan,prepared,await PrepareOutputDirectoryAsync(token),progress,token),audio){Owner=this};
         if(dialog.ShowDialog()==true && dialog.Result is {} result)
         {
             ApplyMusicalEditorResult(row,result);

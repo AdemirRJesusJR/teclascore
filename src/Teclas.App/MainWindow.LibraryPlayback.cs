@@ -6,6 +6,7 @@ namespace Teclas.App;
 
 public partial class MainWindow
 {
+    private readonly MidiPreparationCache midiPreparationCache = new();
     private MidiTrackPlayer? libraryMidiPlayer;
     private MidiRow? libraryPlaybackRow;
     private CancellationTokenSource? libraryPlaybackPreparation;
@@ -18,6 +19,8 @@ public partial class MainWindow
 
     private void InitializeLibraryPlayback(Func<IMidiOutputTransport>? outputFactory)
     {
+        librarySequenceFactory = (document, token) => midiPreparationCache.GetOrCreateAsync(document, null,
+            cancellationToken => Task.Run(() => MidiAuditionSequence.CreateFull(document, cancellationToken), cancellationToken), token);
         SizeChanged += (_, _) => Notify(nameof(LibraryFiltersMaximumHeight));
         libraryMidiPlayer = new MidiTrackPlayer(outputFactory);
         libraryMidiPlayer.StateChanged += (_, _) => QueueLibraryPlaybackUpdate();
@@ -36,15 +39,20 @@ public partial class MainWindow
             });
         };
         libraryPlaybackTimer.Tick += (_, _) => UpdateLibraryPlaybackPosition();
-        Files.CollectionChanged += (_, _) =>
+        Files.CollectionChanged += (_, change) =>
         {
             if (libraryPlaybackRow is { } row && !Files.Contains(row)) StopLibraryPlayback();
+            if (change.OldItems is not null)
+                foreach (var removed in change.OldItems.OfType<MidiRow>())
+                    if (removed.Document is { } document) midiPreparationCache.Remove(document);
+            if (change.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset) midiPreparationCache.Clear();
         };
         Closed += (_, _) =>
         {
             libraryPlaybackDisposed = true;
             StopLibraryPlayback();
             libraryMidiPlayer.Dispose();
+            midiPreparationCache.Clear();
         };
     }
 
@@ -72,7 +80,7 @@ public partial class MainWindow
         StopTrackAudition(); // Stops the previous card and isolated source as well.
         ResetPlayback();
         Library.SelectedItem = row;
-        await RunOperation(async () =>
+        await RunAudioOperation(async () =>
         {
             long generation = ++libraryPlaybackGeneration;
             using var preparation = CancellationTokenSource.CreateLinkedTokenSource(cancellation!.Token);

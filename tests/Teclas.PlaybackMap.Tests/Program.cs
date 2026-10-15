@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -34,7 +35,17 @@ string repeated=Write(Measure(meter+"<Tempo><tempo>1</tempo><text>60</text></Tem
     "<Measure len='1/4'>"+Voice(Chord("quarter",67,15))+"</Measure>");
 string initialHash=Hash(repeated);
 var service=new ScorePlaybackMapService(museScore,Path.Combine(work,"cache"));
-var map=await service.PrepareAsync(repeated,1,null,CancellationToken.None);
+var mapCache=new ScorePlaybackMapCache();int nativeMapPreparations=0;
+Task<ScorePlaybackMap> PrepareCached(CancellationToken token)=>mapCache.GetOrPrepareAsync(repeated,museScore,1,async request=>
+{nativeMapPreparations++;return await service.PrepareAsync(repeated,1,null,request);},null,token);
+var cacheWatch=Stopwatch.StartNew();var map=await PrepareCached(CancellationToken.None);cacheWatch.Stop();
+double coldMapMilliseconds=cacheWatch.Elapsed.TotalMilliseconds;var cachedMapMilliseconds=new List<double>();
+for(int request=0;request<3;request++)
+{
+    cacheWatch.Restart();var cached=await PrepareCached(CancellationToken.None);cacheWatch.Stop();cachedMapMilliseconds.Add(cacheWatch.Elapsed.TotalMilliseconds);
+    Check(ReferenceEquals(map,cached),"Native map cache reuses verified real pages and the exact occurrence timeline");
+}
+Check(nativeMapPreparations==1&&mapCache.CacheHits==3,"Four repeated native requests invoke only one MuseScore map export");
 Check(map.CanSynchronize,"Native MuseScore exports enable verified measure synchronization");
 Check(map.Measures.Count==4&&map.MeasureTimeline.Select(t=>t.Measure).SequenceEqual(new[]{1,2,1,2,3,4}),"Repeated measures are represented by actual ordered playback occurrences");
 Check(map.MeasureTimeline.Select(t=>t.StartSeconds).Zip(new[]{0d,4,6,10,12,13.5}).All(p=>Math.Abs(p.First-p.Second)<.012),
@@ -78,6 +89,8 @@ Check(await Throws<IOException>(()=>Task.Run(()=>ScorePlaybackMapService.ReadExp
 var changed=XDocument.Load(spos);changed.Root!.Element("events")!.Elements("event").First().SetAttributeValue("elid","99999");string badSpos=Path.Combine(work,"bad.spos");changed.Save(badSpos);
 var unresolved=ScorePlaybackMapService.ReadExports(repeated,initialHash,1,mpos,badSpos,midi,map.PreviewPages);
 Check(!unresolved.CanSynchronize&&unresolved.Timeline.Count==0,"Unknown exported segment references cannot be treated as valid playback");
-var report=new{passed=checks.Count,checks,map,slow};
+var cacheMeasurement=new{requests=4,nativeMapPreparations,cacheHits=mapCache.CacheHits,coldMapMilliseconds,cachedMapMilliseconds,
+    note="Native synthetic-score map preparation only; not an audio-output latency measurement. No absolute timing threshold."};
+var report=new{passed=checks.Count,checks,cacheMeasurement,map,slow};
 File.WriteAllText(Path.Combine(work,"report.json"),JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true}));
 Console.WriteLine($"{checks.Count} playback-map checks passed.");

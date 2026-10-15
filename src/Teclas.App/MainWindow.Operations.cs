@@ -10,16 +10,19 @@ public partial class MainWindow
     private readonly Stopwatch operationWatch = new();
     private readonly DispatcherTimer operationTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private long operationId;
-    private bool operationCancelRequested, operationsDisposed;
+    private bool operationCancelRequested, operationsDisposed, operationUsesOverlay = true;
     private int operationCompleted, operationTotal;
     private string operationTitle = "Processando", operationItem = "";
     private IInputElement? operationPreviousFocus;
 
-    public Visibility OperationVisibility => IsBusy ? Visibility.Visible : Visibility.Collapsed;
+    public bool IsModalOperation => IsBusy && operationUsesOverlay && !operationsDisposed;
+    public bool IsAudioOperation => IsBusy && !operationUsesOverlay && !operationsDisposed;
+    public Visibility OperationVisibility => IsModalOperation ? Visibility.Visible : Visibility.Collapsed;
     public string OperationTitle => operationTitle;
     public string OperationItem => operationItem;
     public string OperationElapsedText => $"Tempo decorrido · {FormatTime(operationWatch.Elapsed.TotalSeconds)}";
     public bool OperationProgressIndeterminate => operationTotal <= 1;
+    public bool OperationFooterProgressIndeterminate => IsBusy && OperationProgressIndeterminate;
     public double OperationProgressValue => operationTotal > 0 ? 100.0 * operationCompleted / operationTotal : 0;
     public string OperationCountText => operationTotal > 1 ? $"{operationCompleted} de {operationTotal} arquivos processados" : "Em andamento";
     public bool CanCancelOperation => IsBusy && !operationCancelRequested;
@@ -36,14 +39,16 @@ public partial class MainWindow
         };
     }
 
-    private void BeginOperation(string title, string? item)
+    private void BeginOperation(string title, string? item, bool useOverlay)
     {
         operationId++;
-        operationPreviousFocus = Keyboard.FocusedElement;
+        operationUsesOverlay = useOverlay;
+        // Audio preparation stays in the existing player/footer and never takes focus.
+        operationPreviousFocus = useOverlay ? Keyboard.FocusedElement : null;
         operationTitle = title; operationItem = item ?? "";
         operationCompleted = operationTotal = 0; operationCancelRequested = false;
         operationWatch.Restart(); operationTimer.Start();
-        Status = "Preparando…";
+        Status = useOverlay ? "Preparando…" : title;
         NotifyOperation();
     }
 
@@ -60,8 +65,8 @@ public partial class MainWindow
 
     private void NotifyOperation()
     {
-        foreach (string name in new[] { nameof(OperationVisibility), nameof(OperationTitle), nameof(OperationItem),
-            nameof(OperationElapsedText), nameof(OperationProgressIndeterminate), nameof(OperationProgressValue),
+        foreach (string name in new[] { nameof(OperationVisibility), nameof(IsModalOperation), nameof(IsAudioOperation), nameof(OperationTitle), nameof(OperationItem),
+            nameof(OperationElapsedText), nameof(OperationProgressIndeterminate), nameof(OperationFooterProgressIndeterminate), nameof(OperationProgressValue),
             nameof(OperationCountText), nameof(CanCancelOperation), nameof(OperationCancelLabel) }) Notify(name);
     }
 

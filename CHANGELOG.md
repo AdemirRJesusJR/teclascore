@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.20.1 — 2026-10-15
+
+- Preparação de áudio no rodapé, com progresso e cancelamento, sem abrir o painel central nem trocar o foco a cada reprodução. Análise e conversão mantêm o painel de etapas.
+- Reutilização limitada em memória das sequências de MIDI completo, pistas isoladas e mapas de acompanhamento. A reprodução deixa de recarregar a prévia e regravar toda a biblioteca ao terminar a preparação.
+- Mapas de acompanhamento conferem conteúdo da partitura, velocidade, renderizador e disponibilidade das páginas antes da reutilização. Desligar o acompanhamento evita preparar o mapa automaticamente.
+- Configurações com pasta de saída padrão, rascunho separado e ação explícita para salvar. Validação de destino antes de gravar, preferência persistente e preservação dos locais das partituras e trabalhos já enfileirados.
+- Testes de cache, cancelamento, falhas e resultados atrasados, interface discreta, persistência de pasta e medição com mapas sintéticos renderizados pelo MuseScore.
+
 ## 0.20.0 — 2026-10-15
 
 - Posições dos diagramas agrupadas por cifra, com contagem das ocorrências. Escolher uma inversão aplica a mesma posição a todas as repetições do acorde; a prévia continua imediata. Variações antigas ficam preservadas até a escolha explícita de uma posição comum.

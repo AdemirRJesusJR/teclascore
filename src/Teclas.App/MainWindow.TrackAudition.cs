@@ -126,14 +126,15 @@ public partial class MainWindow
         ResetPlayback();
         PlaybackStatus = SelectedScoreExists ? "Ouça esta partitura sem abrir o editor do MuseScore." : "Gere uma partitura para ouvir aqui no aplicativo.";
         NotifyPlaybackState();
-        await RunOperation(async () =>
+        await RunAudioOperation(async () =>
         {
             var token = cancellation!.Token;
             Status = "Separando as notas e preparando o andamento da pista…";
             TrackAuditionStatus = "Preparando esta pista para ouvir…";
             try
             {
-                var sequence = await Task.Run(() => MidiAuditionSequence.Create(document, track.Source.Key), token);
+                var sequence = await midiPreparationCache.GetOrCreateAsync(document, track.Source.Key,
+                    cancellationToken => Task.Run(() => MidiAuditionSequence.Create(document, track.Source.Key), cancellationToken), token);
                 token.ThrowIfCancellationRequested();
                 if (trackAuditionDisposed || row.UsesNativeScoreWorkflow || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
                 auditionMidi = row; auditionTrack = track; track.IsAuditioning = true;

@@ -51,7 +51,6 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     }
     public string PythonPath{get=>settings.PythonPath;set{settings.PythonPath=value;Notify();}}
     public string MuseScorePath{get=>settings.MuseScorePath;set{settings.MuseScorePath=value;Notify();}}
-    public string OutputDirectory{get=>settings.OutputDirectory;set{settings.OutputDirectory=value;Notify();}}
     public string SelectedName=>selectedFile?.Name??"Do MIDI à partitura";
     public string SelectionMessage=>selectedFile is null?"Escolha um MIDI na biblioteca para preparar a melodia, conferir os acordes e gerar sua partitura.":selectedFile is { HasMusicalEdits:true, IsNativeScore:false }?"Partitura com edições musicais: continue no Editor musical. Para voltar à geração pelo MIDI, restaure uma versão anterior às edições no Histórico.":selectedFile.IsNativeScore?"Partitura MuseScore: use o Editor musical ou melhore a apresentação em uma nova cópia.":selectedFile.Document is null?"Este arquivo não pôde ser lido. Substitua-o por uma cópia completa do MIDI.":selectedFile.HasReviewedProfile?"Este MIDI tem uma revisão pronta de melodia, solos e acordes. Você pode aplicá-la ou escolher as pistas manualmente.":selectedFile.Profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Este arquivo foi identificado como acompanhamento, sem a melodia completa. Para transcrever a canção inteira, use um MIDI que contenha a voz principal.","partial_melody"=>"Este MIDI contém apenas parte da melodia ou solos. A seleção manual permite preparar esses trechos; a canção completa precisa de outra fonte.",_=>"MIDI novo: selecione uma ou mais pistas para reunir introdução e melodia; confira a prioridade e os acordes antes de gerar."};
     public string FileCountText=>$"{Files.Count} arquivos · {Files.Count(f=>f.ScorePath is not null)} partituras geradas";
@@ -184,15 +183,23 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         EditorTabs.SelectedIndex=importedSelection.UsesNativeScoreWorkflow?2:0;
         Library.ScrollIntoView(importedSelection);
     }
-    private async Task RunOperation(Func<Task> action, MidiRow? rowOnError=null, string operationTitle="Processando", string? operationItem=null)
+    private Task RunOperation(Func<Task> action, MidiRow? rowOnError=null, string operationTitle="Processando", string? operationItem=null)
+        => RunOperationCore(action,rowOnError,operationTitle,operationItem,useOverlay:true);
+    private Task RunAudioOperation(Func<Task> action, MidiRow? rowOnError=null, string operationTitle="Preparando áudio", string? operationItem=null)
+        => RunOperationCore(action,rowOnError,operationTitle,operationItem,useOverlay:false);
+    private async Task RunOperationCore(Func<Task> action, MidiRow? rowOnError, string operationTitle, string? operationItem, bool useOverlay)
     {
-        if(busy || operationsDisposed)return;cancellation=new();SetBusy(true);BeginOperation(operationTitle,operationItem??rowOnError?.Name);
+        if(busy || operationsDisposed)return;
+        cancellation=new();BeginOperation(operationTitle,operationItem??rowOnError?.Name,useOverlay);SetBusy(true);NotifyOperation();
         var measurement=performanceRecorder?.Begin(PerformanceOperationFor(operationTitle));
         try
         {
-            // Let bindings, layout and animation render before any synchronous preparation.
-            await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
-            OperationCancelButton.Focus();
+            if(useOverlay)
+            {
+                // Conversion and analysis still present their progress before synchronous work.
+                await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+                if(!operationsDisposed)OperationCancelButton.Focus();
+            }
             cancellation.Token.ThrowIfCancellationRequested();
             await action();
             measurement?.Success();
@@ -210,14 +217,16 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             if(rowOnError is not null && selectedFile==rowOnError && !MatchesLibraryFilter(rowOnError))
             {SearchText="";CurrentFilter="all";FavoritesOnly=false;CollectionFilter="";}
             cancellation.Dispose();cancellation=null;SetBusy(false);EndOperation();
-            if(!operationsDisposed){RefreshSelection();PersistPreferences();}
+            // Audio changes transient transport state only; avoid reloading the score preview
+            // or rewriting the entire library after every play/pause preparation.
+            if(!operationsDisposed && useOverlay){RefreshSelection();PersistPreferences();}
         }
     }
     private void ValidateSettings(bool generating)
     {
         if(!File.Exists(PythonPath))throw new InvalidOperationException("Localize o Python com Pillow na aba Configurações.");
         if(generating && !File.Exists(MuseScorePath))throw new InvalidOperationException("Localize o MuseScore Studio 4 na aba Configurações.");
-        if(generating && !Path.IsPathFullyQualified(OutputDirectory))throw new InvalidOperationException("Escolha uma pasta de saída com caminho completo.");
+        if(generating && !Settings.TryValidateOutputDirectory(OutputDirectory,out _,out var outputError))throw new InvalidOperationException(outputError+" Abra Configurações para salvar a pasta padrão.");
     }
     private JsonArray Sources(MidiRow row)=>new(GetOrderedMelodySources(row).Select(key=>(JsonNode)new JsonObject{["track"]=key.Track,["channel"]=key.Channel,["program"]=key.Program}).ToArray());
     private static void RequireMidiWorkflow(MidiRow row)
@@ -265,6 +274,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     {
         RequireMidiWorkflow(row);
         ValidateSettings(true);
+        string outputDirectory = await PrepareOutputDirectoryAsync(cancellation!.Token);
         RememberVersion(row);
         if(row.ScorePath is not null)
         {
@@ -273,7 +283,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         }
         await EnsureAnalysisForGeneration(row);
         var chords=new JsonArray(row.Chords.Select(c=>(JsonNode)new JsonObject{["quarter"]=c.Quarter,["root"]=c.Root,["quality"]=c.Quality,["diagramInversion"]=c.DiagramInversion}).ToArray());
-        var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=OutputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords,["scoreTitle"]=row.ScoreTitle,["scoreSubtitle"]=row.ScoreSubtitle,["scoreComposer"]=row.ScoreComposer,["diagramInversion"]=row.EffectiveDiagramInversion};
+        var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=outputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords,["scoreTitle"]=row.ScoreTitle,["scoreSubtitle"]=row.ScoreSubtitle,["scoreComposer"]=row.ScoreComposer,["diagramInversion"]=row.EffectiveDiagramInversion};
         row.Status="Gerando e conferindo no MuseScore…";
         request["transposeSemitones"]=row.TransposeSemitones;
         request["scoreArtist"]=row.ScoreArtist;
@@ -401,5 +411,4 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     }
     private void BrowseMuseScore(object sender,RoutedEventArgs e){var d=new OpenFileDialog{Filter="Executável|*.exe",Title="Localizar MuseScore4.exe"};if(d.ShowDialog(this)==true)MuseScorePath=d.FileName;}
     private void BrowsePython(object sender,RoutedEventArgs e){var d=new OpenFileDialog{Filter="Executável|*.exe",Title="Localizar python.exe"};if(d.ShowDialog(this)==true)PythonPath=d.FileName;}
-    private void BrowseOutput(object sender,RoutedEventArgs e){var d=new OpenFolderDialog{Title="Pasta de saída das partituras"};if(d.ShowDialog(this)==true)OutputDirectory=d.FolderName;}
 }

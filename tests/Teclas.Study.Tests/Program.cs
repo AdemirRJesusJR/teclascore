@@ -43,6 +43,7 @@ ScoreStudyAudio.CreateTempoCopy(noTempo, defaultCopy, .5);
 Check(Read(defaultCopy).Descendants("Tempo").Single().Element("tempo")!.Value == "1", "Implicit default tempo must scale");
 
 var nativeResults = new List<object>();
+var mapCache = await ScorePlaybackMapCacheChecks.Run(work, Check);
 if (args.Length > 1)
 {
     var musicXml = Path.Combine(work, "study.musicxml");
@@ -74,7 +75,7 @@ if (args.Length > 1)
     }
     Check(originalHash == Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(native))), "Native original preserved");
 }
-var report = JsonSerializer.Serialize(new { checks, nativeResults, passed = true }, new JsonSerializerOptions { WriteIndented = true });
+var report = JsonSerializer.Serialize(new { checks, mapCache, nativeResults, passed = true }, new JsonSerializerOptions { WriteIndented = true });
 File.WriteAllText(Path.Combine(work, "report.json"), report);
 Console.WriteLine(report);
 

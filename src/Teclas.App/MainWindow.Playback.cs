@@ -17,6 +17,8 @@ public partial class MainWindow
     private bool audioLoaded, audioOpening, audioPlaying, playbackDisposed;
     private TaskCompletionSource<bool>? pendingAudioOpen;
     private Exception? audioOpenFailure;
+    private Func<ScoreStudyAudio, string, double, IProgress<string>?, CancellationToken, Task<ScoreAudio>> scoreAudioPreparation =
+        (service, path, speed, progress, token) => service.PrepareAsync(path, speed, progress, token);
     private double playbackDuration;
     private string playbackStatus = "Gere uma partitura para ouvir aqui no aplicativo.";
     private string PlaybackCacheDirectory => Path.Combine(persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!, "audio-cache");
@@ -167,15 +169,15 @@ public partial class MainWindow
         }
         string? identity = SelectedScoreIdentity();
         var requestedSpeed = ScorePlaybackSpeed;
-        await RunOperation(async () =>
+        await RunAudioOperation(async () =>
         {
             var token = cancellation!.Token;
             PlaybackStatus = "Preparando áudio… A primeira reprodução pode levar alguns segundos.";
             var exporter = new ScoreStudyAudio(MuseScorePath, PlaybackCacheDirectory);
             try
             {
-                var audio = await exporter.PrepareAsync(scorePath, requestedSpeed, CreateOperationProgress(), token);
-                await PrepareScoreSynchronization(scorePath, requestedSpeed, token);
+                var audio = await scoreAudioPreparation(exporter, scorePath, requestedSpeed, CreateOperationProgress(), token);
+                if (FollowScorePlayback) await PrepareScoreSynchronization(scorePath, requestedSpeed, token);
                 token.ThrowIfCancellationRequested();
                 if (playbackDisposed || identity != SelectedScoreIdentity()) throw new OperationCanceledException();
                 loadedAudioSpeed = requestedSpeed;
