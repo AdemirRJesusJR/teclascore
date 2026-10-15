@@ -1,9 +1,18 @@
+TESTES DO INSTALADOR 0.19.1
+
+1. Execute TeclaScore-0.19.1-Setup-x64.exe. Confira idioma português, pasta de destino e opção de atalho na área de trabalho. A versão aparece em Aplicativos instalados do Windows.
+2. Abra o aplicativo e confira 0.19.1 em Sobre. O .NET está incluído; Python/Pillow e MuseScore são preparados em Configurações > Preparar este computador.
+3. Com uma biblioteca existente, confira músicas, histórico, tema e caminhos depois de instalar. O instalador não deve fechar à força o app nem reiniciar o computador.
+4. Se testar a desinstalação, faça-a pelos Aplicativos instalados. As partituras nas pastas e a biblioteca devem permanecer. Instalar novamente deve recuperar as preferências salvas.
+5. O ZIP permanece compatível com a instalação pelo aplicativo. SHA256SUMS contém uma entrada para o ZIP e outra para o EXE.
+6. Na Prévia, clique em Compactar controles e confira o espaço adicional para a partitura. Use reproduzir/pausar/parar e arraste a posição; expanda para ajustar velocidade, repetição e ferramentas. Feche e reabra o app para conferir a preferência. Teste nos temas claro e escuro.
+
 TESTES DA VERSÃO 0.19.0
 
 A. Importe um MSCZ e abra Transpor. Prepare +2, compare as páginas e ouça. Salve nova versão e confira Histórico, reprodução e PDF. Abra Transpor novamente e use -2: o intervalo parte da versão atual. Confirme que o arquivo original não mudou. Cancelar ou mudar o intervalo invalida a prévia anterior.
 B. Confira cifras e diagramas. Imagens e diagramas não reconhecidos nos compassos devem exigir a opção explícita de removê-los apenas da nova cópia; revise os trechos indicados. Estruturas incompatíveis devem explicar a limitação sem salvar uma transposição parcial.
 C. Em Configurações > Preparar este computador, use Detectar e verificar. Os testes devem mostrar progresso e cancelamento. Fechar não muda os caminhos. Usar estas configurações aplica os caminhos validados. Preparar Python do TeclaScore só deve começar após seu clique e não deve modificar o Python global.
-D. Em uma cópia do app num computador sem .NET Desktop Runtime 10, execute Instalar.cmd e confira a orientação da arquitetura e do download oficial. Instalar o aplicativo não instala dependências silenciosamente.
+D. Na versão 0.19.1, execute Instalar.cmd e confira que o runtime incluído é identificado. Não é necessário instalar o .NET separadamente.
 E. Na Biblioteca, remova pelo ícone vermelho um card diferente do selecionado. Só esse card deve sair. Desfaça e confira as edições; MIDI, MSCZ e PDF nas pastas devem permanecer.
 F. Gere Festa na roça com a pista rápida selecionada e ouça a descida de notas. Não deve falhar no antigo ponto 110.871. Se outro trecho não couber, a Revisão guiada deve mostrar o compasso e permitir acessar Pistas por trecho.
 

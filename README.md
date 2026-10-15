@@ -1,12 +1,14 @@
 # TeclaScore
 
-Versão 0.19.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.19.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+
+Na **Prévia**, use **Compactar controles** para reduzir o player e recolher as opções avançadas e os botões de ferramentas. Reproduzir, pausar, parar e a posição continuam acessíveis. **Expandir controles** recupera as opções; a preferência fica salva ao fechar o app.
 
 A versão **0.19.0** permite transpor partituras MuseScore importadas e versões editadas: em **Prévia → Transpor**, escolha o intervalo em relação à versão aberta, prepare a prévia, compare **Original / Proposta transposta**, ouça e use **Salvar nova versão**. O original e as versões anteriores ficam preservados no Histórico. Abrir novamente Transpor inicia outro intervalo relativo à cópia então selecionada; não reutiliza o deslocamento do MIDI original.
 
 Notas, grafia, armaduras e cifras compatíveis mudam juntas. Diagramas TeclaScore reconhecidos são regenerados com sua inversão. Imagens e diagramas não reconhecidos dentro dos compassos bloqueiam a proposta até você escolher explicitamente removê-los apenas da cópia; as observações identificam os trechos afetados. Estruturas não suportadas são explicadas e não são transpostas parcialmente. Compare todas as páginas antes de salvar.
 
-Em **Configurações → Preparar este computador**, use **Detectar e verificar** para localizar e testar Python 3.11+ com Pillow e MuseScore Studio 4. Os testes usam uma imagem em memória e uma partitura sintética. Se faltar Pillow, **Preparar Python do TeclaScore** cria um ambiente próprio e baixa a versão validada do PyPI; exige internet e não modifica o Python global. Os botões de download abrem os sites oficiais. **Usar estas configurações** aplica apenas caminhos que passaram nos testes; fechar ou cancelar não altera os caminhos salvos. O instalador identifica a arquitetura e orienta a instalação do .NET Desktop Runtime 10 quando necessário, antes de abrir o aplicativo.
+Em **Configurações → Preparar este computador**, use **Detectar e verificar** para localizar e testar Python 3.11+ com Pillow e MuseScore Studio 4. Os testes usam uma imagem em memória e uma partitura sintética. Se faltar Pillow, **Preparar Python do TeclaScore** cria um ambiente próprio e baixa a versão validada do PyPI; exige internet e não modifica o Python global. Os botões de download abrem os sites oficiais. **Usar estas configurações** aplica apenas caminhos que passaram nos testes; fechar ou cancelar não altera os caminhos salvos. O instalador e o ZIP oficiais incluem o .NET Desktop Runtime 10 necessário para abrir o aplicativo.
 
 A Biblioteca agora tem uma **lixeira vermelha no próprio card**, com descrição **Remover** e acesso por teclado. O rodapé oferece desfazer a última remoção da sessão, preservando os arquivos nas pastas.
 
@@ -184,17 +186,17 @@ Arquivos de versões antigas devem ser abertos e salvos em uma nova cópia pelo 
 
 ## Instalação e atualizações
 
-Extraia o ZIP completo e execute **Instalar.cmd**, ou continue usando Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
+Baixe **TeclaScore-0.19.1-Setup-x64.exe** na página da versão e siga o assistente em português. Escolha a pasta e os atalhos. A instalação é para o usuário atual e não exige permissões de administrador. O desinstalador fica disponível nos Aplicativos instalados do Windows; ele preserva biblioteca, configurações e partituras. Também é possível extrair o ZIP completo e executar **Instalar.cmd**, ou abrir Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
 
 Na tela **Sobre → Instalação e atualizações**, confira dependências e consulte a última versão publicada no GitHub. A consulta só ocorre ao clicar. Baixe o ZIP pela página da versão e selecione-o no app; o instalador confere SHA-256 e conteúdo antes de instalar. Se a consulta não estiver disponível, selecione também o arquivo SHA256SUMS da mesma versão. A nova instalação não fecha o app sem sua escolha. O assistente localiza e valida Python/MuseScore e oferece o preparo isolado de Pillow; instalar Python ou MuseScore continua pelo instalador oficial.
 
 ## Dependências desta versão
 
-- Windows com .NET Desktop Runtime 10.
+- Windows 10 22H2 ou Windows 11 de 64 bits. O runtime .NET Desktop 10 está incluído nos pacotes oficiais.
 - MuseScore Studio 4 instalado, para gravação nativa, renderização, preparação do áudio e exportação PDF em segundo plano.
 - Python 3.11 ou superior com Pillow, para o motor musical reaproveitado.
 
-A interface, a leitura inicial do MIDI, a biblioteca, o controle das operações e a criação de ZIP são em C#. A preparação musical detalhada usa o motor Python validado no lote anterior. Este protótipo ainda não é uma implementação musical integralmente em C# e o instalador não inclui as dependências externas.
+A interface, a leitura inicial do MIDI, a biblioteca, o controle das operações e a criação de ZIP são em C#. A preparação musical detalhada usa o motor Python validado no lote anterior. Este protótipo ainda não é uma implementação musical integralmente em C# e Python/Pillow e MuseScore continuam externos ao pacote.
 
 No computador usado para preparar o projeto, as dependências já existem e o programa procura seus caminhos automaticamente. Em outro computador, use Preparar este computador. Downloads oficiais e preparo do ambiente Python exigem uma ação explícita; nada é instalado ao abrir o assistente. Os MIDIs não são enviados pela internet.
 
@@ -213,10 +215,13 @@ A barra de título nativa acompanha as cores do tema no Windows 11. Em versões 
 
 ## Código e compilação
 
-Abra Teclas.Partituras.sln. Não há pacotes NuGet externos; NuGet.Config mantém as fontes vazias.
+Abra Teclas.Partituras.sln. A compilação normal não usa bibliotecas NuGet externas; NuGet.Config mantém as fontes vazias. Para publicar com runtime incluído, use explicitamente o NuGet oficial para obter os packs Microsoft. O instalador é compilado com Inno Setup 7.1.0; informe o caminho de ISCC.exe.
 
     dotnet build Teclas.Partituras.sln
-    dotnet publish src/Teclas.App/Teclas.App.csproj -c Release --no-self-contained -o Aplicativo
+    dotnet publish src/Teclas.App/Teclas.App.csproj -c Release -r win-x64 --self-contained true --source https://api.nuget.org/v3/index.json -o Aplicativo
+    python tools/prepare_distribution.py
+    pwsh -File tools/build_installer.ps1 -CompilerPath "C:\ferramentas\Inno Setup 7\ISCC.exe"
+    python tools/package_app.py --installer
     dotnet run --project tests/Teclas.Tests/Teclas.Tests.csproj
     dotnet run --project tests/Teclas.Dashboard.Tests/Teclas.Dashboard.Tests.csproj
     dotnet run --project tests/Teclas.Settings.Tests/Teclas.Settings.Tests.csproj

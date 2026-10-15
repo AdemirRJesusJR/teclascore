@@ -53,6 +53,8 @@ try
     var sums = Path.Combine(temp, "SHA256SUMS");
     File.WriteAllText(sums, Digest(valid) + "  " + Path.GetFileName(valid) + "\n");
     Check(ReleaseUpdateService.ReadChecksum(sums, Path.GetFileName(valid)) == Digest(valid), "Read exact release digest");
+    File.AppendAllText(sums, new string('a', 64) + "  TeclaScore-0.7.0-Setup-x64.exe\n");
+    Check(ReleaseUpdateService.ReadChecksum(sums, Path.GetFileName(valid)) == Digest(valid), "Installer checksum does not replace ZIP digest");
     await Reject(() => { ReleaseUpdateService.ReadChecksum(sums, "different.zip"); return Task.CompletedTask; }, "Checksum tied to exact ZIP name");
     File.AppendAllText(sums, File.ReadAllText(sums));
     await Reject(() => { ReleaseUpdateService.ReadChecksum(sums, Path.GetFileName(valid)); return Task.CompletedTask; }, "Reject ambiguous checksum file");

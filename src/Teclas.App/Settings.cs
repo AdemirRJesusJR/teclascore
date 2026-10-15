@@ -14,6 +14,7 @@ public sealed class Settings
     public string OutputDirectory { get; set; } = "";
     public string ThemeId { get; set; } = "classic";
     public bool IsSidebarCollapsed { get; set; }
+    public bool IsPreviewControlsCompact { get; set; }
     public double TrackAuditionSpeed { get; set; } = 1.0;
     public double ScorePlaybackSpeed { get; set; } = 1.0;
     public bool FavoritesOnly { get; set; }

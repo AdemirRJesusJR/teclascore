@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.19.1 — 2026-10-15
+
+- Instalador EXE Windows x64 com assistente em português, instalação por usuário, atalhos e desinstalador. Biblioteca, configurações e partituras permanecem preservadas.
+- EXE e ZIP incluem o mesmo runtime .NET Desktop 10, sem instalação global desse componente. Python/Pillow e MuseScore continuam configurados pelo assistente do aplicativo.
+- Script de compilação do instalador, conferência de manifesto e hashes dos dois pacotes publicados. Atualização pelo ZIP permanece compatível.
+- Modo compacto do player e das ferramentas na Prévia, com controles essenciais visíveis, expansão reversível e preferência salva para liberar espaço para a partitura.
+
 ## 0.19.0 — 2026-10-15
 
 - Transposição de MSCZ importados e cópias editadas, com intervalo relativo à versão aberta, comparação, reprodução e publicação de uma nova versão. Notas, armaduras, cifras e diagramas reconhecidos são conferidos; desenhos externos exigem escolha explícita e estruturas incompatíveis não são alteradas parcialmente.

@@ -75,6 +75,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeAppearance();
         InitializeWindowTheme();
         InitializePersistence(smoke,settingsPath);
+        InitializePreviewLayout();
         InitializePerformance(smoke,settingsPath);
         Loaded+=async(_,_)=>await RefreshDraftRecoveryAvailability(announce:true);
         Closed+=(_,_)=>conversionQueue?.Dispose();

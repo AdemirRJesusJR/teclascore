@@ -1,3 +1,16 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.19.1
+15/10/2026
+
+- Runner final local: 30 etapas aprovadas, zero falhas e quatro grupos opcionais explicitamente não executados (integrações nativas/coleção pessoal/fixtures especiais/dispositivo de áudio). Compilação, suítes C#, Python, interface, benchmarks e testes do instalador foram executados de fato.
+- Publicação Release Windows x64 self-contained com .NET Desktop Runtime 10.0.10, sem avisos ou erros. EXE e ZIP recebem o mesmo aplicativo e 418 arquivos de runtime/recursos conferidos por manifesto; licenças do runtime incluídas.
+- Player compacto: 146 verificações WPF aprovadas. Alternância por botão acessível, cinco temas, janelas 1100×740 e 1400×960, transporte/posição, expansão, mensagens de erro completas por tooltip, preferência salva e reabertura nos dois estados. A medição considera a imagem da página e todos os recortes WPF: 214 e 485 pixels verticais visíveis nas duas janelas sintéticas, com sidebar aberta. São medidas destas condições, não promessa para toda resolução ou escala de tela. Áudio e seleção não são modificados pelo modo compacto.
+- Instalador EXE: instalação, reinstalação e desinstalação reais em pasta isolada, 890 verificações incluindo hashes dos 422 arquivos instalados. Inicialização com DOTNET_ROOT inválido confirma uso do runtime próprio. Configurações e atalhos reais ficaram intactos; biblioteca, partituras e versão antiga sintéticas sobreviveram. Registro HKCU de teste foi removido; não foi instalada uma versão definitiva na conta durante o QA.
+- Empacotamento: cinco casos negativos confirmaram rejeição de versão errada, traversal, SHA alterado, duplicatas e payload sem runtime próprio. Publicação confere ZIP e EXE separadamente antes de tornar a release visível; atualização pelo aplicativo continua escolhendo o ZIP. Detecção de runtime e validação dos assets passaram 80 verificações no PowerShell 5.1 e 7; sete casos adicionais de assets também passaram.
+- O teste inicial identificou incompatibilidade de PSModulePath herdado pelo PowerShell 5.1 no runner. A correção altera só o ambiente do processo filho; a etapa real passou novamente com 80 verificações. Os ensaios visuais também detectaram e corrigiram o recorte da página no modo compacto. Os relatórios de tentativas anteriores permanecem registrados, sem reclassificação.
+
+Python 3.11+ com Pillow e MuseScore Studio 4 permanecem requisitos externos para as funções musicais; use Configurações > Preparar este computador. O .NET acompanha esta versão. O instalador ainda não tem assinatura digital de editor. Os testes de interface e conteúdo usam dados sintéticos e não substituem a revisão musical do usuário.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.19.0
 15/10/2026
 

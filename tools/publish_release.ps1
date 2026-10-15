@@ -8,6 +8,33 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+function Get-TeclaScoreReleaseArtifacts([string]$Directory, [string]$ReleaseVersion) {
+    $package = Join-Path $Directory ('TeclaScore-' + $ReleaseVersion + '-Windows.zip')
+    $setup = Join-Path $Directory ('TeclaScore-' + $ReleaseVersion + '-Setup-x64.exe')
+    $sums = Join-Path $Directory 'SHA256SUMS'
+    foreach ($file in @($package, $setup, $sums)) {
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw ('Artefato de release ausente: ' + [IO.Path]::GetFileName($file)) }
+    }
+    if ((Get-Item -LiteralPath $sums).Length -gt 1MB) { throw 'SHA256SUMS excede o limite permitido.' }
+    $expected = @{}
+    foreach ($file in @($package, $setup)) {
+        $expected[[IO.Path]::GetFileName($file)] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    $seen = @{}
+    foreach ($line in Get-Content -LiteralPath $sums) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        if ($line -notmatch '^([0-9a-fA-F]{64})\s+\*?([^\r\n]+)$') { throw 'Linha invalida no SHA256SUMS.' }
+        $checksum = $matches[1]; $name = $matches[2]
+        if ($name -cnotin @($expected.Keys) -or $seen.ContainsKey($name) -or $checksum -ine $expected[$name]) {
+            throw 'SHA256SUMS deve conter uma entrada correta e unica para o ZIP e o instalador EXE.'
+        }
+        $seen[$name] = $true
+    }
+    if ($seen.Count -ne 2) { throw 'SHA256SUMS deve conter os hashes do ZIP e do instalador EXE.' }
+    return [PSCustomObject]@{ Package=$package; Setup=$setup; Sums=$sums;
+        ZipSha256=$expected[[IO.Path]::GetFileName($package)]; Assets=@($package, $setup, $sums) }
+}
+
 $repoName = 'AdemirRJesusJR/teclascore'
 $api = 'https://api.github.com/repos/' + $repoName
 $headers = @{ 'User-Agent'='TeclaScore-release-publisher'; 'Accept'='application/vnd.github+json'; 'X-GitHub-Api-Version'='2026-03-10' }
@@ -51,12 +78,8 @@ try {
     $remoteObject = $remoteTag.object
     if ($remoteObject.type -eq 'tag') { $remoteObject = (Invoke-RestMethod -Uri ($api + '/git/tags/' + $remoteObject.sha) -Headers $headers -TimeoutSec 30).object }
     if ($remoteObject.type -ne 'commit' -or $remoteObject.sha -ne $localCommit) { throw 'A tag remota nao aponta para o commit local validado.' }
-    $package = Join-Path $PackageDirectory ('TeclaScore-' + $Version + '-Windows.zip')
-    $sums = Join-Path $PackageDirectory 'SHA256SUMS'
-    if (-not (Test-Path -LiteralPath $package -PathType Leaf) -or -not (Test-Path -LiteralPath $sums -PathType Leaf)) { throw 'ZIP ou SHA256SUMS ausente.' }
-    $hash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
-    $expectedLine = $hash + '  ' + [IO.Path]::GetFileName($package)
-    if ((Get-Content -LiteralPath $sums -Raw).Trim() -cne $expectedLine) { throw 'SHA256SUMS nao corresponde ao pacote validado.' }
+    $artifacts = Get-TeclaScoreReleaseArtifacts $PackageDirectory $Version
+    $hash = $artifacts.ZipSha256
     if (-not $NotesPath -or -not (Test-Path -LiteralPath $NotesPath -PathType Leaf)) { throw 'Forneca NotesPath com as notas de versao revisadas.' }
     $release = $null
     try { $release = Invoke-RestMethod -Uri ($api + '/releases/tags/' + $tag) -Headers $headers -TimeoutSec 30 }
@@ -66,8 +89,12 @@ try {
         $release = Invoke-RestMethod -Method Post -Uri ($api + '/releases') -Headers $headers -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30
     }
     if ($release.prerelease) { throw 'A release existente esta marcada como pre-release; confira-a antes de continuar.' }
+    $allowedNames = @($artifacts.Assets | ForEach-Object { [IO.Path]::GetFileName($_) })
+    if (@($release.assets | Where-Object { $_.name -cnotin $allowedNames }).Count -gt 0) {
+        throw 'A release existente tem assets inesperados; nenhum arquivo sera removido ou substituido.'
+    }
     $uploaded = @()
-    foreach ($file in @($package, $sums)) {
+    foreach ($file in $artifacts.Assets) {
         $name = [IO.Path]::GetFileName($file)
         $localHash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
         $existing = @($release.assets | Where-Object name -eq $name)
@@ -76,12 +103,12 @@ try {
             $uploaded += $name; continue
         }
         $url = 'https://uploads.github.com/repos/' + $repoName + '/releases/' + $release.id + '/assets?name=' + [Uri]::EscapeDataString($name)
-        $result = Invoke-RestMethod -Method Post -Uri $url -Headers $headers -ContentType 'application/octet-stream' -InFile $file -TimeoutSec 120
+        $result = Invoke-RestMethod -Method Post -Uri $url -Headers $headers -ContentType 'application/octet-stream' -InFile $file -TimeoutSec 600
         if ($result.digest -ne ('sha256:' + $localHash)) { throw "O hash remoto do asset $name nao corresponde ao arquivo local." }
         $uploaded += $name
     }
     if ($release.draft) {
-        # Make the release visible only after both artifacts have matching server hashes.
+        # Make the release visible only after all three artifacts have matching server hashes.
         $body = @{ draft=$false; make_latest='true' } | ConvertTo-Json
         $release = Invoke-RestMethod -Method Patch -Uri ($api + '/releases/' + $release.id) -Headers $headers -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30
     }

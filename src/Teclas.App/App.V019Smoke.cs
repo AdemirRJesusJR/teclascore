@@ -31,6 +31,7 @@ public partial class App
         string work = Path.Combine(Directory.GetParent(reports)!.FullName, "work", "ui019-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(work);
         var checks = new Dictionary<string, bool>(); var windows = new List<Window>();
+        var previewGeometry = new List<object>();
         using var bindingOutput = new StringWriter(CultureInfo.InvariantCulture);
         using var listener = new TextWriterTraceListener(bindingOutput);
         var trace = PresentationTraceSources.DataBindingSource; var previousLevel = trace.Switch.Level;
@@ -93,6 +94,27 @@ public partial class App
             window.SearchText = ""; window.CurrentFilter = "all"; window.SelectPageForSmoke("library", 2);
             Find<Selector>(window, "Library").SelectedItem = row; Flush(); window.UpdateLayout();
         }
+        Rect VisibleBounds(FrameworkElement element, FrameworkElement root)
+        {
+            if (!element.IsVisible) return Rect.Empty;
+            Rect visible = element.TransformToAncestor(root).TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+            visible.Intersect(new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+            for (DependencyObject? parent = VisualTreeHelper.GetParent(element); parent is not null && parent != root; parent = VisualTreeHelper.GetParent(parent))
+                if (parent is FrameworkElement frame)
+                {
+                    if (frame is ScrollContentPresenter || frame.ClipToBounds)
+                        visible.Intersect(frame.TransformToAncestor(root).TransformBounds(new Rect(0, 0, frame.ActualWidth, frame.ActualHeight)));
+                    // WPF also applies a layout clip when a control's MinHeight exceeds
+                    // its available grid row, even when ClipToBounds itself is false.
+                    if (VisualTreeHelper.GetClip(frame) is Geometry clip)
+                        visible.Intersect(frame.TransformToAncestor(root).TransformBounds(clip.Bounds));
+                }
+            return visible;
+        }
+        double VisibleHeight(FrameworkElement element, FrameworkElement root)
+        { var bounds = VisibleBounds(element, root); return bounds.IsEmpty ? 0 : bounds.Height; }
+        bool FitsHorizontally(FrameworkElement element, FrameworkElement root)
+        { var bounds = VisibleBounds(element, root); return !bounds.IsEmpty && bounds.Width >= element.ActualWidth - 1; }
         try
         {
             string settingsPath = Path.Combine(work, "settings.json"), unused = Path.Combine(work, "never-execute.exe");
@@ -177,6 +199,75 @@ public partial class App
             var native = new MidiRow { FullPath = source, NativeSourceSha256 = Hash(source), ScorePath = source, PreviewPath = preview, PageCount = 1,
                 ScoreTitle = "Partitura sintética", GeneratedAt = DateTimeOffset.UtcNow, Status = "Importada" };
             main.Files.Add(native); Select(main, native);
+            // Compact preview is a visual preference: it must not change the selected score,
+            // playback state, eligibility of commands, or original files.
+            Check(!main.IsPreviewControlsCompact, "compact-preview-default-is-expanded");
+            var compactToggle = Find<Button>(main, "PreviewControlsToggleButton");
+            var propertiesPanel = Find<FrameworkElement>(main, "PreviewPropertiesPanel");
+            var advancedPanel = Find<FrameworkElement>(main, "PreviewAdvancedPlaybackPanel");
+            var toolsPanel = Find<FrameworkElement>(main, "PreviewToolsPanel");
+            var scoreViewer = Find<ScoreViewer>(main, "MainScoreViewer");
+            await V018Wait(() => scoreViewer.FindName("PageImage") is Image { Source: not null });
+            var pageImage = (Image)scoreViewer.FindName("PageImage");
+            var playerPanel = Find<FrameworkElement>(main, "PreviewPlayerPanel");
+            var essential = new FrameworkElement[] { Find<Button>(main, "PlayerPlayButton"), Find<Button>(main, "PlayerPauseButton"),
+                Find<Button>(main, "PlayerStopButton"), Find<Slider>(main, "PlayerPositionSlider") };
+            var commandStates = essential.Select(control => control.IsEnabled).ToArray();
+            string? selectedScore = main.SelectedFile?.ScorePath;
+            double position = main.PlaybackPositionSeconds;
+            Check(compactToggle.IsTabStop && AutomationProperties.GetName(compactToggle).Contains("controles", StringComparison.OrdinalIgnoreCase),
+                "compact-toggle-is-keyboard-and-screen-reader-accessible");
+            foreach (var theme in ThemeManager.Themes.OrderBy(theme => theme.Id == "graphite" ? 0 : theme.Id == "light" ? 1 : 2))
+            {
+                main.SetThemeForSmoke(theme.Id);
+                foreach (var size in new[] { (Width: 1100, Height: 740), (Width: 1400, Height: 960) })
+                {
+                    main.Width = size.Width; main.Height = size.Height; main.IsPreviewControlsCompact = false; Flush(); main.UpdateLayout();
+                    for (DependencyObject? parent = VisualTreeHelper.GetParent(scoreViewer); parent is not null; parent = VisualTreeHelper.GetParent(parent))
+                        if (parent is ScrollViewer scroll) scroll.ScrollToTop();
+                    Flush(); main.UpdateLayout();
+                    double expandedHeight = VisibleHeight(scoreViewer, (FrameworkElement)main.Content);
+                    double expandedPageHeight = VisibleHeight(pageImage, (FrameworkElement)main.Content);
+                    if (theme.Id is "graphite" or "light") Capture(main, $"v019-expanded-{theme.Id}-{size.Width}", size.Width, size.Height);
+                    Check(propertiesPanel.IsVisible && advancedPanel.IsVisible && toolsPanel.IsVisible && compactToggle.Content?.ToString() == "Compactar controles",
+                        $"expanded-preview-restores-tools-{theme.Id}-{size.Width}");
+                    Check(essential.Append(compactToggle).All(control => FitsHorizontally(control, (FrameworkElement)main.Content)),
+                        $"expanded-preview-player-and-toggle-fit-width-{theme.Id}-{size.Width}");
+                    InvokeAccessible(compactToggle); await V018Wait(() => main.IsPreviewControlsCompact); Flush(); main.UpdateLayout();
+                    Check(propertiesPanel.Visibility == Visibility.Collapsed && advancedPanel.Visibility == Visibility.Collapsed && toolsPanel.Visibility == Visibility.Collapsed
+                        && compactToggle.Content?.ToString() == "Expandir controles", $"compact-preview-hides-only-extra-panels-{theme.Id}-{size.Width}");
+                    Check(essential.All(control => control.IsVisible) && essential.Select(control => control.IsEnabled).SequenceEqual(commandStates),
+                        $"compact-preview-keeps-player-controls-and-state-{theme.Id}-{size.Width}");
+                    Check(VisibleHeight(scoreViewer, (FrameworkElement)main.Content) > expandedHeight + 40,
+                        $"compact-preview-increases-visible-score-area-{theme.Id}-{size.Width}");
+                    Check(VisibleHeight(compactToggle, (FrameworkElement)main.Content) >= compactToggle.ActualHeight - 1,
+                        $"compact-toggle-stays-in-view-{theme.Id}-{size.Width}");
+                    Check(essential.Append(compactToggle).All(control => FitsHorizontally(control, (FrameworkElement)main.Content)),
+                        $"compact-preview-player-and-toggle-fit-width-{theme.Id}-{size.Width}");
+                    double compactPageHeight = VisibleHeight(pageImage, (FrameworkElement)main.Content);
+                    previewGeometry.Add(new { theme = theme.Id, width = size.Width, height = size.Height,
+                        expandedPageHeight, compactPageHeight, expandedViewerHeight = expandedHeight,
+                        compactViewerHeight = VisibleHeight(scoreViewer, (FrameworkElement)main.Content) });
+                    if (theme.Id is "graphite" or "light") Capture(main, $"v019-compact-{theme.Id}-{size.Width}", size.Width, size.Height);
+                    Check(compactPageHeight >= 150 && compactPageHeight > expandedPageHeight + 40,
+                        $"compact-preview-exposes-at-least-150px-of-page-{theme.Id}-{size.Width}");
+                    string previousStatus = main.PlaybackStatus;
+                    const string longError = "Áudio não preparado. Falha de reprodução sintética: confira o caminho da partitura e tente novamente após revisar as configurações.";
+                    typeof(MainWindow).GetProperty(nameof(Teclas.App.MainWindow.PlaybackStatus))!.SetValue(main, longError); Flush(); main.UpdateLayout();
+                    var errorStatus = Descendants(playerPanel).OfType<TextBlock>().Single(block => block.Text == longError);
+                    Check(errorStatus.IsVisible && VisibleHeight(errorStatus, (FrameworkElement)main.Content) >= errorStatus.ActualHeight - 1
+                        && FitsHorizontally(errorStatus, (FrameworkElement)main.Content) && errorStatus.ToolTip?.ToString() == longError
+                        && errorStatus.TextTrimming == TextTrimming.CharacterEllipsis,
+                        $"compact-preview-error-remains-visible-with-complete-tooltip-{theme.Id}-{size.Width}");
+                    if (theme.Id is "graphite" or "light") Capture(main, $"v019-compact-error-{theme.Id}-{size.Width}", size.Width, size.Height);
+                    typeof(MainWindow).GetProperty(nameof(Teclas.App.MainWindow.PlaybackStatus))!.SetValue(main, previousStatus); Flush(); main.UpdateLayout();
+                    if (theme.Id is "graphite" or "light") Capture(main, $"v019-compact-{theme.Id}-{size.Width}", size.Width, size.Height);
+                }
+            }
+            Check(main.SelectedFile?.ScorePath == selectedScore && main.PlaybackPositionSeconds == position && native.ScorePath == source,
+                "compact-toggle-preserves-selection-score-and-playback-position");
+            Check(Settings.Load(settingsPath).IsPreviewControlsCompact, "compact-preference-is-saved-immediately");
+            main.SetThemeForSmoke("graphite");
             Check(main.CanTransposeScore, "native-score-transposition-is-enabled");
             native.HasPendingScoreProperties = true; Check(!main.CanTransposeScore, "native-transposition-blocks-pending-properties"); native.HasPendingScoreProperties = false;
             Invoke(main, "SetBusy", true); Check(!main.CanTransposeScore, "native-transposition-blocks-busy-host"); Invoke(main, "SetBusy", false);
@@ -245,20 +336,31 @@ public partial class App
             Check(hashes.All(pair => Hash(pair.Key) == pair.Value), "all-synthetic-originals-preserved-byte-for-byte");
             main.Close(); windows.Remove(main); Flush();
             var reopened = Open(settingsPath);
+            Check(reopened.IsPreviewControlsCompact, "compact-preference-survives-app-reopening");
             Check(reopened.PythonPath == python && reopened.MuseScorePath == muse, "dependency-paths-survive-app-reopening");
             var restored = reopened.Files.Single(row => row.FullPath == source);
             Check(restored.ScorePath == transpose.Result.Path && restored.Versions.Any(version => version.ScorePath == source)
                 && restored.Versions.Any(version => version.ScorePath == transpose.Result.Path), "transposed-score-and-original-history-survive-reopening");
             Check(reopened.Files.Any(row => row.FullPath == firstPath) && reopened.Files.Any(row => row.FullPath == secondPath), "undone-card-removal-survives-reopening");
+            reopened.Width = 1100; reopened.Height = 740; Select(reopened, restored);
+            var reopenedViewer = Find<ScoreViewer>(reopened, "MainScoreViewer");
+            await V018Wait(() => reopenedViewer.FindName("PageImage") is Image { Source: not null }); Flush(); reopened.UpdateLayout();
+            Check(VisibleHeight((Image)reopenedViewer.FindName("PageImage"), (FrameworkElement)reopened.Content) >= 150,
+                "compact-reopened-preview-aligns-useful-page-area-at-minimum-window");
+            InvokeAccessible(Find<Button>(reopened, "PreviewControlsToggleButton"));
+            await V018Wait(() => !reopened.IsPreviewControlsCompact);
+            Check(Find<FrameworkElement>(reopened, "PreviewToolsPanel").IsVisible && Find<Button>(reopened, "ScorePropertiesButton").IsEnabled,
+                "expand-after-reopening-restores-available-tools");
             reopened.Close(); windows.Remove(reopened); Flush();
+            Check(!Settings.Load(settingsPath).IsPreviewControlsCompact, "expanded-preference-is-persisted-after-reopening");
             Check(fake.Requests > 0 && fake.InstallationRequests == 0 && !Directory.Exists(Path.Combine(work, "audio-never-used")), "smoke-performs-no-installation-network-or-audio");
             listener.Flush(); Check(string.IsNullOrWhiteSpace(bindingOutput.ToString()), "no-wpf-binding-errors");
-            File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, installationsPerformed = 0, networkRequests = 0, nativeRendererCalls = 0 }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, previewGeometry, installationsPerformed = 0, networkRequests = 0, nativeRendererCalls = 0 }, new JsonSerializerOptions { WriteIndented = true }));
             timeout.Stop(); Shutdown(0);
         }
         catch (Exception ex)
         {
-            File.WriteAllText(report, JsonSerializer.Serialize(new { status = "failed", checks, error = ex.ToString(), bindingDiagnostics = bindingOutput.ToString() }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(report, JsonSerializer.Serialize(new { status = "failed", checks, previewGeometry, error = ex.ToString(), bindingDiagnostics = bindingOutput.ToString() }, new JsonSerializerOptions { WriteIndented = true }));
             timeout.Stop(); foreach (var window in windows.ToArray()) try
             { if (window is NativeTransposeWindow) Find<ComboBox>(window, "NativeTransposeInterval").SelectedValue = 0; window.Close(); } catch { }
             Shutdown(1);

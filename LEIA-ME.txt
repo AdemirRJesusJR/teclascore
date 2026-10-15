@@ -1,9 +1,15 @@
-TECLASCORE · PRÉVIA 0.19.0
+TECLASCORE · PRÉVIA 0.19.1
+
+NOVO NA VERSÃO 0.19.1
+Na Prévia, Compactar controles reduz o player e recolhe as ferramentas, liberando espaço para a partitura. Reproduzir, pausar, parar e posição permanecem acessíveis; Expandir controles traz as opções de volta. A escolha fica salva.
+Execute TeclaScore-0.19.1-Setup-x64.exe e siga o assistente em português. A instalação é por usuário, com pasta própria, atalhos e desinstalador disponível nos Aplicativos instalados do Windows.
+O .NET Desktop Runtime 10 está incluído no EXE e no ZIP: não é preciso instalá-lo separadamente. Python/Pillow e MuseScore continuam necessários; use Configurações > Preparar este computador.
+A desinstalação preserva sua biblioteca, configurações, partituras e versões anteriores instaladas pelo ZIP. Abra o TeclaScore pelo atalho após concluir.
 
 NOVO NA VERSÃO 0.19.0
 MuseScore importado: Prévia > Transpor. Escolha o intervalo relativo à versão aberta, prepare a prévia, compare e ouça antes de Salvar nova versão. Original e Histórico preservados. Diagramas reconhecidos acompanham o tom; imagens e diagramas não reconhecidos nos compassos exigem a escolha explícita de removê-los apenas da cópia. Leia as limitações de estruturas especiais.
 Configurações > Preparar este computador: Detectar e verificar procura e testa Python/Pillow e MuseScore. Se necessário, os botões abrem downloads oficiais e Preparar Python do TeclaScore cria um ambiente separado com Pillow. Só Usar estas configurações salva os caminhos. O preparo de Pillow exige internet; nada é instalado ao abrir.
-Instalar.cmd orienta o .NET Desktop Runtime 10 e a arquitetura quando esse componente não é encontrado. Depois de instalá-lo pelo site oficial da Microsoft, abra o app e conclua o assistente.
+O ZIP com Instalar.cmd continua disponível. Na versão 0.19.1, o .NET Desktop Runtime 10 já acompanha os arquivos.
 Biblioteca: a lixeira vermelha aparece no próprio card. Remover preserva os arquivos e permite desfazer a última remoção durante a sessão.
 MIDI: passagens rápidas recebem refinamento local sem apagar ataques. Falhas que precisam de decisão aparecem na Revisão guiada com compasso e acesso à escolha da pista do trecho.
 
@@ -118,7 +124,7 @@ Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 5. Gere a partitura e confira a prévia / abra no MuseScore.
 6. Em Produção, use “Exportar ZIP” para reunir as partituras disponíveis na biblioteca.
 
-Requisitos: Windows, .NET Desktop Runtime 10, MuseScore Studio 4 e Python 3.11+ com Pillow.
+Requisitos: Windows 10 22H2/11 x64, MuseScore Studio 4 e Python 3.11+ com Pillow. .NET Desktop Runtime 10 incluído.
 A interface é em C#; o motor musical desta versão reaproveita o código Python validado.
 Os requisitos existentes neste computador são detectados automaticamente quando possível.
 
@@ -192,4 +198,4 @@ Revisão guiada identifica compassos para ouvir e conferir cifras após a análi
 Transpor atualiza a partitura gerada de MIDI, incluindo notas, cifras, armadura e diagramas.
 Estude em 25% a 150% sem mudar a afinação e marque A/B para repetir um trecho.
 Use Instalar.cmd para instalar por usuário. Em Sobre, consulte dependências e novas versões.
-As dependências externas continuam necessárias; não são incluídas no instalador.
+Python/Pillow e MuseScore continuam necessários; o runtime .NET está incluído.

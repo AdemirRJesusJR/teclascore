@@ -49,6 +49,13 @@ function Invoke-Check {
         $info.Environment['DOTNET_SKIP_FIRST_TIME_EXPERIENCE']='1';$info.Environment['DOTNET_CLI_TELEMETRY_OPTOUT']='1'
         $info.Environment['MSBuildEnableWorkloadResolver']='false'
         [void]$info.Environment.Remove('TECLAS_TEST_NATIVE_LABELS')
+        # ProcessStartInfo bypasses pwsh's automatic WinPSModulePath handling.
+        # Let Windows PowerShell reconstruct its own module paths instead of
+        # loading incompatible PS7 modules (which hides cmdlets like Get-FileHash).
+        # Only the child environment is changed; the runner/user environment stays intact.
+        if ([IO.Path]::GetFileName($Executable) -ieq 'powershell.exe') {
+            [void]$info.Environment.Remove('PSModulePath')
+        }
         $process=[Diagnostics.Process]::Start($info)
         $outTask=$process.StandardOutput.ReadToEndAsync();$errTask=$process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit($Timeout*1000)) {

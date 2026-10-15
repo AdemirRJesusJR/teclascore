@@ -25,6 +25,37 @@ function Test-TeclaScoreRuntimeText([string]$Text) {
         ($Text -match '(?m)^Microsoft\.NETCore\.App 10\.0\.\d+ \[')
 }
 
+function Test-TeclaScoreSelfContainedRuntime([string]$Executable) {
+    # A stray hostfxr.dll is not evidence of a complete self-contained WPF app.
+    # The package manifest verifies contents before this read-only inspection.
+    try {
+        $directory = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Executable))
+        $architecture = Get-TeclaScoreArchitecture $Executable
+        $configPath = [IO.Path]::ChangeExtension($Executable, '.runtimeconfig.json')
+        if (-not [IO.File]::Exists($configPath) -or (Get-Item -LiteralPath $configPath).Length -gt 1MB) { return $false }
+        $config = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if (-not $config.PSObject.Properties['runtimeOptions']) { return $false }
+        $options = $config.runtimeOptions
+        if ($null -eq $options -or -not $options.PSObject.Properties['includedFrameworks'] -or
+            $options.PSObject.Properties['framework'] -or $options.PSObject.Properties['frameworks']) { return $false }
+        $frameworks = @($options.includedFrameworks)
+        foreach ($name in @('Microsoft.NETCore.App', 'Microsoft.WindowsDesktop.App')) {
+            $frameworkMatches = @($frameworks | Where-Object { $_.PSObject.Properties['name'] -and $_.name -ceq $name })
+            if ($frameworkMatches.Count -ne 1 -or -not $frameworkMatches[0].PSObject.Properties['version'] -or
+                $frameworkMatches[0].version -notmatch '^10\.0\.\d+$') { return $false }
+        }
+        foreach ($name in @('hostfxr.dll', 'hostpolicy.dll', 'coreclr.dll', 'clrjit.dll')) {
+            if ((Get-TeclaScoreArchitecture (Join-Path $directory $name)) -ne $architecture) { return $false }
+        }
+        foreach ($name in @('Teclas.Partituras.dll', 'Teclas.Core.dll', 'System.Private.CoreLib.dll',
+            'System.Runtime.dll', 'WindowsBase.dll', 'PresentationCore.dll', 'PresentationFramework.dll')) {
+            $file = Join-Path $directory $name
+            if (-not [IO.File]::Exists($file) -or (Get-Item -LiteralPath $file).Length -eq 0) { return $false }
+        }
+        return $true
+    } catch { return $false }
+}
+
 function Resolve-TeclaScoreRuntimeRoot(
     [string]$Architecture, [string]$OperatingSystemArchitecture,
     [System.Collections.IDictionary]$EnvironmentValues, [AllowNull()][object]$RegisteredRoot,
@@ -91,9 +122,9 @@ function Test-TeclaScoreSelectedRuntime($Selection, [string]$Architecture,
     [scriptblock]$Probe = { param($Candidate, $Arch) Test-TeclaScoreRuntimeExecutable $Candidate $Arch }) {
     $ready = $false; $candidate = $null
     try {
-        # This installer ships a framework-dependent app, not an app-local runtime.
-        # An unexpected local hostfxr overrides global discovery; don't certify it
-        # by probing an unrelated global dotnet installation.
+        # Complete self-contained packages are recognized before this probe.
+        # An unrecognized local hostfxr still overrides global discovery; don't
+        # certify it by probing an unrelated global dotnet installation.
         if ($Selection.Root -and $Selection.Source -ne 'AppLocal') {
             $candidate = Join-Path $Selection.Root 'dotnet.exe'
             $ready = [bool](& $Probe $candidate $Architecture)
@@ -105,6 +136,10 @@ function Test-TeclaScoreSelectedRuntime($Selection, [string]$Architecture,
 
 function Get-TeclaScoreRuntimeStatus([string]$Executable) {
     $architecture = Get-TeclaScoreArchitecture $Executable
+    if (Test-TeclaScoreSelfContainedRuntime $Executable) {
+        return [PSCustomObject]@{ Ready=$true; Architecture=$architecture; DotnetPath=$null;
+            RuntimeRoot=[IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Executable)); RootSource='SelfContained' }
+    }
     $environmentValues = [Environment]::GetEnvironmentVariables()
     $osArchitecture = [string]$environmentValues['PROCESSOR_ARCHITEW6432']
     if (-not $osArchitecture) { $osArchitecture = [string]$environmentValues['PROCESSOR_ARCHITECTURE'] }

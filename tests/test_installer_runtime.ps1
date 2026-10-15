@@ -97,6 +97,88 @@ $selection=Resolve-TeclaScoreRuntimeRoot 'x64' 'x64' @{'DOTNET_ROOT_X64'=$fixtur
 $status=Test-TeclaScoreSelectedRuntime $selection 'x64'
 Assert (-not $status.Ready -and $selection.Root -eq $fixtureRoot) 'real-empty-private-directory-is-not-ready'
 Assert (-not (Test-TeclaScoreRuntimeExecutable (Join-Path $root 'x64.fixture') 'x64')) 'invalid-runtime-executable-is-not-ready'
+# Self-contained detection needs both framework declarations and compatible files.
+$selfDirectory=Join-Path $root 'self-contained'
+New-Item -ItemType Directory -Path $selfDirectory -Force | Out-Null
+$selfExecutable=Join-Path $selfDirectory 'Teclas.Partituras.exe'
+$selfConfig=Join-Path $selfDirectory 'Teclas.Partituras.runtimeconfig.json'
+$nativeBytes=New-Object byte[] 128
+[BitConverter]::GetBytes([uint16]0x5a4d).CopyTo($nativeBytes,0)
+[BitConverter]::GetBytes([int32]64).CopyTo($nativeBytes,60)
+[BitConverter]::GetBytes([uint32]0x4550).CopyTo($nativeBytes,64)
+[BitConverter]::GetBytes([uint16]0x8664).CopyTo($nativeBytes,68)
+foreach($name in @('Teclas.Partituras.exe','hostfxr.dll','hostpolicy.dll','coreclr.dll','clrjit.dll')) {
+    [IO.File]::WriteAllBytes((Join-Path $selfDirectory $name),$nativeBytes)
+}
+$managedNames=@('Teclas.Partituras.dll','Teclas.Core.dll','System.Private.CoreLib.dll','System.Runtime.dll','WindowsBase.dll','PresentationCore.dll','PresentationFramework.dll')
+foreach($name in $managedNames) { [IO.File]::WriteAllBytes((Join-Path $selfDirectory $name),[byte[]]@(77,90,1)) }
+$included=@(@{name='Microsoft.NETCore.App';version='10.0.10'},@{name='Microsoft.WindowsDesktop.App';version='10.0.10'})
+function Write-SelfConfig($Options) { @{runtimeOptions=$Options} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $selfConfig -Encoding UTF8 }
+Write-SelfConfig @{tfm='net10.0';includedFrameworks=$included}
+Assert (Test-TeclaScoreSelfContainedRuntime $selfExecutable) 'self-contained-complete-x64-layout-accepted'
+$status=Get-TeclaScoreRuntimeStatus $selfExecutable
+Assert ($status.Ready -and $status.RootSource -eq 'SelfContained' -and $null -eq $status.DotnetPath) 'self-contained-ready-without-global-dotnet-probe'
+foreach($name in $managedNames) {
+    [IO.File]::WriteAllBytes((Join-Path $selfDirectory $name),[byte[]]@())
+    Assert (-not (Test-TeclaScoreSelfContainedRuntime $selfExecutable)) ('self-contained-rejects-empty-'+$name)
+    [IO.File]::WriteAllBytes((Join-Path $selfDirectory $name),[byte[]]@(77,90,1))
+}
+$wrongNative=$nativeBytes.Clone();[BitConverter]::GetBytes([uint16]0x014c).CopyTo($wrongNative,68)
+foreach($name in @('hostfxr.dll','hostpolicy.dll','coreclr.dll','clrjit.dll')) {
+    [IO.File]::WriteAllBytes((Join-Path $selfDirectory $name),$wrongNative)
+    Assert (-not (Test-TeclaScoreSelfContainedRuntime $selfExecutable)) ('self-contained-rejects-wrong-architecture-'+$name)
+    [IO.File]::WriteAllBytes((Join-Path $selfDirectory $name),$nativeBytes)
+}
+foreach($options in @(@{frameworks=$included},@{includedFrameworks=$included;frameworks=$included},
+    @{includedFrameworks=$included;framework=@{name='Microsoft.NETCore.App';version='10.0.10'}},
+    @{includedFrameworks=@($included[0])},@{includedFrameworks=@($included[1])},
+    @{includedFrameworks=@($included[0],$included[1],$included[1])},
+    @{includedFrameworks=@($included[0],@{name='Microsoft.WindowsDesktop.App';version='10.0.0-preview.1'})},
+    @{includedFrameworks=@(@{name='Microsoft.NETCore.App';version='9.0.10'},$included[1])})) {
+    Write-SelfConfig $options
+    Assert (-not (Test-TeclaScoreSelfContainedRuntime $selfExecutable)) ('self-contained-rejects-incompatible-config-'+$checks.Count)
+}
+[IO.File]::WriteAllText($selfConfig,'{bad json')
+Assert (-not (Test-TeclaScoreSelfContainedRuntime $selfExecutable)) 'self-contained-rejects-corrupt-json'
+[IO.File]::WriteAllText($selfConfig,(' ' * (1MB+1)))
+Assert (-not (Test-TeclaScoreSelfContainedRuntime $selfExecutable)) 'self-contained-config-read-is-bounded'
+$status=Get-TeclaScoreRuntimeStatus $selfExecutable
+Assert (-not $status.Ready -and $status.RootSource -eq 'AppLocal') 'stray-local-hostfxr-never-certifies-global-runtime'
+Write-SelfConfig @{tfm='net10.0';includedFrameworks=$included}
+# Extract only the publisher's pure artifact validator. Never execute its Git,
+# credentials, network or release publication code in this regression suite.
+$publisherPath=Join-Path (Split-Path -Parent $PSScriptRoot) 'tools\publish_release.ps1'
+$publisherTokens=$null;$publisherErrors=$null
+$publisherAst=[Management.Automation.Language.Parser]::ParseFile($publisherPath,[ref]$publisherTokens,[ref]$publisherErrors)
+Assert ($publisherErrors.Count -eq 0) 'powershell-parser-publish-release'
+$artifactFunction=$publisherAst.Find({param($Node) $Node -is [Management.Automation.Language.FunctionDefinitionAst] -and $Node.Name -eq 'Get-TeclaScoreReleaseArtifacts'},$true)
+. ([scriptblock]::Create($artifactFunction.Extent.Text))
+$releaseDirectory=Join-Path $root 'release-fixtures'
+New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
+$zipName='TeclaScore-0.19.1-Windows.zip';$setupName='TeclaScore-0.19.1-Setup-x64.exe'
+[IO.File]::WriteAllText((Join-Path $releaseDirectory $zipName),'ZIP fixture')
+[IO.File]::WriteAllText((Join-Path $releaseDirectory $setupName),'EXE fixture')
+$zipHash=(Get-FileHash -LiteralPath (Join-Path $releaseDirectory $zipName) -Algorithm SHA256).Hash.ToLowerInvariant()
+$setupHash=(Get-FileHash -LiteralPath (Join-Path $releaseDirectory $setupName) -Algorithm SHA256).Hash.ToLowerInvariant()
+$sumFile=Join-Path $releaseDirectory 'SHA256SUMS'
+$zipLine=$zipHash+'  '+$zipName;$setupLine=$setupHash+'  '+$setupName
+[IO.File]::WriteAllText($sumFile,($zipLine+"`r`n"+$setupLine+"`r`n"))
+$artifacts=Get-TeclaScoreReleaseArtifacts $releaseDirectory '0.19.1'
+Assert ($artifacts.Assets.Count -eq 3 -and $artifacts.ZipSha256 -eq $zipHash) 'publisher-accepts-exact-zip-exe-and-checksums'
+[IO.File]::WriteAllText($sumFile,($setupHash.ToUpperInvariant()+' *'+$setupName+"`n"+$zipLine+"`n"))
+Assert ((Get-TeclaScoreReleaseArtifacts $releaseDirectory '0.19.1').Assets.Count -eq 3) 'publisher-accepts-checksum-order-and-standard-binary-marker'
+foreach($invalidSums in @($zipLine,($zipLine+"`n"+$zipLine+"`n"+$setupLine),
+    ($zipLine+"`n"+$setupLine+"`n"+$zipHash+'  unrelated.exe'),
+    ($zipLine+"`n"+('0'*64)+'  '+$setupName),($zipLine+"`n"+$setupLine.Replace('Setup','setup')),
+    ($zipLine+"`nnot a checksum"),(' '*(1MB+1)))) {
+    [IO.File]::WriteAllText($sumFile,$invalidSums)
+    $rejected=$false;try{Get-TeclaScoreReleaseArtifacts $releaseDirectory '0.19.1' | Out-Null}catch{$rejected=$true}
+    Assert $rejected ('publisher-rejects-invalid-checksum-set-'+$checks.Count)
+}
+[IO.File]::WriteAllText($sumFile,($zipLine+"`n"+$setupLine+"`n"))
+[IO.File]::WriteAllText((Join-Path $releaseDirectory $setupName),'changed EXE fixture')
+$rejected=$false;try{Get-TeclaScoreReleaseArtifacts $releaseDirectory '0.19.1' | Out-Null}catch{$rejected=$true}
+Assert $rejected 'publisher-rejects-changed-exe'
 $environmentAfter=[Environment]::GetEnvironmentVariables()
 $environmentUnchanged=$environmentBefore.Count -eq $environmentAfter.Count
 foreach($key in $environmentBefore.Keys) { if($environmentBefore[$key] -cne $environmentAfter[$key]) { $environmentUnchanged=$false } }

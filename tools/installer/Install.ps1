@@ -93,7 +93,7 @@ try {
     $complete = $true
     Write-Output ("TeclaScore {0} instalado em {1}" -f $manifest.version, $destination)
     Write-Output 'Biblioteca, configuracoes e partituras anteriores preservadas.'
-    Write-Output 'Requisitos: .NET Desktop Runtime 10, MuseScore 4 e Python 3.11+ com Pillow.'
+    Write-Output 'Para gerar e reproduzir: MuseScore 4 e Python 3.11+ com Pillow.'
     try { Show-TeclaScoreRuntimeGuidance $runtimeStatus -Interactive:$PrepareComputer }
     catch { Write-Output 'Instalacao concluida. Consulte LEIA-ME.txt para preparar as dependencias.' }
 }
