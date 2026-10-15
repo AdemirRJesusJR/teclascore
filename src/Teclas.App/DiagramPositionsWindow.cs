@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Data;
+using Teclas.Core;
 
 namespace Teclas.App;
 
@@ -10,10 +11,15 @@ public sealed class DiagramPositionsWindow : Window
     private readonly List<DiagramDraft> drafts;
     private readonly DataGrid table;
     private readonly TextBlock summary;
+    private readonly int defaultInversion;
+    private readonly int transpose;
 
     public IReadOnlyList<int?> Inversions => drafts.Select(draft => draft.Inversion).ToArray();
+    public int ComfortableMaximumSpan { get; private set; }
 
-    public DiagramPositionsWindow(MidiRow row)
+    public DiagramPositionsWindow(MidiRow row) : this(row, 12) { }
+
+    public DiagramPositionsWindow(MidiRow row, int comfortableMaximumSpan)
     {
         Title = "Posições dos diagramas";
         Width = 790; Height = 690; MinWidth = 650; MinHeight = 530;
@@ -21,6 +27,9 @@ public sealed class DiagramPositionsWindow : Window
         DialogUi.Theme(this);
         NameScope.SetNameScope(this, new NameScope());
         drafts = row.Chords.Select(chord => new DiagramDraft(chord)).ToList();
+        defaultInversion = row.EffectiveDiagramInversion;
+        transpose = row.TransposeSemitones;
+        ComfortableMaximumSpan = comfortableMaximumSpan is 7 or 9 or 10 or 12 ? comfortableMaximumSpan : 12;
 
         var root = new Grid { Margin = new Thickness(24) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -82,6 +91,10 @@ public sealed class DiagramPositionsWindow : Window
         });
         reset.Name = "ResetDiagramPositionsButton"; reset.IsEnabled = drafts.Count > 0;
         RegisterName(reset.Name, reset); bulk.Children.Add(reset);
+        var suggest = DialogUi.Button("Sugerir posições confortáveis", (_, _) => SuggestComfortablePositions());
+        suggest.Name = "SuggestComfortableVoicingsButton"; suggest.IsEnabled = drafts.Count > 0;
+        suggest.ToolTip = "Comparar posições que reduzem saltos da mão; suas escolhas individuais serão preservadas.";
+        RegisterName(suggest.Name, suggest); bulk.Children.Add(suggest);
         summary = Muted("", 8); footer.Children.Add(summary);
         footer.Children.Add(Muted("A posição conta semínimas desde o início do MIDI. Ao aplicar, a partitura será atualizada automaticamente.", 5));
 
@@ -98,6 +111,23 @@ public sealed class DiagramPositionsWindow : Window
         foreach (var draft in drafts) draft.PropertyChanged += (_, _) => RefreshSummary();
         table.SelectionChanged += (_, _) => same.IsEnabled = table.SelectedItem is DiagramDraft;
         if (drafts.Count > 0) table.SelectedIndex = 0;
+        RefreshSummary();
+    }
+
+    private void SuggestComfortablePositions()
+    {
+        var sequence = drafts.Select((draft, index) => new VoicingOccurrence(index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            $"Semínima {draft.Quarter:0.###}", draft.Root, draft.Quality, draft.Inversion ?? defaultInversion,
+            draft.Inversion.HasValue, transpose)).ToArray();
+        var dialog = new ComfortableVoicingsWindow(sequence, ComfortableMaximumSpan) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        ComfortableMaximumSpan = dialog.Plan.MaximumSpan;
+        for (int i = 0; i < drafts.Count; i++)
+        {
+            var suggestion = dialog.Plan.Suggestions[i];
+            if (suggestion.Changed && !drafts[i].Inversion.HasValue)
+                drafts[i].Inversion = suggestion.SuggestedInversion;
+        }
         RefreshSummary();
     }
 

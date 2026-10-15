@@ -7,7 +7,12 @@ namespace Teclas.Core;
 
 public sealed record MusicNote(string Id, int Pitch, int Tpc, string Name, bool CanEdit, string Restriction);
 public sealed record MusicEvent(string Id, int Staff, int Measure, int Voice, double? Quarter, string Kind,
-    string DurationType, int Dots, IReadOnlyList<MusicNote> Notes, bool CanEditDuration, string Restriction);
+    string DurationType, int Dots, IReadOnlyList<MusicNote> Notes, bool CanEditDuration, string Restriction)
+{
+    public bool CanRestructure { get; init; }
+    public string StructureRestriction { get; init; } = "";
+    public double? DurationQuarter { get; init; }
+}
 public sealed record MusicHarmony(string Id, int Staff, int Measure, int Voice, double? Quarter, string Root,
     string Quality, bool CanEdit, string Restriction, bool HasDiagram, int? DiagramInversion);
 public sealed record MusicMeasure(int Staff, int Number, string Label, IReadOnlyList<MusicEvent> Events, IReadOnlyList<MusicHarmony> Harmonies);
@@ -17,10 +22,14 @@ public sealed record MusicNoteChange(string Id, int Pitch, int Tpc);
 public sealed record MusicDurationChange(string Id, string DurationType, int Dots);
 public sealed record MusicHarmonyChange(string Id, string Root, string Quality, int? DiagramInversion = null);
 public sealed record NativeMusicEdits(IReadOnlyList<MusicNoteChange> Notes, IReadOnlyList<MusicDurationChange> Durations,
-    IReadOnlyList<MusicHarmonyChange> Harmonies);
+    IReadOnlyList<MusicHarmonyChange> Harmonies)
+{
+    public IReadOnlyList<MusicEventReplacement> EventReplacements { get; init; } = [];
+    public IReadOnlyList<MusicVoiceCopy> VoiceCopies { get; init; } = [];
+}
 
 /// <summary>Conservative patches over the native XML; unrelated music and archive entries are retained.</summary>
-public static class NativeMusicEditor
+public static partial class NativeMusicEditor
 {
     public static NativeMusicModel Open(string path, CancellationToken token = default) => Read(path, token).Model;
 
@@ -75,6 +84,7 @@ public static class NativeMusicEditor
             token.ThrowIfCancellationRequested();
             NativeHarmonyEditing.Apply(state.Archive, state.Harmonies[change.Id].Node, change.Root, change.Quality, change.DiagramInversion);
         }
+        ApplyStructure(state, edits);
         CheckSource(model, token);
         token.ThrowIfCancellationRequested();
         string temporary = Path.Combine(Path.GetDirectoryName(destination)!, ".teclas-draft-" + Guid.NewGuid().ToString("N") + ".mscz");
@@ -242,7 +252,10 @@ public static class NativeMusicEditor
                             string type = (string?)child.Element("durationType") ?? "";
                             int dots = ReadDots(child);
                             var item = new MusicEvent(id, si + 1, mi, vi, quarter, child.Name.LocalName, type, dots,
-                                eventNotes.ToArray(), restrictionDuration.Length == 0, restrictionDuration);
+                                eventNotes.ToArray(), restrictionDuration.Length == 0, restrictionDuration)
+                            { DurationQuarter = EventLength(child, measureQuarter),
+                              StructureRestriction = First(global, staffRestriction, timing, StructureRestriction(child)),
+                              CanRestructure = First(global, staffRestriction, timing, StructureRestriction(child)).Length == 0 };
                             var target = new EventTarget(child, item, EventLength(child, measureQuarter));
                             events.Add(id, target); eventTargets.Add(target); measureEvents.Add(item);
                             anchors.Add(new(quarter, id));
@@ -277,7 +290,8 @@ public static class NativeMusicEditor
     {
         var errors = new List<string>();
         if (edits.Notes is null || edits.Durations is null || edits.Harmonies is null) return ["A lista de alterações está incompleta."];
-        if (edits.Notes.Count + edits.Durations.Count + edits.Harmonies.Count == 0) return ["Faça uma alteração antes de preparar a prévia."];
+        if (edits.EventReplacements is null || edits.VoiceCopies is null) return ["A lista de alterações estruturais está incompleta."];
+        if (edits.Notes.Count + edits.Durations.Count + edits.Harmonies.Count + edits.EventReplacements.Count + edits.VoiceCopies.Count == 0) return ["Faça uma alteração antes de preparar a prévia."];
         if ((long)edits.Notes.Count + edits.Durations.Count + edits.Harmonies.Count > 10000) return ["Aplique no máximo 10.000 alterações por vez."];
         var used = new HashSet<string>(StringComparer.Ordinal);
         bool changed = false;
@@ -334,6 +348,7 @@ public static class NativeMusicEditor
             catch (Exception error) when (error is ArgumentException or InvalidOperationException or InvalidDataException) { errors.Add(error.Message); }
             changed |= edit.Root != target.View.Root || edit.Quality != target.View.Quality || target.View.HasDiagram && edit.DiagramInversion is { } inversion && inversion != target.View.DiagramInversion;
         }
+        changed |= ValidateStructure(state, edits, errors);
         if (!changed) errors.Add("Nenhuma alteração musical foi solicitada.");
         return errors.Distinct(StringComparer.Ordinal).Take(30).ToArray();
     }

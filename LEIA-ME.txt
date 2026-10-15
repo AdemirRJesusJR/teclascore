@@ -1,4 +1,11 @@
-TECLASCORE · PRÉVIA 0.15.0
+TECLASCORE · PRÉVIA 0.16.0
+
+NOVO NA VERSÃO 0.16.0
+O Editor musical protege rascunhos automaticamente neste computador. Após uma interrupção, abra Rascunhos na barra lateral; a recuperação usa uma cópia preservada, mesmo se o arquivo original tiver sido movido. Ao fechar o editor, escolha manter ou descartar. Rascunhos locais e repertórios de apresentação não fazem parte do backup portátil da biblioteca.
+No editor, insira notas em pausas, transforme eventos em pausas, exclua notas e copie uma voz para um compasso compatível. O total rítmico deve permanecer correto; elementos complexos mostram sua limitação. Atualize a prévia e ouça antes de salvar a nova versão.
+Em Posições dos diagramas, use as sugestões de posições confortáveis, escolha o alcance e confira antes/depois. As escolhas individuais permanecem protegidas. No editor de MuseScore, as sugestões ficam na aba Cifras e exigem liberar explicitamente os diagramas que podem mudar. A sugestão altera o desenho do acorde, sem modificar a melodia ou o áudio.
+Na barra lateral, Apresentação permite montar e ordenar um repertório e guardar anotações. Na apresentação, use setas, Page Up/Page Down ou Espaço para virar páginas; Ctrl+setas muda a música e Esc volta à organização. Pedais USB que emulam essas teclas são compatíveis; entrada MIDI de pedal não está incluída.
+Nomes de instrumentos muito próximos recebem faixas de texto e maior espaço entre sistemas. A quantidade de páginas pode aumentar para preservar os nomes completos e a legibilidade.
 
 
 NOVO NA VERSÃO 0.15.0

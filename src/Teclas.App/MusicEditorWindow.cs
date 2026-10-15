@@ -10,11 +10,15 @@ using Teclas.Core;
 
 namespace Teclas.App;
 
-public sealed class MusicEditorWindow : Window
+public sealed partial class MusicEditorWindow : Window
 {
     private sealed record RhythmValue(string Duration, int Dots);
     private sealed record HarmonyValue(string Root, string Quality, int Inversion);
-    private sealed record DraftState(Dictionary<string,string> Notes, Dictionary<string,RhythmValue> Rhythms, Dictionary<string,HarmonyValue> Harmonies);
+    private sealed record DraftState(Dictionary<string,string> Notes, Dictionary<string,RhythmValue> Rhythms, Dictionary<string,HarmonyValue> Harmonies)
+    {
+        public MusicEventReplacement[] EventReplacements { get; init; } = [];
+        public MusicVoiceCopy[] VoiceCopies { get; init; } = [];
+    }
     private sealed record Choice(object Value, string Label);
     private readonly NativeMusicModel model;
     private readonly string? originalPreview;
@@ -46,12 +50,17 @@ public sealed class MusicEditorWindow : Window
     private readonly Dictionary<string, string> mappedEventIds = new(StringComparer.Ordinal);
     private bool selectingFromScore;
     public NativeScoreResult? Result { get; private set; }
-    public bool HasChanges => current.Notes.Count + current.Rhythms.Count + current.Harmonies.Count > 0;
+    public bool HasChanges => current.Notes.Count + current.Rhythms.Count + current.Harmonies.Count + current.EventReplacements.Length + current.VoiceCopies.Length > 0;
+
+    public MusicEditorWindow(NativeMusicModel model, string? initialPreview,
+        Func<NativeMusicEdits,IProgress<string>,CancellationToken,Task<NativeScoreResult>> prepare,
+        Func<NativeScoreResult,IProgress<string>,CancellationToken,Task<NativeScoreResult>> publish, EditorScorePlayback playback)
+        : this(model, initialPreview, prepare, publish, playback, null, null) { }
 
     public MusicEditorWindow(NativeMusicModel model, string? initialPreview,
         Func<NativeMusicEdits,IProgress<string>,CancellationToken,Task<NativeScoreResult>> prepare,
         Func<NativeScoreResult,IProgress<string>,CancellationToken,Task<NativeScoreResult>> publish,
-        EditorScorePlayback playback)
+        EditorScorePlayback playback, string? recoveryDirectory = null, EditorDraftCheckpoint? initialRecovery = null)
     {
         this.model=model; originalPreview=initialPreview; this.prepare=prepare; this.publish=publish; this.playback=playback;
         notes=model.Measures.SelectMany(m=>m.Events).SelectMany(e=>e.Notes.Select(n=>new MusicNoteRow(n,e,Changed))).ToList();
@@ -109,7 +118,12 @@ public sealed class MusicEditorWindow : Window
         harmonyGrid.Columns.Add(Options("Diagrama",nameof(MusicHarmonyRow.Inversion),nameof(MusicHarmonyRow.CanEditDiagram),
             new[]{new Choice(0,"Fundamental"),new(1,"1ª inversão"),new(2,"2ª inversão")},155));
         harmonyGrid.Columns.Add(Text("Observação",nameof(MusicHarmonyRow.Restriction),190));
-        tabs.Items.Add(new TabItem{Header="Cifras",Content=harmonyGrid});
+        var harmonyPanel = new DockPanel();
+        var voicingsButton = CreateVoicingSuggestionsButton(); DockPanel.SetDock(voicingsButton, Dock.Top); harmonyPanel.Children.Add(voicingsButton); harmonyPanel.Children.Add(harmonyGrid);
+        tabs.Items.Add(new TabItem{Header="Cifras",Content=harmonyPanel});
+        InitializeStructureEditor();
+        noteGrid.SelectionChanged += (_, _) => { if(noteGrid.SelectedItem is MusicNoteRow n) SelectStructureEvent(n.Event.Id); };
+        rhythmGrid.SelectionChanged += (_, _) => { if(rhythmGrid.SelectedItem is MusicRhythmRow r) SelectStructureEvent(r.Event.Id); };
         var preview=new DockPanel();Grid.SetColumn(preview,2);body.Children.Add(preview);
         previewStatus=new TextBlock{Text="Partitura salva · selecione o compasso no editor à esquerda.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,8)};
         DockPanel.SetDock(previewStatus,Dock.Top);preview.Children.Add(previewStatus);
@@ -144,8 +158,9 @@ public sealed class MusicEditorWindow : Window
         playback.PlaybackFailed+=PlaybackFailed;
         timer.Tick+=(_,_)=>Tick();timer.Start();
         Closing+=OnClosing;
-        Closed+=(_,_)=>{closed=true;operation?.Cancel();timer.Stop();playback.StateChanged-=PlaybackChanged;playback.PlaybackFailed-=PlaybackFailed;playback.Dispose();};
+        Closed+=(_,_)=>{CloseRecovery(discardConfirmed || Result is not null);closed=true;operation?.Cancel();timer.Stop();playback.StateChanged-=PlaybackChanged;playback.PlaybackFailed-=PlaybackFailed;playback.Dispose();};
         staff.SelectedIndex=0;Refresh();
+        InitializeRecovery(recoveryDirectory, initialRecovery);
         Loaded += async (_, _) => await Run("Localizando notas e compassos na pauta", async token => await EnsureMap(model.SourcePath, token));
     }
 
@@ -178,6 +193,7 @@ public sealed class MusicEditorWindow : Window
         noteGrid.ItemsSource=notes.Where(n=>n.Event.Staff==m.Staff&&n.Event.Measure==m.Number).ToArray();
         rhythmGrid.ItemsSource=rhythms.Where(n=>n.Event.Staff==m.Staff&&n.Event.Measure==m.Number).ToArray();
         harmonyGrid.ItemsSource=harmonies.Where(n=>n.Harmony.Staff==m.Staff&&n.Harmony.Measure==m.Number).ToArray();
+        UpdateStructureMeasure(m);
         if(!selectingFromScore)
         {
             scoreSelection=null;
@@ -190,7 +206,8 @@ public sealed class MusicEditorWindow : Window
         notes.Where(n=>n.Value!=n.Note.Name).ToDictionary(n=>n.Note.Id,n=>n.Value),
         rhythms.Where(r=>r.Duration!=r.Event.DurationType||r.Dots!=r.Event.Dots).ToDictionary(r=>r.Event.Id,r=>new RhythmValue(r.Duration,r.Dots)),
         harmonies.Where(h=>h.Root!=h.Harmony.Root||h.Quality!=h.Harmony.Quality||(h.Harmony.HasDiagram&&h.Inversion!=h.Harmony.DiagramInversion))
-            .ToDictionary(h=>h.Harmony.Id,h=>new HarmonyValue(h.Root,h.Quality,h.Inversion)));
+            .ToDictionary(h=>h.Harmony.Id,h=>new HarmonyValue(h.Root,h.Quality,h.Inversion)))
+        { EventReplacements = structureReplacements.ToArray(), VoiceCopies = structureCopies.ToArray() };
     private void Changed()
     {
         if(restoring||closed)return;
@@ -203,12 +220,15 @@ public sealed class MusicEditorWindow : Window
         if(!HasChanges)viewer.FirstPagePath=originalPreview;
         previewStatus.Text=HasChanges?"Prévia anterior · atualize para conferir o rascunho.":"Partitura salva · nenhuma alteração no rascunho.";
         status.Text=HasChanges?"Rascunho alterado. Atualize a prévia antes de salvar.":"Rascunho igual à partitura salva.";Refresh();
+        ScheduleRecovery();
     }
     private void Restore(DraftState state)
     {
         restoring=true;
         try
         {
+            structureReplacements.Clear(); structureReplacements.AddRange(state.EventReplacements);
+            structureCopies.Clear(); structureCopies.AddRange(state.VoiceCopies);
             foreach(var row in notes)row.Value=state.Notes.GetValueOrDefault(row.Note.Id,row.Note.Name);
             foreach(var row in rhythms){var value=state.Rhythms.GetValueOrDefault(row.Event.Id,new(row.Event.DurationType,row.Event.Dots));row.Duration=value.Duration;row.Dots=value.Dots;}
             foreach(var row in harmonies){var value=state.Harmonies.GetValueOrDefault(row.Harmony.Id,new(row.Harmony.Root,row.Harmony.Quality,row.Harmony.DiagramInversion??2));row.Root=value.Root;row.Quality=value.Quality;row.Inversion=value.Inversion;}
@@ -227,7 +247,8 @@ public sealed class MusicEditorWindow : Window
             if(pitch!=row.Note.Pitch||tpc!=row.Note.Tpc)changes.Add(new(row.Note.Id,pitch,tpc));
         }
         return new(changes,current.Rhythms.Select(p=>new MusicDurationChange(p.Key,p.Value.Duration,p.Value.Dots)).ToArray(),
-            harmonies.Where(h=>current.Harmonies.ContainsKey(h.Harmony.Id)).Select(h=>new MusicHarmonyChange(h.Harmony.Id,h.Root,h.Quality,h.Harmony.HasDiagram?h.Inversion:null)).ToArray());
+            harmonies.Where(h=>current.Harmonies.ContainsKey(h.Harmony.Id)).Select(h=>new MusicHarmonyChange(h.Harmony.Id,h.Root,h.Quality,h.Harmony.HasDiagram?h.Inversion:null)).ToArray())
+            { EventReplacements=current.EventReplacements, VoiceCopies=current.VoiceCopies };
     }
     private IProgress<string> Progress()
     {
@@ -268,7 +289,7 @@ public sealed class MusicEditorWindow : Window
     {
         if(!HasChanges||prepared is null||preparedRevision!=revision)throw new InvalidOperationException("Atualize a prévia antes de salvar.");
         playback.Stop();Result=await publish(prepared,Progress(),token);
-        discardConfirmed=true;DialogResult=true;
+        CompleteRecovery();discardConfirmed=true;DialogResult=true;
     });
     private async Task Run(string title,Func<CancellationToken,Task> action)
     {
@@ -293,6 +314,7 @@ public sealed class MusicEditorWindow : Window
         saveButton.IsEnabled=idle&&HasChanges&&prepared is not null&&preparedRevision==revision;
         progressPanel.Visibility=idle?Visibility.Collapsed:Visibility.Visible;
         seek.IsEnabled=idle&&playback.HasAudio;
+        RefreshStructure();
     }
     private void Tick()
     {
@@ -330,7 +352,9 @@ public sealed class MusicEditorWindow : Window
             bool sameInventory=sourceEvents.Count==renderedEvents.Length&&renderedEvents.All(e=>
                 sourceEvents.TryGetValue(Address(e.Id),out var original)&&original.Kind==e.Kind&&original.Notes.Count==e.Notes.Count);
             mappedEventIds.Clear();
-            if(sameInventory)foreach(var e in renderedEvents)mappedEventIds[e.Id]=sourceEvents[Address(e.Id)].Id;
+            if(sameInventory && current.EventReplacements.Length+current.VoiceCopies.Length==0)
+                foreach(var e in renderedEvents)mappedEventIds[e.Id]=sourceEvents[Address(e.Id)].Id;
+            else BindStructuredEvents(renderedEvents);
             scoreMap=map;scoreSelection=null;viewer.SetPlaybackMap(map);
             if(!map.CanSynchronize)previewStatus.Text="Prévia disponível · "+map.Limitations.LastOrDefault();
             else previewStatus.Text="Clique em uma nota ou ataque na pauta. Acordes e vozes simultâneas aparecem na lista para escolha.";
@@ -350,7 +374,7 @@ public sealed class MusicEditorWindow : Window
         var ids=e.EventIds.Where(mappedEventIds.ContainsKey).Select(id=>mappedEventIds[id]).ToHashSet(StringComparer.Ordinal);
         var candidates=notes.Where(n=>ids.Contains(n.Event.Id)).ToArray();
         var selectedStaff=candidates.Any(n=>n.Event.Staff==(int?)staff.SelectedItem)?(int)staff.SelectedItem!:
-            candidates.FirstOrDefault()?.Event.Staff??(staff.SelectedItem is int currentStaff?currentStaff:1);
+            candidates.FirstOrDefault()?.Event.Staff??rhythms.FirstOrDefault(r=>ids.Contains(r.Event.Id))?.Event.Staff??(staff.SelectedItem is int currentStaff?currentStaff:1);
         selectingFromScore=true;
         try
         {
@@ -359,6 +383,7 @@ public sealed class MusicEditorWindow : Window
         }
         finally{selectingFromScore=false;}
         scoreSelection=e;
+        if(SelectStructuredAttack(e, ids)){Refresh();return;}
         var selectedNotes=candidates.Where(n=>n.Event.Staff==selectedStaff).ToArray();
         var target=selectedNotes.FirstOrDefault();
         if(target is not null)
@@ -394,6 +419,17 @@ public sealed class MusicEditorWindow : Window
     {
         if(discardConfirmed||Result is not null)return;
         if(operation is not null){e.Cancel=true;pendingClose=true;operation.Cancel();playback.Stop();status.Text="Cancelando antes de fechar…";return;}
-        if(HasChanges&&MessageBox.Show(this,"Descartar as alterações do rascunho e fechar?","Editor musical",MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)!=MessageBoxResult.Yes)e.Cancel=true;
+        if(HasChanges)
+        {
+            if(recoveryStore is not null)
+            {
+                var answer=MessageBox.Show(this,"Manter o rascunho para continuar depois?\nSim: protege as alterações neste computador.\nNão: descarta o rascunho.","Editor musical",MessageBoxButton.YesNoCancel,MessageBoxImage.Question,MessageBoxResult.Yes);
+                if(answer==MessageBoxResult.Cancel || (answer==MessageBoxResult.Yes && !FlushRecovery())) e.Cancel=true;
+                else if(answer==MessageBoxResult.No) discardConfirmed=true;
+                return;
+            }
+            if(MessageBox.Show(this,"Descartar as alterações do rascunho e fechar?","Editor musical",MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)!=MessageBoxResult.Yes)e.Cancel=true;
+            else discardConfirmed=true;
+        }
     }
 }

@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.16.0 — 2026-10-14
+
+- Rascunhos do Editor musical protegidos automaticamente, com cópia imutável da partitura base, gravação atômica e recuperação após interrupção. O editor permite manter ou descartar as alterações ao fechar; a barra lateral mostra os rascunhos disponíveis.
+- Inserção de notas em pausas, exclusão com preservação da duração, criação de pausas e cópia de voz entre compassos compatíveis. Desfazer/refazer, prévia, reprodução e publicação conferem o conteúdo; estruturas especiais indicam suas limitações.
+- Sugestões de inversões que reduzem deslocamentos entre acordes, com alcance configurável, comparação das notas e preservação das escolhas manuais. Disponíveis para MIDI e diagramas reconhecidos no editor nativo, sem alterar o áudio ou as notas da melodia.
+- Modo apresentação com repertório ordenado, anotações de ensaio, posição de leitura persistente e navegação por teclado ou pedal que emula teclas.
+- Trocas de instrumento muito próximas recebem faixas de texto e espaço entre sistemas. Todos os nomes e suas posições musicais são preservados; a paginação pode aumentar para evitar sobreposições.
+
 ## 0.15.0 — 2026-10-14
 
 - Fontes de melodia por faixa de compassos, com mapa real de fórmulas/anacruse, prioridade geral fora das faixas e preservação na sessão, fila e Histórico.

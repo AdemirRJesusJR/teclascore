@@ -10,6 +10,22 @@ public partial class MainWindow
     private async void OpenMusicEditorClick(object sender, RoutedEventArgs e)
     {
         if (!CanOpenMusicEditor || selectedFile is not { ScorePath: { } path } row || (!row.UsesNativeScoreWorkflow && !CommitEdits())) return;
+        try
+        {
+            var pending = persistenceEnabled ? new EditorDraftRecoveryStore(DraftRecoveryDirectory).List().Drafts.FirstOrDefault(d => d.SourcePath.Equals(path, StringComparison.OrdinalIgnoreCase)) : null;
+            if (pending is not null)
+            {
+                var choice = MessageBox.Show(this, "Há um rascunho protegido para esta partitura. Deseja recuperá-lo?\nNão abre a partitura salva e mantém o rascunho disponível em Recuperar rascunhos.", "Continuar edição", MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Yes);
+                if (choice == MessageBoxResult.Cancel) return;
+                if (choice == MessageBoxResult.Yes) { await OpenEditorSession(row, pending.SnapshotPath, pending); return; }
+            }
+            await OpenEditorSession(row, path, null);
+        }
+        catch (Exception error) { Status = "Não foi possível abrir o editor. " + error.Message; }
+    }
+
+    private async Task OpenEditorSession(MidiRow? row, string path, EditorDraftCheckpoint? recovery)
+    {
         if (!File.Exists(MuseScorePath)) { Status = "Localize o MuseScore Studio 4 em Configurações para preparar as edições."; return; }
         StopTrackAudition(); ResetPlayback();
         NativeMusicModel? model = null;
@@ -20,17 +36,25 @@ public partial class MainWindow
             var openedModel = await Task.Run(() => NativeMusicEditor.Open(path, token), token);
             token.ThrowIfCancellationRequested();
             model = openedModel;
-        }, operationTitle: "Abrindo editor musical", operationItem: row.ScoreTitle);
-        if (operationsDisposed || model is null || selectedFile != row || row.ScorePath != path) return;
+        }, operationTitle: "Abrindo editor musical", operationItem: recovery?.Title ?? row?.ScoreTitle);
+        if (operationsDisposed || model is null || (recovery is null && (selectedFile != row || row?.ScorePath != path))) return;
         string cache = Path.Combine(LocalJobsDirectory, "music-editor");
         var service = new NativeMusicEditingService(MuseScorePath, cache);
         using var audio = new EditorScorePlayback(MuseScorePath, Path.Combine(cache, "audio"));
-        var dialog = new MusicEditorWindow(model, row.PreviewPath,
+        var dialog = new MusicEditorWindow(model, recovery is null ? row?.PreviewPath : null,
             (edits, progress, token) => service.PrepareAsync(model, edits, progress, token),
             (prepared, progress, token) => service.PublishAsync(model, prepared, OutputDirectory, progress, token),
-            audio) { Owner = this };
+            audio, persistenceEnabled ? DraftRecoveryDirectory : null, recovery) { Owner = this, ComfortableDiagramMaximumSpan = settings.ComfortableDiagramMaximumSpan };
         if (dialog.ShowDialog() == true && dialog.Result is { } result)
+        {
+            if (row is null) { row = LoadNativeScore(result.Path); Files.Add(row); }
+            Library.SelectedItem = row;
             ApplyMusicalEditorResult(row, result);
+            if (SaveCurrentSession()) dialog.AcknowledgeRecoveryPublication();
+        }
+        settings.ComfortableDiagramMaximumSpan = dialog.ComfortableDiagramMaximumSpan;
+        PersistPreferences();
+        await RefreshDraftRecoveryAvailability();
     }
 
     private void ApplyMusicalEditorResult(MidiRow row, NativeScoreResult result)

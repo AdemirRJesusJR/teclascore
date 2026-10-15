@@ -88,7 +88,7 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         report,_=self.render('program-change',notes,sources=(A,second))
         self.assertEqual([x['text'] for x in report['instrument_labels']],['Acoustic Grand Piano','Electric Piano 1'])
 
-    def test_dense_alternation_is_explicit_review_not_missing_instruments(self):
+    def test_dense_alternation_with_large_margin_overflow_still_requires_review(self):
         other=dict(B,program=24)
         notes=[note(i,60+i%3,A if i%2==0 else other) for i in range(24)]
         with self.assertRaises(engine.NeedsReview) as caught:self.render('dense',notes,sources=(A,other))
@@ -96,6 +96,15 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         self.assertTrue(caught.exception.review_points)
         report=json.loads((self.base/'dense/validation.json').read_text(encoding='utf8'))
         self.assertEqual(len(report['instrument_labels']),24)
+
+    def test_crowded_alternation_reserves_lanes_without_missing_instruments(self):
+        other=dict(B,program=24)
+        notes=[note(i,60+i%3,other if i<8 and i%2 else A) for i in range(24)]
+        report,native=self.render('crowded',notes,sources=(A,other))
+        self.assertEqual(len(report['instrument_labels']),9)
+        self.assertEqual(len(native.findall('.//StaffText')),9)
+        self.assertTrue(report['instrument_label_layout_qa']['passed'])
+        self.assertGreater(report['instrument_label_lanes']['count'],1)
 
     def test_single_source_has_no_new_text_or_layout_qa(self):
         report,native=self.render('single', [note(i,60+i%3,A) for i in range(24)],sources=(A,))

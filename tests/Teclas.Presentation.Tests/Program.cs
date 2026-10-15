@@ -1,0 +1,51 @@
+using System.Text.Json;
+using Teclas.Core;
+
+string root = Path.GetFullPath(args.FirstOrDefault() ?? Path.Combine(Path.GetTempPath(), "teclas-presentation-tests-" + Guid.NewGuid().ToString("N")));
+Directory.CreateDirectory(root); var checks = new List<string>();
+void Check(bool ok, string name) { if (!ok) throw new Exception(name); checks.Add(name); }
+bool Reject<T>(Action action) where T : Exception { try { action(); return false; } catch (T) { return true; } }
+string path = Path.Combine(root, "presentation.json"), source = Path.Combine(root, "original.mid"), score = Path.Combine(root, "original.mscz");
+File.WriteAllText(source, "MIDI preserved"); File.WriteAllText(score, "MSCZ preserved");
+var store = new PresentationStore(path); var initial = store.Load();
+Check(initial.Document.Entries.Count == 0 && !File.Exists(path), "Opening a missing repertoire does not create or modify files");
+var first = new PresentationEntry(Guid.NewGuid(), "Música A", source, score, null, "Introdução suave\nRepetir o refrão", 3);
+var second = first with { Id = Guid.NewGuid(), Title = "Música B", Notes = "Entrar no compasso 8", LastPage = 1 };
+var document = new PresentationDocument(1, "Ensaio de sábado", first.Id, [first, second]); store.Save(document);
+var loaded = new PresentationStore(path).Load();
+Check(loaded.Document.Title == document.Title && loaded.Document.Entries.SequenceEqual(document.Entries), "Roundtrip preserves ordered songs, Unicode, notes and page positions");
+Check(loaded.Document.SelectedId == first.Id, "Selected song persists");
+store.Save(document with { Entries = [second, first], SelectedId = second.Id });
+Check(new PresentationStore(path).Load().Document.Entries[0].Id == second.Id, "Reordered repertoire persists");
+Check(File.Exists(path + ".bak"), "Atomic save preserves the previous valid repertoire");
+store.Save(document with { Entries = [first], SelectedId = first.Id });
+Check(File.ReadAllText(source) == "MIDI preserved" && File.ReadAllText(score) == "MSCZ preserved", "Removing from repertoire does not alter or remove source and score files");
+var stale = new PresentationStore(path); stale.Load(); store.Save(document);
+Check(Reject<IOException>(() => stale.Save(document with { Title = "Stale" })) && new PresentationStore(path).Load().Document.Title == document.Title, "Stale window cannot overwrite newer repertoire changes");
+string validBeforeCorruption = File.ReadAllText(path + ".bak"); File.WriteAllText(path, "{broken");
+var recovery = new PresentationStore(path); var recovered = recovery.Load();
+Check(recovered.Warning is not null && recovered.Document.Entries.Count == 1, "Corrupted primary recovers previous valid list with a notice");
+recovery.Save(recovered.Document with { Title = "Recuperado" });
+Check(File.ReadAllText(path + ".bak") == validBeforeCorruption && Directory.GetFiles(root, "presentation.json.recovered-*").Length == 1, "Recovery preserves the valid backup and damaged original for investigation");
+File.Delete(score); var missing = new PresentationStore(path).Load();
+Check(missing.Document.Entries.Count == 1 && missing.Document.Entries[0].ScorePath == score, "Missing score does not erase repertoire order or rehearsal notes");
+var lockedStore = new PresentationStore(path); var lockedDocument = lockedStore.Load().Document; string lockedBefore = File.ReadAllText(path);
+using (var held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+    Check(Reject<IOException>(() => lockedStore.Save(lockedDocument with { Title = "Cannot publish while locked" })) && File.ReadAllText(path) == lockedBefore, "Failed atomic replacement keeps the previous repertoire intact");
+var invalid = new PresentationStore(Path.Combine(root, "invalid.json")); invalid.Load();
+Check(Reject<InvalidDataException>(() => invalid.Save(document with { FormatVersion = 2 })), "Unsupported document format is rejected");
+Check(Reject<InvalidDataException>(() => invalid.Save(document with { Entries = [first, first] })), "Duplicate song identifiers rejected while repeated score paths remain supported");
+Check(Reject<InvalidDataException>(() => invalid.Save(document with { SelectedId = Guid.NewGuid() })), "Nonexistent selected song is rejected");
+Check(Reject<InvalidDataException>(() => invalid.Save(document with { Entries = [first with { Notes = new string('x', 16001) }] })), "Oversized annotations rejected");
+Check(Reject<InvalidDataException>(() => invalid.Save(document with { Entries = [first with { ScorePath = "relative.mscz" }] })), "Relative score path rejected");
+Check(Reject<InvalidDataException>(() => invalid.Save(document with { Entries = [first with { ScorePath = Path.Combine(root, "program.exe") }] })), "Executable cannot be used as score");
+Check(Reject<InvalidDataException>(() => invalid.Save(document with { Entries = [first with { LastPage = 0 }] })), "Invalid page number rejected");
+string blockedPath = Path.Combine(root, "blocked.json"); File.WriteAllText(blockedPath, "{broken");
+var blocked = new PresentationStore(blockedPath);
+Check(Reject<InvalidDataException>(() => blocked.Load()) && Reject<InvalidOperationException>(() => blocked.Save(PresentationDocument.Empty)) && File.ReadAllText(blockedPath) == "{broken", "Unrecoverable JSON is never silently replaced by an empty list");
+string futurePath = Path.Combine(root, "future.json"); File.WriteAllText(futurePath, JsonSerializer.Serialize(document with { FormatVersion = 2 })); File.Copy(path, futurePath + ".bak");
+var future = new PresentationStore(futurePath);
+Check(Reject<NotSupportedException>(() => future.Load()) && Reject<InvalidOperationException>(() => future.Save(document)), "A newer format cannot be downgraded by recovering an older backup");
+Check(!Directory.GetFiles(root, "*.tmp").Any(), "No incomplete temporary repertoire remains after validation failures");
+File.WriteAllText(Path.Combine(root, "report.json"), JsonSerializer.Serialize(new { passed = checks.Count, checks }, new JsonSerializerOptions { WriteIndented = true }));
+Console.WriteLine($"PASS: {checks.Count} presentation persistence checks. {root}");

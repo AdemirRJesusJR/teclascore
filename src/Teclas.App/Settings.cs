@@ -7,6 +7,7 @@ namespace Teclas.App;
 public sealed class Settings
 {
     public bool FollowScorePlayback { get; set; } = true;
+    public int ComfortableDiagramMaximumSpan { get; set; } = 12;
     public int SchemaVersion { get; set; } = 2;
     public string PythonPath { get; set; } = "";
     public string MuseScorePath { get; set; } = "";
@@ -144,6 +145,7 @@ public sealed class Settings
 
     private void FindDefaultPaths()
     {
+        ComfortableDiagramMaximumSpan = ComfortableDiagramMaximumSpan is 7 or 9 or 10 or 12 ? ComfortableDiagramMaximumSpan : 12;
         // A disconnected drive or temporarily missing tool must not erase a user's choice.
         if (string.IsNullOrWhiteSpace(PythonPath))
         {

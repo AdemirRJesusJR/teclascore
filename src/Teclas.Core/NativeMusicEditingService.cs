@@ -34,8 +34,8 @@ public sealed class NativeMusicEditingService(string museScorePath, string cache
                 // Automatic glyphs may change on an edited note and its dependent diatonic
                 // position later in this measure. Pitch, spelling and every other property
                 // remain strict; unrelated, manual and special accidentals are never ignored.
-                string normalizedExpected = await Task.Run(() => NativeMusicEditor.FingerprintIgnoringEditedAutomaticAccidentals(draft, edits.Notes, model, token), token);
-                string normalizedActual = await Task.Run(() => NativeMusicEditor.FingerprintIgnoringEditedAutomaticAccidentals(rendered, edits.Notes, model, token), token);
+                string normalizedExpected = await Task.Run(() => NativeMusicEditor.FingerprintForEdits(draft, edits, model, token), token);
+                string normalizedActual = await Task.Run(() => NativeMusicEditor.FingerprintForEdits(rendered, edits, model, token), token);
                 if (normalizedExpected != normalizedActual)
                     throw new InvalidDataException("O MuseScore modificou conteúdo além das alterações escolhidas. A edição não foi salva; abra este trecho no MuseScore para conferir sua estrutura.");
             }

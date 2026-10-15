@@ -983,10 +983,41 @@ def instrument_label_geometry(path):
             else:clipped.append({'index':index,'reason':'correction_too_large'})
         view=[float(value) for value in root.get('viewBox','0 0 9921.26 14031.5').split()]
         if box[1]<view[1] or box[3]>view[1]+view[3]:clipped.append({'index':index,'reason':'page_height'})
-    return {'path':str(path),'labels':texts,'overlaps':overlaps,'clipped':clipped}
+    return {'path':str(path),'labels':texts,'overlaps':overlaps,'clipped':clipped,'rows':rows}
+
+
+def _instrument_label_lanes(pages):
+    """Allocate complete text runs to separate rows, retaining each attack's x anchor.
+
+    Only the established, unstacked render is used for pairing chronological
+    labels. A native rerender is required before the result can be accepted.
+    """
+    positions={};offset=0;maximum=0
+    for page in pages:
+        rows=page.get('rows',[])
+        if not rows or any('bbox' not in text for text in page['labels']):return None
+        shifts={clip['index']:clip['shift_spatium'] for clip in page['clipped'] if 'shift_spatium' in clip}
+        if any('reason' in clip for clip in page['clipped']):return None
+        for row in rows:
+            scale=(row['bbox'][3]-row['bbox'][1])/4
+            if scale<=0:return None
+            texts=[(index,text) for index,text in enumerate(page['labels']) if text['row']==row['row']]
+            pitch=max([2.4]+[(text['bbox'][3]-text['bbox'][1])/scale+.8 for _,text in texts])
+            lanes=[]
+            for index,text in texts:
+                box=text['bbox'];dx=shifts.get(index,0);left=box[0]+dx*scale;right=box[2]+dx*scale
+                lane=next((i for i,intervals in enumerate(lanes)
+                           if all(right+.8*scale<=start or left>=end+.8*scale for start,end in intervals)),len(lanes))
+                if lane==len(lanes):lanes.append([])
+                if lane>=8:return None
+                lanes[lane].append((left,right))
+                positions[offset+index]={'x':dx,'y':-lane*pitch,'lane':lane}
+                maximum=max(maximum,lane*pitch)
+        offset+=len(page['labels'])
+    return positions,maximum
 
 def verify_instrument_label_layout(final,report,out):
-    """A small margin correction is safe; unresolved density is explicit review."""
+    """Reserve lanes and inter-system clearance before rejecting dense captions."""
     labels=report.get('instrument_labels',[])
     if not labels:return
     history=[]
@@ -1000,15 +1031,14 @@ def verify_instrument_label_layout(final,report,out):
         report['instrument_label_layout_qa']={'passed':not problems,'passes':history,'pages':len(pages)}
         (out/'instrumentos_verificados.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
         if not problems:return
-        offset=0;shifts={};affected=set()
+        offset=0;affected=set()
         for page in pages:
             for problem in page['overlaps']+page['clipped']:
                 affected.add(offset+problem['index'])
                 if 'other_label' in problem:affected.add(offset+problem['other_label'])
-            for clip in page['clipped']:
-                if 'shift_spatium' in clip:shifts[offset+clip['index']]=clip['shift_spatium']
             offset+=len(page['labels'])
-        if attempt or not shifts:
+        planned=_instrument_label_lanes(pages) if not attempt else None
+        if planned is None:
             quarters=[labels[index]['original_quarter'] for index in sorted(affected)]
             message='As trocas de instrumento estão muito próximas para exibir todos os nomes sem sobreposição. Ajuste os trechos das pistas ou o espaçamento da partitura.'
             error=NeedsReview(message,quarters,kind='instrument_label_layout')
@@ -1017,11 +1047,44 @@ def verify_instrument_label_layout(final,report,out):
             raise error
         with zipfile.ZipFile(final) as archive:contents={name:archive.read(name) for name in archive.namelist()}
         name=next(name for name in contents if name.endswith('.mscx'));root=E.fromstring(contents[name])
+        shifts,extra=planned
         for index,text in enumerate(root.findall('Score/Staff/Measure/voice/StaffText')):
             if index not in shifts:continue
             off=text.find('offset')
             if off is None:off=E.SubElement(text,'offset',x='0',y='0')
-            off.set('x',str(float(off.get('x','0'))+shifts[index]))
+            off.set('x',str(float(off.get('x','0'))+shifts[index]['x']))
+            off.set('y',str(float(off.get('y','0'))+shifts[index]['y']))
+        # Tempo text occupies the row immediately above the original names.
+        # Lift it with the new stack; its musical time/value is unchanged.
+        for tempo in root.findall('Score/Staff/Measure/voice/Tempo'):
+            off=tempo.find('offset')
+            if off is None:off=E.SubElement(tempo,'offset',x='0',y='0')
+            off.set('y',str(float(off.get('y','0'))-extra-3))
+        for frame in root.findall('Score/Staff/VBox'):
+            gap=frame.find('bottomGap')
+            if gap is None:gap=E.SubElement(frame,'bottomGap')
+            gap.text=str(float(gap.text or '0')+extra+3)
+        # MuseScore 4 keeps style in a separate archive member; an inline Style
+        # alone is silently discarded when that member is present.
+        style_name=next((name for name in contents if name.endswith('score_style.mss')),None)
+        style_root=E.fromstring(contents[style_name]) if style_name else root
+        style=style_root.find('Style') if style_name else root.find('Score/Style')
+        if style is None:style=E.SubElement(style_root if style_name else root.find('Score'),'Style')
+        # Text offsets do not reserve skyline space with autoplace disabled.
+        # Allow the complete label stack plus the previous system's stems/notes.
+        for tag,minimum in (('minSystemDistance',28+extra),('maxSystemDistance',36+extra),
+                            ('minSystemSpread',28+extra),('maxSystemSpread',36+extra),('staffUpperBorder',18+extra)):
+            element=style.find(tag)
+            if element is None:element=E.SubElement(style,tag)
+            element.text=str(max(float(element.text or '0'),minimum))
+        if style_name:contents[style_name]=E.tostring(style_root,encoding='utf-8',xml_declaration=True)
+        # Fixed page breaks would compress the enlarged systems back into their
+        # old pages. Keep all line boundaries and let the native renderer paginate.
+        released=0
+        for element in root.findall('.//LayoutBreak/subtype'):
+            if element.text=='page':element.text='line';released+=1
+        report['instrument_label_lanes']={'count':1+max((value['lane'] for value in shifts.values()),default=0),
+                                         'extra_spatium':extra,'anchors_preserved':True,'page_breaks_released':released}
         contents[name]=E.tostring(root,encoding='utf-8',xml_declaration=True)
         prepared=out/'instrumentos_preparados.mscz'
         with zipfile.ZipFile(prepared,'w',zipfile.ZIP_DEFLATED) as archive:
@@ -1030,7 +1093,8 @@ def verify_instrument_label_layout(final,report,out):
         for pattern in ('pagina-*.png','qa-*.svg'):
             for old in out.glob(pattern):old.unlink()
         call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
-        # A new native save may alter line wrapping; recertify diagrams too.
+        # A new native save may alter pagination and line wrapping; recertify both.
+        repair_orphan_pages(final,report,out)
         repair_spacing(final,report,out)
 
 def _apply_native_header(root,metadata):

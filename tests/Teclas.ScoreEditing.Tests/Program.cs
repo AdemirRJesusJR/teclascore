@@ -167,6 +167,7 @@ if (args.Length >= 3 && !args.Skip(3).Contains("music-editor-only", StringCompar
 }
 DiagnosticsChecks.Run(Check, work);
 MusicEditorChecks.Run(Check, work);
+await StructuralEditorChecks.Run(Check, work, args.Length >= 3 ? Path.GetFullPath(args[2]) : null);
 HarmonyEditingChecks.Run(Check, work);
 if (args.Length >= 3) await MusicEditorChecks.RunNativeAsync(Check, work, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
 File.WriteAllText(Path.Combine(work, "report.json"), JsonSerializer.Serialize(new { checks, passed, nativeOutputs }, new JsonSerializerOptions { WriteIndented = true }));

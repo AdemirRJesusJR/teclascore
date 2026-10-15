@@ -16,14 +16,6 @@ internal static class NativeHarmonyEditing
     private static readonly XNamespace Svg = "http://www.w3.org/2000/svg";
     private static readonly Dictionary<char, int> NaturalTpc = new()
         { ['C'] = 14, ['D'] = 16, ['E'] = 18, ['F'] = 13, ['G'] = 15, ['A'] = 17, ['B'] = 19 };
-    private static readonly Dictionary<string, int[]> Intervals = new(StringComparer.Ordinal)
-    {
-        [""] = [0, 4, 7], ["m"] = [0, 3, 7], ["7"] = [0, 4, 7, 10], ["maj7"] = [0, 4, 7, 11],
-        ["m7"] = [0, 3, 7, 10], ["mMaj7"] = [0, 3, 7, 11], ["dim"] = [0, 3, 6], ["dim7"] = [0, 3, 6, 9],
-        ["m7b5"] = [0, 3, 6, 10], ["aug"] = [0, 4, 8], ["sus2"] = [0, 2, 7], ["sus4"] = [0, 5, 7],
-        ["6"] = [0, 4, 7, 9], ["m6"] = [0, 3, 7, 9], ["add9"] = [0, 2, 4, 7], ["madd9"] = [0, 2, 3, 7],
-        ["9"] = [0, 2, 4, 7, 10], ["maj9"] = [0, 2, 4, 7, 11], ["m9"] = [0, 2, 3, 7, 10], ["7sus4"] = [0, 5, 7, 10]
-    };
     private static readonly HashSet<string> Presentation = new(StringComparer.Ordinal)
     {
         "eid", "offset", "pos", "autoplace", "minDistance", "color", "placement", "visible", "z",
@@ -44,7 +36,7 @@ internal static class NativeHarmonyEditing
             info.Elements("name").Count() > 1 || harmony.Descendants().Any(e =>
                 e.Name.LocalName is "base" or "degree" or "function" or "text" or "extension" or "rootCase" or "baseCase"))
             return Block(root, quality, "Cifras com baixo alternativo, graus ou estruturas adicionais devem ser editadas no MuseScore.");
-        if (!Intervals.ContainsKey(quality))
+        if (!KeyboardDiagramVoicing.SupportsQuality(quality))
             return Block(root, quality, "O tipo desta cifra ainda não é compatível com a edição de diagramas do TeclaScore.");
         if (harmony.Elements().Any(e => e.Name == "harmonyType" && e.Value != "0") ||
             info.Elements().Any(e => e.Name != "root" && e.Name != "name" &&
@@ -73,7 +65,7 @@ internal static class NativeHarmonyEditing
         if (!Regex.IsMatch(spelling, "^[A-G](#{1,2}|b{1,2})?$", RegexOptions.CultureInvariant))
             throw new ArgumentException("Informe a fundamental como C, F#, Bb ou outra nota entre A e G.", nameof(root));
         quality = (quality ?? "").Trim();
-        if (!Intervals.ContainsKey(quality)) throw new ArgumentException("Tipo de acorde não suportado pelo editor.", nameof(quality));
+        if (!KeyboardDiagramVoicing.SupportsQuality(quality)) throw new ArgumentException("Tipo de acorde não suportado pelo editor.", nameof(quality));
         if (diagramInversion is < 0 or > 2) throw new ArgumentOutOfRangeException(nameof(diagramInversion), "Escolha posição fundamental, primeira ou segunda inversão.");
         var current = Inspect(archive, harmony);
         if (!current.CanEdit) throw new InvalidOperationException(current.Restriction);
@@ -167,15 +159,8 @@ internal static class NativeHarmonyEditing
             .Select(n => n is XElement child ? child.Name == Svg + "title" || child.Name == Svg + "desc" ? null :
                 (object)CanonicalSvg(child) : n is XText text ? (object)new XText(text.Value) : null));
 
-    private static int[] Pitches(int root, string quality, int inversion)
-    {
-        var intervals = Intervals[quality];
-        int bassInterval = inversion == 0 ? 0 : (inversion == 1 ? new[] { 3, 4, 2, 5 } : [7, 6, 8]).First(intervals.Contains);
-        int bass = 53 + ((root + bassInterval - 53) % 12 + 12) % 12;
-        int[] pitches = intervals.Select(interval => bass + ((root + interval - bass) % 12 + 12) % 12).Order().ToArray();
-        if (pitches[^1] > 71) pitches = pitches.Select(p => p - 12).ToArray();
-        return pitches;
-    }
+    private static int[] Pitches(int root, string quality, int inversion) =>
+        KeyboardDiagramVoicing.Pitches(root, quality, inversion);
     private static XElement KeyboardSvg(int root, string quality, int inversion)
     {
         int[] white = Enumerable.Range(48, 24).Where(p => new[] { 0, 2, 4, 5, 7, 9, 11 }.Contains(p % 12)).ToArray();

@@ -18,6 +18,16 @@ try
     Check(old.PythonPath == "Z:/custom/python.exe" && old.MuseScorePath == "Z:/custom/musescore.exe", "Temporarily unavailable user tools retained");
     Check(old.OutputDirectory == "Z:/partituras" && old.ThemeId == "classic", "Old settings migrate without erasing paths");
     Check(old.TrackAuditionSpeed == 1.0, "Settings without the audition speed field migrate to normal speed");
+    Check(old.ComfortableDiagramMaximumSpan == 12, "Legacy settings adopt an octave for voicing suggestions");
+    var reachPath = Path.Combine(folder, "voicing-reach.json");
+    foreach (int reach in new[] { 7, 9, 10, 12 })
+    {
+        new Settings { ComfortableDiagramMaximumSpan = reach, ThemeId = "graphite" }.Save(reachPath);
+        Check(Settings.Load(reachPath).ComfortableDiagramMaximumSpan == reach, $"Voicing reach {reach} persists after reopening");
+    }
+    File.WriteAllText(reachPath, "{\"ComfortableDiagramMaximumSpan\":-1,\"ThemeId\":\"graphite\"}");
+    var invalidReach = Settings.Load(reachPath);
+    Check(invalidReach.ComfortableDiagramMaximumSpan == 12 && invalidReach.ThemeId == "graphite", "Invalid reach defaults safely without erasing the theme");
 
     var advicePath = Path.Combine(folder, "harmonic-advice.json");
     new Settings { Library = [new SavedMidi

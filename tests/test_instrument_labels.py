@@ -118,5 +118,31 @@ class InstrumentLabelTests(unittest.TestCase):
             self.assertIn('instrumento',str(caught.exception))
             self.assertEqual(report['instrument_labels'],labels)
 
+    def test_dense_names_use_separate_lanes_without_moving_attack_anchors(self):
+        page=dict(rows=[dict(row=0,bbox=[100,400,900,440])],clipped=[],labels=[
+            dict(row=0,bbox=[150,280,340,295]),dict(row=0,bbox=[180,280,270,295]),
+            dict(row=0,bbox=[230,280,420,295]),dict(row=0,bbox=[450,280,640,295])])
+        positions,extra=engine._instrument_label_lanes([page])
+        self.assertEqual([positions[i]['lane'] for i in range(4)],[0,1,2,0])
+        self.assertEqual([positions[i]['x'] for i in range(4)],[0]*4)
+        self.assertGreater(extra,4)
+        boxes=[]
+        for i,text in enumerate(page['labels']):
+            box=text['bbox'];dy=positions[i]['y']*10;boxes.append([box[0],box[1]+dy,box[2],box[3]+dy])
+        self.assertFalse(any(engine.svg_geometry._intersection(a,b) for i,a in enumerate(boxes) for b in boxes[i+1:]))
+
+    def test_lane_assignment_accounts_for_safe_margin_correction(self):
+        page=dict(rows=[dict(row=0,bbox=[100,400,900,440])],clipped=[dict(index=1,shift_spatium=-3)],labels=[
+            dict(row=0,bbox=[780,280,860,295]),dict(row=0,bbox=[850,280,930,295])])
+        positions,_=engine._instrument_label_lanes([page])
+        self.assertEqual(positions[1]['x'],-3)
+        self.assertEqual(positions[1]['lane'],1)
+
+    def test_unmeasurable_or_extreme_density_keeps_review_gate(self):
+        page=dict(rows=[dict(row=0,bbox=[100,400,900,440])],clipped=[],labels=[dict(row=0,bbox=[150,280,340,295])]*9)
+        self.assertIsNone(engine._instrument_label_lanes([page]))
+        page['labels']=page['labels'][:1];page['clipped']=[dict(index=0,reason='page_height')]
+        self.assertIsNone(engine._instrument_label_lanes([page]))
+
 
 if __name__=='__main__':unittest.main(verbosity=2)

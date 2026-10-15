@@ -1,3 +1,21 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.16.0
+14/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- Suíte Python: 151 casos descobertos, 145 executados e aprovados; seis casos nativos opcionais aprovados separadamente com MuseScore real.
+- O MIDI Agora eu pego mesmo gerou 11 páginas com os 23 nomes de instrumentos preservados, sem colisões ou cortes detectados. Comparação independente do MusicXML confirmou notas, ritmos, cifras, andamento e posições das indicações idênticos; o MIDI original permaneceu intacto.
+- Editor ampliado: 223 verificações Core/MuseScore e 36 de interface/recuperação passaram. Inserção em pausa, subdivisão, exclusão e cópia de voz reabriram no MuseScore; notas inseridas puderam ser selecionadas na prévia.
+- Recuperação: 48 verificações de integridade, gravação atômica, fallback após truncamento, originais movidos/apagados, bloqueio de disco, concorrência e descarte seguro passaram. O checkpoint permanece até a biblioteca confirmar a nova versão publicada.
+- Integração de rascunhos: 11 verificações de aviso inicial, lista, contador, operação em andamento, menu recolhido e janela mínima passaram. Os testes usaram sessão isolada e preservaram a origem.
+- Posições confortáveis: 746 verificações do algoritmo; 720 combinações comparadas com as teclas do gerador Python e 720 SVGs nativos idênticos ao renderizador anterior. Comparação, cancelamento, alcance e escolhas protegidas passaram pelas verificações WPF.
+- Repertório: 21 verificações de persistência, ordem, anotações, página, recuperação de JSON e conflito entre janelas passaram. A interface foi exercitada com arquivos ausentes, cancelamento e resultado atrasado, mudança de música, páginas e teclado.
+- Regressões: 133 verificações de configurações, 38 de fila, dez de páginas, 22 de estudo, 73 de interface anterior do editor e 34 de ciclo de vida aprovadas.
+- Originais, biblioteca real e configurações do usuário preservados. Todas as edições e conversões de teste utilizaram cópias e saídas isoladas.
+
+Limites: inserção usa pausas disponíveis; excluir mantém a duração como pausa. Cópia exige voz/compasso compatível e salvar/reabrir para editar as notas copiadas. Estruturas especiais permanecem protegidas com explicação. Sugestões de inversão ajustam apenas diagramas reconhecidos e não equivalem a dedilhado nem alteram o áudio. O modo apresentação aceita pedais que emulam teclado, sem entrada MIDI de pedal. Rascunhos e repertórios são locais e não integram o backup portátil da biblioteca.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.15.0
 14/10/2026
 

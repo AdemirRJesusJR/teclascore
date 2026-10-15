@@ -1,4 +1,4 @@
-TECLASCORE 0.15.0 · ROTEIRO DE TESTES
+TECLASCORE 0.16.0 · ROTEIRO DE TESTES
 
 Use uma música conhecida em MIDI e uma partitura MuseScore 4. As cópias anteriores permanecem no Histórico. Os testes abaixo também servem para registrar o que você gostaria de refinar.
 
@@ -54,6 +54,18 @@ Abra Revisão visual em uma partitura gerada e outra MuseScore importada. Seleci
 
 17. BACKUP E RESTAURAÇÃO
 Em Configurações, salve um backup da biblioteca. Use uma pasta vazia para restaurá-lo: as músicas devem ser adicionadas às existentes, com cabeçalhos, favoritos, coleções, escolhas e versões. Abra uma partitura e suas páginas e restaure uma versão antiga pelo Histórico. Feche e reabra. Repita a restauração na mesma pasta: não deve duplicar os itens. Se houver arquivo indisponível, confira a lista antes de confirmar um backup parcial. Em outro computador, configure Python e MuseScore locais; a fila e caches não são transportados.
+
+18. RECUPERAÇÃO DE RASCUNHOS
+Abra o Editor musical, altere uma nota e aguarde a mensagem de rascunho protegido. Feche o editor escolhendo manter. Abra Rascunhos na barra lateral, recupere e confira a mesma edição, Desfazer/Refazer e a prévia. Salve uma nova versão: o rascunho correspondente deve sair da lista, mantendo o original no Histórico. Descartar outro rascunho deve preservar a partitura original. Não desligue o computador deliberadamente para este teste.
+
+19. INSERIR, EXCLUIR E COPIAR
+Selecione uma pausa simples e insira uma nota que caiba nela; confira a pausa restante. Exclua a última nota de um ataque e confira que ele se torna pausa da mesma duração. Copie uma voz para um compasso compatível e verifique as demais vozes e cifras. Teste Desfazer/Refazer, prévia, clique no novo ataque, reprodução e salvamento. Estruturas não suportadas devem mostrar uma explicação e permanecer preservadas.
+
+20. POSIÇÕES MAIS CONFORTÁVEIS
+Em Posições dos diagramas, abra as sugestões, escolha o alcance e compare as notas antes/depois. Acordes fixados manualmente devem permanecer iguais. Cancele a comparação e confira que nada mudou; depois aceite e gere a partitura. No editor nativo, libere somente os diagramas desejados, aceite a proposta, teste Desfazer e atualize a prévia. Confira o aviso quando nenhuma posição couber no alcance; a sugestão não altera a reprodução.
+
+21. APRESENTAÇÃO E NOMES DOS INSTRUMENTOS
+Abra Apresentação, adicione duas músicas, mude a ordem e digite anotações. Entre no modo de leitura e teste páginas, próxima música e Esc. Feche e reabra: ordem, anotações e posição devem permanecer. Um arquivo indisponível deve continuar no repertório com aviso. Se usar pedal, configure-o para as teclas mostradas na janela. Gere também uma melodia combinada com trocas frequentes e confira os nomes completos em todas as páginas; o espaço adicional pode aumentar a paginação.
 
 AO RELATAR UM PROBLEMA
 Informe a versão exibida em Sobre, a música, as pistas/pauta/voz selecionadas, o passo deste roteiro e o que esperava ver. Se houver mensagem de erro, copie o texto ou faça uma captura. Mantenha a partitura original para comparação.

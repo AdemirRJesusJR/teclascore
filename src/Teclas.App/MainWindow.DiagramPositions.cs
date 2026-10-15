@@ -9,8 +9,10 @@ public partial class MainWindow
     private async void DiagramPositionsClick(object sender,RoutedEventArgs e)
     {
         if(!CanCustomizeDiagrams || selectedFile is not {} row || !CommitEdits())return;
-        var dialog=new DiagramPositionsWindow(row){Owner=this};
+        var dialog=new DiagramPositionsWindow(row,settings.ComfortableDiagramMaximumSpan){Owner=this};
         if(dialog.ShowDialog()!=true)return;
+        settings.ComfortableDiagramMaximumSpan=dialog.ComfortableMaximumSpan;
+        PersistPreferences();
         await ApplyDiagramPositions(row,dialog.Inversions);
     }
     private async Task ApplyDiagramPositions(MidiRow row,IReadOnlyList<int?> values)
