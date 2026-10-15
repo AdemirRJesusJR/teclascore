@@ -75,6 +75,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeAppearance();
         InitializeWindowTheme();
         InitializePersistence(smoke,settingsPath);
+        InitializePerformance(smoke,settingsPath);
         Loaded+=async(_,_)=>await RefreshDraftRecoveryAvailability(announce:true);
         Closed+=(_,_)=>conversionQueue?.Dispose();
     }
@@ -185,6 +186,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     private async Task RunOperation(Func<Task> action, MidiRow? rowOnError=null, string operationTitle="Processando", string? operationItem=null)
     {
         if(busy || operationsDisposed)return;cancellation=new();SetBusy(true);BeginOperation(operationTitle,operationItem??rowOnError?.Name);
+        var measurement=performanceRecorder?.Begin(PerformanceOperationFor(operationTitle));
         try
         {
             // Let bindings, layout and animation render before any synchronous preparation.
@@ -192,11 +194,17 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             OperationCancelButton.Focus();
             cancellation.Token.ThrowIfCancellationRequested();
             await action();
+            measurement?.Success();
         }
-        catch(OperationCanceledException){Status="Operação cancelada. Os arquivos originais foram preservados.";if(rowOnError is not null)rowOnError.Status="Operação cancelada · tente novamente quando desejar";}
-        catch(Exception ex){Status=ex.Message;if(rowOnError is { } row){row.Status="Precisa de revisão: "+ex.Message;row.HasOperationError=true;}}
+        catch(OperationCanceledException){measurement?.Cancelled();Status="Operação cancelada. Os arquivos originais foram preservados.";if(rowOnError is not null)rowOnError.Status="Operação cancelada · tente novamente quando desejar";}
+        catch(Exception ex){if(ex is TimeoutException)measurement?.TimedOut();else measurement?.Failure();Status=ex.Message;if(rowOnError is { } row){row.Status="Precisa de revisão: "+ex.Message;row.HasOperationError=true;}}
         finally
         {
+            if(measurement is not null)
+            {
+                if(rowOnError is not null){measurement.SetCount(PerformanceCount.Notes,rowOnError.Document?.Notes.Count??0);measurement.SetCount(PerformanceCount.Pages,rowOnError.PageCount);}
+                await Task.Run(measurement.Dispose);
+            }
             // Keep the result in the editor when an operation moves it to another category.
             if(rowOnError is not null && selectedFile==rowOnError && !MatchesLibraryFilter(rowOnError))
             {SearchText="";CurrentFilter="all";FavoritesOnly=false;CollectionFilter="";}

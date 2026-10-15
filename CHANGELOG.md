@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.18.0 — 2026-10-15
+
+- Testes automáticos no GitHub para cada atualização da branch principal e pull request: compilação Windows, suítes C# executáveis, testes Python, paridade dos diagramas e verificação WPF com biblioteca sintética isolada. Casos que exigem MuseScore aparecem como opcionais e são executáveis localmente.
+- Medições locais de duração, CPU e pico observado de memória dos processos. Em Sobre → Desempenho, consulte, exporte ou limpe o histórico; arquivos musicais e dados de identificação não entram no relatório e não há envio automático.
+- Benchmark reproduzível com MIDIs sintéticos, sugestões de melodia, metadados e conversão de áudio. Relatórios registram amostras e ambiente; tempos são informativos, sem limites absolutos em máquinas compartilhadas.
+- Identificação de título e intérprete nos dois sentidos do nome do MIDI, priorizando metadados explícitos. Nomes ambíguos permanecem inteiros para revisão. Propriedades oferece sugestões e troca dos campos; ajustes já salvos são preservados até a aplicação pelo usuário.
+- Botão Remover em cada partitura da tela Produção, com Desfazer remoção. A biblioteca e seus totais são atualizados, preservando os arquivos MIDI, MuseScore e PDF nas pastas.
+
 ## 0.17.0 — 2026-10-15
 
 - Exportação de PDFs em massa na tela Produção, com seleção de partituras, escolha de pasta e um PDF completo por música. Inclui partituras geradas, importadas do MuseScore e editadas.

@@ -23,9 +23,20 @@ public partial class MainWindow
     private void RemoveLibraryItemClick(object sender, RoutedEventArgs e)
     {
         if (!CanRemoveLibraryItem || !CommitEdits() || selectedFile is not { } row) return;
+        RemoveLibraryItem(row);
+    }
+
+    private void RemoveProductionItemClick(object sender, RoutedEventArgs e)
+    {
+        if (!IsIdle || !CommitEdits() || sender is not FrameworkElement { Tag: MidiRow row } || !Files.Contains(row)) return;
+        RemoveLibraryItem(row);
+    }
+
+    private void RemoveLibraryItem(MidiRow row)
+    {
         var visible = LibraryView.Cast<MidiRow>().ToList();
         int selectedIndex = visible.IndexOf(row);
-        var next = selectedIndex >= 0 && selectedIndex + 1 < visible.Count ? visible[selectedIndex + 1]
+        var next = selectedFile != row ? selectedFile : selectedIndex >= 0 && selectedIndex + 1 < visible.Count ? visible[selectedIndex + 1]
             : selectedIndex > 0 ? visible[selectedIndex - 1] : null;
         lastRemovedLibraryIndex = Files.IndexOf(row);
         lastRemovedLibraryItem = row;
@@ -41,7 +52,7 @@ public partial class MainWindow
         if (!CanUndoLibraryRemoval || !CommitEdits() || lastRemovedLibraryItem is not { } row) return;
         Files.Insert(Math.Clamp(lastRemovedLibraryIndex, 0, Files.Count), row);
         lastRemovedLibraryItem = null;
-        if (!MatchesLibraryFilter(row)) { SearchText = ""; CurrentFilter = "all"; }
+        if (!MatchesLibraryFilter(row)) { SearchText = ""; CurrentFilter = "all"; FavoritesOnly = false; CollectionFilter = ""; }
         SetCurrentPage("library");
         Library.SelectedItem = row;
         Library.ScrollIntoView(row);

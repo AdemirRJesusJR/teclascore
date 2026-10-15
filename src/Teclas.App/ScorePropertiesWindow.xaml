@@ -30,6 +30,7 @@
      <Label Content="Artista / intérprete" Target="{Binding ElementName=ScoreArtistInput}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
      <TextBox x:Name="ScoreArtistInput" MaxLength="120" Margin="0,7,0,6" AutomationProperties.Name="Artista ou intérprete"/>
      <TextBlock Text="Quem interpreta a música. A autoria pode ser de outra pessoa." Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,18"/>
+     <Button x:Name="SwapTitleArtistButton" Content="Trocar título e intérprete" Click="SwapTitleArtistClick" HorizontalAlignment="Left" Margin="0,0,0,18" ToolTip="Troca os dois campos nesta janela. A partitura será atualizada ao aplicar."/>
      <Label Content="Subtítulo (opcional)" Target="{Binding ElementName=ScoreSubtitleInput}" Foreground="{DynamicResource Ink}" Padding="0" FontWeight="SemiBold"/>
      <TextBox x:Name="ScoreSubtitleInput" MaxLength="200" Margin="0,7,0,6" AutomationProperties.Name="Subtítulo da partitura"/>
      <TextBlock Text="Deixe vazio para não exibir subtítulo na partitura." Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,18"/>

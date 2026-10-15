@@ -1,4 +1,10 @@
-TECLASCORE · PRÉVIA 0.17.0
+TECLASCORE · PRÉVIA 0.18.0
+
+NOVO NA VERSÃO 0.18.0
+Produção: cada partitura tem o botão Remover. O rodapé permite Desfazer remoção durante a sessão. Os arquivos de origem e saída continuam nas suas pastas.
+Cabeçalho: o importador considera título/intérprete nas duas ordens do nome. Metadados explícitos têm prioridade; casos ambíguos pedem conferência. Para uma música já importada, use Propriedades da partitura > Usar sugestões ou Trocar título e intérprete; confira e aplique. Ajustes salvos não são substituídos automaticamente.
+Sobre > Desempenho: histórico local de duração, CPU e pico observado de memória por processo, com exportação JSON e limpeza. Não inclui músicas, títulos, caminhos ou mensagens de erro, nem envia dados automaticamente. CPU pode ser parcial; o pico de memória pertence à vida do processo, não apenas à operação.
+GitHub: testes automáticos Windows, C#, Python e WPF com arquivos sintéticos, além de medições reproduzíveis. Integrações que exigem MuseScore são opcionais e identificadas separadamente nos relatórios.
 
 NOVO NA VERSÃO 0.17.0
 Em Produção, clique em Exportar PDFs. Marque as partituras desejadas ou use Selecionar todas, escolha uma pasta e inicie. Cada música terá um PDF separado com todas as páginas, em uma nova pasta do lote. Partituras geradas, MuseScore importados e versões editadas são aceitos; itens pendentes ou ausentes indicam o que falta.

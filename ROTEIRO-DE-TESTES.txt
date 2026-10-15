@@ -1,4 +1,9 @@
-TECLASCORE 0.17.0 · ROTEIRO DE TESTES
+TECLASCORE 0.18.0 · ROTEIRO DE TESTES
+
+PRIORIDADES DA 0.18.0
+- Importe A gente fez amor - Gusttavo Lima: confira título A gente fez amor e intérprete Gusttavo Lima. Na versão já salva, use Propriedades > Usar sugestões ou Trocar título e intérprete; confira e aplique. Um compositor ajustado manualmente deve ser preservado. Cancelar não deve alterar a partitura.
+- Em Produção, remova uma das partituras. Só a escolhida deve desaparecer, os totais devem atualizar e Desfazer remoção deve recuperá-la. Remova novamente e reabra o app para conferir a persistência. Os arquivos nas pastas devem continuar presentes.
+- Importe, analise, prepare áudio ou gere uma música. Em Sobre > Desempenho, confira os registros e exporte o JSON. Limpar registros deve afetar apenas o histórico de desempenho, preservando músicas e preferências.
 
 Use uma música conhecida em MIDI e uma partitura MuseScore 4. As cópias anteriores permanecem no Histórico. Os testes abaixo também servem para registrar o que você gostaria de refinar.
 

@@ -16,12 +16,23 @@ public sealed record WaveInfo(ushort Format, ushort Channels, uint SampleRate, u
 /// <summary>Exports the saved score through the installed MuseScore, without opening its editor.</summary>
 public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
 {
+    private readonly LocalPerformanceRecorder? recorder;
+    private readonly TimeSpan processTimeout = TimeSpan.FromMinutes(5);
+    public ScoreExporter(string museScorePath, string cacheDirectory, LocalPerformanceRecorder recorder) : this(museScorePath, cacheDirectory)
+    { this.recorder = recorder; }
+    public ScoreExporter(string museScorePath, string cacheDirectory, LocalPerformanceRecorder recorder, TimeSpan processTimeout)
+        : this(museScorePath, cacheDirectory, recorder)
+    {
+        if (processTimeout <= TimeSpan.Zero || processTimeout.TotalMilliseconds > uint.MaxValue - 1)
+            throw new ArgumentOutOfRangeException(nameof(processTimeout));
+        this.processTimeout = processTimeout;
+    }
     /// <summary>Writes a new native MuseScore file. The caller publishes it after musical validation.</summary>
     public async Task ExportNativeAsync(string input, string destination, CancellationToken token)
     {
         ValidateScore(input);
         ValidateNewDestination(input, destination, ".mscz");
-        await ExportAsync(input, destination, token);
+        await ExportAsync(input, destination, token, PerformanceOperation.ScoreExportNative);
         using var archive = ZipFile.OpenRead(destination);
         var score = archive.Entries.FirstOrDefault(entry => entry.FullName.EndsWith(".mscx", StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidDataException("O MuseScore não produziu uma partitura MSCZ válida.");
@@ -37,7 +48,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         ValidateNewDestination(input, destinationPng, ".png");
         if (FindPreviewPages(destinationPng).Length != 0)
             throw new IOException("A pasta já contém páginas com esse nome. Escolha um novo destino para a prévia.");
-        await ExportAsync(input, destinationPng, token, allowPagedPng: true);
+        await ExportAsync(input, destinationPng, token, PerformanceOperation.ScoreExportPreview, allowPagedPng: true);
         var pages = FindPreviewPages(destinationPng);
         if (pages.Length == 0) throw new InvalidDataException("O MuseScore não gerou as páginas da prévia.");
         foreach (string page in pages)
@@ -103,7 +114,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         try
         {
             progress?.Report("Gerando o áudio da partitura no MuseScore…");
-            await ExportAsync(scorePath, raw, token);
+            await ExportAsync(scorePath, raw, token, PerformanceOperation.ScoreExportAudio);
             progress?.Report("Preparando o áudio para o reprodutor do Windows…");
             var info = await Task.Run(() => ConvertToPcm16(raw, prepared, token), token);
             progress?.Report("Conferindo se o áudio corresponde à partitura atual…");
@@ -135,7 +146,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         try
         {
             progress?.Report("Exportando todas as páginas para PDF…");
-            await ExportAsync(scorePath, temporary, token);
+            await ExportAsync(scorePath, temporary, token, PerformanceOperation.ScoreExportPdf);
             progress?.Report("Conferindo o PDF gerado…");
             await using (var stream = File.OpenRead(temporary))
             {
@@ -157,8 +168,13 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         if (!File.Exists(museScorePath)) throw new FileNotFoundException("Localize o MuseScore Studio 4 em Configurações para preparar o áudio e exportar PDF.", museScorePath);
     }
 
-    private async Task ExportAsync(string scorePath, string outputPath, CancellationToken token, bool allowPagedPng = false)
+    private async Task ExportAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng = false)
     {
+        using var measurement = (recorder ?? PerformanceDiagnostics.Recorder)?.Begin(operation, PerformanceProcessKind.MuseScore, PerformancePhase.Process)
+            ?? PerformanceMeasurement.Disabled;
+        Process? process = null;
+        try
+        {
         token.ThrowIfCancellationRequested();
         var start = new ProcessStartInfo(museScorePath)
         {
@@ -170,9 +186,10 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         if (allowPagedPng) { start.ArgumentList.Add("-r"); start.ArgumentList.Add("120"); }
         start.ArgumentList.Add("-o"); start.ArgumentList.Add(outputPath); start.ArgumentList.Add(scorePath);
         // On Windows the normal -o conversion is headless. The Qt offscreen platform can hang this build.
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var timeout = new CancellationTokenSource(processTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("Não foi possível iniciar a exportação no MuseScore.");
+        process = Process.Start(start) ?? throw new InvalidOperationException("Não foi possível iniciar a exportação no MuseScore.");
+        measurement.TrackProcess(process);
         using var registration = linked.Token.Register(() =>
         {
             try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
@@ -187,7 +204,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
             try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
             catch (TimeoutException) { }
             token.ThrowIfCancellationRequested();
-            throw new TimeoutException("A exportação no MuseScore excedeu cinco minutos. Tente novamente ou confira a partitura.");
+            throw new TimeoutException("A exportação no MuseScore excedeu o limite de tempo. Tente novamente ou confira a partitura.");
         }
         token.ThrowIfCancellationRequested();
         string details = (await stdout + "\n" + await stderr).Trim();
@@ -196,6 +213,11 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
             if (details.Length > 1200) details = details[^1200..];
             throw new InvalidOperationException($"Não foi possível exportar a partitura (MuseScore {process.ExitCode}). {details}".Trim());
         }
+        measurement.Success();
+        }
+        catch (OperationCanceledException) { measurement.Cancelled(); throw; }
+        catch (TimeoutException) { measurement.TimedOut(); throw; }
+        finally { measurement.Dispose(); process?.Dispose(); }
     }
 
     public static WaveInfo ReadWaveInfo(string path)

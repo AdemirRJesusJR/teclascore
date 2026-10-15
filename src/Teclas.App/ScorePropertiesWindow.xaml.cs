@@ -53,7 +53,7 @@ public partial class ScorePropertiesWindow : Window
         metadataSuggestion = suggestion;
         var details = new List<string>();
         if (!string.IsNullOrWhiteSpace(suggestion.Title)) details.Add($"Título: {suggestion.Title}");
-        if (!string.IsNullOrWhiteSpace(suggestion.Artist)) details.Add($"Artista: {suggestion.Artist}");
+        details.Add(string.IsNullOrWhiteSpace(suggestion.Artist) ? "Artista: não identificado; o campo ficará vazio ao usar a sugestão." : $"Artista: {suggestion.Artist}");
         if (string.IsNullOrWhiteSpace(ComposerValue) && !string.IsNullOrWhiteSpace(suggestion.Composer))
             details.Add($"Autor: {suggestion.Composer}");
         if (!string.IsNullOrWhiteSpace(suggestion.Explanation)) details.Add(suggestion.Explanation);
@@ -66,7 +66,7 @@ public partial class ScorePropertiesWindow : Window
     {
         if (metadataSuggestion is not {} suggestion) return;
         if (!string.IsNullOrWhiteSpace(suggestion.Title)) ScoreTitleInput.Text = suggestion.Title;
-        if (!string.IsNullOrWhiteSpace(suggestion.Artist)) ScoreArtistInput.Text = suggestion.Artist;
+        ScoreArtistInput.Text = suggestion.Artist;
         if (string.IsNullOrWhiteSpace(ComposerValue) && !string.IsNullOrWhiteSpace(suggestion.Composer))
             ScoreComposerInput.Text = suggestion.Composer;
         MetadataSuggestionPanel.Visibility = Visibility.Collapsed;
@@ -80,6 +80,23 @@ public partial class ScorePropertiesWindow : Window
     {
         MetadataOrganizationNoticeText.Text = notice;
         MetadataOrganizationNotice.Visibility = string.IsNullOrWhiteSpace(notice) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void SwapTitleArtistClick(object sender, RoutedEventArgs e)
+    {
+        string title = ScoreTitleInput.Text, artist = ScoreArtistInput.Text;
+        if (artist.Length > 160 || title.Length > 120)
+        {
+            PropertiesValidationMessage.Text = "O intérprete aceita até 120 caracteres. Ajuste os textos antes de trocar.";
+            PropertiesValidationMessage.Visibility = Visibility.Visible;
+            return;
+        }
+        ScoreTitleInput.Text = artist;
+        ScoreArtistInput.Text = title;
+        UsedMetadataSuggestion = false;
+        organizationNotice = "";
+        SetOrganizationNotice("Título e intérprete trocados. Confira os campos e use Aplicar e atualizar para salvar.");
+        PropertiesValidationMessage.Visibility = Visibility.Collapsed;
     }
 
     private static string InversionName(int value) => value switch

@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Teclas.Core;
@@ -21,17 +23,25 @@ public static class ScoreMetadataOrganizer
     private static readonly Regex GenericName=Pattern(@"^(?:(?:track|pista|channel|canal|part|parte|staff|midi|kar|song|sequence|sequencer|untitled|sem t[ií]tulo|unnamed|instrument|instrumento|melody|melodia|vocal|voice|voz|lyrics|letra|conductor|master|tempo|control|solo|karaok[eê]|system|sistema)(?:\s*\d+)?|\d+)$",RegexOptions.IgnoreCase);
     private static readonly Regex InstrumentName=Pattern(@"\b(?:piano|guitar|guitarra|viol[aã]o|bass|baixo|drum|bateria|percussion|percuss[aã]o|organ|[oó]rg[aã]o|brass|trumpet|trompete|trombone|string|strings|violin|violino|cello|sax|saxophone|saxofone|flute|flauta|clarinet|clarinete|oboe|pad|synth|synthesizer|lead|choir|accordion|acordeon|sanfona|marimba|vibraphone|timpani|harmonica|banjo|harp|harpa)\b",RegexOptions.IgnoreCase);
     private static readonly Regex VersionName=Pattern(@"^(?:ao vivo|ac[uú]stico|instrumental|vers[aã]o|version|parte|part)\b",RegexOptions.IgnoreCase);
+    private static readonly Regex PerformerRole=Pattern(@"^(?:banda|band|grupo|group|dupla|orquestra|orchestra|coral|cantor|cantora|artista|artist|dj|mc)\b",RegexOptions.IgnoreCase);
+    private static readonly Regex EditionBrackets=Pattern(@"\([^)]*\)|\[[^]]*\]");
+    private static readonly Regex NumericTitle=Pattern(@"^\d+\s+\p{L}");
+    private static readonly HashSet<string> NameConnectors=new(StringComparer.Ordinal)
+        {"a","o","as","os","de","da","do","das","dos","e","and","of","the","van","von","del","la","los","las"};
+    // These describe a phrase, not a list of performers. Both filename orders
+    // use the same rules, and uncertain names stay intact for review.
+    private static readonly HashSet<string> PhraseWords=new(StringComparer.Ordinal)
+        {"eu","voce","voces","meu","minha","meus","minhas","nosso","nossa","teu","tua","ela","ele","eles","elas",
+         "ninguem","alguem","amo","amei","amar","amou","quero","queria","vou","vai","vem","venha","fico","fiquei",
+         "deixa","deixe","pego","pegou","fez","faz","fazer","sinto","senti","sou","estou","disse","diga","chorar",
+         "posso","nao","you","your","my","me","we","our","take","want","never","love"};
 
     public static ScoreMetadataSuggestion Suggest(string path,IEnumerable<MidiTextEvent>? textEvents=null)
     {
         string fileName=Path.GetFileNameWithoutExtension(path);
         string cleanedFile=Clean(fileName);
         if(cleanedFile.Length==0)cleanedFile="Sem título";
-        var fileParts=SplitArtistTitle(cleanedFile);
-        string title=fileParts.Title,artist=fileParts.Artist,composer="";
-        bool needsReview=fileParts.HasSeparator;
         bool conflictingDeclarations=false;
-        string origin="Nome do arquivo organizado automaticamente.";
         var explicitValues=new Dictionary<string,string>(StringComparer.Ordinal);
         var karaoke=new List<string>();
         var sequenceNames=new List<string>();
@@ -39,7 +49,7 @@ public static class ScoreMetadataOrganizer
         {
             if(item.Type is not (1 or 3) || item.Tick!=0)continue; // Copyright, lyrics and later annotations are not header evidence.
             string text=(item.Text??"");
-            if(text.Length>2048)text=text[..2048];
+            text=TruncateText(text,2048);
             foreach(string rawLine in text.Split(['\r','\n'],StringSplitOptions.RemoveEmptyEntries))
             {
                 string line=rawLine.Trim('\0',' ','\t');
@@ -68,20 +78,26 @@ public static class ScoreMetadataOrganizer
                 }
             }
         }
+        // Declared MIDI fields can disambiguate either side of the filename.
+        // Never let a title/artist convention override an explicit declaration.
+        var fileParts=SplitArtistTitle(cleanedFile,explicitValues.GetValueOrDefault("title"),explicitValues.GetValueOrDefault("artist"));
+        string title=fileParts.Title,artist=fileParts.Artist,composer="",origin=fileParts.Explanation;
+        bool needsReview=fileParts.HasSeparator;
         if(karaoke.Count>0)
         {
-            var embedded=SplitArtistTitle(karaoke[0]);
+            var embedded=SplitArtistTitle(karaoke[0],explicitValues.GetValueOrDefault("title"),explicitValues.GetValueOrDefault("artist"));
             title=embedded.Title;
+            artist="";
             if(embedded.Artist.Length>0)artist=embedded.Artist;
             else if(fileParts.Artist.Length>0 && Same(title,fileParts.Title))artist=fileParts.Artist;
-            else if(karaoke.Count==2 && IsPersonOrBand(karaoke[1]))artist=karaoke[1];
+            else if(karaoke.Count==2 && IsPlausibleArtist(karaoke[1]))artist=karaoke[1];
             origin="Cabeçalho karaoke e nome do arquivo organizados.";
             needsReview=true; // @T fields have no standardized composer/performer distinction.
         }
         else if(sequenceNames.Count>0)
         {
             string candidate=sequenceNames[0];
-            var embedded=SplitArtistTitle(candidate);
+            var embedded=SplitArtistTitle(candidate,explicitValues.GetValueOrDefault("title"),explicitValues.GetValueOrDefault("artist"));
             // An unlabelled track name may name an instrument. Only use it when it
             // corroborates the file name or carries the artist/title convention.
             if(embedded.Artist.Length>0 || Same(candidate,title))
@@ -122,12 +138,50 @@ public static class ScoreMetadataOrganizer
         return "title";
     }
 
-    private static (string Title,string Artist,bool HasSeparator) SplitArtistTitle(string value)
+    private static (string Title,string Artist,bool HasSeparator,string Explanation) SplitArtistTitle(string value,string? declaredTitle=null,string? declaredArtist=null)
     {
         string[] parts=Separator.Split(value);
-        if(parts.Length==2 && IsPersonOrBand(parts[0]) && IsUseful(parts[1]) && !VersionName.IsMatch(parts[1]))return(parts[1],parts[0],true);
-        return(value,"",parts.Length>1);
+        const string unchanged="Nome do arquivo organizado automaticamente.";
+        const string ambiguous="A ordem de título e intérprete no nome do arquivo é ambígua; o nome completo foi preservado no título.";
+        if(parts.Length!=2)return(value,"",parts.Length>1,parts.Length>1?ambiguous:unchanged);
+        string left=parts[0].Trim(),right=parts[1].Trim();
+        bool titleLeft=!string.IsNullOrWhiteSpace(declaredTitle) && Same(declaredTitle,left);
+        bool titleRight=!string.IsNullOrWhiteSpace(declaredTitle) && Same(declaredTitle,right);
+        bool artistLeft=!string.IsNullOrWhiteSpace(declaredArtist) && Same(declaredArtist,left);
+        bool artistRight=!string.IsNullOrWhiteSpace(declaredArtist) && Same(declaredArtist,right);
+        if((titleLeft || artistRight) && !(titleRight || artistLeft) && IsPersonOrBand(right) && IsUseful(left))
+            return(left,right,true,"Ordem título – intérprete identificada no arquivo e corroborada pelos campos do MIDI.");
+        if((titleRight || artistLeft) && !(titleLeft || artistRight) && IsPersonOrBand(left) && IsUseful(right))
+            return(right,left,true,"Ordem intérprete – título identificada no arquivo e corroborada pelos campos do MIDI.");
+        if(VersionName.IsMatch(left) || VersionName.IsMatch(right))return(value,"",true,ambiguous);
+        bool roleLeft=PerformerRole.IsMatch(left),roleRight=PerformerRole.IsMatch(right);
+        int phraseLeft=PhraseEvidence(left),phraseRight=PhraseEvidence(right);
+        if(IsPlausibleArtist(right) && IsUseful(left) && ((phraseLeft>=2 && phraseRight==0) || (roleRight && !roleLeft)))
+            return(left,right,true,"Ordem título – intérprete sugerida pelo texto do nome do arquivo.");
+        if(IsPlausibleArtist(left) && IsUseful(right) && ((phraseRight>=2 && phraseLeft==0) || (roleLeft && !roleRight)))
+            return(right,left,true,"Ordem intérprete – título sugerida pelo texto do nome do arquivo.");
+        return(value,"",true,ambiguous);
     }
+
+    private static int PhraseEvidence(string value)
+    {
+        // Edition labels are meaningful title suffixes, but are not evidence
+        // that the adjacent performer name is a song (e.g. "Grupo (Ao vivo)").
+        string core=EditionBrackets.Replace(value,"").Trim();
+        if(NumericTitle.IsMatch(core))return 3;
+        string[] words=Spaces.Split(core).Where(word=>word.Any(char.IsLetter)).ToArray();
+        if(words.Length<2)return 0;
+        if(words.Select(Fold).Any(PhraseWords.Contains))return 4;
+        // Sentence case is useful supporting evidence; ordinary Portuguese
+        // particles in a personal/band name must not look like a song phrase.
+        if(char.IsUpper(words[0].First(char.IsLetter)) && words.Skip(1).Any(word=>!NameConnectors.Contains(Fold(word)) && char.IsLower(word.First(char.IsLetter))))return 2;
+        return 0;
+    }
+
+    private static string Fold(string value)=>new(ValidUnicode(value).Normalize(NormalizationForm.FormD)
+        .Where(character=>CharUnicodeInfo.GetUnicodeCategory(character)!=UnicodeCategory.NonSpacingMark)
+        .Select(char.ToLowerInvariant).ToArray());
+    private static bool IsPlausibleArtist(string value)=>IsPersonOrBand(value) && (PerformerRole.IsMatch(value) || PhraseEvidence(value)==0);
 
     private static bool IsPersonOrBand(string value)=>value.Length is >=2 and <=100 &&
         value.Any(char.IsLetter) && !GenericName.IsMatch(value) && !Attribution.IsMatch(value) &&
@@ -135,7 +189,7 @@ public static class ScoreMetadataOrganizer
         !VersionName.IsMatch(value);
     private static bool IsUseful(string value)=>value.Length>0 && value.Any(char.IsLetter) &&
         !GenericName.IsMatch(value) && !Attribution.IsMatch(value) && !value.StartsWith('@');
-    private static bool Same(string left,string right)=>string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
+    private static bool Same(string left,string right)=>string.Equals(Fold(left),Fold(right),StringComparison.Ordinal);
     private static string Limit(string value,int length)
     {
         if(value.Length<=length)return value;
@@ -146,7 +200,7 @@ public static class ScoreMetadataOrganizer
 
     private static string Clean(string value)
     {
-        if(value.Length>2048)value=value[..2048];
+        value=ValidUnicode(TruncateText(value,2048));
         value=new string(value.Select(character=>char.IsControl(character)?' ':character).ToArray()).Replace('_',' ');
         value=WebAddress.Replace(value,"");
         value=Provider.Replace(value,"");
@@ -159,6 +213,25 @@ public static class ScoreMetadataOrganizer
             value=TechnicalSuffix.Replace(value,"");
             value=Spaces.Replace(value," ").Trim(' ','-','–','—','|');
         }while(value!=previous);
+        return value;
+    }
+
+    private static string TruncateText(string value,int maximum)
+    {
+        if(value.Length<=maximum)return value;
+        int count=maximum;
+        if(count>0 && char.IsHighSurrogate(value[count-1]))count--;
+        return value[..count];
+    }
+
+    private static string ValidUnicode(string value)
+    {
+        for(int index=0;index<value.Length;index++)
+        {
+            if(char.IsHighSurrogate(value[index]) && index+1<value.Length && char.IsLowSurrogate(value[index+1])) {index++;continue;}
+            if(char.IsSurrogate(value[index]))
+                return string.Concat(value.EnumerateRunes().Select(rune=>rune.ToString()));
+        }
         return value;
     }
 }

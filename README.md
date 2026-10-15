@@ -1,6 +1,26 @@
 # TeclaScore
 
-Versão 0.17.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.18.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+
+Em **Produção**, cada partitura tem **Remover**, com **Desfazer remoção** no rodapé. A remoção fica salva na biblioteca; os arquivos MIDI, MuseScore e PDF continuam nas pastas. O desfazer recupera o último item removido durante a sessão.
+
+O importador considera nomes tanto em **título – intérprete** quanto em **intérprete – título**, priorizando os campos declarados no MIDI. A inferência pelo texto é uma sugestão; nomes ambíguos ficam inteiros no título, com artista vazio, para conferência. Em arquivos já importados, abra **Propriedades da partitura → Usar sugestões**, ou **Trocar título e intérprete**, e confira antes de **Aplicar e atualizar**. A autoria preenchida é preservada; não se presume que o intérprete seja o compositor.
+
+Em **Sobre → Desempenho**, confira as operações recentes, exporte o relatório JSON ou limpe os registros. O histórico é local, rotativo e limitado a 512 registros; não guarda títulos, nomes de arquivos, caminhos ou mensagens de erro. Duração é tempo decorrido. CPU é a diferença observada no processo, pode ser parcial e inclui outras tarefas simultâneas do aplicativo; processos filhos ficam separados. Memória mostra o maior pico observado desde o início do processo, não a alocação exclusiva de uma operação. Não some durações sobrepostas.
+
+## Testes automáticos e medições
+
+O workflow **TeclaScore CI** executa no Windows a cada push em `main`, pull request ou disparo manual. Compila a solução, executa os projetos de teste console (não apenas `dotnet test`), testes Python, paridade de diagramas, verificação WPF com sessão isolada e benchmarks sintéticos. Os relatórios e logs ficam nos artefatos da execução por 14 dias. Nenhum MIDI ou configuração pessoal é necessário.
+
+Para repetir localmente em PowerShell 7.2+, com .NET SDK 10, Python 3.13 e Pillow instalado a partir de `tools/ci/requirements.txt`:
+
+```powershell
+./tools/verify_ci.ps1 -PythonPath python -OutputDirectory C:/Temp/teclas-ci-nova
+```
+
+Use uma pasta nova/vazia. Com `-MuseScorePath "C:/Program Files/MuseScore 4/bin/MuseScore4.exe"`, o runner também executa as integrações nativas disponíveis, usando partituras sintéticas. Sem esse argumento, esses casos são listados como **skipped**, não como aprovados. Os testes automatizados não substituem a revisão visual e musical de um repertório real.
+
+O projeto `tools/Teclas.Benchmarks` mede leitura de MIDIs sintéticos pequenos/médios/grandes, sugestão de melodia, metadados e conversão WAV. Use `--output relatorio.json --iterations 5` ao executá-lo. O JSON inclui aquecimento, amostras, mediana, p95, CPU e bytes alocados no código gerenciado. Invariantes funcionais são obrigatórias; os tempos são informativos e só devem ser comparados sob ambiente e carga equivalentes. Esta versão cria a base de medição, sem prometer aceleração por si só.
 
 Em **Produção → Exportar PDFs**, selecione as partituras desejadas ou use **Selecionar todas**, escolha uma pasta e inicie a exportação. Cada música recebe um PDF com todas as páginas, dentro de uma nova pasta do lote. Partituras MuseScore importadas e versões editadas também podem ser exportadas. Itens ainda não gerados, ausentes ou com alterações pendentes mostram o motivo e precisam ser preparados antes. O painel acompanha cada arquivo; cancelar preserva os PDFs já concluídos, e uma falha permite continuar os demais. Ao final, confira o resumo e abra a pasta de resultados.
 

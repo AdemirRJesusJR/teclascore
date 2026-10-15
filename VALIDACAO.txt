@@ -1,3 +1,21 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.18.0
+15/10/2026
+
+- Compilação Release .NET 10 / WPF sem avisos ou erros.
+- 18 suítes de teste console C# executadas; a verificação não depende apenas de dotnet test. Incluem 145 checks Core e 37 checks de desempenho, com subprocessos sintéticos, falha, cancelamento, timeout, rotação de registros e indisponibilidade de armazenamento sem afetar os resultados musicais.
+- Metadados nos dois sentidos do nome, evidência explícita e conflitos, nomes ambíguos, limpeza de sites, preservação de números/versões e textos Unicode longos. Conferência somente leitura de A gente fez amor, 50 Reais e Agora eu pego mesmo confirmou título/intérprete separados e arquivos intactos.
+- Smoke WPF com 37 verificações diretas, navegação, menu e cinco temas: remover a linha correta em Produção, bloqueio durante operação, desfazer com filtros, persistência/reabertura, sugestões e troca de cabeçalho, cancelamento e compositor manual preservado. Relatórios locais conferidos para sucesso/falha/cancelamento/timeout, exportação sem dados musicais e limpeza. Sem erros de binding.
+- Janelas e botões conferidos visualmente. Desempenho tem altura mínima de 640 pixels para manter resultados e ações visíveis; grade e rolagem testadas nos temas claro e escuro.
+- Suíte Python com 165 casos descobertos, 159 aprovados e seis casos nativos opcionais identificados como skipped. A paridade entre diagramas C# e Python usa 720 combinações sintéticas.
+- Integrações locais com MuseScore real e arquivos sintéticos: 72 verificações de PDF em lote, 33 de áudio de estudo e 20 de sincronização por compasso aprovadas. Esses resultados são separados dos skips nativos da suíte Python. Ambiente local: SDK 10.0.302, runtime 10.0.10, Python 3.12.14 e Pillow 12.3.0; o workflow do GitHub usa Python 3.13.
+- Benchmark com oito cargas sintéticas, aquecimento e cinco amostras por carga. Conferências funcionais ficam fora da região cronometrada. Relatórios trazem mediana/p95, CPU, alocação gerenciada e ambiente; não se usa um limite absoluto de velocidade em máquinas compartilhadas.
+- O primeiro runner completo registrou 29 etapas aprovadas e uma falha na expectativa sintética do benchmark. A expectativa foi corrigida e o alvo passou separadamente com 6.150 validações; o relatório original foi preservado, sem reclassificar a execução anterior como aprovada.
+- Workflow Windows no GitHub com permissões de leitura, Actions fixadas por SHA, limites de tempo, testes executados de fato e relatórios agregados. Falhas não são convertidas em sucesso; relatório ausente, status inválido, saída não zero e timeout foram exercitados. MuseScore e dispositivo de áudio não são pressupostos no runner padrão.
+
+As sugestões de cabeçalho ainda precisam de conferência; dados já salvos são preservados até o usuário aplicar uma sugestão ou troca. Remover da biblioteca não apaga arquivos das pastas. Os registros de desempenho são locais e limitados, sem músicas, nomes de arquivos ou mensagens de erro; não são telemetria enviada. O pico de memória pertence à vida do processo, CPU pode ser parcial e durações simultâneas não devem ser somadas. Os testes não substituem a revisão musical e visual pelo usuário.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.17.0
 15/10/2026
 

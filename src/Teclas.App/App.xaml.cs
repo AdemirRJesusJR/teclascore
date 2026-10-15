@@ -17,6 +17,11 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-v018-ui")
+        {
+            VerifyV018Ui(e.Args[1]);
+            return;
+        }
         if (e.Args.Length == 3 && e.Args[0] == "--verify-score-metadata")
         {
             VerifyScoreMetadata(e.Args[1], e.Args[2]);
@@ -470,9 +475,13 @@ public partial class App : Application
                 if (window.FindName("SidebarMenu") is not DependencyObject menu)
                     throw new InvalidOperationException("The sidebar menu is missing.");
                 var buttons = Descendants(menu).OfType<Button>().ToArray();
-                if (buttons.Length != 5 || buttons.Any(button => button.ToolTip is null))
+                string[] pages = ["dashboard", "library", "production", "settings", "about"];
+                if (buttons.Length != 7 || buttons.Any(button => string.IsNullOrWhiteSpace(button.ToolTip?.ToString()))
+                    || !buttons.Where(button => button.Tag is string).Select(button => (string)button.Tag).ToHashSet().SetEquals(pages)
+                    || !buttons.Any(button => button.Name == "PresentationButton")
+                    || !buttons.Any(button => button.Name == "RecoverDraftsButton"))
                     throw new InvalidOperationException("Each menu icon needs a tooltip in compact mode.");
-                foreach (var page in new[] { "dashboard", "library", "production", "settings", "about" })
+                foreach (var page in pages)
                 {
                     window.SelectPageForSmoke(page);
                     if (window.CurrentPage != page) throw new InvalidOperationException("Compact navigation failed: " + page);
