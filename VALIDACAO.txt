@@ -1,3 +1,22 @@
+TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.17.0
+15/10/2026
+
+- Build Release .NET 10 / WPF sem avisos ou erros.
+- Exportação em massa: 72 verificações passaram, incluindo PDFs completos de duas partituras, nomes repetidos e inválidos, arquivo ausente, falha individual, cancelamento antes/durante o lote e antes da cópia final, limpeza de saídas incompletas e proteção contra alteração externa da origem. Dois PDFs reais de Luz divina foram conferidos com seis páginas cada, inclusive em destinos acima de 400 caracteres.
+- Botão Exportar PDFs em Produção: 13 verificações de estado, operação em andamento, tamanho mínimo e temas claro/escuro, sem avisos de binding.
+- Seleção e resultado: 15 verificações WPF passaram, incluindo seleção de todos, itens bloqueados, limpeza da seleção, confirmação, cancelamento e resumo. Janelas conferidas em temas claro/escuro e tamanho mínimo.
+- Integração das alterações pendentes: 40 verificações passaram, incluindo abertura/cancelamento pelo botão real, edição e inclusão/exclusão de cifras, armadura, troca de seleção, persistência/reabertura e restauração do Histórico. Uma geração real pelo motor e MuseScore limpou a pendência e liberou o PDF atualizado; a reabertura manteve o estado correto.
+- Compactação: 165 testes Python descobertos, 159 executados e aprovados; seis testes opcionais nativos executados separadamente e aprovados com MuseScore real. Incluem fallback após renderização, conteúdo inesperado, geometria insegura, MusicXML incompleto e falha no meio da substituição dos arquivos.
+- Agora eu pego mesmo foi gerada novamente pelo worker completo: 11 para 7 páginas, 42 sistemas e 58 compassos. Auditoria independente confirmou as mesmas notas, ritmos, vozes, pausas, ligaduras, cifras, andamento, 23 nomes completos nos mesmos instantes e 81 diagramas. Tamanhos das notas, fontes e desenhos permaneceram iguais. Somente a data de criação mudou com a nova geração.
+- Todas as sete páginas compactas foram conferidas. Nenhuma colisão ou corte foi encontrado entre os elementos verificados, incluindo nomes, diagramas, notas, pausas, ligaduras e cabeçalho. O MIDI e a partitura anterior permaneceram intactos.
+- A API de exportação em lote produziu a comparação completa em PDF: original com 11 páginas e compacta com sete, todas em A4. Os 18 renders Poppler e a conferência visual confirmaram o conteúdo e a legibilidade; as cópias MuseScore e PDF foram entregues separadamente das versões anteriores.
+- Regressões: 43 verificações de painéis, 133 de persistência, 38 de fila e 11 de exportação anterior passaram. Testes usam pastas e sessões isoladas, preservando a biblioteca real e as configurações do usuário.
+- Pacote e instalação isolada: 48 verificações passaram; 19 arquivos de execução conferidos por hash. Versão, manifesto, executáveis e instalação concordam; as configurações reais permaneceram intactas.
+
+O lote exporta a versão MSCZ salva de cada música; alterações pendentes precisam ser concluídas antes. Cada lote cria uma pasta própria. A compactação é conservadora e se aplica à geração de MIDIs com o espaçamento adicional para trocas de instrumentos; não altera automaticamente a diagramação de partituras MuseScore importadas ou editadas. As verificações não substituem a revisão musical e visual pelo usuário.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA PRÉVIA 0.16.0
 14/10/2026
 

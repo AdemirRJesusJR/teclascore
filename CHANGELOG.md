@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.17.0 — 2026-10-15
+
+- Exportação de PDFs em massa na tela Produção, com seleção de partituras, escolha de pasta e um PDF completo por música. Inclui partituras geradas, importadas do MuseScore e editadas.
+- Progresso por arquivo, cancelamento e resumo dos resultados; uma falha não interrompe as demais exportações. Cada lote usa uma pasta exclusiva, preservando PDFs anteriores e as partituras de origem.
+- Edições de cifras e armadura passam a indicar a necessidade de gerar novamente, evitando exportar ou reproduzir uma versão anterior como se contivesse os novos ajustes.
+- Espaçamento vertical ajustado por sistema em melodias com trocas de instrumento. A compactação mantém o tamanho das notas e diagramas, todos os nomes completos e o conteúdo musical; o resultado anterior é mantido quando a verificação não aprova a redução.
+
 ## 0.16.0 — 2026-10-14
 
 - Rascunhos do Editor musical protegidos automaticamente, com cópia imutável da partitura base, gravação atômica e recuperação após interrupção. O editor permite manter ou descartar as alterações ao fechar; a barra lateral mostra os rascunhos disponíveis.

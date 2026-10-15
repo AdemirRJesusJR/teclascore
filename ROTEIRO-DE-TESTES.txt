@@ -1,4 +1,4 @@
-TECLASCORE 0.16.0 · ROTEIRO DE TESTES
+TECLASCORE 0.17.0 · ROTEIRO DE TESTES
 
 Use uma música conhecida em MIDI e uma partitura MuseScore 4. As cópias anteriores permanecem no Histórico. Os testes abaixo também servem para registrar o que você gostaria de refinar.
 
@@ -66,6 +66,14 @@ Em Posições dos diagramas, abra as sugestões, escolha o alcance e compare as 
 
 21. APRESENTAÇÃO E NOMES DOS INSTRUMENTOS
 Abra Apresentação, adicione duas músicas, mude a ordem e digite anotações. Entre no modo de leitura e teste páginas, próxima música e Esc. Feche e reabra: ordem, anotações e posição devem permanecer. Um arquivo indisponível deve continuar no repertório com aviso. Se usar pedal, configure-o para as teclas mostradas na janela. Gere também uma melodia combinada com trocas frequentes e confira os nomes completos em todas as páginas; o espaço adicional pode aumentar a paginação.
+
+22. EXPORTAR PDFs EM MASSA
+Em Produção, abra Exportar PDFs. Confira as partituras disponíveis, use Selecionar todas ou marque apenas algumas e escolha uma pasta. Exporte duas músicas, incluindo um MuseScore importado ou uma versão editada. Deve haver um PDF separado e completo para cada seleção, com nomes distintos mesmo quando os títulos se repetem. Itens ausentes ou pendentes devem mostrar o motivo e não ser exportados como se estivessem atualizados.
+Confira o progresso, o resumo e Abrir pasta. Repita o lote: os PDFs anteriores devem permanecer intactos em sua própria pasta. Cancele outro lote em andamento; os PDFs já concluídos continuam disponíveis, sem arquivo incompleto para a música interrompida. Uma falha deve permitir processar as demais músicas e aparecer no relatório.
+Edite uma cifra ou a armadura de uma música MIDI já gerada. O app deve indicar que a partitura precisa ser atualizada e bloquear a exportação da versão antiga. Gere novamente e confira o PDF com o ajuste. Trocar apenas a música selecionada ou restaurar uma versão pelo Histórico não deve criar uma pendência falsa.
+
+23. ESPAÇAMENTO COMPACTO
+Gere novamente Agora eu pego mesmo com as mesmas pistas e opções da versão de 11 páginas. Compare com a anterior no Histórico: confira notas, cifras, todos os nomes completos de instrumentos e suas entradas, tamanho dos símbolos e trechos mais densos. O novo ajuste reduz espaços excessivos sem diminuir a pauta; se uma compactação não passar na verificação, o sistema deve manter a diagramação validada. A contagem final pode variar conforme pistas, propriedades e edição do arquivo.
 
 AO RELATAR UM PROBLEMA
 Informe a versão exibida em Sobre, a música, as pistas/pauta/voz selecionadas, o passo deste roteiro e o que esperava ver. Se houver mensagem de erro, copie o texto ou faça uma captura. Mantenha a partitura original para comparação.

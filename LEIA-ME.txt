@@ -1,4 +1,9 @@
-TECLASCORE · PRÉVIA 0.16.0
+TECLASCORE · PRÉVIA 0.17.0
+
+NOVO NA VERSÃO 0.17.0
+Em Produção, clique em Exportar PDFs. Marque as partituras desejadas ou use Selecionar todas, escolha uma pasta e inicie. Cada música terá um PDF separado com todas as páginas, em uma nova pasta do lote. Partituras geradas, MuseScore importados e versões editadas são aceitos; itens pendentes ou ausentes indicam o que falta.
+O painel mostra o andamento por arquivo. Uma falha permite continuar com os demais; cancelar mantém os PDFs já concluídos e remove saídas incompletas. Confira o resumo ao final e abra a pasta. Os arquivos de origem e os PDFs de lotes anteriores permanecem preservados.
+Partituras MIDI com trocas de instrumento recebem um ajuste de espaçamento entre sistemas. Notas, diagramas e nomes completos mantêm o tamanho; a redução só é aceita após conferência do conteúdo musical e das sobreposições. Gere novamente para aplicar; a versão anterior permanece no Histórico.
 
 NOVO NA VERSÃO 0.16.0
 O Editor musical protege rascunhos automaticamente neste computador. Após uma interrupção, abra Rascunhos na barra lateral; a recuperação usa uma cópia preservada, mesmo se o arquivo original tiver sido movido. Ao fechar o editor, escolha manter ou descartar. Rascunhos locais e repertórios de apresentação não fazem parte do backup portátil da biblioteca.

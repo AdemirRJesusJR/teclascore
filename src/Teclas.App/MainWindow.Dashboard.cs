@@ -158,7 +158,7 @@ public partial class MainWindow
             foreach (var name in new[] { nameof(TotalCount), nameof(ReadyCount), nameof(ReviewCount),
                 nameof(GeneratedCount), nameof(ErrorCount), nameof(CompletedPages), nameof(CompletionPercent),
                 nameof(ReadyPercent), nameof(ReviewPercent), nameof(GeneratedPercent), nameof(ErrorPercent),
-                nameof(HasFiles), nameof(HasGenerated), nameof(CanBatch), nameof(SessionSummary),
+                nameof(HasFiles), nameof(HasGenerated), nameof(CanBatch), nameof(CanExportBatchPdf), nameof(SessionSummary),
                 nameof(DashboardMessage), nameof(LibraryCountText), nameof(EmptyLibraryVisible),
                 nameof(EmptyProductionVisible), nameof(DashboardEmptyVisible), nameof(DashboardHasFilesVisible),
                 nameof(EmptyLibraryMessage) }) Notify(name);

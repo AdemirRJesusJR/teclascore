@@ -11,6 +11,7 @@ from inspect_midi import parse_midi, summarize
 from batch_harmony import analyze_harmony, CHORD_INTERVALS
 from batch_svg_qa import analyze as analyze_svg
 import batch_svg_qa as svg_geometry
+import compact_score_layout
 
 WORK=Path(__file__).resolve().parent
 BATCH=Path(os.environ.get('PARTITURAS_JOB',str(Path(tempfile.gettempdir())/'TeclasPartituras')));BATCH.mkdir(parents=True,exist_ok=True)
@@ -1097,6 +1098,101 @@ def verify_instrument_label_layout(final,report,out):
         repair_orphan_pages(final,report,out)
         repair_spacing(final,report,out)
 
+
+def compact_instrument_label_layout(final,report,out):
+    """Try local vertical allowances only after obtaining a validated fallback.
+
+    The original score and previews remain untouched until the full native
+    candidate is smaller and passes content, labels, diagrams and musical-ink QA.
+    Worker publication happens later, after the ordinary MusicXML round trip.
+    """
+    if not report.get('instrument_label_lanes'):return
+    before_pages=len(list(out.glob('qa-*.svg')))
+    if before_pages<2:return
+    result={'pages_before':before_pages,'pages_after':before_pages,'applied':False,
+            'method':'local_measure_clearance','note_and_text_sizes_preserved':True}
+    report['compact_layout']=result
+    candidate_dir=out/'compactacao';candidate_dir.mkdir(exist_ok=True)
+    publishing=False
+    try:
+        with zipfile.ZipFile(final) as archive:before={name:archive.read(name) for name in archive.namelist()}
+        prepared=compact_score_layout.prepare(before)
+        if prepared is None:result['reason']='unsupported_native_layout';return
+        contents,spacers=prepared
+        input_path=candidate_dir/'preparado.mscz';candidate=candidate_dir/'compacta.mscz'
+        with zipfile.ZipFile(input_path,'w',zipfile.ZIP_DEFLATED) as archive:
+            for name,data in contents.items():archive.writestr(name,data)
+        progress('Otimizando o espaço entre as pautas, mantendo o tamanho das notas…')
+        call_musescore(['-o',str(candidate),str(input_path)],candidate_dir/'ajuste_compactacao.log')
+        for pattern in ('pagina-*.png','qa-*.svg'):
+            for old in candidate_dir.glob(pattern):old.unlink()
+        job=[{'in':str(candidate),'out':[str(candidate_dir/'pagina.png'),str(candidate_dir/'qa.svg'),str(candidate_dir/'reaberto.musicxml')]}]
+        (candidate_dir/'render.json').write_text(json.dumps(job),encoding='utf8')
+        call_musescore(['-r','120','-j',str(candidate_dir/'render.json')],candidate_dir/'render.log',150)
+        paths=sorted(candidate_dir.glob('qa-*.svg'),key=page_order)
+        result['candidate_pages']=len(paths)
+        if not paths or len(paths)>=before_pages:result['reason']='no_page_reduction';return
+        if len(list(candidate_dir.glob('pagina-*.png')))!=len(paths):result['reason']='incomplete_preview';return
+        with zipfile.ZipFile(candidate) as archive:after={name:archive.read(name) for name in archive.namelist()}
+        if not compact_score_layout.content_preserved(before,after):result['reason']='content_or_typography_changed';return
+        reopened=E.parse(candidate_dir/'reaberto.musicxml')
+        original_xml=E.parse(out/'reaberto.musicxml')
+        if (reopened.getroot().tag!='score-partwise'
+            or len(reopened.findall('part/measure'))!=len(original_xml.findall('part/measure'))):
+            result['reason']='incomplete_native_reopen';return
+        labels=[instrument_label_geometry(path) for path in paths]
+        diagrams=[analyze_svg(path) for path in paths]
+        ink=[compact_score_layout.page_quality(path) for path in paths]
+        checks={'content_preserved':True,
+                'label_count':sum(len(page['labels']) for page in labels),
+                'diagram_count':sum(len(page['diagrams']) for page in diagrams),
+                'label_problems':sum(len(page['overlaps'])+len(page['clipped']) for page in labels),
+                'diagram_problems':sum(len(page['overlaps'])+len(page['clipped'])+len(page['warnings']) for page in diagrams),
+                'ink_problems':sum(len(page['overlaps'])+len(page['clipped']) for page in ink)}
+        result['checks']=checks
+        (candidate_dir/'geometria_completa.json').write_text(json.dumps(ink,ensure_ascii=False),encoding='utf8')
+        if (checks['label_count']!=len(report['instrument_labels']) or checks['diagram_count']!=report['chord_symbols']
+            or checks['label_problems'] or checks['diagram_problems'] or checks['ink_problems']
+            or not all(page['passed'] for page in ink)):
+            result['reason']='candidate_geometry_not_safe';return
+        # Stage every replacement before changing the validated set. A disk
+        # error restores the previous set; no mixed page count reaches output.
+        replacements={final:candidate.read_bytes(),out/'reaberto.musicxml':(candidate_dir/'reaberto.musicxml').read_bytes()}
+        for pattern in ('pagina-*.png','qa-*.svg'):
+            replacements.update({out/path.name:path.read_bytes() for path in candidate_dir.glob(pattern)})
+        for pages,key in ((labels,'path'),(diagrams,'svg_path'),(ink,'path')):
+            for page in pages:page[key]=str(out/Path(page[key]).name)
+        replacements[out/'instrumentos_verificados.json']=json.dumps(labels,ensure_ascii=False).encode('utf8')
+        replacements[out/'geometria_verificada.json']=json.dumps(diagrams,ensure_ascii=False).encode('utf8')
+        replacements[out/'compactacao_verificada.json']=json.dumps(ink,ensure_ascii=False).encode('utf8')
+        affected=set(replacements)
+        for pattern in ('pagina-*.png','qa-*.svg'):affected.update(out.glob(pattern))
+        staged=candidate_dir/'publicacao';staged.mkdir(exist_ok=True)
+        backup_dir=candidate_dir/'reserva';backup_dir.mkdir(exist_ok=True)
+        backup={path:(backup_dir/path.name if path.exists() else None) for path in affected}
+        for path,data in replacements.items():(staged/path.name).write_bytes(data)
+        for path,original in backup.items():
+            if original is not None:original.write_bytes(path.read_bytes())
+        publishing=True
+        try:
+            for path in replacements:os.replace(staged/path.name,path)
+            for path in affected-set(replacements):path.unlink()
+        except OSError:
+            for path,data in backup.items():
+                if data is None:path.unlink(missing_ok=True)
+                else:os.replace(data,path)
+            publishing=False
+            raise
+        publishing=False
+        result.update(applied=True,pages_after=len(paths),reason='validated_smaller_layout',local_spacers=len(spacers))
+        report['instrument_label_layout_qa'].update(pages=len(paths),compact_layout_verified=True)
+        report['geometric_layout_qa'].update(pages=len(paths),compact_layout_verified=True)
+    except (OSError,ValueError,E.ParseError,zipfile.BadZipFile,NeedsReview,subprocess.TimeoutExpired) as error:
+        if publishing:raise  # An un-restorable set must never reach worker publication.
+        # Compactness is optional. A failed candidate must not turn the already
+        # verified spacious score into a failed conversion.
+        result.update(reason='candidate_failed',error_type=type(error).__name__)
+
 def _apply_native_header(root,metadata):
     score=root.find('Score');staff=score.find('Staff');header=_header_layout(metadata)
     for name,value in (('workTitle',metadata['title']),('subtitle',metadata['subtitle']),('composer',metadata['composer']),('artist',metadata.get('artist',''))):
@@ -1253,6 +1349,7 @@ def convert_score(xml,report,out,filename):
     repair_orphan_pages(final,report,out)
     repair_spacing(final,report,out)
     verify_instrument_label_layout(final,report,out)
+    compact_instrument_label_layout(final,report,out)
     progress('Conferindo notas, ritmos e diagramas na partitura salva…')
     with zipfile.ZipFile(final) as z:
         native=E.fromstring(z.read(next(n for n in z.namelist() if n.endswith('.mscx'))))

@@ -1,6 +1,10 @@
 # TeclaScore
 
-Versão 0.16.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDF.
+Versão 0.17.0 para Windows, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+
+Em **Produção → Exportar PDFs**, selecione as partituras desejadas ou use **Selecionar todas**, escolha uma pasta e inicie a exportação. Cada música recebe um PDF com todas as páginas, dentro de uma nova pasta do lote. Partituras MuseScore importadas e versões editadas também podem ser exportadas. Itens ainda não gerados, ausentes ou com alterações pendentes mostram o motivo e precisam ser preparados antes. O painel acompanha cada arquivo; cancelar preserva os PDFs já concluídos, e uma falha permite continuar os demais. Ao final, confira o resumo e abra a pasta de resultados.
+
+A versão 0.17.0 também reduz espaços excessivos entre sistemas quando há trocas de instrumento, sem diminuir notas, diagramas ou nomes. A compactação só é aplicada se reduzir páginas e passar pela conferência de conteúdo e geometria. Gere novamente um MIDI existente para receber o novo espaçamento; a versão anterior permanece no Histórico. Partituras importadas ou editadas continuam com sua diagramação salva ao exportar PDF.
 
 A versão 0.16.0 acrescenta recuperação automática de rascunhos, inserção e exclusão de notas, pausas e cópia de vozes entre compassos compatíveis, sugestões de inversões com menor deslocamento e modo apresentação com repertório e anotações. Também corrige a sobreposição de nomes de instrumentos em melodias combinadas, ampliando o espaço e a paginação quando necessário. As quatro melhorias preservam os originais e passam pela prévia antes de salvar mudanças musicais.
 
@@ -207,7 +211,7 @@ O script histórico tools/prepare_engine.py copia o motor original das ferrament
 
 O número da versão é definido em `src/Teclas.App/Teclas.App.csproj` e aparece automaticamente na tela Sobre e nas propriedades do executável. As versões publicadas são marcadas com tags Git, como `v0.14.0`. O executável mantém o nome `Teclas.Partituras.exe` para preservar os caminhos já usados, e as preferências continuam na pasta `TeclasPartituras`.
 
-Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.14.0, destinada a testes no computador do usuário.
+Veja VALIDACAO.txt para os testes realizados. Esta é a prévia 0.17.0, destinada a testes no computador do usuário.
 
 ## Fila de conversões e várias pistas
 
@@ -220,6 +224,8 @@ Uma falha não impede os próximos itens. **Pausar** interrompe o item ativo; **
 Resultados aparecem na Biblioteca/Histórico. Se a música tiver recebido ajustes depois de enfileirada, o resultado entra apenas no Histórico. Remover da fila retira a entrada, preservando cópias e arquivos gerados. Problemas musicais na receita exigem corrigir a Biblioteca e adicionar um novo item; a receita já enfileirada não muda junto com as configurações. Nesta versão, a fila é para MIDI; arquivos MuseScore continuam pelo editor e melhoria de apresentação.
 
 Testes da fila: `dotnet run --project tests/Teclas.Queue.Tests -c Release`. Usam motor simulado e pastas isoladas, incluindo falhas, cancelamento, backup e retomada por recibos.
+
+Testes de PDF em massa: `dotnet run --project tests/Teclas.BatchPdf.Tests -c Release -- "C:\pasta\qa-isolada"`. Para incluir dois PDFs reais, acrescente o caminho de uma partitura MSCZ e do MuseScore. As verificações cobrem nomes, falhas isoladas, cancelamento, progresso e preservação das origens.
 
 Ao combinar duas ou mais fontes manualmente, a partitura mostra o nome General MIDI do instrumento na primeira entrada e em cada troca de pista, inclusive quando uma fonte retorna. Os textos identificam a fonte efetivamente usada após aplicar a prioridade; notas descartadas não recebem indicação. Gere novamente uma partitura existente para incluir as indicações em uma nova cópia.
 

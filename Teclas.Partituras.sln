@@ -45,6 +45,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Teclas.Voicing.Tests", "tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Teclas.Recovery.Tests", "tests\Teclas.Recovery.Tests\Teclas.Recovery.Tests.csproj", "{2B09AFBC-5630-4A07-810E-30B0E51250AB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Teclas.BatchPdf.Tests", "tests\Teclas.BatchPdf.Tests\Teclas.BatchPdf.Tests.csproj", "{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -283,6 +285,18 @@ Global
 		{2B09AFBC-5630-4A07-810E-30B0E51250AB}.Release|x64.Build.0 = Release|Any CPU
 		{2B09AFBC-5630-4A07-810E-30B0E51250AB}.Release|x86.ActiveCfg = Release|Any CPU
 		{2B09AFBC-5630-4A07-810E-30B0E51250AB}.Release|x86.Build.0 = Release|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Debug|x64.Build.0 = Debug|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Debug|x86.Build.0 = Debug|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Release|x64.ActiveCfg = Release|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Release|x64.Build.0 = Release|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Release|x86.ActiveCfg = Release|Any CPU
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -307,5 +321,6 @@ Global
 		{52DBAE7A-C970-48B4-BF56-9EEE4CC88E2B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{CC1CDEB3-13C2-47C0-B914-31E559811BFB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{2B09AFBC-5630-4A07-810E-30B0E51250AB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{89B81E07-4D67-4D75-9848-0FD3BDBD30E7} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

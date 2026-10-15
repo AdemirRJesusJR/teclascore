@@ -57,14 +57,14 @@ public partial class MainWindow
             row.AnalysisPath=sameSource && File.Exists(version.AnalysisPath)?version.AnalysisPath:null;
             row.Workspace=sameSource?version.Workspace:null;
             RestoreReviewPoints(row);
-        }
-        finally{loading=false;}
         row.ScoreTitle=version.Title;row.ScoreSubtitle=version.Subtitle;row.ScoreComposer=version.Composer;
         row.ScoreArtist=version.Artist;row.MetadataOrganizationNotice=version.MetadataOrganizationNotice;
         row.DefaultDiagramInversion=version.DefaultInversion;row.DiagramInversion=version.Inversion;row.TransposeSemitones=version.TransposeSemitones;
         row.KeyFifths=version.KeyFifths;row.KeyMinor=version.KeyMinor;row.Chords.Clear();
         foreach(var chord in version.Chords)row.Chords.Add(new ChordRow { Quarter=chord.Quarter,Root=chord.Root,Quality=chord.Quality,Confidence=chord.Confidence,DiagramInversion=chord.DiagramInversion,Recommendation=chord.Recommendation,Alternatives=chord.Alternatives });
         row.HasPendingScoreProperties=false;row.HasOperationError=false;row.Status="Versão restaurada · "+row.PageCountText;
+        }
+        finally{loading=false;}
         if(unavailableSessionRows.TryGetValue(row.FullPath,out var remembered))
         {
             remembered.HasMusicalEdits=version.HasMusicalEdits;remembered.ArrangementSummary=version.ArrangementSummary;
