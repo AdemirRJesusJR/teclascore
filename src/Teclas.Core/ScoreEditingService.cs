@@ -38,7 +38,7 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
         string fingerprint = await Task.Run(source.MusicalFingerprint, token);
         token.ThrowIfCancellationRequested();
         string job = CreateJob(outputDirectory, path, "prévia");
-        string snapshot = Path.Combine(job, SafeName(path) + " - original.mscz");
+        string snapshot = Path.Combine(job, ScoreFileName.Stem(source.Metadata.Artist, source.Metadata.Title, path) + ".mscz");
         try
         {
             // The library's first version must survive moving or editing the user's source later.
@@ -70,7 +70,6 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
         string job = CreateJob(outputDirectory, path, "revisada");
         string prepared = Path.Combine(job, ".preparada.mscz");
         string rendered = Path.Combine(job, ".validando.mscz");
-        string destination = Path.Combine(job, SafeName(path) + " - revisada.mscz");
         try
         {
             progress?.Report("Ajustando margens, fontes e espaçamento da nova cópia…");
@@ -99,6 +98,7 @@ public sealed class ScoreEditingService(string museScorePath, string cacheDirect
             progress?.Report("Conferindo o arquivo original e salvando a versão revisada…");
             await CheckSourceAsync(path, originalHash, token);
             token.ThrowIfCancellationRequested();
+            string destination = Path.Combine(job, ScoreFileName.Stem(final.Metadata.Artist, final.Metadata.Title, path) + ".mscz");
             File.Move(rendered, destination); // New unique destination; no overwrite of any approved version.
             return new(destination, pages, final.Metadata, fingerprint);
         }

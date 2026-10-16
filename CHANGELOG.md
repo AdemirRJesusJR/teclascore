@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.20.2 — 2026-10-15
+
+- Arquivos PDF e MuseScore usam o padrão artista/intérprete - título das propriedades da partitura. Vale para geração MIDI, PDF individual e em lote, arquivos do ZIP e novas versões de partituras MuseScore importadas ou editadas.
+- Sem intérprete, o nome usa somente o título. Caracteres incompatíveis com arquivos do Windows são substituídos; nomes muito longos são limitados sem dividir caracteres Unicode.
+- Exportações com nomes iguais recebem numeração. Versões nativas continuam em pastas próprias e arquivos anteriores permanecem intactos. O PDF individual mantém a escolha de nome e a confirmação de substituição do Windows.
+
 ## 0.20.1 — 2026-10-15
 
 - Preparação de áudio no rodapé, com progresso e cancelamento, sem abrir o painel central nem trocar o foco a cada reprodução. Análise e conversão mantêm o painel de etapas.

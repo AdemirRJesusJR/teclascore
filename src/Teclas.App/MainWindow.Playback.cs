@@ -236,7 +236,7 @@ public partial class MainWindow
         var dialog = new SaveFileDialog
         {
             Title = "Salvar partitura em PDF", Filter = "Documento PDF|*.pdf", DefaultExt = ".pdf", AddExtension = true,
-            FileName = Path.GetFileNameWithoutExtension(scorePath) + ".pdf", InitialDirectory = Path.GetDirectoryName(scorePath), OverwritePrompt = true
+            FileName = ScoreFileName.Stem(selectedFile?.ScoreArtist, selectedFile?.ScoreTitle, scorePath) + ".pdf", InitialDirectory = Path.GetDirectoryName(scorePath), OverwritePrompt = true
         };
         if (dialog.ShowDialog(this) != true) return;
         await RunOperation(async () =>

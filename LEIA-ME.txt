@@ -1,9 +1,12 @@
-TECLASCORE · PRÉVIA 0.20.1
+TECLASCORE · PRÉVIA 0.20.2
+
+NOVO NA VERSÃO 0.20.2
+Ao salvar, PDF e MuseScore recebem o nome artista/intérprete - título das propriedades. Sem intérprete, usam só o título. Vale também para exportação em lote, ZIP, geração MIDI e novas versões de partituras importadas ou editadas. Caracteres inválidos são substituídos e nomes repetidos recebem numeração. Arquivos antigos são preservados.
+Instalador: TeclaScore-0.20.2-Setup-x64.exe.
 
 NOVO NA VERSÃO 0.20.1
 O preparo de áudio mostra progresso e Cancelar no rodapé. A caixa central não aparece a cada reprodução, e a página já aberta permanece estável. MIDIs, pistas e mapas já preparados são reutilizados durante a sessão. A primeira preparação de partitura ainda pode levar tempo no MuseScore.
 Em Configurações > Pasta de saída padrão, escolha a pasta e clique em Salvar pasta padrão. A preferência vale para novas gerações e versões e fica salva ao fechar. Arquivos existentes e destinos de trabalhos já enfileirados são preservados.
-Instalador: TeclaScore-0.20.1-Setup-x64.exe.
 
 NOVO NA VERSÃO 0.20.0
 Posições dos diagramas mostra cada cifra apenas uma vez. Ao escolher a posição, todas as repetições daquele acorde recebem a mesma escolha; o desenho muda na hora. Variações salvas anteriormente permanecem até escolher uma posição comum. Aplicar e atualizar confirma; Cancelar preserva a partitura.

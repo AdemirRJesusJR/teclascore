@@ -110,7 +110,7 @@ public sealed class NativeScoreVisualReviewService(string museScorePath, string 
             Directory.CreateDirectory(outputDirectory);
             string id = Guid.NewGuid().ToString("N");
             pending = Path.Combine(outputDirectory, ".teclas-visual-" + id); Directory.CreateDirectory(pending);
-            string basename = SafeName(report.SourcePath) + " - revisao visual";
+            string basename = ScoreFileName.Stem(prepared.Result.Metadata.Artist, prepared.Result.Metadata.Title, report.SourcePath);
             string score = Path.Combine(pending, basename + ".mscz");
             await CopyNew(prepared.Result.Path, score, token);
             if (Hash(score, token) != stamp.Hashes[prepared.Result.Path]) throw new IOException("A cópia divergiu da prévia aprovada.");
@@ -243,7 +243,6 @@ public sealed class NativeScoreVisualReviewService(string museScorePath, string 
     private static int PageNumber(string path) => int.TryParse(Path.GetFileNameWithoutExtension(path).Split('-').Last(), out int n) ? n : 0;
     private string Job(string kind) { string path = Path.Combine(Path.GetFullPath(cacheDirectory), "visual-" + kind + "-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(path); return path; }
     private ScoreExporter Exporter() => new(museScorePath, cacheDirectory);
-    private static string SafeName(string source) { string name = Path.GetFileNameWithoutExtension(source); foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_'); return string.IsNullOrWhiteSpace(name) ? "Partitura" : name[..Math.Min(name.Length, 70)].TrimEnd('.', ' '); }
     private static async Task CopyNew(string source, string destination, CancellationToken token)
     { await using var input = File.OpenRead(source); await using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true); await input.CopyToAsync(output, token); await output.FlushAsync(token); }
     private static void TryDeleteJob(string path) { try { Directory.Delete(path, recursive: true); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { } }

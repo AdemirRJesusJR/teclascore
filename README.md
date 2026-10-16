@@ -1,6 +1,8 @@
 # TeclaScore
 
-Versão 0.20.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.20.2 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+
+**Nomes ao salvar:** PDFs e arquivos MuseScore usam **artista/intérprete - título**, conforme as propriedades da partitura. Sem intérprete, usam apenas o título. A regra vale para PDF individual e em lote, geração MIDI, novas versões editadas e arquivos do ZIP. Caracteres inválidos são substituídos e nomes repetidos recebem numeração; as versões anteriores permanecem intactas.
 
 A preparação de áudio aparece discretamente no rodapé, com progresso e cancelamento, sem abrir a caixa central nem recarregar a imagem da partitura. MIDIs completos, pistas e mapas de acompanhamento já preparados são reutilizados durante a sessão, dentro de limites de memória. A primeira preparação de uma partitura ainda depende da renderização do MuseScore. Desmarcar **Acompanhar páginas durante a reprodução** evita preparar automaticamente o mapa visual.
 
@@ -194,7 +196,7 @@ Arquivos de versões antigas devem ser abertos e salvos em uma nova cópia pelo 
 
 ## Instalação e atualizações
 
-Baixe **TeclaScore-0.20.1-Setup-x64.exe** na página da versão e siga o assistente em português. Escolha a pasta e os atalhos. A instalação é para o usuário atual e não exige permissões de administrador. O desinstalador fica disponível nos Aplicativos instalados do Windows; ele preserva biblioteca, configurações e partituras. Também é possível extrair o ZIP completo e executar **Instalar.cmd**, ou abrir Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
+Baixe **TeclaScore-0.20.2-Setup-x64.exe** na página da versão e siga o assistente em português. Escolha a pasta e os atalhos. A instalação é para o usuário atual e não exige permissões de administrador. O desinstalador fica disponível nos Aplicativos instalados do Windows; ele preserva biblioteca, configurações e partituras. Também é possível extrair o ZIP completo e executar **Instalar.cmd**, ou abrir Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
 
 Na tela **Sobre → Instalação e atualizações**, confira dependências e consulte a última versão publicada no GitHub. A consulta só ocorre ao clicar. Baixe o ZIP pela página da versão e selecione-o no app; o instalador confere SHA-256 e conteúdo antes de instalar. Se a consulta não estiver disponível, selecione também o arquivo SHA256SUMS da mesma versão. A nova instalação não fecha o app sem sua escolha. O assistente localiza e valida Python/MuseScore e oferece o preparo isolado de Pillow; instalar Python ou MuseScore continua pelo instalador oficial.
 

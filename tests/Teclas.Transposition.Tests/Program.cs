@@ -102,9 +102,8 @@ string tieFingerprint=Fingerprint(badTie);Change(badTie,d=>d.Descendants("Spanne
 Check(Fingerprint(badTie)!=tieFingerprint,"Normalizer never ignores changed ties");
 var outside=Write(Note());Change(outside,d=>d.Root!.Element("Score")!.Elements("Staff").Single().Add(XElement.Parse(Note())));
 Check(!NativeScoreTransposition.CreatePlan(outside,new(2)).CanPrepare,"Pitch-bearing structures outside measures cannot cause partial transposition");
-var safeName=typeof(NativeScoreTranspositionService).GetMethod("SafeName",BindingFlags.NonPublic|BindingFlags.Static)!;
-string unicodeName=(string)safeName.Invoke(null,[new string('A',79)+"😀.mscz"])!;
-Check(unicodeName.Length==79&&new UTF8Encoding(false,true).GetBytes(unicodeName).Length==79,"Output name truncation never splits a Unicode surrogate pair");
+string unicodeName=ScoreFileName.Stem(null,new string('A',99)+"😀extra");
+Check(unicodeName.Length==101&&new UTF8Encoding(false,true).GetBytes(unicodeName).Length==103,"Output name truncation never splits a Unicode surrogate pair");
 byte[] unknownSvg=Encoding.UTF8.GetBytes("<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20'/></svg>");
 string image="<Image><path>unknown.svg</path><size w='14' h='4'/></Image>";
 var external=Write("<Harmony><harmonyInfo><root>14</root></harmonyInfo></Harmony>"+image+Note(),assets:new(){["Pictures/unknown.svg"]=unknownSvg});

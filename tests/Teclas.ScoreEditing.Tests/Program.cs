@@ -103,6 +103,7 @@ if (args.Length >= 3 && !args.Skip(3).Contains("music-editor-only", StringCompar
     Check(improved.Path != source && File.Exists(improved.Path), "Native revision is published as a new MSCZ copy");
     Check(improved.Metadata.Title.Contains("< > &", StringComparison.Ordinal) && improved.Metadata.Composer == "Ademir — revisão de apresentação", "Edited title and composer survive native MuseScore save");
     Check(improved.Metadata.Artist == "Artista de teste", "Artist credit survives native MuseScore save independently from composer");
+    Check(Path.GetFileName(improved.Path) == ScoreFileName.Stem("Artista de teste", improved.Metadata.Title) + ".mscz", "Saved MuseScore filename uses revised artist and title rather than source filename");
     Check(improved.Metadata.NoteCount == original.NoteCount && improved.Metadata.HarmonyCount == original.HarmonyCount && improved.Metadata.ImageCount == original.ImageCount, "Notes, chords and embedded diagrams remain present");
     Check(improved.PreviewPages.Count > 0 && improved.PreviewPages.All(File.Exists), "All pages of the saved native revision reopen and render");
     byte[] approvedHash = SHA256.HashData(File.ReadAllBytes(improved.Path));
@@ -110,6 +111,7 @@ if (args.Length >= 3 && !args.Skip(3).Contains("music-editor-only", StringCompar
     { Subtitle = "", Composer = "" }, null, CancellationToken.None);
     Check(second.Metadata.Title == improved.Metadata.Title && second.Metadata.Subtitle == "" && second.Metadata.Composer == "", "Null preserves title while explicitly empty fields remove subtitle and composer");
     Check(second.Metadata.Artist == "Artista de teste", "Null artist preserves the existing performer while clearing the composer");
+    Check(Path.GetFileName(second.Path) == Path.GetFileName(improved.Path) && second.Path != improved.Path, "Repeated native save keeps property-based filename in a separate version directory");
     Check(second.Path != improved.Path && SHA256.HashData(File.ReadAllBytes(improved.Path)).SequenceEqual(approvedHash), "A second revision preserves its approved predecessor");
     Check(second.MusicalFingerprint == originalFingerprint && second.PreviewPages.Count > 0, "A second layout pass preserves music and renders successfully");
     if (original.ImageCount > 0)

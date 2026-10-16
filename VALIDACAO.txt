@@ -1,3 +1,17 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.2
+15/10/2026
+
+- Runner final local: 36 etapas aprovadas, zero falhas e 4 grupos opcionais explicitamente não executados. Inclui compilação, C#, Python, WPF, preferências, instalador e benchmarks sintéticos.
+- Nomes por propriedades: artista antes do título, intérprete vazio, compositor distinto, fallback para nome da origem, espaços, acentos, controles, caracteres reservados do Windows, nomes de dispositivo e Unicode longo conferidos em C# e Python.
+- Exportação em lote exercitada com PDFs sintéticos válidos: artistas diferentes conservam nomes distintos e repetições recebem (2), (3), etc.; MSCZ de origem permanecem intactos.
+- Integração nativa focada: 9 verificações aprovadas com MuseScore e partitura sintética normalizada. Importação, edição de cabeçalho, segunda versão, remoção do artista, título atualizado e dois PDFs reais com nomes repetidos conferidos. Hashes confirmam preservação da origem e da versão anterior; o conteúdo musical permanece igual.
+- Geração MIDI usa os campos normalizados do cabeçalho para escolher o nome MSCZ, incluindo a fila. ZIP usa as propriedades da biblioteca; novos arquivos de edição, arranjo, transposição e revisão usam os metadados da versão validada. Nenhum arquivo existente é renomeado retroativamente.
+- A rodada inicial do runner encontrou um teste de transposição dependente do antigo helper privado de nomes. O teste foi atualizado para verificar o helper compartilhado e a preservação de Unicode; o runner completo foi executado novamente em pasta independente. Relatórios anteriores permanecem registrados.
+
+O PDF individual continua permitindo editar o nome sugerido e confirmar substituição. Nomes incompatíveis com o Windows são adaptados e nomes muito longos são limitados; os campos da partitura não são modificados. Testes usam sessões e arquivos isolados. A coleção pessoal e reprodução em dispositivo físico não foram exercitadas nesta rodada.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.1
 15/10/2026
 

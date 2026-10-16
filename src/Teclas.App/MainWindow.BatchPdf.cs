@@ -15,7 +15,7 @@ public partial class MainWindow
             string.IsNullOrWhiteSpace(row.ScorePath) ? "Gere ou importe a partitura primeiro." :
             !File.Exists(row.ScorePath) ? "Arquivo MSCZ indisponível. Confira a pasta da partitura." :
             !Path.GetExtension(row.ScorePath).Equals(".mscz", StringComparison.OrdinalIgnoreCase) ? "Esta música precisa de uma partitura no formato MSCZ." : "";
-        return new(row.FullPath, row.ScoreTitle, row.ScorePath, reason);
+        return new(row.FullPath, row.ScoreTitle, row.ScorePath, reason, row.ScoreArtist);
     }
 
     private async void ExportBatchPdfClick(object sender, RoutedEventArgs e)

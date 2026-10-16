@@ -1,11 +1,10 @@
 using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Teclas.Core;
 
-public sealed record BatchPdfSource(string Id, string Title, string? ScorePath, string BlockedReason = "");
+public sealed record BatchPdfSource(string Id, string Title, string? ScorePath, string BlockedReason = "", string Artist = "");
 public enum BatchPdfStatus { Success, Failure, Skipped, Cancelled }
 public sealed record BatchPdfItemResult(string Id, string Title, string? SourcePath, BatchPdfStatus Status,
     string? PdfPath, string Message, string? SourceSha256 = null)
@@ -97,7 +96,7 @@ public sealed class BatchPdfExportService
                     await using var checkedSource = new FileStream(item.ScorePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
                     if (Convert.ToHexString(await SHA256.HashDataAsync(checkedSource, token).ConfigureAwait(false)) != sourceHash)
                         throw new IOException("A partitura mudou durante a exportação. O PDF não foi salvo; exporte novamente a versão atual.");
-                    string filename = UniqueName(item.Title, item.ScorePath, names);
+                    string filename = ScoreFileName.Unique(ScoreFileName.Stem(item.Artist, item.Title, item.ScorePath), ".pdf", names);
                     string target = Path.Combine(output, filename);
                     token.ThrowIfCancellationRequested();
                     File.Move(temporaryPdf, target, overwrite: false);
@@ -178,19 +177,6 @@ public sealed class BatchPdfExportService
         byte[] tail = new byte[(int)(stream.Length - stream.Position)];
         await stream.ReadExactlyAsync(tail, token).ConfigureAwait(false);
         if (!Encoding.ASCII.GetString(tail).Contains("%%EOF", StringComparison.Ordinal)) throw new InvalidDataException("O PDF ficou incompleto. Nenhum arquivo foi publicado para esta música.");
-    }
-    private static string UniqueName(string title, string source, HashSet<string> used)
-    {
-        string value = string.IsNullOrWhiteSpace(title) ? Path.GetFileNameWithoutExtension(source) : title;
-        string invalid = "<>:\"/\\|?*";
-        string stem = new(value.Select(c => c < 32 || invalid.Contains(c) ? '-' : c).ToArray());
-        stem = Regex.Replace(stem, @"\s+", " ").Trim(' ', '.');
-        if (stem.Length == 0) stem = "Partitura";
-        if (Regex.IsMatch(stem, @"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) stem = "Partitura - " + stem;
-        if (stem.Length > 100) stem = stem[..100].TrimEnd(' ', '.');
-        string name = stem + ".pdf";
-        for (int suffix = 2; !used.Add(name); suffix++) name = stem + $" ({suffix}).pdf";
-        return name;
     }
     private static string CreateExclusiveDirectory(string parent, string prefix)
     {

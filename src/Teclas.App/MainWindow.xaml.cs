@@ -384,8 +384,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
                 var names=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach(var row in scores)
                 {
-                    cancellation!.Token.ThrowIfCancellationRequested();string name=Path.GetFileName(row.ScorePath!);
-                    if(!names.Add(name)){name=Guid.NewGuid().ToString("N")[..6]+" - "+name;names.Add(name);}
+                    cancellation!.Token.ThrowIfCancellationRequested();
+                    string name=ScoreFileName.Unique(ScoreFileName.Stem(row.ScoreArtist,row.ScoreTitle,row.ScorePath),".mscz",names);
                     archive.CreateEntryFromFile(row.ScorePath!,name,CompressionLevel.Optimal);
                 }
                 using var writer=new StreamWriter(archive.CreateEntry("LEIA-ME.txt").Open());

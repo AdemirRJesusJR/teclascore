@@ -142,6 +142,15 @@ if (args.Length >= 3)
     Check(Hash(realScore) == realHash, "real MSCZ preserved");
     await File.WriteAllTextAsync(Path.Combine(root, "real-report.json"), System.Text.Json.JsonSerializer.Serialize(exported, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
 }
+var named = await service.ExportAsync([
+    new("artist-a", "Luz divina", first, Artist: "Roberto Carlos"),
+    new("artist-b", "Luz divina", second, Artist: "Outro intérprete"),
+    new("artist-repeat", "Luz divina", first, Artist: "Roberto Carlos")
+], Destination("property-names"), null, CancellationToken.None);
+Check(named.SavedCount == 3 && named.Items.Select(item => item.PdfFileName).SequenceEqual([
+    "Roberto Carlos - Luz divina.pdf", "Outro intérprete - Luz divina.pdf", "Roberto Carlos - Luz divina (2).pdf"
+]), "Batch PDF uses performer and title, distinguishes performers and numbers repeated names");
+Check(Hash(first) == firstHash && Hash(second) == secondHash, "Renaming exported copies preserves original MSCZ files");
 await File.WriteAllTextAsync(Path.Combine(root, "checks.txt"), $"PASS {checks} batch PDF checks\n");
 Console.WriteLine($"PASS {checks} batch PDF checks. Results: {root}");
 

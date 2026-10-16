@@ -1,6 +1,26 @@
 """JSON protocol for the C# desktop app. One isolated process per operation."""
 from pathlib import Path
 import json,sys,os,hashlib,shutil,traceback,copy,re,uuid
+import ntpath,unicodedata
+
+def score_output_stem(artist,title,fallback_path=''):
+    """Windows-safe export name from displayed properties; leave the metadata unchanged."""
+    name=title.strip() if title and title.strip() else ntpath.splitext(ntpath.basename(str(fallback_path)))[0]
+    if not name.strip():name='Partitura'
+    if artist and artist.strip():name=artist.strip()+' - '+name
+    name=re.sub(r'\s+',' ',name)
+    name=''.join('-' if unicodedata.category(c)=='Cc' or c in '<>:"/\\|?*' else c for c in name)
+    name=re.sub(r'\s+',' ',name).strip(' .') or 'Partitura'
+    name=name[:100].rstrip(' .')
+    if re.match(r'^(CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])(?:\.|$)',name,re.I):name='Partitura - '+name
+    return name
+
+def score_output_path(directory,artist,title,fallback_path=''):
+    stem=score_output_stem(artist,title,fallback_path)
+    directory=Path(directory);dest=directory/(stem+'.mscz');counter=2
+    while dest.exists() or (directory/(dest.stem+' - revisao')).exists():
+        dest=directory/(stem+f' ({counter}).mscz');counter+=1
+    return dest
 def send(kind,**data):print(json.dumps(dict(kind=kind,**data),ensure_ascii=False),flush=True)
 
 def manual_melody_config(selected):
@@ -181,7 +201,7 @@ def main():
         if field in req:config[field]=req[field]
     config['diagram_inversion']=engine.diagram_inversion(req.get('diagramInversion'))
     config['transpose_semitones']=engine.transpose_semitones(req.get('transposeSemitones'))
-    engine.score_metadata(config,engine.default_score_title(config['filename']))
+    metadata=engine.score_metadata(config,engine.default_score_title(config['filename']))
     if edited is not None:
         if not edited:raise ValueError('A partitura precisa de pelo menos uma cifra.')
         new=[];naturals={'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}
@@ -223,10 +243,7 @@ def main():
     result=engine.prepare(config)
     send('progress',message='Salvando a partitura e as páginas na pasta de saída…')
     final=Path(result['path']);targetdir=Path(req['outputDirectory']).resolve();targetdir.mkdir(parents=True,exist_ok=True)
-    clean=re.sub(r'[<>:"/\\|?*]','',source.stem).strip(' .')[:110] or 'Partitura'
-    dest=targetdir/(clean+' - teclado.mscz');counter=2
-    while dest.exists() or (targetdir/(dest.stem+' - revisao')).exists():
-        dest=targetdir/(clean+f' - teclado ({counter}).mscz');counter+=1
+    dest=score_output_path(targetdir,metadata['artist'],metadata['title'],source)
     # Exclusive creation prevents overwriting even when another app creates the same name.
     report_dir=targetdir/(dest.stem+' - revisao');report_dir.mkdir(exist_ok=False)
     with dest.open('xb') as out:out.write(final.read_bytes())

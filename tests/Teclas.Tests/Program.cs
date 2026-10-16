@@ -5,6 +5,7 @@ using Teclas.Core;
 int passed=0;
 void Check(bool ok,string message){if(!ok)throw new Exception(message);passed++;}
 MetadataOrganizationChecks.Run(Check);
+ScoreFileNameChecks.Run(Check);
 MelodySourceAdvisorChecks.Run(Check);
 byte[] Midi(byte[] track)
 {

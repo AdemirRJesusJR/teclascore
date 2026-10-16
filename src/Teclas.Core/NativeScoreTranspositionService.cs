@@ -95,7 +95,7 @@ public sealed class NativeScoreTranspositionService(string museScorePath, string
             pendingDirectory = Path.Combine(outputDirectory, ".teclas-transposicao-" + id);
             if (Directory.Exists(pendingDirectory)) throw new IOException("O destino temporário já existe. Tente salvar novamente.");
             Directory.CreateDirectory(pendingDirectory);
-            string basename = SafeName(plan.SourcePath) + (" - transposta " + plan.Options.Semitones.ToString("+0;-0", System.Globalization.CultureInfo.InvariantCulture));
+            string basename = ScoreFileName.Stem(stamp.Result.Metadata.Artist, stamp.Result.Metadata.Title, plan.SourcePath);
             string scoreCopy = Path.Combine(pendingDirectory, basename + ".mscz");
             pendingFiles.Add(scoreCopy);
             progress?.Report("Salvando uma nova versão com todas as páginas…");
@@ -159,15 +159,6 @@ public sealed class NativeScoreTranspositionService(string museScorePath, string
         first.ArrangementSummary == second.ArrangementSummary &&
         first.StaffCount == second.StaffCount && first.MeasureCount == second.MeasureCount && first.NoteCount == second.NoteCount &&
         first.HarmonyCount == second.HarmonyCount && first.ImageCount == second.ImageCount;
-    private static string SafeName(string source)
-    {
-        string name = Path.GetFileNameWithoutExtension(source);
-        foreach (char character in Path.GetInvalidFileNameChars()) name = name.Replace(character, '_');
-        int length = Math.Min(80, name.Length);
-        if (length < name.Length && length > 0 && char.IsHighSurrogate(name[length - 1]) && char.IsLowSurrogate(name[length])) length--;
-        name = name[..length].TrimEnd('.', ' ');
-        return string.IsNullOrWhiteSpace(name) ? "Partitura" : name;
-    }
     private static void TryDelete(string path) { try { if (File.Exists(path)) File.Delete(path); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { } }
     private static void TryDeleteDirectory(string path) { try { if (Directory.Exists(path)) Directory.Delete(path, recursive: false); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { } }
     private sealed class PreparedStamp(string sourcePath, string sourceSha256, string scoreSha256, NativeScoreResult result,
