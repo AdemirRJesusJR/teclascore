@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using Teclas.Core;
 
 namespace Teclas.App;
@@ -111,10 +112,42 @@ public partial class App
                 "next-generation-uses-new-default-and-existing-queue-keeps-original-destination");
             Check(Directory.Exists(nextOutput) && !Directory.EnumerateFileSystemEntries(nextOutput).Any(),
                 "using-output-creates-directory-and-cleans-owned-write-probe");
+            var pdfDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
+                "Salvar partitura em PDF", "Documento PDF|*.pdf", "Intérprete - Música.pdf", ".pdf")!;
+            Check(pdfDialog is not null && pdfDialog.FileName == Path.Combine(nextOutput, "Intérprete - Música.pdf")
+                && pdfDialog.InitialDirectory == nextOutput && pdfDialog.DefaultDirectory == nextOutput,
+                "pdf-export-of-old-score-uses-saved-folder-and-absolute-filename");
+            Check(pdfDialog!.OverwritePrompt && pdfDialog.AddExtension && pdfDialog.DefaultExt.TrimStart('.') == "pdf",
+                "pdf-export-keeps-extension-and-overwrite-confirmation");
+            var zipDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
+                "Salvar pacote", "Pacote ZIP|*.zip", "Partituras de teclado.zip", ".zip")!;
+            Check(zipDialog is not null && zipDialog.FileName == Path.Combine(nextOutput, "Partituras de teclado.zip")
+                && zipDialog.InitialDirectory == nextOutput && zipDialog.DefaultDirectory == nextOutput && zipDialog.OverwritePrompt,
+                "musescore-zip-export-uses-saved-folder");
+            string freshOutput = Path.Combine(fixture, "exportação", "ainda inexistente"); Draft(freshOutput); Save();
+            Check(!Directory.Exists(freshOutput), "saving-export-default-does-not-create-it");
+            var folderDialog = await (Task<OpenFolderDialog?>)Invoke("CreateBatchPdfFolderDialogAsync")!;
+            Check(folderDialog is not null && folderDialog.FolderName == freshOutput && folderDialog.InitialDirectory == freshOutput
+                && folderDialog.DefaultDirectory == freshOutput && Directory.Exists(freshOutput),
+                "batch-pdf-prepares-and-selects-new-saved-folder");
+            Check(!Directory.EnumerateFileSystemEntries(freshOutput).Any(), "preparing-dialog-leaves-no-files-or-write-probes");
+            pdfDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
+                "Salvar partitura em PDF", "Documento PDF|*.pdf", "Outro título.pdf", ".pdf")!;
+            Check(pdfDialog!.FileName == Path.Combine(freshOutput, "Outro título.pdf"), "next-export-uses-latest-saved-folder");
+            Check(row.ScorePath == oldScore && Hash(oldScore) == scoreHash && Hash(source) == sourceHash
+                && RecipeDestination(queue.Items[0]) == oldOutput && RecipeDestination(queue.Items[1]) == nextOutput,
+                "export-preparation-preserves-originals-history-and-captured-queue-destinations");
+            Draft(nextOutput); Save();
             string blocked = Path.Combine(fixture, "not-a-directory"); File.WriteAllText(blocked, "preserved blocker");
             Draft(blocked); Save();
             Check(!window.OutputDirectoryHasError && File.ReadAllText(blocked) == "preserved blocker",
                 "saving-preference-does-not-probe-or-alter-existing-target-file");
+            var blockedDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
+                "Salvar partitura em PDF", "Documento PDF|*.pdf", "Música.pdf", ".pdf")!;
+            Check(blockedDialog is null && window.IsIdle && window.Status.Contains("indisponível", StringComparison.Ordinal),
+                "unavailable-export-folder-reports-error-without-fallback-dialog");
+            Check(await (Task<OpenFolderDialog?>)Invoke("CreateBatchPdfFolderDialogAsync")! is null
+                && File.ReadAllText(blocked) == "preserved blocker", "batch-folder-failure-does-not-fall-back-or-overwrite");
             using (var cancellation = new CancellationTokenSource())
             {
                 SetField("cancellation", cancellation);

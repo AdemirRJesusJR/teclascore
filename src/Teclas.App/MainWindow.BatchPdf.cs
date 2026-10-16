@@ -23,9 +23,8 @@ public partial class MainWindow
         if (!CanExportBatchPdf || !CommitEdits()) return;
         var dialog = new BatchPdfSelectionWindow(Files.Select(BatchPdfCandidate).ToArray()) { Owner = this };
         if (dialog.ShowDialog() != true) return;
-        var folder = new OpenFolderDialog { Title = "Escolha a pasta para os PDFs das partituras", Multiselect = false };
-        if (Directory.Exists(OutputDirectory)) folder.InitialDirectory = OutputDirectory;
-        if (folder.ShowDialog(this) != true) return;
+        var folder = await CreateBatchPdfFolderDialogAsync();
+        if (folder is null || folder.ShowDialog(this) != true) return;
         // Recheck the selected versions after the dialogs; never silently export an older saved version.
         var selection = dialog.SelectedSources.Select(item => Files.FirstOrDefault(row => row.FullPath == item.Id) is { } row
             ? BatchPdfCandidate(row) : item with { BlockedReason = "Esta música não está mais na biblioteca." }).ToArray();

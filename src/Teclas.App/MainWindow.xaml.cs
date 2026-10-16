@@ -371,8 +371,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(scores.Length==0){Status="Gere ao menos uma partitura para criar o ZIP.";return;}
         int pending=scores.Count(row=>row.HasPendingScoreProperties);
         if(pending>0){Status=$"Há {pending} partitura(s) com alterações pendentes. Atualize-as na Biblioteca antes de exportar o ZIP.";return;}
-        var dialog=new SaveFileDialog{Title="Salvar pacote",Filter="Pacote ZIP|*.zip",FileName="Partituras de teclado.zip",OverwritePrompt=true};
-        if(dialog.ShowDialog(this)!=true)return;
+        var dialog=await CreateScoreExportDialogAsync("Salvar pacote","Pacote ZIP|*.zip","Partituras de teclado.zip",".zip");
+        if(dialog is null || dialog.ShowDialog(this)!=true)return;
         await RunOperation(async()=>{
             Status="Reunindo as partituras no pacote ZIP…";
             await Task.Run(()=>{

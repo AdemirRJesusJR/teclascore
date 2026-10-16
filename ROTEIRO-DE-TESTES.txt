@@ -1,3 +1,10 @@
+TECLASCORE 0.20.3 · TESTES DA PASTA PADRÃO
+
+1. Em Configurações, escolha a pasta desejada e clique em Salvar pasta padrão. Abra uma partitura já gerada em outra pasta e use Salvar PDF: o destino inicial deve ser a nova pasta, com nome intérprete - título.
+2. Em Sua produção, confira Exportar PDFs e Exportar ZIP: ambos devem iniciar na pasta salva. Você ainda pode escolher outro destino para aquela exportação.
+3. Troque a pasta padrão, salve e repita. Feche e reabra o app: a escolha deve ser restaurada. Uma pasta nova deve ser criada quando utilizada; uma pasta indisponível deve gerar mensagem, sem salvar em outro lugar.
+4. Arquivos anteriores permanecem nos seus locais. Trabalhos já enfileirados conservam o destino registrado; novas gerações e versões usam a pasta nova.
+
 TECLASCORE 0.20.2 · TESTES DA ATUALIZAÇÃO
 
 1. Nas propriedades, informe intérprete Roberto Carlos e título Luz divina. Gere a partitura e confira Roberto Carlos - Luz divina.mscz. Ao salvar PDF, confira o mesmo nome sugerido com extensão .pdf.
@@ -29,10 +36,10 @@ TECLASCORE 0.19.2 · TESTES DA ATUALIZAÇÃO
 3. Em uma música transposta, observe a mensagem de tom final e compare a imagem com o diagrama da partitura. Confira também o tema claro e o escuro.
 4. Feche o app em Biblioteca, Produção ou Configurações. Ao reabrir, Visão geral deve aparecer, mantendo a biblioteca, filtros, tema e modo compacto. Importar continua abrindo a Biblioteca normalmente.
 
-TESTES DO INSTALADOR 0.20.2
+TESTES DO INSTALADOR 0.20.3
 
-1. Execute TeclaScore-0.20.2-Setup-x64.exe. Confira idioma português, pasta de destino e opção de atalho na área de trabalho. A versão aparece em Aplicativos instalados do Windows.
-2. Abra o aplicativo e confira 0.20.2 em Sobre. O .NET está incluído; Python/Pillow e MuseScore são preparados em Configurações > Preparar este computador.
+1. Execute TeclaScore-0.20.3-Setup-x64.exe. Confira idioma português, pasta de destino e opção de atalho na área de trabalho. A versão aparece em Aplicativos instalados do Windows.
+2. Abra o aplicativo e confira 0.20.3 em Sobre. O .NET está incluído; Python/Pillow e MuseScore são preparados em Configurações > Preparar este computador.
 3. Com uma biblioteca existente, confira músicas, histórico, tema e caminhos depois de instalar. O instalador não deve fechar à força o app nem reiniciar o computador.
 4. Se testar a desinstalação, faça-a pelos Aplicativos instalados. As partituras nas pastas e a biblioteca devem permanecer. Instalar novamente deve recuperar as preferências salvas.
 5. O ZIP permanece compatível com a instalação pelo aplicativo. SHA256SUMS contém uma entrada para o ZIP e outra para o EXE.

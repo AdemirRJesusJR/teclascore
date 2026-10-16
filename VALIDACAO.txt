@@ -1,3 +1,16 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.3
+15/10/2026
+
+- Runner local: 36 etapas aprovadas, zero falhas e 4 grupos opcionais não executados. Inclui compilação, testes C# e Python, WPF, preferências, instalador e benchmarks sintéticos.
+- Pasta de saída: 38 verificações de interface aprovadas. Os diálogos de PDF individual e ZIP recebem o caminho completo na pasta salva, além de InitialDirectory e DefaultDirectory; o seletor de PDF em lote recebe a pasta configurada e preparada.
+- Exercitados exportação de partitura antiga, troca do padrão, caminho Unicode, criação de pasta inexistente somente ao usá-la, erro sem destino alternativo e limpeza da sonda de escrita.
+- Conferidos persistência após reabrir, falha ao salvar preferências, cancelamento antes da criação, preservação de MIDIs/partituras/histórico e destinos previamente capturados pela fila.
+- Os testes inspecionam os diálogos produzidos pelos mesmos métodos usados pelos botões, sem abrir o seletor do Windows nem manipular a coleção pessoal. Exportação de PDF e seleção em lote continuam cobertas pelos testes dos serviços.
+
+Na configuração, é necessário clicar em Salvar pasta padrão. A escolha é o destino inicial das exportações; o usuário ainda pode escolher outra pasta naquela operação. Arquivos já existentes permanecem nos seus locais. Uma falha na pasta configurada interrompe a preparação e informa o motivo, sem redirecionar silenciosamente.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.2
 15/10/2026
 

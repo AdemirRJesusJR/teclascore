@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.20.3 — 2026-10-15
+
+- Corrige a pasta inicial ao salvar PDF: usa a pasta padrão salva em Configurações, em vez da pasta da partitura antiga ou do último destino lembrado pelo Windows.
+- Exportações de PDFs em lote e ZIP também começam na pasta configurada. Diretórios novos são preparados ao exportar; falhas de acesso são informadas sem escolher outra pasta silenciosamente.
+- Testes da interface verificam os destinos, troca de pasta, caminhos Unicode, preservação dos arquivos anteriores, fila existente e ausência de redirecionamento após falhas.
+
 ## 0.20.2 — 2026-10-15
 
 - Arquivos PDF e MuseScore usam o padrão artista/intérprete - título das propriedades da partitura. Vale para geração MIDI, PDF individual e em lote, arquivos do ZIP e novas versões de partituras MuseScore importadas ou editadas.

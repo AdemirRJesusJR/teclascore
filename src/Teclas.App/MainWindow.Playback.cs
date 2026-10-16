@@ -233,12 +233,9 @@ public partial class MainWindow
     private async void ExportPdfClick(object sender, RoutedEventArgs e)
     {
         if (!CanExportPdf || CurrentScorePath is not { } scorePath) return;
-        var dialog = new SaveFileDialog
-        {
-            Title = "Salvar partitura em PDF", Filter = "Documento PDF|*.pdf", DefaultExt = ".pdf", AddExtension = true,
-            FileName = ScoreFileName.Stem(selectedFile?.ScoreArtist, selectedFile?.ScoreTitle, scorePath) + ".pdf", InitialDirectory = Path.GetDirectoryName(scorePath), OverwritePrompt = true
-        };
-        if (dialog.ShowDialog(this) != true) return;
+        var dialog = await CreateScoreExportDialogAsync("Salvar partitura em PDF", "Documento PDF|*.pdf",
+            ScoreFileName.Stem(selectedFile?.ScoreArtist, selectedFile?.ScoreTitle, scorePath) + ".pdf", ".pdf");
+        if (dialog is null || dialog.ShowDialog(this) != true) return;
         await RunOperation(async () =>
         {
             var exporter = new ScoreExporter(MuseScorePath, PlaybackCacheDirectory);
