@@ -185,7 +185,15 @@ public sealed class ConversionQueueService : IDisposable
         var key = analysisDefaults["harmony"]?["key"];
         if (!generate.ContainsKey("keyFifths")) generate["keyFifths"] = analysisDefaults["keyFifths"]?.DeepClone() ?? key?["fifths"]?.DeepClone() ?? JsonValue.Create(0);
         if (!generate.ContainsKey("keyMinor")) generate["keyMinor"] = analysisDefaults["keyMinor"]?.DeepClone() ?? key?["minor"]?.DeepClone() ?? JsonValue.Create(false);
-        if (!generate.ContainsKey("chords") && analysisDefaults["chords"] is JsonArray chords) generate["chords"] = chords.DeepClone();
+        if (!generate.ContainsKey("chords") && analysisDefaults["chords"] is JsonArray chords)
+        {
+            var analyzed = (JsonArray)chords.DeepClone();
+            // Chords analyzed here receive the library's remembered diagram positions, like the editor does.
+            if (generate["chordPreferences"] is JsonArray preferences)
+                DiagramPositionPropagation.ApplyPreferences(analyzed, preferences, (int?)generate["transposeSemitones"] ?? 0);
+            generate["chords"] = analyzed;
+        }
+        generate.Remove("chordPreferences");
         generate["analysisPath"] = analysisPath; generate["musescorePath"] = job.Recipe.MuseScorePath; generate["outputDirectory"] = localOutput;
         generate["queueReceipt"] = receipt; generate["queueJobId"] = job.Id; generate["queueRecipeSha256"] = job.RecipeSha256;
         await worker.RunAsync(Clone(job.Recipe), generate, workspace, new StageProgress(message => Stage(job, message, progress, attempt, token)), token).ConfigureAwait(false);

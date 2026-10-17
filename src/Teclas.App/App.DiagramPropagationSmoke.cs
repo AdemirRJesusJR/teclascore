@@ -135,6 +135,15 @@ public partial class App
             Check(notGenerated.Chords[0].DiagramInversion == 1, "first-run-fills-songs-not-generated-from-existing-choices");
             Check(generatedUntouched.Chords[0].DiagramInversion is null && !generatedUntouched.HasPendingScoreProperties, "first-run-never-changes-generated-scores");
             Check(Settings.Load(settingsPath).ChordPreferencesSeeded, "first-run-happens-once");
+
+            // Conversion queue: songs analyzed there (future additions) receive the same remembered positions.
+            var queued = Song("adicionada-pela-fila", 0, false);
+            var options = (System.Text.Json.Nodes.JsonObject)typeof(MainWindow).GetMethod("QueueGenerationOptions", hidden)!.Invoke(window, [queued])!;
+            Check(options["chordPreferences"] is System.Text.Json.Nodes.JsonArray { Count: > 0 }, "queue-recipe-carries-remembered-positions");
+            var analyzed = System.Text.Json.Nodes.JsonNode.Parse("""[{"root":"Ab","quality":"m"},{"root":"C","quality":""},{"root":"G#","quality":"m","diagramInversion":2}]""")!.AsArray();
+            int queuedFilled = DiagramPositionPropagation.ApplyPreferences(analyzed, (System.Text.Json.Nodes.JsonArray)options["chordPreferences"]!, 0);
+            Check(queuedFilled == 1 && (int?)analyzed[0]!["diagramInversion"] == 1 && analyzed[1]!["diagramInversion"] is null && (int?)analyzed[2]!["diagramInversion"] == 2,
+                "queue-fills-only-chords-without-a-choice");
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, enginesRun = 0 }, new JsonSerializerOptions { WriteIndented = true }));
             window.Close(); window = null; Shutdown(0);
         }

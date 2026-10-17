@@ -1,3 +1,7 @@
+TECLASCORE 0.23.1
+
+Prévia: repetir o trecho A–B virou um ícone moderno; desligar a repetição limpa os marcadores. Botões da aba Melodia padronizados. Posições guardadas também nas músicas geradas pela Fila de conversões.
+
 TECLASCORE 0.23.0
 
 Posições dos diagramas agora ficam guardadas por acorde e são aplicadas automaticamente nas próximas músicas analisadas.

@@ -41,6 +41,21 @@ public static class DiagramPositionPropagation
         return plan;
     }
 
+    /// <summary>Fills JSON chords without diagramInversion from remembered {pitchClass, quality, inversion} entries.</summary>
+    public static int ApplyPreferences(System.Text.Json.Nodes.JsonArray chords, System.Text.Json.Nodes.JsonArray preferences, int transposeSemitones)
+    {
+        var wanted = new Dictionary<ChordShape, int>();
+        foreach (var item in preferences.OfType<System.Text.Json.Nodes.JsonObject>())
+            if ((int?)item["pitchClass"] is int pitchClass and >= 0 and < 12 && (int?)item["inversion"] is int inversion and >= 0 and <= 2)
+                wanted[new ChordShape(pitchClass, ((string?)item["quality"] ?? "").Trim())] = inversion;
+        int changed = 0;
+        foreach (var chord in chords.OfType<System.Text.Json.Nodes.JsonObject>())
+            if (chord["diagramInversion"] is null && (string?)chord["root"] is { } root &&
+                Shape(root, (string?)chord["quality"], transposeSemitones) is { } shape && wanted.TryGetValue(shape, out int value))
+            { chord["diagramInversion"] = value; changed++; }
+        return changed;
+    }
+
     public static bool SharesAnyShape(IReadOnlyList<ChordPositionEntry> first, int firstTranspose, IReadOnlyList<ChordPositionEntry> second, int secondTranspose)
     {
         var shapes = first.Select(chord => Shape(chord.Root, chord.Quality, firstTranspose)).OfType<ChordShape>().ToHashSet();

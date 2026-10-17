@@ -1,3 +1,10 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.23.1
+17/10/2026
+
+- Repetir: 4 verificações de interface (ícone de alternância sem botão ✕, recusa sem A–B, liga com marcadores, desligar limpa). Layout da Prévia: 146 verificações e capturas conferidas.
+- Posições na Fila: 2 verificações (receita leva as posições guardadas; só cifras sem escolha são preenchidas). Teste nativo de estudo repetido após uma falha ocasional do MuseScore (código -1073741819): aprovado.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.23.0
 17/10/2026
 

@@ -46,7 +46,16 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
     {
         ValidateScore(input);
         ValidateNewDestination(input, destination, ".mid");
-        await ExportAsync(input, destination, token, PerformanceOperation.ScoreExportMidi);
+        // MuseScore 4 occasionally crashes (access violation) on this headless export; a fresh process usually succeeds.
+        for (int attempt = 1; ; attempt++)
+        {
+            try { await ExportAsync(input, destination, token, PerformanceOperation.ScoreExportMidi); return; }
+            catch (InvalidOperationException) when (attempt < 3 && !token.IsCancellationRequested)
+            {
+                TryDelete(destination);
+                await Task.Delay(TimeSpan.FromMilliseconds(400 * attempt), token);
+            }
+        }
     }
 
     /// <summary>Renders all pages, returning numbered PNG files in page order.</summary>

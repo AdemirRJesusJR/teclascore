@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.23.1 — 17/10/2026
+
+- Repetição do trecho A–B com ícone moderno de alternância, no estilo dos outros controles da Prévia. Sem A e B marcados, não liga e o rodapé explica o que fazer; desligar a repetição também limpa os marcadores (substitui o antigo botão ✕).
+- Botões da aba Melodia padronizados: mesmo estilo, altura e alinhamento.
+- Posições dos diagramas guardadas também valem para músicas analisadas pela Fila de conversões (adições futuras), e o card recebe as mesmas posições usadas na partitura.
+- Metrônomo mais confiável: se o MuseScore travar ao exportar os tempos dos compassos (falha ocasional do próprio programa), a exportação é repetida automaticamente.
+
 ## 0.23.0 — 17/10/2026
 
 - Posições dos diagramas guardadas para a biblioteca: cada posição aplicada fica registrada por acorde (nota e tipo) e é usada automaticamente nas cifras das próximas músicas analisadas. A janela já abre com as posições registradas nas cifras ainda no padrão. Na primeira abertura, o app aprende com as escolhas já feitas e preenche as músicas analisadas e ainda não geradas; partituras geradas não mudam sem pedido.

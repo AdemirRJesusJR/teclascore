@@ -30,13 +30,26 @@ public partial class MainWindow
     }
     public bool CanMarkLoop => CanSeekScore && IsIdle;
     public bool CanLoopScore => loopStart is { } a && loopEnd is { } b && b - a >= .1;
+    public bool CanClearLoop => loopStart is not null || loopEnd is not null;
     public bool LoopEnabled
     {
         get => loopEnabled;
         set
         {
+            // Turning repetition off also clears A and B, replacing the former clear button.
+            if (!value && (loopStart is not null || loopEnd is not null))
+            {
+                loopEnabled = false; loopStart = loopEnd = null;
+                PlaybackStatus = "Repetição desligada e marcadores A–B limpos.";
+                NotifyStudyState(); return;
+            }
             loopEnabled = value && CanLoopScore;
-            if (value && !loopEnabled) PlaybackStatus = "Marque o início A e depois o fim B para repetir um trecho.";
+            if (value && !loopEnabled)
+            {
+                PlaybackStatus = "Marque o início A e depois o fim B para repetir um trecho.";
+                // The check box asked for true; refresh it after the binding finishes so it shows unchecked.
+                Dispatcher.BeginInvoke(() => Notify(nameof(LoopEnabled)));
+            }
             if (loopEnabled && audioLoaded && (PlaybackPositionSeconds < loopStart || PlaybackPositionSeconds >= loopEnd))
                 PlaybackPositionSeconds = loopStart!.Value;
             Notify();
@@ -73,7 +86,7 @@ public partial class MainWindow
     { loopStart = loopEnd = null; loopEnabled = false; pendingPlaybackPosition = 0; NotifyStudyState(); }
     private void NotifyStudyState()
     {
-        foreach (var name in new[] { nameof(CanMarkLoop), nameof(CanLoopScore), nameof(LoopEnabled), nameof(LoopStartText), nameof(LoopEndText), nameof(ScorePlaybackSpeed) }) Notify(name);
+        foreach (var name in new[] { nameof(CanMarkLoop), nameof(CanLoopScore), nameof(CanClearLoop), nameof(LoopEnabled), nameof(LoopStartText), nameof(LoopEndText), nameof(ScorePlaybackSpeed) }) Notify(name);
     }
     private void ClampStudyMarkers()
     {

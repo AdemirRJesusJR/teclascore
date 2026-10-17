@@ -70,6 +70,16 @@ public partial class App
             window.Files.Add(row); ((ListBox)window.FindName("Library")).SelectedItem = row;
             window.SelectPageForSmoke("library", 2); Flush();
             Check(!window.MetronomeEnabled && !window.CountInEnabled, "metronome-and-count-in-start-disabled");
+            var repeat = (System.Windows.Controls.Primitives.ToggleButton)window.FindName("LoopRepeatToggle");
+            Check(repeat.IsEnabled && window.FindName("ClearLoopButton") is null && window.FindName("LoopRepeatCheckBox") is null, "repeat-is-an-icon-toggle-without-clear-button");
+            repeat.IsChecked = true; Flush(); await Task.Delay(50); Flush();
+            Check(repeat.IsChecked == false && !window.LoopEnabled && window.PlaybackStatus.Contains("Marque o início A"), "repeat-without-markers-explains-and-stays-off");
+            typeof(MainWindow).GetField("loopStart", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, (double?)1);
+            typeof(MainWindow).GetField("loopEnd", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, (double?)3);
+            repeat.IsChecked = true; Flush();
+            Check(window.LoopEnabled && repeat.IsChecked == true, "repeat-turns-on-with-markers");
+            repeat.IsChecked = false; Flush();
+            Check(!window.LoopEnabled && !window.CanClearLoop && window.LoopStartText == "A · —", "turning-repeat-off-clears-markers");
             Check(window.FindName("MetronomeCheckBox") is CheckBox { IsEnabled: true } && window.FindName("CountInCheckBox") is CheckBox, "preview-shows-metronome-controls");
 
             int audioRequests = 0, beatRequests = 0, mixRequests = 0;

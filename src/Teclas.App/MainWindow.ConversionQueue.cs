@@ -52,6 +52,11 @@ public partial class MainWindow
                 ["diagramInversion"] = chord.DiagramInversion
             }).ToArray());
         }
+        else if (chordPreferences.Count > 0)
+            options["chordPreferences"] = new JsonArray(chordPreferences.Select(item => (JsonNode)new JsonObject
+            {
+                ["pitchClass"] = item.Key.PitchClass, ["quality"] = item.Key.Quality, ["inversion"] = item.Value
+            }).ToArray());
         return options;
     }
 
@@ -130,7 +135,13 @@ public partial class MainWindow
                 var analysis = File.Exists(result.AnalysisPath) ? JsonNode.Parse(File.ReadAllText(result.AnalysisPath!)) : null;
                 var chords = snapshot.Chords;
                 if (chords.Count == 0 && analysis?["chords"] is JsonArray analyzedChords)
-                    chords = analyzedChords.Deserialize<List<SavedChord>>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+                {
+                    // The queue applied the remembered positions when generating; keep the card in step with the score.
+                    var withPositions = (JsonArray)analyzedChords.DeepClone();
+                    if (item.Recipe.GenerateOptions["chordPreferences"] is JsonArray preferences)
+                        DiagramPositionPropagation.ApplyPreferences(withPositions, preferences, snapshot.TransposeSemitones);
+                    chords = withPositions.Deserialize<List<SavedChord>>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+                }
                 var version = new SavedScoreVersion
                 {
                     SourceSha256 = item.SourceSha256, UseReviewedProfile = snapshot.UseReviewedProfile,

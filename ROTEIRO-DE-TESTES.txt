@@ -1,3 +1,9 @@
+TECLASCORE 0.23.1 · REPETIR, BOTÕES E FILA
+
+1. Na Prévia, sem A e B, clique no ícone de repetir: não liga e o rodapé explica. Reproduza, marque A e B e ligue: o trecho repete. Desligue: A e B voltam a "—".
+2. Na aba Melodia, os botões têm o mesmo estilo e altura.
+3. Adicione um MIDI novo à Fila sem analisar: ao concluir, as cifras do card e da partitura usam as posições guardadas.
+
 TECLASCORE 0.23.0 · POSIÇÕES LEMBRADAS, VÁRIAS PISTAS E PDFS EM MASSA
 
 1. Abra a música "Dois corações e uma": G e D já devem aparecer com as posições usadas nas outras músicas. Aplique e confira a partitura.
