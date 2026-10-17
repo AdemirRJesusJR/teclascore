@@ -9,3 +9,9 @@ O usuário autorizou em 12/10/2026 fazer commit, criar uma nova tag e enviar as 
 - Preserve alterações alheias à tarefa. Não inclua MIDIs, partituras pessoais, configurações do usuário, credenciais ou resultados temporários de testes no Git.
 - Confira o destino e o estado do repositório antes de publicar. Não reescreva tags publicadas nem use push forçado para contornar conflitos.
 - Informe a versão entregue e qualquer falha real de validação ou publicação.
+
+## Kit de instalação debug
+
+- A cada entrega, publique o aplicativo, execute tools/prepare_distribution.py e finalize com tools/package_app.py. Esses comandos atualizam automaticamente debug com aplicativo, Python/Pillow privados e instalador oficial do MuseScore.
+- Em um checkout novo, use tools/prepare_offline_dependencies.py --download para obter os pacotes oficiais fixados por SHA-256. Não copie ambientes Python pessoais, configurações ou partituras para debug.
+- Preserve scripts .iss e outros arquivos do usuário fora dos caminhos gerenciados de kit-manifest.json. Não envie debug, Aplicativo ou os downloads ao Git.

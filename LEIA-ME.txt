@@ -1,11 +1,14 @@
-TECLASCORE · PRÉVIA 0.20.3
+NOVO NA VERSÃO 0.20.4
+Python e Pillow incluídos: não é necessário instalá-los na outra máquina. MuseScore continua separado; o kit debug inclui seu MSI oficial. debug/app contém os arquivos para Inno Setup; leia debug/LEIA-ME-INNO.txt. A pasta é atualizada a cada preparação e empacotamento.
+
+TECLASCORE · PRÉVIA 0.20.4
 
 NOVO NA VERSÃO 0.20.3
 A pasta padrão salva em Configurações passa a ser usada também ao salvar PDF individual, PDFs em lote e ZIP, inclusive de partituras já existentes. Uma pasta indisponível gera mensagem sem redirecionar a exportação. Escolha a pasta e clique em Salvar pasta padrão.
 
 NOVO NA VERSÃO 0.20.2
 Ao salvar, PDF e MuseScore recebem o nome artista/intérprete - título das propriedades. Sem intérprete, usam só o título. Vale também para exportação em lote, ZIP, geração MIDI e novas versões de partituras importadas ou editadas. Caracteres inválidos são substituídos e nomes repetidos recebem numeração. Arquivos antigos são preservados.
-Instalador: TeclaScore-0.20.3-Setup-x64.exe.
+Instalador: TeclaScore-0.20.4-Setup-x64.exe.
 
 NOVO NA VERSÃO 0.20.1
 O preparo de áudio mostra progresso e Cancelar no rodapé. A caixa central não aparece a cada reprodução, e a página já aberta permanece estável. MIDIs, pistas e mapas já preparados são reutilizados durante a sessão. A primeira preparação de partitura ainda pode levar tempo no MuseScore.

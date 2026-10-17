@@ -1,6 +1,8 @@
 # TeclaScore
 
-Versão 0.20.3 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.20.4 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+
+**Kit Inno Setup:** a pasta `debug` é atualizada automaticamente ao preparar e empacotar cada versão. `debug/app` contém TeclaScore, .NET e Python 3.13.13 com Pillow 12.3.0; `debug/prerequisitos` contém o MSI oficial do MuseScore Studio 4.6.5. Consulte `debug/LEIA-ME-INNO.txt`. Scripts `.iss` próprios na raiz de debug são preservados. Os binários só mudam após recompilar e preparar uma entrega.
 
 **Nomes ao salvar:** PDFs e arquivos MuseScore usam **artista/intérprete - título**, conforme as propriedades da partitura. Sem intérprete, usam apenas o título. A regra vale para PDF individual e em lote, geração MIDI, novas versões editadas e arquivos do ZIP. Caracteres inválidos são substituídos e nomes repetidos recebem numeração; as versões anteriores permanecem intactas.
 
@@ -196,19 +198,19 @@ Arquivos de versões antigas devem ser abertos e salvos em uma nova cópia pelo 
 
 ## Instalação e atualizações
 
-Baixe **TeclaScore-0.20.3-Setup-x64.exe** na página da versão e siga o assistente em português. Escolha a pasta e os atalhos. A instalação é para o usuário atual e não exige permissões de administrador. O desinstalador fica disponível nos Aplicativos instalados do Windows; ele preserva biblioteca, configurações e partituras. Também é possível extrair o ZIP completo e executar **Instalar.cmd**, ou abrir Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
+Baixe **TeclaScore-0.20.4-Setup-x64.exe** na página da versão e siga o assistente em português. Escolha a pasta e os atalhos. A instalação é para o usuário atual e não exige permissões de administrador. O desinstalador fica disponível nos Aplicativos instalados do Windows; ele preserva biblioteca, configurações e partituras. Também é possível extrair o ZIP completo e executar **Instalar.cmd**, ou abrir Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
 
-Na tela **Sobre → Instalação e atualizações**, confira dependências e consulte a última versão publicada no GitHub. A consulta só ocorre ao clicar. Baixe o ZIP pela página da versão e selecione-o no app; o instalador confere SHA-256 e conteúdo antes de instalar. Se a consulta não estiver disponível, selecione também o arquivo SHA256SUMS da mesma versão. A nova instalação não fecha o app sem sua escolha. O assistente localiza e valida Python/MuseScore e oferece o preparo isolado de Pillow; instalar Python ou MuseScore continua pelo instalador oficial.
+Na tela **Sobre → Instalação e atualizações**, confira dependências e consulte a última versão publicada no GitHub. A consulta só ocorre ao clicar. Baixe o ZIP pela página da versão e selecione-o no app; o instalador confere SHA-256 e conteúdo antes de instalar. Se a consulta não estiver disponível, selecione também o arquivo SHA256SUMS da mesma versão. A nova instalação não fecha o app sem sua escolha. O assistente localiza e valida Python/MuseScore e oferece o preparo isolado de Pillow; o Python privado já acompanha a distribuição; instalar MuseScore continua pelo instalador oficial.
 
 ## Dependências desta versão
 
 - Windows 10 22H2 ou Windows 11 de 64 bits. O runtime .NET Desktop 10 está incluído nos pacotes oficiais.
 - MuseScore Studio 4 instalado, para gravação nativa, renderização, preparação do áudio e exportação PDF em segundo plano.
-- Python 3.11 ou superior com Pillow, para o motor musical reaproveitado.
+- Python com Pillow incluído no pacote, para o motor musical reaproveitado.
 
-A interface, a leitura inicial do MIDI, a biblioteca, o controle das operações e a criação de ZIP são em C#. A preparação musical detalhada usa o motor Python validado no lote anterior. Este protótipo ainda não é uma implementação musical integralmente em C# e Python/Pillow e MuseScore continuam externos ao pacote.
+A interface, a leitura inicial do MIDI, a biblioteca, o controle das operações e a criação de ZIP são em C#. A preparação musical detalhada usa o motor Python validado no lote anterior. Este protótipo ainda não é uma implementação musical integralmente em C# e Python/Pillow agora são incluídos no pacote; MuseScore permanece uma instalação separada, cujo MSI está no kit debug.
 
-No computador usado para preparar o projeto, as dependências já existem e o programa procura seus caminhos automaticamente. Em outro computador, use Preparar este computador. Downloads oficiais e preparo do ambiente Python exigem uma ação explícita; nada é instalado ao abrir o assistente. Os MIDIs não são enviados pela internet.
+Em uma instalação nova, o app localiza automaticamente seu Python privado. O MuseScore deve ser instalado pelo MSI oficial incluído no kit debug ou pelo site oficial. Em outro computador, use Preparar este computador. Downloads oficiais e preparo do ambiente Python exigem uma ação explícita; nada é instalado ao abrir o assistente. Os MIDIs não são enviados pela internet.
 
 A barra de título nativa acompanha as cores do tema no Windows 11. Em versões anteriores do Windows, usa os atributos de aparência suportados pelo sistema, mantendo os botões e o redimensionamento nativos.
 

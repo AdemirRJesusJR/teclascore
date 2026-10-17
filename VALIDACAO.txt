@@ -1,3 +1,16 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.4
+17/10/2026
+
+- Runner local com o Python privado que acompanha a distribuição: 36 etapas aprovadas, zero falhas, 4 grupos opcionais não executados. Inclui C#, WPF, 174 testes Python (6 casos nativos opcionais omitidos), instalador e benchmarks.
+- Pacotes oficiais fixados por versão e SHA-256: Python embarcável 3.13.13 Windows x64, Pillow 12.3.0 e MSI MuseScore Studio 4.6.5. Python/Pillow extraídos sem copiar ambiente pessoal, com licenças e caminhos relativos.
+- Testes do kit verificam cópia do payload e pré-requisitos, versão/hash, substituição de arquivos gerenciados, remoção de entradas obsoletas, preservação de script próprio e bloqueio de caminhos fora da pasta.
+- O primeiro teste avulso encontrou restrição de escrita na pasta TEMP do ambiente de teste. O runner foi executado com TEMP isolado dentro de QA e todos os testes passaram; não se tratou de falha no pacote.
+- debug é recriado a partir do manifesto validado ao preparar a distribuição e ao finalizar o pacote. Python/Pillow fazem parte também do instalador e ZIP; o MSI do MuseScore é fornecido no kit debug e deve ser instalado separadamente.
+
+Não foi usada uma segunda máquina física nesta validação. O kit não contém biblioteca, preferências ou partituras pessoais. Mudanças no código exigem recompilação e preparação da distribuição antes de atualizar seus binários.
+
+REGISTRO ANTERIOR
+
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.3
 15/10/2026
 

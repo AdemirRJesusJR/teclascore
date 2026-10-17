@@ -6,6 +6,8 @@ import os
 import re
 import shutil
 import xml.etree.ElementTree as ET
+from prepare_offline_dependencies import prepare as prepare_offline
+from build_debug import build as build_debug
 
 BASE = Path(__file__).resolve().parents[1]
 APP = BASE / 'Aplicativo'
@@ -15,6 +17,7 @@ def prepare():
     version = ET.parse(BASE / 'src/Teclas.App/Teclas.App.csproj').findtext('.//Version')
     if not (APP / 'Teclas.Partituras.exe').is_file():
         raise RuntimeError('Publique o aplicativo antes de preparar o instalador.')
+    prepare_offline()
     for name in ('Install.ps1', 'Instalar.cmd', 'RuntimePrerequisite.ps1'):
         shutil.copy2(BASE / 'tools/installer' / name, APP / name)
     for name in ('LEIA-ME.txt', 'VALIDACAO.txt', 'ROTEIRO-DE-TESTES.txt'):
@@ -48,6 +51,7 @@ def prepare():
     (APP / 'installation-manifest.json').write_text(json.dumps(
         {'product': 'TeclaScore', 'version': version, 'files': files}, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps({'installer_version': version, 'verified_files': len(files)}))
+    build_debug(BASE)
 
 
 if __name__ == '__main__':

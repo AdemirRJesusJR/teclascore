@@ -1,0 +1,28 @@
+TECLASCORE · KIT OFFLINE PARA INNO SETUP (WINDOWS X64)
+
+app\ contém o aplicativo completo, .NET Desktop Runtime, motor musical, Python próprio e Pillow. Copie TODO o conteúdo de app\ para {app}, preservando as subpastas. O executável é Teclas.Partituras.exe. O Python incluído é runtime\python.exe; não precisa instalar Python nem Pillow na outra máquina. As licenças do Python e do Pillow acompanham runtime\ e suas subpastas.
+
+prerequisitos\ contém o instalador oficial do MuseScore Studio 4, sem alterações. Instale-o na máquina de destino antes de gerar partituras. Use a instalação normal do MSI (pode pedir administrador). O TeclaScore procura o caminho padrão de MuseScore 4. Se estiver em outro local, abra Configurações > Preparar este computador > Detectar e verificar > Usar estas configurações.
+
+Também são conservados em prerequisitos\ o ZIP oficial do Python e o wheel do Pillow, para reconstruir o kit offline nas próximas versões. NÃO precisam ser instalados separadamente: a cópia pronta já está em app\runtime. Esses dois arquivos não precisam entrar no seu instalador final.
+
+Exemplo para a seção [Files] do SEU script .iss, colocado nesta pasta debug:
+Source: "app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "prerequisitos\*.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
+
+Crie um atalho apontando para {app}\Teclas.Partituras.exe. Para instalar o MuseScore pelo seu script, use msiexec /i com o caminho do MSI; aguarde terminar e trate códigos 0 (sucesso) e 3010 (reinicialização necessária). Não encerre processos nem reinstale uma versão já adequada sem considerar a escolha do usuário. O MSI também pode ser executado manualmente. Não é necessário Muse Hub nem baixar Muse Sounds para as funções do TeclaScore.
+
+Mantenha seu .iss e a pasta de saída do Inno fora de app\ e prerequisitos\. Seus arquivos próprios na raiz debug são preservados. Não edite os arquivos gerenciados listados em kit-manifest.json: são substituídos automaticamente pelas novas versões.
+
+ATUALIZAÇÃO AUTOMÁTICA
+Ao preparar a distribuição e finalizar o pacote, tools/prepare_distribution.py e tools/package_app.py atualizam debug a partir do aplicativo publicado, com hashes e versão. Isso acontece a cada entrega; editar o código sem recompilar não atualiza os binários. Não é uma pasta bin\Debug do Visual Studio.
+
+Em um checkout novo, prepare uma vez os downloads oficiais com:
+python tools/prepare_offline_dependencies.py --download
+Os arquivos são fixados por versão e SHA-256 em tools/offline-dependencies.json. Não se utiliza o Python do computador do desenvolvedor nem suas configurações pessoais no pacote.
+
+MuseScore e código-fonte oficial: https://github.com/musescore/MuseScore/releases/tag/v4.6.5
+Python oficial: https://www.python.org/ftp/python/3.13.13/
+Pillow oficial: https://pypi.org/project/Pillow/12.3.0/
+
+Teste sempre seu instalador em uma máquina Windows x64 sem Python/Pillow. O kit foi verificado em pasta isolada; isso não substitui um teste completo em outro computador. Configurações e biblioteca ficam no perfil do usuário, não devem ser copiadas deste computador nem apagadas pelo instalador.

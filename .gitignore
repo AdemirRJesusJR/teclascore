@@ -3,6 +3,7 @@
 .dotnet/
 .nuget/
 Aplicativo/
+debug/
 qa/
 **/__pycache__/
 *.pyc

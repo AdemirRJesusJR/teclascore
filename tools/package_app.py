@@ -1,6 +1,7 @@
 from pathlib import Path
 import argparse,json,hashlib,zipfile,shutil
 import xml.etree.ElementTree as ET
+from build_debug import build as build_debug
 B=Path(__file__).resolve().parents[1]
 APP=B/'Aplicativo'
 version=ET.parse(B/'src/Teclas.App/Teclas.App.csproj').findtext('.//Version')
@@ -17,6 +18,7 @@ shutil.copy2(B/'LEIA-ME.txt',APP/'LEIA-ME.txt')
 shutil.copy2(B/'VALIDACAO.txt',APP/'VALIDACAO.txt')
 shutil.copy2(B/'ROTEIRO-DE-TESTES.txt',APP/'ROTEIRO-DE-TESTES.txt')
 shutil.copy2(B/'ui-preview.png',B/'previa-do-aplicativo.png')
+build_debug(B)
 with zipfile.ZipFile(B/archive_name,'w',zipfile.ZIP_DEFLATED) as z:
     for p in APP.rglob('*'):
         if p.is_file() and '__pycache__' not in p.parts and p.suffix not in ('.pdb','.pyc'):z.write(p,p.relative_to(APP))
@@ -27,7 +29,7 @@ artifacts=[archive_name]+([installer_name] if options.installer else [])
 (B/'SHA256SUMS').write_text(''.join(hashlib.sha256((B/name).read_bytes()).hexdigest()+'  '+name+'\n' for name in artifacts),encoding='ascii')
 def included(p):
     rel=p.relative_to(B)
-    if p.suffix=='.zip' and p.name!=archive_name:return False
+    if len(rel.parts)==1 and p.suffix=='.zip' and p.name!=archive_name:return False
     if len(rel.parts)==1 and p.suffix=='.exe' and (not options.installer or p.name!=installer_name):return False
     return not any(part in ('bin','obj','.git','.vs','.idea','.dotnet','.nuget','__pycache__','qa') for part in rel.parts) and p.suffix not in ('.pyc','.pdb') and not p.name.endswith(('.diagnostics.json','.error.txt')) and rel.as_posix() not in ('ui-preview.png','ui-deployed.png','delivery-manifest.json')
 files=[p for p in B.rglob('*') if p.is_file() and included(p)]

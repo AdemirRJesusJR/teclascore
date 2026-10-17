@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.20.4 — 2026-10-17
+
+- Kit debug para Inno Setup com aplicativo publicado, .NET, Python/Pillow privados, instalador oficial do MuseScore e instruções.
+- Atualização automática do kit na preparação e no empacotamento, com manifesto SHA-256; preserva scripts próprios fora dos arquivos gerenciados.
+- Python 3.13.13 e Pillow 12.3.0 passam a acompanhar também o instalador e ZIP. Downloads oficiais fixados por hash; nenhuma cópia do ambiente pessoal do desenvolvedor.
+
 ## 0.20.3 — 2026-10-15
 
 - Corrige a pasta inicial ao salvar PDF: usa a pasta padrão salva em Configurações, em vez da pasta da partitura antiga ou do último destino lembrado pelo Windows.
