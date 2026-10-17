@@ -110,6 +110,35 @@ public partial class App
             window.SelectPageForSmoke("library"); Flush();
             var first = window.Files[0]; var second = window.Files[1];
             var library = (ListBox)window.FindName("Library");
+            var splitter = (GridSplitter)window.FindName("LibraryFiltersSplitter");
+            var filtersRow = (RowDefinition)window.FindName("LibraryFiltersRow");
+            var cardsRow = (RowDefinition)window.FindName("LibraryCardsRow");
+            void SplitKey(Key key, bool release = true)
+            {
+                splitter.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, key)
+                    { RoutedEvent = Keyboard.KeyDownEvent });
+                Flush();
+                if (release) splitter.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, key)
+                    { RoutedEvent = Keyboard.KeyUpEvent });
+            }
+            double originalFiltersHeight = filtersRow.ActualHeight;
+            SplitKey(Key.Up);
+            Check(filtersRow.ActualHeight < originalFiltersHeight - 9 && filtersRow.Height.IsStar && cardsRow.Height.IsStar,
+                "library-splitter-keyboard-resizes-real-rows-proportionally");
+            SplitKey(Key.Down);
+            Check(Math.Abs(filtersRow.ActualHeight - originalFiltersHeight) < 1, "library-splitter-down-restores-height");
+            for (int step = 0; step < 60; step++) SplitKey(Key.Down, false);
+            Check(cardsRow.ActualHeight >= 149.5 && library.ActualHeight >= 149.5, "library-splitter-reserves-readable-card-area");
+            for (int step = 0; step < 60; step++) SplitKey(Key.Up, false);
+            Check(filtersRow.ActualHeight >= 95.5, "library-splitter-preserves-filter-access-at-upper-limit");
+            for (int step = 0; step < 10; step++) SplitKey(Key.Down, false);
+            SplitKey(Key.Down);
+            double savedShare = Settings.Load(Path.Combine(fixtureDirectory,"settings.json")).LibraryFiltersShare;
+            Check(Math.Abs(savedShare - filtersRow.ActualHeight / (filtersRow.ActualHeight + cardsRow.ActualHeight)) < .001,
+                "library-splitter-persists-user-adjustment");
+            window.Height = 900; Flush(); window.Height = 740; Flush();
+            Check(filtersRow.ActualHeight >= 95.5 && cardsRow.ActualHeight >= 149.5 && splitter.ActualHeight >= 14,
+                "library-splitter-remains-accessible-after-window-resize");
             var native = new MidiRow { FullPath = Path.Combine(fixtureDirectory, "native.mscz") };
             window.Files.Add(native); Flush();
             Check(first.ScorePath is null && first.AnalysisPath is null && first.Document?.Sources.Count == 3, "library-player-available-before-score-or-analysis");
@@ -222,6 +251,15 @@ public partial class App
             Check(window.Files.SequenceEqual(beforeClear) && Silent(),"bulk-undo-restores-cards-without-starting-audio");
             window.Close(); Flush();
             Check(Silent() && outputs.All(output => output.Disposed), "window-close-silences-and-disposes-all-midi-transports");
+            var reopened = new MainWindow(true, Path.Combine(fixtureDirectory,"settings.json")) { ShowInTaskbar = false, ShowActivated = false };
+            try
+            {
+                var restoredFilters = (RowDefinition)reopened.FindName("LibraryFiltersRow");
+                var restoredCards = (RowDefinition)reopened.FindName("LibraryCardsRow");
+                Check(Math.Abs(restoredFilters.Height.Value / (restoredFilters.Height.Value + restoredCards.Height.Value) - savedShare) < .001,
+                    "library-splitter-restores-proportion-on-next-launch");
+            }
+            finally { reopened.Close(); }
             Check(string.IsNullOrWhiteSpace(bindingOutput.ToString()), "library-player-bindings-have-no-warnings-or-errors");
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks }, new JsonSerializerOptions { WriteIndented = true }));
             timeout.Stop(); Shutdown(0);

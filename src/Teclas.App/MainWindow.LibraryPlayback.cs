@@ -15,13 +15,11 @@ public partial class MainWindow
     private bool libraryPlaybackDisposed;
     private Func<MidiDocument, CancellationToken, Task<MidiAuditionSequence>> librarySequenceFactory =
         (document, token) => Task.Run(() => MidiAuditionSequence.CreateFull(document, token), token);
-    public double LibraryFiltersMaximumHeight => Math.Clamp((ActualHeight - 300) * .55, 180, 420);
 
     private void InitializeLibraryPlayback(Func<IMidiOutputTransport>? outputFactory)
     {
         librarySequenceFactory = (document, token) => midiPreparationCache.GetOrCreateAsync(document, null,
             cancellationToken => Task.Run(() => MidiAuditionSequence.CreateFull(document, cancellationToken), cancellationToken), token);
-        SizeChanged += (_, _) => Notify(nameof(LibraryFiltersMaximumHeight));
         libraryMidiPlayer = new MidiTrackPlayer(outputFactory);
         libraryMidiPlayer.StateChanged += (_, _) => QueueLibraryPlaybackUpdate();
         libraryMidiPlayer.PlaybackFailed += (_, error) =>

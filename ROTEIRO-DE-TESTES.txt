@@ -1,3 +1,11 @@
+TECLASCORE 0.20.6 · DIVISOR DA BIBLIOTECA
+
+1. Arraste a linha entre filtros e cards para cima/baixo. Confira as rolagens independentes e os limites mínimos.
+2. Use Tab para focar o divisor e ajuste com as setas. Feche e reabra: a proporção deve ser restaurada.
+3. Redimensione a janela e confira o divisor nos temas claro/escuro.
+4. Confira Salvar PDF ao lado de Importar MuseScore, na mesma linha e tamanho. Role a partitura e compacte os controles: o botão permanece no topo.
+5. Salve um PDF em outra pasta; abra a próxima exportação e confira a pasta. Feche/reabra e confira novamente. Cancele sem salvar: a lembrança não deve mudar. Salvar novo padrão em Configurações deve prevalecer na próxima exportação.
+
 TECLASCORE 0.20.5 · AÇÕES DA BIBLIOTECA
 
 1. Abra uma partitura, role a área de edição e compacte o player: Salvar PDF continua no topo. Exporte e confira a pasta padrão e o nome.

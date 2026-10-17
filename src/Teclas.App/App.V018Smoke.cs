@@ -233,6 +233,11 @@ public partial class App
                 var bounds=pdf.TransformToAncestor(header).TransformBounds(new Rect(pdf.RenderSize));
                 Check(pdf.IsVisible && pdf.IsEnabled && bounds.Left>=0 && bounds.Right<=header.ActualWidth+1
                     && bounds.Top>=0 && bounds.Bottom<=header.ActualHeight+1,"pdf-fixed-header-visible-after-scroll-compact-"+compact);
+                var importScore=Descendants(header).OfType<Button>().Single(button=>button.Content?.ToString()=="Importar MuseScore");
+                var importBounds=importScore.TransformToAncestor(header).TransformBounds(new Rect(importScore.RenderSize));
+                Check(Math.Abs(bounds.Top-importBounds.Top)<1 && Math.Abs(bounds.Height-importBounds.Height)<1
+                    && Math.Abs(bounds.Width-importBounds.Width)<1 && Math.Abs(importBounds.Left-bounds.Right-8)<1,
+                    "pdf-standard-button-size-aligned-next-to-musescore-compact-"+compact);
                 Capture(window,Path.Combine(parent,"v0205-fixed-pdf-"+compact+".png"),1100,740);
             }
             window.IsPreviewControlsCompact=false;

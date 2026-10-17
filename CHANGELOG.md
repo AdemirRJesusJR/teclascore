@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.20.6 — 17/10/2026
+
+- Divisor horizontal ajustável entre filtros e cards, com mouse/teclado, proporção persistente e alturas mínimas.
+- Salvar PDF no tamanho padrão, alinhado ao lado de Importar MuseScore.
+- Última pasta de exportação lembrada para PDF, ZIP e PDFs em lote, inclusive após reabrir. Cancelamentos/falhas sem arquivos salvos não alteram o destino; salvar novo padrão o redefine.
+- Instalador e pasta debug atualizados.
+
 ## 0.20.5 — 17/10/2026
 
 - Salvar PDF no cabeçalho fixo da Biblioteca, também no modo compacto.

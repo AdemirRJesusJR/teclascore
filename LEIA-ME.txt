@@ -1,3 +1,9 @@
+TECLASCORE 0.20.6
+
+PDF, ZIP e PDFs em lote lembram a pasta da última exportação concluída, mesmo depois de fechar o aplicativo. Salvar novo padrão em Configurações redefine esse destino.
+
+Arraste a linha entre os filtros e os cards para ajustar o espaço da biblioteca. A posição será lembrada ao reabrir. Com foco no divisor, use as setas para cima e para baixo. Salvar PDF fica ao lado de Importar MuseScore, com tamanho padrão.
+
 TECLASCORE 0.20.5
 
 Salvar PDF permanece no topo da Biblioteca. Limpar biblioteca remove todos os cards, após confirmação, sem apagar arquivos; use Desfazer antes de fechar o aplicativo. Subir oitava e Descer oitava atualizam a versão atual em 12 semitons e preservam a anterior no Histórico.

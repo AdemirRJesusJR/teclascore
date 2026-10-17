@@ -7,7 +7,7 @@ namespace Teclas.App;
 public partial class MainWindow
 {
     private string? outputDirectoryDraft;
-    private string outputDirectoryStatus = "A pasta salva será usada nas próximas gerações e exportações de PDF e ZIP. Os arquivos existentes permanecem onde estão.";
+    private string outputDirectoryStatus = "Novas gerações usam esta pasta padrão. Ao exportar PDF ou ZIP, o app lembra a última pasta usada. Salvar um novo padrão redefine também o destino da próxima exportação.";
     private bool outputDirectoryHasError;
     public string OutputDirectory
     {
@@ -40,15 +40,17 @@ public partial class MainWindow
         if (!IsIdle) return;
         if (!Settings.TryValidateOutputDirectory(OutputDirectoryDraft, out string destination, out string error))
         { OutputDirectoryHasError = true; OutputDirectoryStatus = error; return; }
-        string previous = OutputDirectory, draft = OutputDirectoryDraft;
+        string previous = OutputDirectory, draft = OutputDirectoryDraft, previousExport = settings.LastExportDirectory;
         OutputDirectory = destination;
+        settings.LastExportDirectory = "";
         if (!SaveCurrentSession())
         {
-            OutputDirectory = previous; outputDirectoryDraft = draft; Notify(nameof(OutputDirectoryDraft));
+            OutputDirectory = previous; settings.LastExportDirectory = previousExport;
+            outputDirectoryDraft = draft; Notify(nameof(OutputDirectoryDraft));
             OutputDirectoryHasError = true; OutputDirectoryStatus = PersistenceError; return;
         }
         OutputDirectoryHasError = false;
-        OutputDirectoryStatus = "Pasta padrão salva. Será usada nas próximas gerações e exportações de PDF e ZIP; arquivos existentes e trabalhos já enfileirados mantêm seus destinos.";
+        OutputDirectoryStatus = "Pasta padrão salva. A próxima exportação começará aqui; ao salvar em outra pasta, o app lembrará a última escolhida. Arquivos existentes e trabalhos já enfileirados mantêm seus destinos.";
         Status = "Pasta de saída padrão salva.";
     }
 
@@ -58,7 +60,8 @@ public partial class MainWindow
         if (!IsIdle || operationsDisposed) return null;
         // Directory access may block on removable/network drives. Keep cancellation available
         // in the footer while checking the saved destination; never fall back to another folder.
-        await RunOperationCore(async () => destination = await PrepareOutputDirectoryAsync(cancellation!.Token),
+        string preferred = string.IsNullOrWhiteSpace(settings.LastExportDirectory) ? OutputDirectory : settings.LastExportDirectory;
+        await RunOperationCore(async () => destination = await PrepareWritableOutputDirectoryAsync(preferred, cancellation!.Token),
             null, "Preparando pasta de saída", null, useOverlay: false);
         return operationsDisposed ? null : destination;
     }
@@ -87,9 +90,19 @@ public partial class MainWindow
 
     // Only an operation that will write output calls this method. Saving a preference never probes,
     // creates or deletes content in the destination. The tiny write probe is owned by this call.
-    private async Task<string> PrepareOutputDirectoryAsync(CancellationToken token)
+    private Task<string> PrepareOutputDirectoryAsync(CancellationToken token) => PrepareWritableOutputDirectoryAsync(OutputDirectory, token);
+
+    private void RememberExportDirectory(string directory)
     {
-        if (!Settings.TryValidateOutputDirectory(OutputDirectory, out string destination, out string error))
+        if (!Settings.TryValidateOutputDirectory(directory, out string destination, out _)) return;
+        settings.LastExportDirectory = destination;
+        // Active exports persist in RunOperation's finally; idle callers save immediately.
+        PersistPreferences();
+    }
+
+    private async Task<string> PrepareWritableOutputDirectoryAsync(string directory, CancellationToken token)
+    {
+        if (!Settings.TryValidateOutputDirectory(directory, out string destination, out string error))
             throw new InvalidOperationException(error + " Abra Configurações para salvar a pasta padrão.");
         await Task.Run(() =>
         {
@@ -104,7 +117,7 @@ public partial class MainWindow
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
             {
-                throw new IOException("A pasta de saída padrão está indisponível ou não permite gravação. Conecte a unidade ou escolha outra pasta em Configurações. " + destination, ex);
+                throw new IOException("A pasta de saída está indisponível ou não permite gravação. Conecte a unidade ou escolha outra pasta em Configurações. " + destination, ex);
             }
             token.ThrowIfCancellationRequested();
         }, token);

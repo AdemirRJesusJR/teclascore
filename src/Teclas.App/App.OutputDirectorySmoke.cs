@@ -134,10 +134,25 @@ public partial class App
             pdfDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
                 "Salvar partitura em PDF", "Documento PDF|*.pdf", "Outro título.pdf", ".pdf")!;
             Check(pdfDialog!.FileName == Path.Combine(freshOutput, "Outro título.pdf"), "next-export-uses-latest-saved-folder");
+            string chosenExport = Path.Combine(fixture, "última exportação 🎹"); Directory.CreateDirectory(chosenExport);
+            Invoke("RememberExportDirectory", chosenExport);
+            Check(Settings.Load(preferences).LastExportDirectory == chosenExport && window.OutputDirectory == freshOutput,
+                "successful-export-remembers-directory-without-changing-generation-default");
+            pdfDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
+                "Salvar PDF", "PDF|*.pdf", "Próxima música.pdf", ".pdf")!;
+            zipDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
+                "Salvar pacote", "ZIP|*.zip", "Partituras.zip", ".zip")!;
+            folderDialog = await (Task<OpenFolderDialog?>)Invoke("CreateBatchPdfFolderDialogAsync")!;
+            Check(pdfDialog?.InitialDirectory == chosenExport && pdfDialog.FileName == Path.Combine(chosenExport,"Próxima música.pdf")
+                && zipDialog?.InitialDirectory == chosenExport && folderDialog?.FolderName == chosenExport,
+                "pdf-zip-and-batch-start-at-last-successful-export-directory");
+            pdfDialog!.FileName = Path.Combine(freshOutput,"Cancelado.pdf"); // No export succeeded: simply choosing is insufficient.
+            Check(Settings.Load(preferences).LastExportDirectory == chosenExport, "canceling-or-not-completing-export-does-not-update-directory");
             Check(row.ScorePath == oldScore && Hash(oldScore) == scoreHash && Hash(source) == sourceHash
                 && RecipeDestination(queue.Items[0]) == oldOutput && RecipeDestination(queue.Items[1]) == nextOutput,
                 "export-preparation-preserves-originals-history-and-captured-queue-destinations");
             Draft(nextOutput); Save();
+            Check(Settings.Load(preferences).LastExportDirectory == "", "explicit-default-change-resets-export-memory");
             string blocked = Path.Combine(fixture, "not-a-directory"); File.WriteAllText(blocked, "preserved blocker");
             Draft(blocked); Save();
             Check(!window.OutputDirectoryHasError && File.ReadAllText(blocked) == "preserved blocker",
@@ -183,11 +198,16 @@ public partial class App
                 var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
                 using var image = File.Create(Path.Combine(directory, "output-directory-" + theme + "-1100.png")); encoder.Save(image);
             }
+            Invoke("RememberExportDirectory", chosenExport);
             Draft(Path.Combine(fixture, "discard-on-close"));
             window.Close(); window = null; Flush();
             Check(Settings.Load(preferences).OutputDirectory == nextOutput, "closing-does-not-commit-unsaved-draft");
             window = Open(preferences); Flush();
             Check(window.OutputDirectory == nextOutput && window.OutputDirectoryDraft == nextOutput, "saved-default-restores-on-reopen");
+            pdfDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
+                "Salvar PDF", "PDF|*.pdf", "Após reabrir.pdf", ".pdf")!;
+            Check(pdfDialog?.InitialDirectory == chosenExport && Settings.Load(preferences).LastExportDirectory == chosenExport,
+                "last-export-directory-survives-reopening");
             Check(window.Files.Single().ScorePath == oldScore && window.Files.Single().Versions.Single().ScorePath == oldScore
                 && Hash(oldScore) == scoreHash && Hash(source) == sourceHash, "reopening-preserves-existing-output-and-original-midi");
             Check(bindingOutput.ToString().Length == 0, "output-preference-has-no-wpf-binding-errors");

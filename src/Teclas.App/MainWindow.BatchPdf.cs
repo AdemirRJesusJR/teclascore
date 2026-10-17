@@ -40,6 +40,7 @@ public partial class MainWindow
             SetOperationItems(0, selection.Length, "Preparando exportação");
             var service = new BatchPdfExportService(MuseScorePath, Path.Combine(PlaybackCacheDirectory, "pdf-batches"));
             report = await service.ExportAsync(selection, folder.FolderName, progress, cancellation!.Token);
+            if (report.SavedCount > 0) RememberExportDirectory(folder.FolderName);
             Status = report.Summary;
         }, operationTitle: "Exportando partituras em PDF");
         if (report is not null && !operationsDisposed) new BatchPdfResultsWindow(report) { Owner = this }.ShowDialog();

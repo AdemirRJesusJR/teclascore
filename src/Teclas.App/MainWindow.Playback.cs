@@ -240,6 +240,7 @@ public partial class MainWindow
         {
             var exporter = new ScoreExporter(MuseScorePath, PlaybackCacheDirectory);
             await exporter.ExportPdfAsync(scorePath, dialog.FileName, CreateOperationProgress(), cancellation!.Token);
+            RememberExportDirectory(Path.GetDirectoryName(dialog.FileName)!);
             Status = "PDF salvo com todas as páginas: " + dialog.FileName;
         }, operationTitle: "Salvando partitura em PDF", operationItem: Path.GetFileNameWithoutExtension(scorePath));
     }

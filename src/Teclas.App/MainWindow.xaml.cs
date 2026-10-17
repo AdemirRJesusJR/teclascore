@@ -75,6 +75,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeWindowTheme();
         InitializePersistence(smoke,settingsPath);
         InitializePreviewLayout();
+        InitializeLibraryLayout();
         InitializePerformance(smoke,settingsPath);
         Loaded+=async(_,_)=>await RefreshDraftRecoveryAvailability(announce:true);
         Closed+=(_,_)=>conversionQueue?.Dispose();
@@ -395,6 +396,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
                 }
                 finally{if(File.Exists(temporary))File.Delete(temporary);}
             },cancellation!.Token);
+            RememberExportDirectory(Path.GetDirectoryName(dialog.FileName)!);
             Status=$"ZIP salvo com {scores.Length} partituras.";
         },operationTitle:"Salvando pacote ZIP",operationItem:Path.GetFileName(dialog.FileName));
     }
