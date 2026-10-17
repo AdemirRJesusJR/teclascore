@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.32.0 — 17/10/2026
+
+- Repertórios salvos (Apresentação): várias listas com nome, por exemplo "Festa junina" e "Missa de domingo". Troque, crie e exclua listas (a excluída fica guardada como cópia); cada uma mantém ordem, anotações e página.
+- PDF do repertório direto da lista da apresentação, na ordem da lista, com índice, acordes e opção de formato tablet.
+- Pedal do teclado MIDI vira a página durante a apresentação: sustentação avança, pedal suave volta.
+- Virar meia página: a partitura ocupa a largura e cada toque desce meia tela antes de passar de página.
+- Alternativas de cifra com escuta (aba Cifras): ouça a cifra escolhida e cada alternativa sugerida pela análise, na posição do diagrama, e troque com um clique.
+- Exportar MusicXML confere o arquivo salvo: quantas cifras e sílabas de letra chegaram, e avisa que os diagramas de teclado só existem no PDF.
+- Gráfico do histórico respeita o tema escuro.
+
 ## 0.31.0 — 17/10/2026
 
 - Praticar mostra a partitura acima do teclado, destacando o compasso do passo atual e rolando sozinha.

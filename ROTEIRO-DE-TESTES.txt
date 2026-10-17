@@ -1,3 +1,10 @@
+TECLASCORE 0.32.0 · PALCO, REPERTÓRIOS E CIFRAS
+
+1. Na Apresentação, clique em Novo, crie "Festa junina", adicione 3 músicas, troque para o primeiro repertório e volte: cada lista mantém suas músicas. Gere o PDF do repertório.
+2. Com um teclado MIDI conectado, Iniciar apresentação: o pedal de sustentação avança a página e o pedal suave volta. Ligue Virar meia página e confira.
+3. Na aba Cifras, selecione uma cifra com alternativas: ouça cada uma e use outra; gere de novo.
+4. Exporte em MusicXML: a mensagem informa as cifras e a letra que chegaram ao arquivo.
+
 TECLASCORE 0.31.0 · PRÁTICA COM A MÚSICA, TRECHOS E EVOLUÇÃO
 
 1. Abra Praticar numa música gerada: a partitura aparece acima do teclado e destaca o compasso de cada passo.

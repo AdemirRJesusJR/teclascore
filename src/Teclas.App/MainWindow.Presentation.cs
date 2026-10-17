@@ -17,7 +17,22 @@ public partial class MainWindow
         var store = persistenceEnabled ? new PresentationStore(Path.Combine(directory, "presentation.json")) : null;
         var choices = Files.Where(row => row.ScorePath is not null || row.IsNativeScore)
             .Select(row => new PresentationLibraryItem(row.FullPath, row.ScorePath ?? row.FullPath, row.ScoreTitle, row.PreviewPath)).ToArray();
-        new PresentationWindow(store, choices, PreparePresentationPages) { Owner = this }.ShowDialog();
+        var catalog = persistenceEnabled ? new PresentationCatalog(Path.Combine(directory, "presentation.json")) : null;
+        new PresentationWindow(store, choices, PreparePresentationPages, catalog, ExportPresentationPdf) { Owner = this }.ShowDialog();
+    }
+
+    /// <summary>A saved repertoire as one PDF, in its order; songs no longer on disk are left out and reported.</summary>
+    internal async Task<string> ExportPresentationPdf(IReadOnlyList<PresentationEntry> songs, string title, string target, bool tablet)
+    {
+        var items = songs.Where(song => File.Exists(song.ScorePath)).Select(song =>
+        {
+            var row = Files.FirstOrDefault(file => string.Equals(file.FullPath, song.SourcePath, StringComparison.OrdinalIgnoreCase));
+            return new RepertoireItem(song.ScorePath, song.Title, row?.ScoreArtist ?? "", row);
+        }).ToArray();
+        if (items.Length == 0) return "Nenhuma partitura deste repertório foi encontrada no computador.";
+        await BuildRepertoirePdf(items, new RepertoireOptions(string.IsNullOrWhiteSpace(title) ? "Repertório" : title.Trim(), true, true, tablet, false), target);
+        int missing = songs.Count - items.Length;
+        return File.Exists(target) ? $"PDF salvo com {items.Length} música(s){(missing > 0 ? $"; {missing} sem partitura no computador ficaram de fora" : "")}: {target}" : Status;
     }
 
     private async Task<string> PreparePresentationPages(PresentationEntry item, IProgress<string> progress, CancellationToken token)

@@ -36,6 +36,15 @@ public partial class MainWindow
             .Where(row => BatchPdfCandidate(row).BlockedReason.Length == 0).ToList();
         if (options.Alphabetical) rows = rows.OrderBy(row => row.ScoreTitle, StringComparer.CurrentCultureIgnoreCase).ToList();
         if (rows.Count == 0) { Status = "Nenhuma partitura disponível para o repertório."; return; }
+        await BuildRepertoirePdf(rows.Select(row => new RepertoireItem(row.ScorePath!, row.ScoreTitle, row.ScoreArtist ?? "", row)).ToArray(), options, target);
+    }
+
+    /// <summary>One song of a repertoire PDF; the library card (when known) supplies the chord chart.</summary>
+    public sealed record RepertoireItem(string ScorePath, string Title, string Artist, MidiRow? Row);
+
+    /// <summary>Renders each score (and chord chart) and writes the single PDF; used by the library and the presentation lists.</summary>
+    internal async Task BuildRepertoirePdf(IReadOnlyList<RepertoireItem> rows, RepertoireOptions options, string target)
+    {
         await RunOperation(async () =>
         {
             var token = cancellation!.Token;
@@ -46,8 +55,8 @@ public partial class MainWindow
                 var songs = new List<RepertoireSong>();
                 for (int i = 0; i < rows.Count; i++)
                 {
-                    var row = rows[i]; string score = row.ScorePath!;
-                    SetOperationItems(i, rows.Count, row.ScoreTitle); Status = $"Desenhando as páginas de {row.ScoreTitle}…";
+                    var item = rows[i]; string score = item.ScorePath;
+                    SetOperationItems(i, rows.Count, item.Title); Status = $"Desenhando as páginas de {item.Title}…";
                     string pngBase = Path.Combine(job, $"{i + 1:000}.png");
                     IReadOnlyList<string> pages;
                     if (repertoirePages is { } render) pages = await render(score, pngBase, token);
@@ -57,14 +66,14 @@ public partial class MainWindow
                         pages = await new ScoreExporter(MuseScorePath, job).ExportPagesAsync(score, pngBase, RepertoireDpi, style, token);
                     }
                     var all = pages.ToList();
-                    if (options.Chords && ChordChartWindow.BuildEntries(row).Count > 0)
+                    if (options.Chords && item.Row is { } row && ChordChartWindow.BuildEntries(row).Count > 0)
                     {
                         var chart = new ChordChartWindow(row);
                         string chartPath = Path.Combine(job, $"{i + 1:000}-acordes.png");
                         if (chart.SavePng(chartPath) is not null) all.Add(chartPath);
                         chart.Close();
                     }
-                    songs.Add(new RepertoireSong(row.ScoreTitle, row.ScoreArtist ?? "", all));
+                    songs.Add(new RepertoireSong(item.Title, item.Artist, all));
                 }
                 token.ThrowIfCancellationRequested();
                 int total = songs.Sum(song => song.Pages.Count);

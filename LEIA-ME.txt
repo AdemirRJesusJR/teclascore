@@ -1,3 +1,7 @@
+TECLASCORE 0.32.0
+
+Vários repertórios salvos, com PDF da lista. Pedal do teclado MIDI e virada de meia página na apresentação. Ouvir e trocar alternativas de cifra. MusicXML conferido ao exportar.
+
 TECLASCORE 0.31.0
 
 Praticar com a partitura acompanhando, tocando junto com a música em velocidade reduzida e treinando trechos até acertar. Gráfico de evolução no histórico de estudo.

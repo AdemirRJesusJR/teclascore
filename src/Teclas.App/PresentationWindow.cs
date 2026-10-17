@@ -12,9 +12,9 @@ namespace Teclas.App;
 public sealed record PresentationLibraryItem(string SourcePath, string ScorePath, string Title, string? PreviewPath);
 
 /// <summary>Repertoire editing and performance are separate modes so pedal keys never consume annotations.</summary>
-public sealed class PresentationWindow : Window
+public sealed partial class PresentationWindow : Window
 {
-    private readonly PresentationStore? store;
+    private PresentationStore? store;
     private readonly Func<PresentationEntry, IProgress<string>, CancellationToken, Task<string>> preparePages;
     private readonly ObservableCollection<PresentationEntry> entries = [];
     private readonly ListBox list;
@@ -37,8 +37,10 @@ public sealed class PresentationWindow : Window
     private string operationStage = "";
 
     public PresentationWindow(PresentationStore? store, IReadOnlyList<PresentationLibraryItem> available,
-        Func<PresentationEntry, IProgress<string>, CancellationToken, Task<string>> preparePages)
+        Func<PresentationEntry, IProgress<string>, CancellationToken, Task<string>> preparePages,
+        PresentationCatalog? catalog = null, Func<IReadOnlyList<PresentationEntry>, string, string, bool, Task<string>>? exportPdf = null)
     {
+        this.catalog = catalog; this.exportPdf = exportPdf;
         this.store = store; this.preparePages = preparePages;
         Title = "Repertório e apresentação · TeclaScore"; Width = 1260; Height = 850; MinWidth = 950; MinHeight = 650;
         DialogUi.Theme(this);
@@ -48,7 +50,8 @@ public sealed class PresentationWindow : Window
         root.RowDefinitions.Add(new() { Height = GridLength.Auto });
         var titlePanel = new StackPanel { Margin = new(0, 0, 0, 12) }; heading = titlePanel; root.Children.Add(titlePanel);
         titlePanel.Children.Add(new TextBlock { Text = "Repertório e apresentação", FontSize = 24, FontWeight = FontWeights.SemiBold });
-        titlePanel.Children.Add(new TextBlock { Text = "Organize as músicas e as anotações. Durante a apresentação, use as teclas ou um pedal USB configurado como teclado.", TextWrapping = TextWrapping.Wrap, Margin = new(0, 5, 0, 0) });
+        titlePanel.Children.Add(new TextBlock { Text = "Organize as músicas e as anotações. Durante a apresentação, use as teclas, um pedal USB configurado como teclado ou o pedal do teclado MIDI.", TextWrapping = TextWrapping.Wrap, Margin = new(0, 5, 0, 0) });
+        BuildStageControls(titlePanel);
         var body = new Grid(); Grid.SetRow(body, 1); root.Children.Add(body);
         managerColumn = new() { Width = new(320) }; body.ColumnDefinitions.Add(managerColumn); body.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) });
         var left = new Grid { Margin = new(0, 0, 14, 0) }; manager = left; body.Children.Add(left);
@@ -105,7 +108,7 @@ public sealed class PresentationWindow : Window
         elapsedTimer.Tick += (_, _) => pageStatus.Text = operationStage + $" · {elapsed.Elapsed:mm\\:ss}";
         PreviewKeyDown += HandleKey;
         Closing += OnClosing;
-        Closed += (_, _) => { closed = true; preparation?.Cancel(); saveTimer.Stop(); elapsedTimer.Stop(); };
+        Closed += (_, _) => { closed = true; preparation?.Cancel(); saveTimer.Stop(); elapsedTimer.Stop(); SetMidiPedal(false); };
         Loaded += (_, _) => { if (viewer.FindName("FitPageButton") is Button fit) fit.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); };
         DependencyPropertyDescriptor.FromProperty(ScoreViewer.CurrentPageProperty, typeof(ScoreViewer)).AddValueChanged(viewer, ViewerPageChanged);
         Closed += (_, _) => DependencyPropertyDescriptor.FromProperty(ScoreViewer.CurrentPageProperty, typeof(ScoreViewer)).RemoveValueChanged(viewer, ViewerPageChanged);
@@ -248,12 +251,14 @@ public sealed class PresentationWindow : Window
         actionsPanel.Visibility = saveStatus.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
         if (viewer.FindName("ThumbnailsButton") is Button thumbnails && viewer.FindName("ThumbnailList") is ListBox thumbList && ((enabled && thumbList.Visibility == Visibility.Visible) || (!enabled && thumbList.Visibility != Visibility.Visible)))
             thumbnails.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
-        if (viewer.FindName("FitPageButton") is Button fit) fit.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        if (viewer.FindName(enabled && HalfPage ? "FitWidthButton" : "FitPageButton") is Button fit) fit.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        SetMidiPedal(enabled);
         Refresh(); viewer.Focus();
     }
     private void ChangePage(int direction)
     {
         if (preparation is not null || viewer.PageCount == 0) return;
+        if (HalfPage && presenting && viewer.ScrollHalf(direction)) { pageStatus.Text = $"Página {viewer.CurrentPage} / {viewer.PageCount} · {(direction > 0 ? "metade de baixo" : "metade de cima")}"; return; }
         int next = Math.Clamp(viewer.CurrentPage + direction, 1, viewer.PageCount);
         if (next == viewer.CurrentPage) pageStatus.Text = direction > 0 ? "Última página. Use Ctrl + → para passar à próxima música." : "Primeira página desta música.";
         else { viewer.CurrentPage = next; pageStatus.Text = $"Página {next} / {viewer.PageCount}"; }

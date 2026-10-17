@@ -119,7 +119,7 @@ public sealed class StudyHistoryWindow : Window
             double x = left + 6 + i * step, y = top + (height - top - bottom) * (1 - attempts[i].Score / 100);
             line.Points.Add(new Point(x, y));
             bool timed = attempts[i].Mode.EndsWith("no tempo", StringComparison.Ordinal);
-            var dot = new Ellipse { Width = 8, Height = 8, Stroke = accent, StrokeThickness = 2, Fill = timed ? accent : Brushes.White,
+            var dot = new Ellipse { Width = 8, Height = 8, Stroke = accent, StrokeThickness = 2, Fill = timed ? accent : TryFindResource("CardBrush") as Brush ?? Brushes.White,
                 ToolTip = $"{attempts[i].Date:dd/MM HH:mm} · {attempts[i].Mode}{(attempts[i].Bpm is { } bpm ? $" · ♩ = {bpm}" : "")} · {attempts[i].Score:0} pontos" };
             Canvas.SetLeft(dot, x - 4); Canvas.SetTop(dot, y - 4); Chart.Children.Add(dot); ChartPoints++;
         }

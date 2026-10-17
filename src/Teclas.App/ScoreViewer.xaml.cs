@@ -349,6 +349,17 @@ public partial class ScoreViewer : UserControl
     }
 
     /// <summary>Uses the exact pages exported with this map; never changes the library's preview binding.</summary>
+    /// <summary>Moves half a screen down (or up) inside the page; false at the page edge, so the caller turns the page.</summary>
+    public bool ScrollHalf(int direction)
+    {
+        double step = Math.Max(40, PageScroll.ViewportHeight * .5);
+        if (direction > 0 && PageScroll.VerticalOffset + PageScroll.ViewportHeight < PageScroll.ExtentHeight - 2)
+        { PageScroll.ScrollToVerticalOffset(Math.Min(PageScroll.ScrollableHeight, PageScroll.VerticalOffset + step)); return true; }
+        if (direction < 0 && PageScroll.VerticalOffset > 2)
+        { PageScroll.ScrollToVerticalOffset(Math.Max(0, PageScroll.VerticalOffset - step)); return true; }
+        return false;
+    }
+
     public void SetPlaybackMap(ScorePlaybackMap? map)
     {
         Dispatcher.VerifyAccess();

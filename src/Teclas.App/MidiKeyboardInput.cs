@@ -10,6 +10,8 @@ public sealed class MidiKeyboardInput : IDisposable
     private readonly InputProc callback;
     private nint handle;
     public event Action<int, int>? NoteOn;
+    /// <summary>Control changes (controller, value), e.g. 64 for the sustain pedal.</summary>
+    public event Action<int, int>? ControlChange;
 
     public static IReadOnlyList<string> Devices()
     {
@@ -39,6 +41,7 @@ public sealed class MidiKeyboardInput : IDisposable
         uint data = (uint)param1;
         int status = (int)(data & 0xF0), pitch = (int)((data >> 8) & 0x7F), velocity = (int)((data >> 16) & 0x7F);
         if (status == 0x90 && velocity > 0) NoteOn?.Invoke(pitch, velocity);
+        else if (status == 0xB0) ControlChange?.Invoke(pitch, velocity);
     }
 
     public void Dispose()

@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.32.0
+17/10/2026
+
+- Palco, repertórios e cifras: 17 verificações (alternativas lidas da análise, botões de ouvir e usar, notas enviadas na posição do diagrama, troca da cifra; repertório novo vazio, PDF da lista, troca entre listas preservando cada uma, exclusão guardando o arquivo; pedal de sustentação avança, pedal segurado vira uma vez só, pedal suave volta; meia página rola dentro da página; resumo do MusicXML; brilho médio das janelas no tema escuro).
+- MusicXML real exportado pelo MuseScore de uma partitura gerada: 96 de 96 cifras presentes.
+- Teclado e pedal MIDI físicos não foram usados; o pedal foi simulado pelas mensagens de controle 64 e 67.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.31.0
 17/10/2026
 

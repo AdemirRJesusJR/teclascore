@@ -36,6 +36,14 @@ public partial class MainWindow
             var saved = await exporter.ExportCopyAsync(scorePath, destination, CreateOperationProgress(), cancellation!.Token);
             RememberExportDirectory(Path.GetDirectoryName(destination)!);
             Status = saved.Count == 1 ? "Arquivo salvo: " + saved[0] : $"{saved.Count} páginas salvas em PNG em {Path.GetDirectoryName(destination)}.";
+            if (Path.GetExtension(destination).Equals(".musicxml", StringComparison.OrdinalIgnoreCase))
+            {
+                // Check what reached the file: chord symbols against the score, and the lyric syllables.
+                var summary = await Task.Run(() => MusicXmlSummary.Read(destination));
+                int expected = 0;
+                try { expected = NativeScoreDocument.Inspect(scorePath).HarmonyCount; } catch (Exception error) when (error is IOException or InvalidDataException or System.Xml.XmlException) { }
+                Status = "MusicXML salvo com " + summary.Describe(expected, 0) + " " + destination;
+            }
         }, operationTitle: "Exportando a partitura", operationItem: Path.GetFileNameWithoutExtension(scorePath));
     }
 }
