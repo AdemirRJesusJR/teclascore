@@ -1,3 +1,11 @@
+TECLASCORE 0.23.0 · POSIÇÕES LEMBRADAS, VÁRIAS PISTAS E PDFS EM MASSA
+
+1. Abra a música "Dois corações e uma": G e D já devem aparecer com as posições usadas nas outras músicas. Aplique e confira a partitura.
+2. Mude a posição de um acorde em qualquer música e aplique. Analise uma música nova que tenha esse acorde: a cifra deve vir com a mesma posição.
+3. Na escuta das pistas, com Somar pistas ligado, toque uma pista e clique ▶ em outra: as duas tocam juntas, no mesmo ponto. Clique ■ em uma delas: só ela sai. Desligue Somar pistas: ▶ volta a tocar só a pista clicada.
+4. Marque duas pistas como melodia e use Ouvir marcadas.
+5. Na Biblioteca, use PDFs em massa: só os cards gerados aparecem, já marcados. Escolha uma pasta com um PDF de mesmo nome: o existente é preservado e o novo recebe (2). Nenhuma subpasta é criada.
+
 TECLASCORE 0.22.0 · POSIÇÕES NA BIBLIOTECA E INSTALADOR COMPLETO
 
 1. Em uma música, abra Posições dos diagramas, mude a posição de E e aplique com a opção da biblioteca marcada. Confira outra música com E: o diagrama muda; as outras cifras dela não.

@@ -18,12 +18,15 @@ public sealed class Settings
     public bool IsPreviewControlsCompact { get; set; }
     public double LibraryFiltersShare { get; set; } = .55;
     public double TrackAuditionSpeed { get; set; } = 1.0;
+    public bool TrackAuditionCombine { get; set; } = true;
     public double ScorePlaybackSpeed { get; set; } = 1.0;
     public bool ScoreMetronome { get; set; }
     public bool ScoreCountIn { get; set; }
     public string MidiFolder { get; set; } = "";
     public bool MidiFolderIncludeSubfolders { get; set; } = true;
     public bool PropagateDiagramPositions { get; set; } = true;
+    public List<SavedChordPreference> ChordPositionPreferences { get; set; } = [];
+    public bool ChordPreferencesSeeded { get; set; }
     public bool FavoritesOnly { get; set; }
     public string CollectionFilter { get; set; } = "";
     public int DefaultDiagramInversion { get; set; } = 2;
@@ -298,6 +301,14 @@ public sealed class SavedSource
     public int Track { get; set; }
     public int Channel { get; set; }
     public int Program { get; set; }
+}
+
+/// <summary>Library-wide remembered diagram position for a keyboard chord (final pitch class and quality).</summary>
+public sealed class SavedChordPreference
+{
+    public int PitchClass { get; set; }
+    public string Quality { get; set; } = "";
+    public int Inversion { get; set; }
 }
 
 public sealed class SavedChord

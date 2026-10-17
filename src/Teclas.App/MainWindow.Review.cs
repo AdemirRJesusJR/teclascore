@@ -106,7 +106,7 @@ public partial class MainWindow
             if (trackAuditionDisposed || row.UsesNativeScoreWorkflow || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
             var start = ReviewTimeAtQuarter(document, point.MeasureStartQuarter);
             if (start >= sequence.Duration) return "Esta pista já terminou antes deste compasso. Escolha outra pista.";
-            auditionMidi = row; auditionTrack = track; track.IsAuditioning = true;
+            auditionMidi = row; auditionTracks.Clear(); auditionTracks.Add(track); auditionTrim = sequence.LeadingSilenceTrimmed; track.IsAuditioning = true;
             trackPlayer!.PlaybackRate = speed;
             trackPlayer.Play(sequence, start);
             trackAuditionTimer.Start(); NotifyTrackAudition();

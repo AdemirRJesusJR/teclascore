@@ -106,6 +106,35 @@ public partial class App
             await Wait(() => window.IsIdle);
             Check(current.Chords[1].DiagramInversion == 1 && same.Chords[1].DiagramInversion is null, "unchecked-box-keeps-other-songs");
             Check(!Settings.Load(settingsPath).PropagateDiagramPositions, "propagation-choice-is-remembered");
+
+            // Library memory: chords analyzed later start with the positions chosen elsewhere.
+            const BindingFlags hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+            var fresh = Song("analisada-depois", 0, false, ("E", "", null), ("G#", "m", null), ("C", "", null));
+            int filled = (int)typeof(MainWindow).GetMethod("ApplyChordPreferences", hidden)!.Invoke(window, [fresh])!;
+            Check(filled == 2 && fresh.Chords[0].DiagramInversion == 0 && fresh.Chords[1].DiagramInversion == 1 && fresh.Chords[2].DiagramInversion is null,
+                "new-analysis-receives-remembered-positions-only");
+            Check(Settings.Load(settingsPath).ChordPositionPreferences.Any(p => p.PitchClass == 4 && p.Quality == "" && p.Inversion == 0)
+                && Settings.Load(settingsPath).ChordPositionPreferences.Any(p => p.PitchClass == 8 && p.Quality == "m" && p.Inversion == 1),
+                "every-choice-is-remembered-even-without-updating-other-songs");
+            var later = Song("dialogo-preenchido", 0, false, ("E", "", null), ("B", "", null));
+            int?[] prefill = (int?[])typeof(MainWindow).GetMethod("PreferredInversions", hidden)!.Invoke(window, [later])!;
+            Check(prefill.SequenceEqual(new int?[] { 0, null }) && later.Chords[0].DiagramInversion is null, "dialog-prefills-without-changing-song-until-applied");
+            var prefilledDialog = new DiagramPositionsWindow(later, 12, 0, true, prefill);
+            Check(prefilledDialog.Inversions.SequenceEqual(new int?[] { 0, null }) && prefilledDialog.FindName("PropagateDiagramPositionsCheckBox") is null,
+                "dialog-shows-remembered-positions-and-hides-option-without-other-songs");
+            prefilledDialog.Close();
+
+            // First run: learn from choices already in the library and fill songs that were not generated yet.
+            var settingsField = typeof(MainWindow).GetField("settings", hidden)!;
+            var live = (Settings)settingsField.GetValue(window)!;
+            live.ChordPositionPreferences = []; live.ChordPreferencesSeeded = false;
+            ((System.Collections.IDictionary)typeof(MainWindow).GetField("chordPreferences", hidden)!.GetValue(window)!).Clear();
+            var notGenerated = Song("ainda-nao-gerada", 0, false, ("Ab", "m", null));
+            var generatedUntouched = Song("ja-gerada", 0, true, ("G#", "m", null));
+            typeof(MainWindow).GetMethod("InitializeChordPreferences", hidden)!.Invoke(window, []);
+            Check(notGenerated.Chords[0].DiagramInversion == 1, "first-run-fills-songs-not-generated-from-existing-choices");
+            Check(generatedUntouched.Chords[0].DiagramInversion is null && !generatedUntouched.HasPendingScoreProperties, "first-run-never-changes-generated-scores");
+            Check(Settings.Load(settingsPath).ChordPreferencesSeeded, "first-run-happens-once");
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, enginesRun = 0 }, new JsonSerializerOptions { WriteIndented = true }));
             window.Close(); window = null; Shutdown(0);
         }

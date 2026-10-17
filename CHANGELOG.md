@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.23.0 — 17/10/2026
+
+- Posições dos diagramas guardadas para a biblioteca: cada posição aplicada fica registrada por acorde (nota e tipo) e é usada automaticamente nas cifras das próximas músicas analisadas. A janela já abre com as posições registradas nas cifras ainda no padrão. Na primeira abertura, o app aprende com as escolhas já feitas e preenche as músicas analisadas e ainda não geradas; partituras geradas não mudam sem pedido.
+- Ouvir várias pistas juntas: com Somar pistas ligado, ▶ em outra pista soma à reprodução no mesmo ponto da música e ■ tira só aquela pista. Ouvir marcadas toca juntas as pistas marcadas como melodia. Pistas no mesmo canal com instrumentos diferentes mantêm cada timbre.
+- PDFs em massa na Biblioteca: marque os cards com partitura gerada (já selecionados) e escolha a pasta; os PDFs vão direto para ela, com nome intérprete - título, sem substituir arquivos existentes. Produção → Exportar PDFs usa o mesmo fluxo.
+
 ## 0.22.0 — 17/10/2026
 
 - Posições dos diagramas valem para a biblioteca: ao aplicar, as cifras alteradas também mudam nas outras músicas que têm o mesmo acorde (mesma nota e tipo, já com a transposição; G#m e Abm contam como iguais). As demais cifras de cada música não mudam.

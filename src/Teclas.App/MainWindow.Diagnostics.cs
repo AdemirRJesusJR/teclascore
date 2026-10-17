@@ -102,7 +102,7 @@ public partial class MainWindow
         token.ThrowIfCancellationRequested();
         if (trackAuditionDisposed || row.UsesNativeScoreWorkflow || selectedFile != row) throw new OperationCanceledException(token);
         if (start >= sequence.Duration) return "Não há notas disponíveis neste trecho.";
-        auditionMidi = row; auditionTrack = track; track.IsAuditioning = true;
+        auditionMidi = row; auditionTracks.Clear(); auditionTracks.Add(track); auditionTrim = sequence.LeadingSilenceTrimmed; track.IsAuditioning = true;
         trackPlayer!.PlaybackRate = speed; trackPlayer.Play(sequence, start);
         trackAuditionTimer.Start(); NotifyTrackAudition();
         return $"Ouvindo pista {track.Track}, canal {track.Channel} · trecho em {FormatTime(start.TotalSeconds)} · {speed:P0}.";

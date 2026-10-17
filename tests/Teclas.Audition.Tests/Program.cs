@@ -133,6 +133,7 @@ try
     }
     await SpeedChecks.Run(Check);
     OffsetChecks.Run(Check);
+    MixChecks.Run(Check);
     await FullPlaybackChecks.Run(Check);
     CrossTrackNoteChecks.Run(Check);
     var cacheTimings = await PreparationCacheChecks.Run(Check);

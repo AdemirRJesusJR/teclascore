@@ -37,8 +37,10 @@ public sealed class BatchPdfExportService
         this.cacheDirectory = Path.GetFullPath(cacheDirectory);
     }
 
+    /// <param name="directlyIntoDestination">True saves the PDFs in the chosen folder itself (no batch subfolder or report file);
+    /// existing files there are never replaced: repeated names receive a number.</param>
     public async Task<BatchPdfReport> ExportAsync(IReadOnlyList<BatchPdfSource> sources, string destinationDirectory,
-        IProgress<BatchPdfProgress>? progress, CancellationToken token)
+        IProgress<BatchPdfProgress>? progress, CancellationToken token, bool directlyIntoDestination = false)
     {
         ArgumentNullException.ThrowIfNull(sources);
         if (sources.Count == 0 || sources.Count > 10000) throw new ArgumentException("Selecione entre 1 e 10.000 partituras.", nameof(sources));
@@ -49,14 +51,18 @@ public sealed class BatchPdfExportService
         if (token.IsCancellationRequested)
             return new(null, items.Select(CancelledItem).ToArray(), true, null, "");
 
-        string output = CreateExclusiveDirectory(Path.GetFullPath(destinationDirectory), "PDFs TeclaScore - " + DateTime.Now.ToString("yyyy-MM-dd HHmmss"));
+        string output;
+        if (directlyIntoDestination) { output = Path.GetFullPath(destinationDirectory); Directory.CreateDirectory(output); }
+        else output = CreateExclusiveDirectory(Path.GetFullPath(destinationDirectory), "PDFs TeclaScore - " + DateTime.Now.ToString("yyyy-MM-dd HHmmss"));
         string cache = CreateExclusiveDirectory(cacheDirectory, "p");
         // Staging PDFs on the destination volume makes publication an atomic rename, even when
         // the user's output folder and application cache are on different drives.
-        string pdfStaging = Path.Combine(output, ".em-preparacao");
+        string pdfStaging = directlyIntoDestination ? CreateExclusiveDirectory(output, ".teclascore-em-preparacao") : Path.Combine(output, ".em-preparacao");
         Directory.CreateDirectory(pdfStaging);
         var results = new List<BatchPdfItemResult>();
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Names already in a chosen folder are reserved, so an existing PDF is never replaced.
+        var names = new HashSet<string>(directlyIntoDestination ? Directory.EnumerateFileSystemEntries(output).Select(Path.GetFileName).OfType<string>() : [],
+            StringComparer.OrdinalIgnoreCase);
         bool cancelled = false;
         try
         {
@@ -123,6 +129,7 @@ public sealed class BatchPdfExportService
             TryDeleteEmptyDirectory(pdfStaging);
         }
         var report = new BatchPdfReport(output, results, cancelled, null, "");
+        if (directlyIntoDestination) return report;
         try
         {
             string reportPath = Path.Combine(output, "Relatório da exportação.txt");

@@ -28,6 +28,10 @@ public sealed class DiagramPositionsWindow : Window
     public DiagramPositionsWindow(MidiRow row, int comfortableMaximumSpan) : this(row, comfortableMaximumSpan, 0, false) { }
 
     public DiagramPositionsWindow(MidiRow row, int comfortableMaximumSpan, int otherSongsWithSameChords, bool applyToLibrary)
+        : this(row, comfortableMaximumSpan, otherSongsWithSameChords, applyToLibrary, null) { }
+
+    /// <param name="initialInversions">Starting choices (the song's own, else the library's remembered positions).</param>
+    public DiagramPositionsWindow(MidiRow row, int comfortableMaximumSpan, int otherSongsWithSameChords, bool applyToLibrary, IReadOnlyList<int?>? initialInversions)
     {
         Title = "Posições dos diagramas";
         Width = 900; Height = 730; MinWidth = 800; MinHeight = 580;
@@ -37,11 +41,15 @@ public sealed class DiagramPositionsWindow : Window
         defaultInversion = row.EffectiveDiagramInversion;
         transpose = row.TransposeSemitones;
         var previews = new KeyboardDiagramPreview();
-        occurrenceInversions = row.Chords.Select(chord => chord.DiagramInversion).ToArray();
+        occurrenceInversions = initialInversions is { } initial && initial.Count == row.Chords.Count
+            ? initial.ToArray() : row.Chords.Select(chord => chord.DiagramInversion).ToArray();
+        int remembered = Enumerable.Range(0, occurrenceInversions.Length)
+            .Where(index => row.Chords[index].DiagramInversion is null && occurrenceInversions[index] is not null)
+            .Select(index => row.Chords[index].Root + row.Chords[index].Quality).Distinct().Count();
         occurrences = row.Chords.Select((chord, index) => new VoicingOccurrence(
             index.ToString(System.Globalization.CultureInfo.InvariantCulture), $"Semínima {chord.Quarter:0.###}",
-            chord.Root, chord.Quality, chord.DiagramInversion ?? defaultInversion,
-            chord.DiagramInversion.HasValue, transpose)).ToArray();
+            chord.Root, chord.Quality, occurrenceInversions[index] ?? defaultInversion,
+            occurrenceInversions[index].HasValue, transpose)).ToArray();
         drafts = Enumerable.Range(0, occurrences.Length)
             .GroupBy(index => ComfortableVoicingService.GetChordGroupKey(occurrences[index]))
             .Select(group => new DiagramDraft(occurrences[group.First()], group.ToArray(), occurrenceInversions,
@@ -60,6 +68,9 @@ public sealed class DiagramPositionsWindow : Window
             FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
         heading.Children.Add(Muted("Cada cifra aparece uma vez. A posição escolhida vale automaticamente para todas as suas ocorrências na música.", 7));
         heading.Children.Add(Muted("Exemplo em C, da nota mais grave para a mais aguda: fundamental Dó–Mi–Sol · 1ª Mi–Sol–Dó · 2ª Sol–Dó–Mi.", 8));
+        if (remembered > 0)
+            heading.Children.Add(Muted(remembered == 1 ? "1 cifra já vem com a posição escolhida em outras músicas da biblioteca."
+                : $"{remembered} cifras já vêm com as posições escolhidas em outras músicas da biblioteca.", 8));
         if (row.TransposeSemitones != 0)
             heading.Children.Add(Muted($"Cifras no tom de origem; os teclados já mostram a transposição de {transpose:+0;-0;0} semitons no tom final da partitura.", 8));
 
@@ -152,7 +163,7 @@ public sealed class DiagramPositionsWindow : Window
             AutomationProperties.SetName(propagate, "Aplicar às outras músicas com as mesmas cifras");
             RegisterName(propagate.Name, propagate); footer.Children.Add(propagate);
         }
-        footer.Children.Add(Muted("Ao aplicar, todas as ocorrências das cifras alteradas serão atualizadas na partitura. Cancelar mantém as escolhas anteriores.", 5));
+        footer.Children.Add(Muted("Ao aplicar, todas as ocorrências das cifras alteradas serão atualizadas na partitura, e as posições ficam guardadas para as cifras das próximas músicas analisadas. Cancelar mantém as escolhas anteriores.", 5));
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, -4, 0) };

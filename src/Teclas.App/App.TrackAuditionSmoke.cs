@@ -217,6 +217,7 @@ public partial class App
             checks["track-grid-and-controls-do-not-overlap"] = true;
             ClickNamed("TrackPauseButton");
             await Wait(() => window.TrackPauseLabel.Contains("Pausar"), "Pause button did not resume the track.");
+            window.CombineTrackAudition = false; // this block checks the solo mode; mixing has its own smoke
             int beforeSwitchReset = ResetCount();
             await Listen(secondTrack);
             Require(!firstTrack.IsAuditioning && secondTrack.IsAuditioning && ResetCount() > beforeSwitchReset,

@@ -151,6 +151,18 @@ Check(named.SavedCount == 3 && named.Items.Select(item => item.PdfFileName).Sequ
     "Roberto Carlos - Luz divina.pdf", "Outro intérprete - Luz divina.pdf", "Roberto Carlos - Luz divina (2).pdf"
 ]), "Batch PDF uses performer and title, distinguishes performers and numbers repeated names");
 Check(Hash(first) == firstHash && Hash(second) == secondHash, "Renaming exported copies preserves original MSCZ files");
+// Direct mode: PDFs go into the chosen folder itself, never replacing what is already there.
+string direct = Destination("pasta escolhida"); Directory.CreateDirectory(direct);
+string existing = Path.Combine(direct, "Intérprete - Música.pdf"); File.WriteAllText(existing, "PDF anterior do usuário");
+var directReport = await new BatchPdfExportService(Export, Destination("cache-direto")).ExportAsync(
+    [new("a", "Música", first, "", "Intérprete"), new("b", "Outra", second, "", "Intérprete"), new("c", "Bloqueada", second, "Há alterações pendentes.")],
+    direct, null, CancellationToken.None, directlyIntoDestination: true);
+Check(directReport.SavedCount == 2 && directReport.SkippedCount == 1 && directReport.Directory == Path.GetFullPath(direct), "direct mode saves into the chosen folder");
+Check(File.ReadAllText(existing) == "PDF anterior do usuário", "direct mode never replaces an existing file");
+var directFiles = Directory.EnumerateFileSystemEntries(direct).Select(Path.GetFileName).Order().ToArray();
+Check(directFiles.SequenceEqual(new[] { "Intérprete - Música (2).pdf", "Intérprete - Música.pdf", "Intérprete - Outra.pdf" }.Order()),
+    "direct mode numbers repeated names and leaves no batch folder, report or staging folder");
+Check(directReport.ReportPath is null, "direct mode writes no report file");
 await File.WriteAllTextAsync(Path.Combine(root, "checks.txt"), $"PASS {checks} batch PDF checks\n");
 Console.WriteLine($"PASS {checks} batch PDF checks. Results: {root}");
 

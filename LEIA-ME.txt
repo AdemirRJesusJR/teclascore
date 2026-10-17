@@ -1,3 +1,9 @@
+TECLASCORE 0.23.0
+
+Posições dos diagramas agora ficam guardadas por acorde e são aplicadas automaticamente nas próximas músicas analisadas.
+Escuta das pistas: Somar pistas e Ouvir marcadas tocam várias pistas ao mesmo tempo.
+PDFs em massa (Biblioteca): escolha os cards gerados e a pasta; os PDFs são salvos direto nela.
+
 TECLASCORE 0.22.0
 
 Posições dos diagramas: com a opção Aplicar também às outras músicas marcada, as cifras alteradas mudam também nas músicas da biblioteca que têm o mesmo acorde, e as partituras já geradas são atualizadas.

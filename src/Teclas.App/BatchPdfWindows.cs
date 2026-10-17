@@ -28,7 +28,10 @@ public sealed class BatchPdfSelectionWindow : Window
     public IReadOnlyList<BatchPdfSelectionRow> Rows { get; }
     public IReadOnlyList<BatchPdfSource> SelectedSources => Rows.Where(r => r.Selected && r.CanSelect).Select(r => r.Source).ToArray();
 
-    public BatchPdfSelectionWindow(IReadOnlyList<BatchPdfSource> sources)
+    public BatchPdfSelectionWindow(IReadOnlyList<BatchPdfSource> sources) : this(sources, 0) { }
+
+    /// <param name="hiddenWithoutScore">Library cards left out because they have no generated score yet.</param>
+    public BatchPdfSelectionWindow(IReadOnlyList<BatchPdfSource> sources, int hiddenWithoutScore)
     {
         Title = "Exportar partituras em PDF"; Width = 960; Height = 630; MinWidth = 740; MinHeight = 480;
         ShowInTaskbar = false; UseLayoutRounding = true; DialogUi.Theme(this); NameScope.SetNameScope(this, new NameScope());
@@ -36,7 +39,10 @@ public sealed class BatchPdfSelectionWindow : Window
         var root = BatchPdfUi.Root(this);
         var top = new StackPanel { Margin = new Thickness(0, 0, 0, 14) }; root.Children.Add(top);
         top.Children.Add(BatchPdfUi.Heading("Escolha as partituras"));
-        top.Children.Add(BatchPdfUi.Text("Cada música será salva em um PDF separado, com todas as páginas. Na próxima etapa, escolha uma pasta para o lote.", 8));
+        top.Children.Add(BatchPdfUi.Text("Cada música será salva em um PDF separado, com todas as páginas, direto na pasta que você escolher na próxima etapa. Arquivos que já estão na pasta nunca são substituídos.", 8));
+        if (hiddenWithoutScore > 0)
+            top.Children.Add(BatchPdfUi.Text(hiddenWithoutScore == 1 ? "1 música ainda sem partitura gerada não aparece na lista."
+                : $"{hiddenWithoutScore} músicas ainda sem partitura gerada não aparecem na lista.", 4));
         var actions = new WrapPanel { Margin = new Thickness(-4, 10, 0, 0) }; top.Children.Add(actions);
         var all = DialogUi.Button("Selecionar todas disponíveis", (_, _) => SelectAll(true));
         Register(all, "SelectAllBatchPdfButton"); all.IsEnabled = Rows.Any(r => r.CanSelect); actions.Children.Add(all);
@@ -59,7 +65,7 @@ public sealed class BatchPdfSelectionWindow : Window
         footer.Children.Add(BatchPdfUi.Text("Partituras com alterações pendentes precisam ser atualizadas antes da exportação. Os arquivos originais serão preservados.", 7));
         var buttons = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, -4, 0) }; footer.Children.Add(buttons);
         var cancel = DialogUi.Button("Cancelar", (_, _) => DialogResult = false); cancel.IsCancel = true; buttons.Children.Add(cancel);
-        confirm = DialogUi.Button("Escolher pasta e exportar", (_, _) => { if (SelectedSources.Count > 0) DialogResult = true; }, true);
+        confirm = DialogUi.Button("Escolher pasta e salvar", (_, _) => { if (SelectedSources.Count > 0) DialogResult = true; }, true);
         confirm.IsDefault = true; Register(confirm, "ConfirmBatchPdfButton"); buttons.Children.Add(confirm);
         foreach (var row in Rows) row.PropertyChanged += (_, _) => UpdateSummary();
         UpdateSummary();

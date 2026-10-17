@@ -75,6 +75,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeAppearance();
         InitializeWindowTheme();
         InitializePersistence(smoke,settingsPath);
+        InitializeChordPreferences();
         InitializePreviewLayout();
         InitializeLibraryLayout();
         InitializePerformance(smoke,settingsPath);
@@ -112,7 +113,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(row.ScorePath is not null)row.HasPendingScoreProperties=true;
         if(row==selectedFile){ResetPlayback();NotifyPlaybackState();}
         if(row.Document is not null)row.Status=row.UseReviewedProfile?"Perfil revisado · pronto para gerar":"Seleção alterada · gere para atualizar a partitura";
-        NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanGenerate));Notify(nameof(GenerationHint));Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));
+        NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanGenerate));Notify(nameof(GenerationHint));Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));Notify(nameof(CanPlayMarkedTracks));
     }
     private MidiRow LoadMidi(string path)
     {
@@ -256,6 +257,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         foreach(var c in result["chords"]!.AsArray())row.Chords.Add(new(){Quarter=c!["quarter"]!.GetValue<double>(),Root=c["root"]!.GetValue<string>(),Quality=c["quality"]!.GetValue<string>(),Confidence=c["confidence"]!.GetValue<double>(),Recommendation=c["recommendation"]?.GetValue<string>()??"",Alternatives=c["alternatives"]?.GetValue<string>()??""});
         foreach(var chord in row.Chords)
             chord.DiagramInversion=previousPositions.FirstOrDefault(old=>Math.Abs(old.Quarter-chord.Quarter)<.000001 && old.Root==chord.Root && old.Quality==chord.Quality)?.DiagramInversion;
+        // New chords start with the positions already chosen for the same chords elsewhere in the library.
+        ApplyChordPreferences(row);
         if(row.ScorePath is not null && ScoreDraftMusicalFingerprint(row)!=beforeAnalysis)
         {
             row.HasPendingScoreProperties=true;

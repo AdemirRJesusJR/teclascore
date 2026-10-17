@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.23.0
+17/10/2026
+
+- Posições lembradas: 24 verificações de interface (memória por acorde, enarmonia e transposição, preenchimento de análises novas e da janela, aprendizado inicial sem alterar partituras geradas, preferência salva). Simulação na biblioteca real: 9 acordes aprendidos sem conflito; 23 ocorrências preenchidas em Dois corações e uma.
+- Várias pistas: 11 verificações de mistura no núcleo (canais remapeados, timbres preservados, percussão no canal 10, linha do tempo comum) e 9 de interface com transporte simulado.
+- PDFs em massa: 10 verificações novas do modo direto (sem subpasta, sem relatório, sem substituir, numeração) e 7 de interface com exportação simulada.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.22.0
 17/10/2026
 

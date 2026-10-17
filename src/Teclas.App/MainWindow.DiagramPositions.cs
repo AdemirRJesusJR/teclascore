@@ -14,7 +14,7 @@ public partial class MainWindow
         if(!CanCustomizeDiagrams || selectedFile is not {} row || !CommitEdits())return;
         int others=Files.Count(other=>IsPropagationTarget(other,row) &&
             DiagramPositionPropagation.SharesAnyShape(Entries(row),row.TransposeSemitones,Entries(other),other.TransposeSemitones));
-        var dialog=new DiagramPositionsWindow(row,settings.ComfortableDiagramMaximumSpan,others,settings.PropagateDiagramPositions){Owner=this};
+        var dialog=new DiagramPositionsWindow(row,settings.ComfortableDiagramMaximumSpan,others,settings.PropagateDiagramPositions,PreferredInversions(row)){Owner=this};
         if(diagramPositionsDialog(dialog)!=true)return;
         settings.ComfortableDiagramMaximumSpan=dialog.ComfortableMaximumSpan;
         if(others>0)settings.PropagateDiagramPositions=dialog.ApplyToLibrary;
@@ -36,6 +36,8 @@ public partial class MainWindow
         }
         // Other songs receive only the chords changed here; their remaining chords and defaults stay as they were.
         var updated=applyToLibrary && changes.Count>0 ? PropagateDiagramPositions(row,changes) : [];
+        // Every chosen position is remembered and used automatically for chords analyzed later.
+        if(changes.Count>0)RememberChordPreferences(changes);
         if(!changed && updated.Count==0)return;
         ResetPlayback();RefreshSelection();PersistPreferences();
         var regenerate=new List<MidiRow>();
