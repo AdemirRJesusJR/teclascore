@@ -1,3 +1,7 @@
+TECLASCORE 0.27.1
+
+Corrige a tabela de pistas sobre o painel de escuta na janela mínima. Releases publicadas automaticamente no GitHub.
+
 TECLASCORE 0.27.0
 
 Prévia → Praticar: toque a nota destacada no teclado MIDI (ou na tela) e a música avança a cada acerto. Configurações → Estudo: ajuste da contagem antes de tocar.

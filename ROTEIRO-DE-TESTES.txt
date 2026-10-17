@@ -1,3 +1,8 @@
+TECLASCORE 0.27.1 · AJUSTES
+
+1. Na janela mínima, com o menu lateral aberto, ouça uma pista na aba Melodia: a tabela de pistas não pode cobrir o painel de escuta.
+2. Confira a release da versão no GitHub com instalador, ZIP e SHA256SUMS.
+
 TECLASCORE 0.27.0 · PRATICAR E AJUSTE DA CONTAGEM
 
 1. Conecte um teclado MIDI USB e abra Prévia → Praticar: o teclado aparece na lista. Toque a nota destacada: avança; uma nota errada fica vermelha e conta erro. Teste um acorde, Voltar, Pular, Recomeçar e "Aceitar qualquer oitava".

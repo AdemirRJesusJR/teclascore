@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.27.1
+17/10/2026
+
+- Escuta de pistas em modo sintético: 22 verificações, agora no CI; encontrou e confirmou a correção da sobreposição na janela mínima.
+- Motor dividido: 185 testes Python e 8 testes nativos de rótulos aprovados após mover a conferência para score_labels.py.
+- Release do GitHub: publicação da 0.27.0 conferida (3 arquivos com hash do servidor igual ao local); script não republica versões existentes.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.27.0
 17/10/2026
 

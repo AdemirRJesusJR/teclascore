@@ -43,6 +43,23 @@ public partial class App
 
     // UI/controller scheduling uses a silent recording transport. A separate native
     // driver check sends controls only, without NoteOn or system-volume changes.
+    /// <summary>Two sources (piano on channel 1, flute on channel 2), eight seconds each at 120 BPM.</summary>
+    private static byte[] SyntheticTwoTrackMidi()
+    {
+        static byte[] Track(int channel, int program, int basePitch)
+        {
+            var body = new List<byte> { 0, (byte)(0xC0 | channel), (byte)program };
+            for (int i = 0; i < 16; i++)
+            {
+                body.AddRange([0, (byte)(0x90 | channel), (byte)(basePitch + i % 5), 90]);
+                body.AddRange([0x83, 0x60, (byte)(0x80 | channel), (byte)(basePitch + i % 5), 0]);
+            }
+            body.AddRange([0, 0xFF, 0x2F, 0]);
+            return [.. "MTrk"u8, (byte)(body.Count >> 24), (byte)(body.Count >> 16), (byte)(body.Count >> 8), (byte)body.Count, .. body];
+        }
+        return [.. "MThd"u8, 0, 0, 0, 6, 0, 1, 0, 2, 1, 224, .. Track(0, 0, 60), .. Track(1, 73, 72)];
+    }
+
     private async void VerifyTrackAudition(string reportPath, string originalMidi)
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -76,6 +93,9 @@ public partial class App
             string output = Path.GetDirectoryName(Path.GetFullPath(reportPath))!;
             string directory = Path.Combine(output, "track-" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(directory);
+            // --synthetic: a generated two-track MIDI replaces the private reviewed MIDI, so CI can run this check.
+            bool synthetic = originalMidi == "--synthetic";
+            if (synthetic) { originalMidi = Path.Combine(directory, "sintetico-original.mid"); File.WriteAllBytes(originalMidi, SyntheticTwoTrackMidi()); }
             string originalHash = Hash(originalMidi);
             var settingsBefore = UserSettings();
             // Verify the actual driver accepts control traffic without sending any
@@ -108,7 +128,7 @@ public partial class App
             window.ImportForSmoke(first); window.ImportForSmoke(second);
             window.SelectPageForSmoke("library", 0); Flush(); window.UpdateLayout();
             var row = window.SelectedFile!;
-            Require(row.HasReviewedProfile && row.UseReviewedProfile && row.Tracks.Count >= 2 && row.AnalysisPath is null,
+            Require((synthetic || row.HasReviewedProfile && row.UseReviewedProfile) && row.Tracks.Count >= 2 && row.AnalysisPath is null,
                 "Use a reviewed MIDI with at least two sources to exercise listening before analysis.");
             var originalSelection = row.Tracks.Select(track => track.IsMelody).ToArray();
             var grid = (DataGrid)window.FindName("TrackGrid");
@@ -138,7 +158,7 @@ public partial class App
             {
                 int notes = NoteCount();
                 Click(ListenButton(track));
-                await Wait(() => track.IsAuditioning && window.CanStopTrackAudition && NoteCount() > notes, "Listening did not start for the selected source.");
+                await Wait(() => window.IsIdle && track.IsAuditioning && window.CanStopTrackAudition && NoteCount() > notes, "Listening did not start for the selected source.");
             }
             void Snapshot(string name, int width, int height, bool collapsed, bool scrollToBottom = false)
             {
@@ -173,7 +193,7 @@ public partial class App
                 using var stream = File.Create(Path.Combine(output, name + ".png")); encoder.Save(stream);
             }
 
-            Require(window.CanAuditionTracks && !window.CanSelectTracks && grid.IsEnabled && ListenButton(firstTrack).IsEnabled,
+            Require(window.CanAuditionTracks && window.CanSelectTracks == synthetic && grid.IsEnabled && ListenButton(firstTrack).IsEnabled,
                 "Reviewed profiles disable the listening button together with melody editing.");
             checks["reviewed-profile-allows-listening-before-analysis"] = true;
             Require(window.TrackAuditionSpeed == 1.0 && Player().PlaybackRate == 1.0 && Equals(speedCombo.SelectedValue, 1.0),
@@ -226,7 +246,7 @@ public partial class App
             Require(window.TrackAuditionSpeed == 0.75 && Player().PlaybackRate == 0.75 && Equals(speedCombo.SelectedValue, 0.75),
                 "Switching the source reset the selected playback speed.");
             checks["speed-retained-when-switching-source"] = true;
-            Require(originalSelection.SequenceEqual(row.Tracks.Select(track => track.IsMelody)) && row.UseReviewedProfile,
+            Require(originalSelection.SequenceEqual(row.Tracks.Select(track => track.IsMelody)) && (synthetic || row.UseReviewedProfile),
                 "Listening changed the user's melody choices or reviewed-profile preference.");
             checks["listening-does-not-change-melody-selection"] = true;
             ClickNamed("TrackStopButton");

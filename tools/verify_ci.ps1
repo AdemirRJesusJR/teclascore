@@ -133,6 +133,7 @@ try {
         [void](Invoke-Check 'wpf-output-directory-ui' $app @('--verify-output-directory-ui',(Join-Path $reports 'wpf-output-directory-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-output-directory-ui.json'))
         [void](Invoke-Check 'wpf-score-audio-ui' $app @('--verify-score-audio-ui',(Join-Path $reports 'wpf-score-audio-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-score-audio-ui.json'))
         [void](Invoke-Check 'wpf-bulk-pdf-ui' $app @('--verify-bulk-pdf-ui',(Join-Path $reports 'wpf-bulk-pdf-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-bulk-pdf-ui.json'))
+        [void](Invoke-Check 'wpf-track-audition-ui' $app @('--verify-track-audition',(Join-Path $reports 'wpf-track-audition-ui.json'),'--synthetic') $work -JsonReport (Join-Path $reports 'wpf-track-audition-ui.json'))
         [void](Invoke-Check 'wpf-track-mix-ui' $app @('--verify-track-mix-ui',(Join-Path $reports 'wpf-track-mix-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-track-mix-ui.json'))
         [void](Invoke-Check 'wpf-diagram-propagation-ui' $app @('--verify-diagram-propagation-ui',(Join-Path $reports 'wpf-diagram-propagation-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-diagram-propagation-ui.json'))
         [void](Invoke-Check 'wpf-midi-folder-ui' $app @('--verify-midi-folder-ui',(Join-Path $reports 'wpf-midi-folder-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-midi-folder-ui.json'))

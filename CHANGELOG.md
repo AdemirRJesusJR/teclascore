@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.27.1 — 17/10/2026
+
+- Corrige a tabela de pistas que invadia o painel de escuta na janela mínima com o menu lateral aberto (os botões da aba Melodia passaram a ocupar três linhas).
+- Release automática no GitHub a cada entrega (tools/release_github.ps1): notas geradas do histórico, instalador, ZIP e SHA256SUMS conferidos por hash.
+- O teste de escuta de pistas ganhou um modo sintético e passou a rodar no CI; foi ele que encontrou o problema de layout acima.
+- Motor de geração dividido: a conferência dos nomes de instrumento foi para engine/score_labels.py, sem mudança de comportamento.
+
 ## 0.27.0 — 17/10/2026
 
 - Praticar (Prévia → Estudo): modo de espera com teclado MIDI USB ou clicando nas teclas da tela. A próxima nota ou acorde fica destacado e a música só avança quando você acerta; conta acertos, erros e precisão. Opção de aceitar qualquer oitava; Voltar, Pular e Recomeçar.

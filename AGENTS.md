@@ -19,3 +19,5 @@ O usuário autorizou em 12/10/2026 fazer commit, criar uma nova tag e enviar as 
 ## Instaladores a cada entrega (pedido do usuário em 17/10/2026)
 
 Sempre e automaticamente, junto com commit, push e nova tag: gere o instalador oficial (tools/build_installer.ps1, Inno Setup 7) e o instalador completo. tools/build_debug.py recria debug/TeclaScore-Completo.iss com a versão atual, e build_installer.ps1 chama tools/build_debug_installer.ps1, que compila debug/saida/TeclaScore-X-Completo-Setup-x64.exe. Confira ambos antes de publicar e mantenha em software/ e debug/saida apenas os pacotes da versão atual.
+
+Depois do push da tag, publique a release no GitHub: `pwsh -File tools/release_github.ps1`. Ele gera as notas a partir do CHANGELOG desde a última release publicada e usa tools/publish_release.ps1 (credencial do Git, envio do instalador, ZIP e SHA256SUMS conferidos por hash). Se a versão já tiver release, não faz nada.
