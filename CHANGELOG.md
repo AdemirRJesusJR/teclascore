@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.30.1 — 17/10/2026
+
+- Motor dividido: os reparos de layout conferidos na renderização (distribuição entre páginas, margens e espaço dos diagramas) foram para engine/score_layout.py, sem mudança de comportamento.
+- Teste do instalador em máquina limpa: tools/test_installer_sandbox.ps1 instala o Setup em silêncio dentro do Windows Sandbox, roda um teste do app sem MuseScore, desinstala e confere a remoção. Requer o Windows Sandbox ativado.
+
 ## 0.30.0 — 17/10/2026
 
 - Repertório em PDF (Biblioteca): as partituras marcadas viram um único PDF, com índice (cada linha é um link), marcadores para pular de música no leitor do tablet, ordem da biblioteca ou alfabética e, se quiser, a página de acordes de cada música logo depois da partitura.

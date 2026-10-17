@@ -1,3 +1,10 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.30.1
+17/10/2026
+
+- Motor dividido (score_layout.py): 190 testes Python aprovados e 13 testes nativos com MuseScore real (rótulos de instrumento, letra e reparos de layout) aprovados após a mudança. CI local completo: 49 aprovadas, 0 falhas.
+- Teste em máquina limpa: o script do Windows Sandbox foi preparado, mas NÃO foi executado, porque o Windows Sandbox não está ativado neste computador (ativá-lo é uma configuração do sistema que cabe ao usuário).
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.30.0
 17/10/2026
 
