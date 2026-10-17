@@ -16,7 +16,7 @@ public enum PracticeMode { Notes, Chords }
 /// the diagrams) and two ways to play them: wait mode, which advances only on the right keys, and in-time mode,
 /// which runs the score at a chosen tempo with a click and scores each key by its timing.
 /// </summary>
-public sealed class PracticeWindow : Window
+public sealed partial class PracticeWindow : Window
 {
     private const int Low = 36, High = 96; // C2–C7
     private const double CountInBeats = 4;
@@ -27,7 +27,9 @@ public sealed class PracticeWindow : Window
     private readonly Dictionary<int, Rectangle> keys = [];
     private readonly TextBlock expected, progress, feedback;
     private readonly ComboBox devices, mode;
-    private readonly CheckBox inTime, octave;
+    private readonly CheckBox inTime, octave, withMusic, repeatUntilRight;
+    private readonly ComboBox speedChoice;
+    private readonly TextBox passageFrom, passageTo;
     private readonly Slider tempo;
     private readonly TextBlock tempoLabel;
     private readonly Button start, back, skip;
@@ -52,10 +54,12 @@ public sealed class PracticeWindow : Window
     public PracticeWindow(string title, IReadOnlyList<PracticeStep> steps, bool anyOctave)
         : this(title, steps, [], anyOctave, 80) { }
 
-    public PracticeWindow(string title, IReadOnlyList<PracticeStep> notes, IReadOnlyList<PracticeStep> chords, bool anyOctave, double bpm)
+    public PracticeWindow(string title, IReadOnlyList<PracticeStep> notes, IReadOnlyList<PracticeStep> chords, bool anyOctave, double bpm,
+        string? previewPath = null, IPracticeAccompaniment? accompaniment = null, IReadOnlyDictionary<int, double>? measureStarts = null)
     {
-        Title = "Praticar · " + title; Width = 1000; Height = 580; MinWidth = 780; MinHeight = 480; DialogUi.Theme(this);
+        Title = "Praticar · " + title; Width = 1040; Height = previewPath is null ? 620 : 860; MinWidth = 800; MinHeight = 500; DialogUi.Theme(this);
         noteSteps = notes; chordSteps = chords;
+        this.accompaniment = accompaniment; this.measureStarts = measureStarts ?? new Dictionary<int, double>();
         session = new PracticeSession(notes, anyOctave);
         var root = new DockPanel { Margin = new Thickness(20) }; Content = root;
         var top = new StackPanel(); DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
@@ -89,6 +93,26 @@ public sealed class PracticeWindow : Window
         devices.SelectionChanged += (_, _) => OpenDevice();
         options.Children.Add(devices);
 
+        // Second row: study aids. Passage limits the measures; the music needs the score audio (MuseScore).
+        var study = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) }; top.Children.Add(study);
+        study.Children.Add(Label("Trecho: compassos"));
+        passageFrom = new TextBox { Width = 46, Margin = new Thickness(0, 0, 6, 6), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Primeiro compasso do trecho (vazio: desde o início)" };
+        passageTo = new TextBox { Width = 46, Margin = new Thickness(6, 0, 16, 6), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Último compasso do trecho (vazio: até o fim)" };
+        AutomationProperties.SetName(passageFrom, "Primeiro compasso do trecho"); AutomationProperties.SetName(passageTo, "Último compasso do trecho");
+        passageFrom.LostFocus += (_, _) => Reset(); passageTo.LostFocus += (_, _) => Reset();
+        study.Children.Add(passageFrom); study.Children.Add(new TextBlock { Text = "a", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 6) }); study.Children.Add(passageTo);
+        repeatUntilRight = new CheckBox { Content = "Repetir até acertar", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 6),
+            ToolTip = "Ao terminar o trecho, começa de novo até uma passagem limpa: sem erros na espera, 90 pontos no tempo." };
+        study.Children.Add(repeatUntilRight);
+        withMusic = new CheckBox { Content = "Tocar junto com a música", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6), IsEnabled = accompaniment is not null,
+            ToolTip = accompaniment is null ? "Precisa do MuseScore para preparar o áudio da partitura." : "No tempo, a música da partitura toca e marca o tempo (em vez do metrônomo), com um compasso antes do trecho." };
+        withMusic.Click += (_, _) => { if (withMusic.IsChecked == true) inTime.IsChecked = true; Reset(); };
+        study.Children.Add(withMusic);
+        speedChoice = new ComboBox { Width = 80, ItemsSource = MusicSpeeds, SelectedItem = 1.0, ItemStringFormat = "{0:P0}", Margin = new Thickness(0, 0, 0, 6), IsEnabled = accompaniment is not null };
+        AutomationProperties.SetName(speedChoice, "Velocidade da música na prática");
+        speedChoice.SelectionChanged += (_, _) => Reset();
+        study.Children.Add(speedChoice);
+
         var footer = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, -4, 0) }; DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
         start = DialogUi.Button("▶ Começar", (_, _) => ToggleClock(), true); start.Name = "PracticeStartButton";
         back = DialogUi.Button("◀ Voltar", (_, _) => { session.Advance(-1); Refresh(); });
@@ -97,7 +121,15 @@ public sealed class PracticeWindow : Window
         footer.Children.Add(DialogUi.Button("Recomeçar", (_, _) => Reset()));
         var close = DialogUi.Button("Fechar", (_, _) => Close()); close.IsCancel = true; footer.Children.Add(close);
 
-        var middle = new StackPanel { Margin = new Thickness(0, 18, 0, 0) }; root.Children.Add(middle);
+        var middle = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
+        if (previewPath is not null)
+        {
+            // The score above the keyboard follows the step being played.
+            var split = new DockPanel(); DockPanel.SetDock(middle, Dock.Bottom); split.Children.Add(middle);
+            viewer = new ScoreViewer { FirstPagePath = previewPath, Margin = new Thickness(0, 10, 0, 0) };
+            split.Children.Add(viewer); root.Children.Add(split);
+        }
+        else root.Children.Add(middle);
         expected = new TextBlock { FontSize = 30, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
         progress = new TextBlock { FontSize = 12, Margin = new Thickness(0, 4, 0, 10) };
         feedback = new TextBlock { FontSize = 13, Margin = new Thickness(0, 10, 0, 0), TextWrapping = TextWrapping.Wrap };
@@ -106,14 +138,16 @@ public sealed class PracticeWindow : Window
         middle.Children.Add(expected); middle.Children.Add(progress); middle.Children.Add(keyboard); middle.Children.Add(feedback);
         BuildKeyboard();
         clock.Tick += (_, _) => Tick();
-        Loaded += (_, _) => { OpenDevice(); Reset(); studied.Start(); };
-        Closed += (_, _) => { StopClock(); RecordAttempt(); studied.Stop(); input?.Dispose(); click?.Dispose(); };
+        restart.Tick += (_, _) => RestartPassage();
+        Loaded += (_, _) => { OpenDevice(); Reset(); studied.Start(); PrepareVisualFollow(); };
+        Closed += (_, _) => { restart.Stop(); preparing?.Cancel(); StopMusic(); StopClock(); RecordAttempt(); studied.Stop(); input?.Dispose(); click?.Dispose(); };
     }
 
     private bool AnyOctave => octave.IsChecked == true;
     private IReadOnlyList<PracticeStep> CurrentSteps => Mode == PracticeMode.Chords ? chordSteps : noteSteps;
-    /// <summary>Clock position in quarters; negative during the count-in.</summary>
-    internal double Position => watch.Elapsed.TotalSeconds * Bpm / 60 - CountInBeats + firstBeat;
+    /// <summary>Clock position in quarters: from the music when it plays, else the metronome (negative during the count-in).</summary>
+    internal double Position => musicRunning && timeline is not null && accompaniment is not null ? timeline.ToQuarters(accompaniment.PositionSeconds)
+        : watch.Elapsed.TotalSeconds * Bpm / 60 - CountInBeats + firstBeat;
     private double firstBeat;
 
     private static TextBlock Label(string text) => new() { Text = text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) };
@@ -132,16 +166,21 @@ public sealed class PracticeWindow : Window
     }
 
     /// <summary>Starts a new attempt with the chosen steps and mode; the previous one goes to the history.</summary>
-    private void Reset()
+    private void Reset() => Reset(keepAttempt: false);
+
+    private void Reset(bool keepAttempt)
     {
-        StopClock(); RecordAttempt(); recorded = false;
-        session = new PracticeSession(CurrentSteps, AnyOctave);
-        timed = InTime ? new TimedPracticeSession(CurrentSteps, Bpm, AnyOctave) : null;
+        restart.Stop(); StopMusic(); StopClock(); RecordAttempt(); recorded = false;
+        if (!keepAttempt) passageAttempt = 1;
+        var steps = PassageSteps;
+        session = new PracticeSession(steps, AnyOctave);
+        timed = InTime ? new TimedPracticeSession(steps, Bpm, AnyOctave) : null;
         attemptStarted = DateTime.Now; attemptMode = Mode; lastPressed = null;
         start.Visibility = InTime ? Visibility.Visible : Visibility.Collapsed;
         back.Visibility = skip.Visibility = InTime ? Visibility.Collapsed : Visibility.Visible;
-        tempo.IsEnabled = true; start.Content = "▶ Começar";
-        if (InTime) feedback.Text = "Clique em Começar: há um compasso de contagem antes da primeira nota.";
+        tempo.IsEnabled = !WithMusic; start.Content = "▶ Começar";
+        if (InTime) feedback.Text = WithMusic ? "Clique em Começar: a música toca um compasso antes do trecho." : "Clique em Começar: há um compasso de contagem antes da primeira nota.";
+        if (steps.Count == 0 && CurrentSteps.Count > 0) feedback.Text = "Nenhuma nota nesse trecho. Confira os compassos.";
         Refresh();
     }
     private DateTime attemptStarted = DateTime.Now;
@@ -150,6 +189,8 @@ public sealed class PracticeWindow : Window
     private void ToggleClock()
     {
         if (timed is null) return;
+        if (musicRunning) { StopMusic(); StopClock(); feedback.Text = "Parado. Começar toca de novo a partir de um compasso antes do trecho."; Refresh(); return; }
+        if (WithMusic) { if (timed.IsFinished || timed.Hits + timed.Missed + timed.Wrong > 0) Reset(keepAttempt: true); _ = StartWithMusic(); return; }
         if (clock.IsEnabled) { StopClock(); feedback.Text = "Pausado. Recomeçar volta ao início."; Refresh(); return; }
         if (timed.IsFinished) Reset();
         if (timed is null) return;
@@ -174,7 +215,7 @@ public sealed class PracticeWindow : Window
         if (timed is null) return;
         double position = at ?? Position;
         int beat = (int)Math.Floor(position);
-        if (beat != lastBeat && at is null)
+        if (beat != lastBeat && at is null && !musicRunning)
         {
             lastBeat = beat;
             bool downbeat = ((beat - (int)firstBeat) % 4 + 4) % 4 == 0;
@@ -183,9 +224,9 @@ public sealed class PracticeWindow : Window
         timed.Advance(position);
         if (timed.IsFinished)
         {
-            StopClock(); start.Content = "▶ Começar";
+            StopMusic(); StopClock(); start.Content = "▶ Começar";
             feedback.Text = $"Fim! {timed.Score:0} pontos · {timed.OnTime} no tempo · {timed.OffTime} fora do tempo · {timed.Missed} perdidas · {timed.Wrong} erradas.";
-            RecordAttempt();
+            RecordAttempt(); PassageFinished();
         }
         Refresh(position);
     }
@@ -221,7 +262,7 @@ public sealed class PracticeWindow : Window
             PracticeResult.StepComplete => "Certo!",
             _ => "Certo — falta completar o acorde."
         };
-        if (result == PracticeResult.Finished) RecordAttempt();
+        if (result == PracticeResult.Finished) { RecordAttempt(); PassageFinished(); }
         Refresh();
         return result;
     }
@@ -291,13 +332,15 @@ public sealed class PracticeWindow : Window
             double position = at ?? (clock.IsEnabled ? Position : run.Position);
             if (clock.IsEnabled && position < firstBeat) expected.Text = $"Contagem… {(int)Math.Ceiling(firstBeat - position)}";
             else expected.Text = run.Current is { } next ? Describe(next) : run.Steps.Count == 0 ? "Nada para praticar nesta escolha." : "Fim da música!";
-            progress.Text = $"{(run.Current is { } step ? $"Compasso {step.Measure} · " : "")}♩ = {run.Bpm:0} · {run.Score:0} pontos · {run.OnTime} no tempo · {run.OffTime} fora · {run.Missed} perdidas · {run.Wrong} erradas";
+            progress.Text = $"{(run.Current is { } step ? $"Compasso {step.Measure} · " : "")}♩ = {run.Bpm:0}{(musicRunning ? $" · música em {MusicSpeed:P0}" : "")} · {run.Score:0} pontos · {run.OnTime} no tempo · {run.OffTime} fora · {run.Missed} perdidas · {run.Wrong} erradas{AttemptText}";
+            FollowScore(position);
             return;
         }
         if (session.Current is { } current)
         {
             expected.Text = Describe(current);
-            progress.Text = $"Compasso {current.Measure} · passo {session.Index + 1} de {session.Steps.Count} · {session.Hits} acertos · {session.Misses} erros";
+            progress.Text = $"Compasso {current.Measure} · passo {session.Index + 1} de {session.Steps.Count} · {session.Hits} acertos · {session.Misses} erros{AttemptText}";
+            FollowScore(current.Start);
         }
         else
         {
@@ -305,6 +348,8 @@ public sealed class PracticeWindow : Window
             progress.Text = $"{session.Steps.Count} passos · {session.Hits} acertos · {session.Misses} erros · {session.Accuracy:P0} de precisão";
         }
     }
+
+    private string AttemptText => passageAttempt > 1 ? $" · tentativa {passageAttempt}" : "";
 
     /// <summary>For smoke tests: chooses mode and timing as the user would.</summary>
     internal void Choose(PracticeMode practiceMode, bool timedMode, double bpm)

@@ -1,3 +1,10 @@
+TECLASCORE 0.31.0 · PRÁTICA COM A MÚSICA, TRECHOS E EVOLUÇÃO
+
+1. Abra Praticar numa música gerada: a partitura aparece acima do teclado e destaca o compasso de cada passo.
+2. Ligue Tocar junto com a música em 50% e clique em Começar: a música toca um compasso antes; toque junto e veja os pontos. Repita em 75% e 100%.
+3. Escolha compassos 5 a 8, ligue Repetir até acertar e erre de propósito: o trecho recomeça e mostra a tentativa; numa passagem limpa aparece "Trecho dominado".
+4. Abra 📈: escolha a música e veja o gráfico com uma bolinha por prática.
+
 TECLASCORE 0.30.1 · MOTOR E INSTALADOR
 
 1. Gere duas partituras com muitos acordes: a paginação e o espaço dos diagramas devem ficar como na 0.30.0.

@@ -100,7 +100,12 @@ public partial class App
             var settingsBefore = UserSettings();
             // Verify the actual driver accepts control traffic without sending any
             // NoteOn, or changing the system/device-wide volume setting.
-            using (var native = new WinMmMidiOutputTransport())
+            // CI runners have no MIDI synthesizer: in synthetic mode the driver check is skipped there; the fake transport below still runs.
+            WinMmMidiOutputTransport? available = null;
+            try { available = new WinMmMidiOutputTransport(); }
+            catch (InvalidOperationException) when (synthetic) { }
+            if (available is not null)
+            using (var native = available)
             {
                 native.Send(MidiAuditionSequence.Message(12, 1, 0));
                 native.Send(MidiAuditionSequence.Message(11, 1, 7, 0));

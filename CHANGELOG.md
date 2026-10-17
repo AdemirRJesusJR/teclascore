@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.31.0 — 17/10/2026
+
+- Praticar mostra a partitura acima do teclado, destacando o compasso do passo atual e rolando sozinha.
+- Tocar junto com a música (Praticar, no tempo): o áudio da partitura toca em 50%, 75% ou 100% e marca o tempo no lugar do metrônomo, começando um compasso antes do trecho; tempo e pontos acompanham mudanças de andamento.
+- Treino de trechos: escolha os compassos (de/até) e ligue Repetir até acertar; o trecho recomeça até uma passagem limpa (sem erros na espera, 90 pontos no tempo) e mostra a tentativa.
+- Histórico de estudo com gráfico de evolução por música: pontos de cada prática, no tempo ou na espera, e a diferença desde a primeira.
+- CI do GitHub voltou a passar: o teste de escuta de pistas não exige mais um sintetizador MIDI no servidor.
+
 ## 0.30.1 — 17/10/2026
 
 - Motor dividido: os reparos de layout conferidos na renderização (distribuição entre páginas, margens e espaço dos diagramas) foram para engine/score_layout.py, sem mudança de comportamento.

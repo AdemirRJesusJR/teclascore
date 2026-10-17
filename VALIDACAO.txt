@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.31.0
+17/10/2026
+
+- Prática com música, trechos e evolução: 14 verificações (conversão tempo↔compasso com repetições ignoradas e compasso de entrada; partitura acompanhando; trecho limitando os passos; recomeço após erro e fim na passagem limpa; música em 50% começando um compasso antes, pontuando e parando no fim; registro no histórico; gráfico com um ponto por prática).
+- Teste nativo com MuseScore real: mapa de compassos e áudio de estudo de uma partitura gerada; tocando em 50%, o relógio da prática avançou 1,76 tempo em 1,5 s (esperado 1,77).
+- CI do GitHub: corrigida a falha desde a 0.27.1 (o servidor não tem sintetizador MIDI; o teste sintético segue com o transporte simulado). Teclado MIDI físico não foi usado.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.30.1
 17/10/2026
 
