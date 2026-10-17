@@ -82,6 +82,9 @@ public sealed class MidiFolderWindow : Window
         addButton = DialogUi.Button("Adicionar à biblioteca", (_, _) => Accept(), true);
         actions.Children.Add(cancel); actions.Children.Add(addButton);
         var selection = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var chooseFiles = DialogUi.Button("Escolher arquivos…", (_, _) => ChooseFiles());
+        chooseFiles.ToolTip = "Adicionar MIDIs ou partituras MuseScore avulsos, de qualquer pasta (Ctrl+O na janela principal)";
+        actions.Children.Insert(0, chooseFiles);
         selection.Children.Add(DialogUi.Button("Marcar visíveis", (_, _) => SetVisibleSelection(true)));
         selection.Children.Add(DialogUi.Button("Desmarcar", (_, _) => SetVisibleSelection(false)));
         summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new(10, 0, 10, 0), TextWrapping = TextWrapping.Wrap };
@@ -142,6 +145,24 @@ public sealed class MidiFolderWindow : Window
 
     private static readonly DependencyProperty ToggleButton_IsChecked = System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty;
     private static void AutomationName(DependencyObject element, string name) => System.Windows.Automation.AutomationProperties.SetName(element, name);
+
+    private void ChooseFiles()
+    {
+        var dialog = new OpenFileDialog { Title = "Escolher arquivos para a biblioteca", Multiselect = true,
+            Filter = "MIDI e MuseScore|*.mid;*.midi;*.kar;*.mscz|MIDI e karaokê|*.mid;*.midi;*.kar|MuseScore 4|*.mscz" };
+        if (Directory.Exists(folderBox.Text)) dialog.InitialDirectory = folderBox.Text;
+        if (dialog.ShowDialog(this) == true) AcceptFiles(dialog.FileNames);
+    }
+
+    /// <summary>Loose files chosen by the user go straight to the library, like the former header import.</summary>
+    internal void AcceptFiles(IEnumerable<string> paths)
+    {
+        SelectedPaths = paths.Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (SelectedPaths.Count == 0) return;
+        StopListening();
+        Accepted = true;
+        try { DialogResult = true; } catch (InvalidOperationException) { Close(); }
+    }
 
     private void BrowseFolder()
     {

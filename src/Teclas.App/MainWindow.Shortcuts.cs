@@ -15,7 +15,7 @@ public partial class MainWindow
         ("Ctrl+← / Ctrl+→", "Voltar ou avançar 5 segundos"),
         ("Ctrl+M", "Ligar ou desligar o metrônomo"),
         ("Ctrl+Shift+M", "Ligar ou desligar a contagem antes de tocar"),
-        ("Ctrl+O", "Importar arquivos MIDI"),
+        ("Ctrl+O", "Escolher arquivos avulsos (MIDI ou MuseScore)"),
         ("Ctrl+Shift+O", "Importar MuseScore"),
         ("Ctrl+L", "Pasta de MIDIs: escolher arquivos de uma pasta, sem copiar"),
         ("Ctrl+P", "Salvar a partitura em PDF"),

@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.21.1 — 17/10/2026
+
+- Pasta de MIDIs passa a ser a ação principal do cabeçalho, no lugar de Importar arquivos.
+- Arquivos avulsos continuam disponíveis: Escolher arquivos… na janela da pasta (MIDI, karaokê ou MuseScore), arrastar para o app, Ctrl+O e Adicionar minhas músicas na Visão geral.
+
 ## 0.21.0 — 17/10/2026
 
 - Pasta de MIDIs: abra uma pasta (com ou sem subpastas), filtre por nome sem diferenciar acentos, ouça cada MIDI e marque apenas os que devem entrar na biblioteca. Nada é copiado; os cards apontam para os arquivos na pasta. A pasta escolhida é lembrada.

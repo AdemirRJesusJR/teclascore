@@ -1,3 +1,9 @@
+TECLASCORE 0.21.1 · PASTA DE MIDIS COMO AÇÃO PRINCIPAL
+
+1. Confira o cabeçalho: Importar MuseScore e ＋ Pasta de MIDIs em destaque; não há mais Importar arquivos.
+2. Na janela da pasta, use Escolher arquivos… para adicionar um MIDI de outra pasta e uma partitura .mscz: ambos viram cards.
+3. Arraste um MIDI para a janela e use Ctrl+O: os dois caminhos continuam importando arquivos avulsos.
+
 TECLASCORE 0.21.0 · PASTA DE MIDIS, METRÔNOMO, ATALHOS E PRÉVIA COMPACTA
 
 1. Clique em Pasta de MIDIs (ou Ctrl+L) e escolha a pasta midis. Ligue/desligue Incluir subpastas. Filtre por um nome sem acento. Ouça um MIDI com ▶ e pare com ■.

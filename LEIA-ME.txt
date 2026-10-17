@@ -1,3 +1,7 @@
+TECLASCORE 0.21.1
+
+Pasta de MIDIs é agora o botão principal do cabeçalho. Para adicionar arquivos avulsos, use Escolher arquivos… na janela da pasta, arraste-os para o app ou Ctrl+O.
+
 TECLASCORE 0.21.0
 
 Pasta de MIDIs (Ctrl+L): escolha uma pasta e marque os MIDIs que entram na biblioteca. Nada é copiado; os cards usam os arquivos da própria pasta.

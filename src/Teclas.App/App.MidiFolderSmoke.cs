@@ -57,7 +57,10 @@ public partial class App
             new Settings { MidiFolder = folder, MidiFolderIncludeSubfolders = true, OutputDirectory = Path.Combine(work, "output") }.Save(settingsPath);
             window = new MainWindow(true, settingsPath) { Opacity = 0, ShowInTaskbar = false, ShowActivated = false, Width = 1100, Height = 740 };
             window.Show(); Flush();
-            Check(window.FindName("MidiFolderButton") is Button { IsEnabled: true }, "header-offers-midi-folder");
+            var header = (FrameworkElement)window.FindName("WorkspaceHeader");
+            Check(window.FindName("MidiFolderButton") is Button { IsEnabled: true } folderButton && folderButton.Style == window.FindResource("PrimaryButton"),
+                "header-midi-folder-is-the-primary-action");
+            Check(!Descendants(header).OfType<Button>().Any(b => b.Content?.ToString()?.Contains("Importar arquivos") == true), "header-no-longer-imports-everything");
             window.ImportForSmoke(first); Flush();
             Check(window.Files.Count == 1, "one-midi-already-in-library");
 
@@ -98,6 +101,31 @@ public partial class App
             Check(Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).ToDictionary(p => p, p => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p))))
                 .OrderBy(p => p.Key).SequenceEqual(hashes.OrderBy(p => p.Key)), "folder-files-unchanged-and-nothing-copied");
             Check(Settings.Load(settingsPath) is { MidiFolderIncludeSubfolders: true } saved && saved.MidiFolder == folder, "folder-choice-is-remembered");
+            var looseAccepted = new TaskCompletionSource();
+            field.SetValue(window, new Func<MidiFolderWindow, bool?>(w =>
+            {
+                w.ShowActivated = false; w.Opacity = 0; w.Show();
+                var frame = new DispatcherFrame();
+                w.Closed += (_, _) => frame.Continue = false;
+                _ = Dispatcher.InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        await Wait(() => w.ScanTask is { IsCompleted: true });
+                        Check(Descendants(w).OfType<Button>().Any(b => b.Content?.ToString() == "Escolher arquivos…"), "folder-window-offers-loose-files");
+                        w.AcceptFiles([third, third]);
+                        Check(w.SelectedPaths.SequenceEqual([Path.GetFullPath(third)]), "loose-files-are-returned-once");
+                        looseAccepted.TrySetResult();
+                    }
+                    catch (Exception error) { looseAccepted.TrySetException(error); w.Close(); }
+                });
+                Dispatcher.PushFrame(frame);
+                return null;
+            }));
+            typeof(MainWindow).GetMethod("OpenMidiFolderClick", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [window, new RoutedEventArgs()]);
+            await looseAccepted.Task;
+            await Wait(() => window.IsIdle && window.Files.Count == 3);
+            Check(window.Files.Any(f => string.Equals(f.FullPath, Path.GetFullPath(third), StringComparison.OrdinalIgnoreCase)), "loose-file-becomes-a-card");
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, copiedFiles = 0, soundsPlayed = 0 }, new JsonSerializerOptions { WriteIndented = true }));
             window.Close(); window = null; Shutdown(0);
         }

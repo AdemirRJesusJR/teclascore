@@ -1,3 +1,10 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.21.1
+17/10/2026
+
+- Cabeçalho: Pasta de MIDIs com estilo principal e sem o botão Importar arquivos, conferidos por teste de interface e capturas nos temas claro e escuro, em janela mínima.
+- Pasta de MIDIs: 18 verificações, incluindo Escolher arquivos… (arquivo avulso vira card, sem duplicar caminhos). Demais resultados da 0.21.0 permanecem válidos.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.21.0
 17/10/2026
 
