@@ -1,3 +1,10 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.24.0
+17/10/2026
+
+- Pautas extras: 8 testes nativos de rótulos de instrumento com MuseScore real, incluindo 2 novos (alternância densa em duas pautas; prepare refaz em pautas somente após falha de rótulos). Casos de uma pauta inalterados.
+- Caso real, gerado em pasta temporária sem alterar o MIDI: Guilherme Silva - Chicota, antes bloqueada, gerada com 2 pautas, 7 páginas e 1.020 ataques conferidos após reabrir.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.23.1
 17/10/2026
 

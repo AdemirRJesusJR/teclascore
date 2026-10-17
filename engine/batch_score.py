@@ -750,73 +750,102 @@ def build_musicxml(parsed,config,harmony,out,title):
         if not txt:continue
         cr=sub(root,'credit',page=1);sub(cr,'credit-type',role)
         sub(cr,'credit-words',txt,default_x=x,default_y=y,justify=alignment,valign='top',font_size=size)
-    parts=sub(root,'part-list');p=sub(parts,'score-part',id='P1');sub(p,'part-name','Teclado');sub(p,'part-abbreviation','')
-    si=sub(p,'score-instrument',id='I1');sub(si,'instrument-name','Piano');mi=sub(p,'midi-instrument',id='I1');sub(mi,'midi-channel',1);sub(mi,'midi-program',1)
     labels=instrument_labels(notes,origin) if note_report.get('melody_merge') else []
-    part=sub(root,'part',id='P1');lastmeter=None;printedtempo=None;lastkey=None
-    for i,b in enumerate(bars):
-        measure=sub(part,'measure',number=i+1,**({'implicit':'yes'} if b['partial'] else {}))
-        if i in starts:sub(measure,'print',**({'new-page':'yes'} if starts[i]=='page' else ({'new-system':'yes'} if i else {})))
-        activekey=key
-        for kc in harmony.get('key_changes',[]):
-            if round(kc['tick']/parsed['ppq']*DIV)<=origin+b['start']:activekey=kc
-        currentkey=(activekey['fifths'],activekey.get('minor',False));ps=spellings(*currentkey)
-        if i==0 or b['meter']!=lastmeter or currentkey!=lastkey:
-            at=sub(measure,'attributes')
-            if i==0:sub(at,'divisions',DIV)
-            if currentkey!=lastkey:
-                k=sub(at,'key');sub(k,'fifths',currentkey[0]);sub(k,'mode','minor' if currentkey[1] else 'major')
-            if b['meter']!=lastmeter:
-                ts=sub(at,'time');sub(ts,'beats',b['meter'][0]);sub(ts,'beat-type',b['meter'][1])
-            if i==0:
-                sub(at,'staves',1);cl=sub(at,'clef');sub(cl,'sign','G');sub(cl,'line',2)
-        lastmeter=b['meter']
-        lastkey=currentkey
-        active_tempo=max([t for t in tempos if round(t['tick']/parsed['ppq']*DIV)<=origin+b['start']] or [tempos[0]],key=lambda t:t['tick'])
-        ts=[dict(active_tempo,tick=origin+b['start'])] if i==0 else []
-        ts.extend(t for t in tempos if origin+b['start']<=round(t['tick']/parsed['ppq']*DIV)<origin+b['end'] and not (i==0 and round(t['tick']/parsed['ppq']*DIV)==origin))
-        for t in ts:
-            bpm=round(t['bpm'],2);di=sub(measure,'direction',placement='above')
-            if printedtempo is None or abs(bpm-printedtempo)>=3:
-                dt=sub(di,'direction-type');mt=sub(dt,'metronome');sub(mt,'beat-unit','quarter');sub(mt,'per-minute',round(bpm) if abs(bpm-round(bpm))<.1 else bpm);printedtempo=bpm
-            else:dt=sub(di,'direction-type');sub(dt,'words','',print_object='no')
-            offset=round(t['tick']/parsed['ppq']*DIV)-origin-b['start'] if i else 0
-            if offset:sub(di,'offset',offset)
-            sub(di,'sound',tempo=bpm)
-        for c in chords:
-            if b['start']<=c['tick']<b['end']:emit_harmony(measure,c,b['start'],ps)
-        for label in labels:
-            if b['start']<=label['tick']<b['end']:
-                direction=sub(measure,'direction',placement='above')
-                words=sub(sub(direction,'direction-type'),'words',label['text'],font_size=9,font_style='italic')
-                if label['tick']>b['start']:sub(direction,'offset',label['tick']-b['start'])
-                sub(direction,'staff',1)
-        selected=[n for n in notes if n['end']>b['start'] and n['start']<b['end']];sequence=[];cursor=b['start']
-        for n in selected:
-            a=max(n['start'],b['start']);z=min(n['end'],b['end'])
-            if a>cursor:sequence.append((cursor,a,None))
-            sequence.append((a,z,n));cursor=z
-        if cursor<b['end']:sequence.append((cursor,b['end'],None))
-        for a,z,n in sequence:
-            inner_chords=sorted({c['tick'] for c in chords if a<c['tick']<z})
-            if n is None and a==b['start'] and z==b['end'] and not inner_chords:emit_note(measure,a,z-a,False,None,ps,True)
-            else:
-                bounds=[a]+inner_chords+[z]
-                for left,right in zip(bounds,bounds[1:]):
-                    for start,dur,tr in pieces(left,right,grids):emit_note(measure,start,dur,tr,n,ps)
-        assert sum(int(n.findtext('duration','0')) for n in measure.findall('note'))==b['end']-b['start']
-        if i+1 in config.get('tuplet_bracket_measures',[]):
-            # Explicit brackets keep adjacent triplet labels centered over their
-            # separate groups after a very wide measure is respaced by MuseScore.
-            for tuplet in measure.findall('.//tuplet'):
-                if tuplet.get('type')=='start':tuplet.set('bracket','yes');tuplet.set('placement','above')
-        if i==len(bars)-1:bl=sub(measure,'barline',location='right');sub(bl,'bar-style','light-heavy')
+    staff_groups=None
+    if config.get('staff_per_source') and note_report.get('melody_merge'):
+        names=json.loads((WORK/'gm.json').read_text(encoding='utf8'));staff_groups=[]
+        for n in notes:
+            source=n.get('source');identity=None if source is None else tuple(source[k] for k in ('track','channel','program'))
+            group=next((g for g in staff_groups if g['identity']==identity),None)
+            if group is None:
+                program=source['program'] if source else -1
+                group={'identity':identity,'name':names[program] if type(program) is int and 0<=program<len(names) else 'Melodia','notes':[]}
+                staff_groups.append(group)
+            group['notes'].append(n)
+        if len(staff_groups)<2:staff_groups=None
+    if staff_groups:
+        # One staff per instrument: each name stays in the system margin, so no captions are
+        # needed inside the staff. With more staves per system, MuseScore paginates freely.
+        labels=[]
+        starts={index:('line' if kind=='page' else kind) for index,kind in starts.items()}
+        part_specs=[(f'P{index+1}',group['name'],group['notes']) for index,group in enumerate(staff_groups)]
+    else:part_specs=[('P1','Teclado',notes)]
+    parts=sub(root,'part-list')
+    for pid,name,_ in part_specs:
+        p=sub(parts,'score-part',id=pid);sub(p,'part-name',name)
+        sub(p,'part-abbreviation',(name if len(name)<=14 else name[:12].rstrip()+'.') if staff_groups else '')
+        instrument='I1' if pid=='P1' else pid+'-I1'
+        si=sub(p,'score-instrument',id=instrument);sub(si,'instrument-name','Piano');mi=sub(p,'midi-instrument',id=instrument);sub(mi,'midi-channel',1);sub(mi,'midi-program',1)
+    primary_part=None
+    for part_index,(pid,name,part_notes) in enumerate(part_specs):
+        primary=part_index==0
+        part=sub(root,'part',id=pid);lastmeter=None;printedtempo=None;lastkey=None
+        if primary:primary_part=part
+        for i,b in enumerate(bars):
+            measure=sub(part,'measure',number=i+1,**({'implicit':'yes'} if b['partial'] else {}))
+            if primary and i in starts:sub(measure,'print',**({'new-page':'yes'} if starts[i]=='page' else ({'new-system':'yes'} if i else {})))
+            activekey=key
+            for kc in harmony.get('key_changes',[]):
+                if round(kc['tick']/parsed['ppq']*DIV)<=origin+b['start']:activekey=kc
+            currentkey=(activekey['fifths'],activekey.get('minor',False));ps=spellings(*currentkey)
+            if i==0 or b['meter']!=lastmeter or currentkey!=lastkey:
+                at=sub(measure,'attributes')
+                if i==0:sub(at,'divisions',DIV)
+                if currentkey!=lastkey:
+                    k=sub(at,'key');sub(k,'fifths',currentkey[0]);sub(k,'mode','minor' if currentkey[1] else 'major')
+                if b['meter']!=lastmeter:
+                    ts=sub(at,'time');sub(ts,'beats',b['meter'][0]);sub(ts,'beat-type',b['meter'][1])
+                if i==0:
+                    sub(at,'staves',1);cl=sub(at,'clef');sub(cl,'sign','G');sub(cl,'line',2)
+            lastmeter=b['meter']
+            lastkey=currentkey
+            active_tempo=max([t for t in tempos if round(t['tick']/parsed['ppq']*DIV)<=origin+b['start']] or [tempos[0]],key=lambda t:t['tick'])
+            ts=[dict(active_tempo,tick=origin+b['start'])] if i==0 else []
+            ts.extend(t for t in tempos if origin+b['start']<=round(t['tick']/parsed['ppq']*DIV)<origin+b['end'] and not (i==0 and round(t['tick']/parsed['ppq']*DIV)==origin))
+            for t in (ts if primary else []):
+                bpm=round(t['bpm'],2);di=sub(measure,'direction',placement='above')
+                if printedtempo is None or abs(bpm-printedtempo)>=3:
+                    dt=sub(di,'direction-type');mt=sub(dt,'metronome');sub(mt,'beat-unit','quarter');sub(mt,'per-minute',round(bpm) if abs(bpm-round(bpm))<.1 else bpm);printedtempo=bpm
+                else:dt=sub(di,'direction-type');sub(dt,'words','',print_object='no')
+                offset=round(t['tick']/parsed['ppq']*DIV)-origin-b['start'] if i else 0
+                if offset:sub(di,'offset',offset)
+                sub(di,'sound',tempo=bpm)
+            for c in (chords if primary else []):
+                if b['start']<=c['tick']<b['end']:emit_harmony(measure,c,b['start'],ps)
+            for label in labels:
+                if b['start']<=label['tick']<b['end']:
+                    direction=sub(measure,'direction',placement='above')
+                    words=sub(sub(direction,'direction-type'),'words',label['text'],font_size=9,font_style='italic')
+                    if label['tick']>b['start']:sub(direction,'offset',label['tick']-b['start'])
+                    sub(direction,'staff',1)
+            selected=[n for n in part_notes if n['end']>b['start'] and n['start']<b['end']];sequence=[];cursor=b['start']
+            for n in selected:
+                a=max(n['start'],b['start']);z=min(n['end'],b['end'])
+                if a>cursor:sequence.append((cursor,a,None))
+                sequence.append((a,z,n));cursor=z
+            if cursor<b['end']:sequence.append((cursor,b['end'],None))
+            for a,z,n in sequence:
+                inner_chords=sorted({c['tick'] for c in chords if a<c['tick']<z}) if primary else []
+                if n is None and a==b['start'] and z==b['end'] and not inner_chords:emit_note(measure,a,z-a,False,None,ps,True)
+                else:
+                    bounds=[a]+inner_chords+[z]
+                    for left,right in zip(bounds,bounds[1:]):
+                        for start,dur,tr in pieces(left,right,grids):emit_note(measure,start,dur,tr,n,ps)
+            assert sum(int(n.findtext('duration','0')) for n in measure.findall('note'))==b['end']-b['start']
+            if primary and i+1 in config.get('tuplet_bracket_measures',[]):
+                # Explicit brackets keep adjacent triplet labels centered over their
+                # separate groups after a very wide measure is respaced by MuseScore.
+                for tuplet in measure.findall('.//tuplet'):
+                    if tuplet.get('type')=='start':tuplet.set('bracket','yes');tuplet.set('placement','above')
+            if i==len(bars)-1:bl=sub(measure,'barline',location='right');sub(bl,'bar-style','light-heavy')
     E.indent(root);xml=out/'melodia.musicxml';E.ElementTree(root).write(xml,encoding='utf-8',xml_declaration=True)
     report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/DIV,'measures':len(bars),'systems':len(lines),'pages_planned':1+sum(kind=='page' for kind in starts.values()),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
     report.update(score_metadata=metadata,diagram_inversion=inversion,custom_diagram_inversions=custom_diagrams,transpose_semitones=output_transpose)
     if labels:report['instrument_labels']=labels
+    if staff_groups:report['staff_per_source']={'staves':len(staff_groups),'names':[group['name'] for group in staff_groups],
+        'notes_per_staff':[len(group['notes']) for group in staff_groups]}
     if config.get('reserve_high_melody'):
-        report['high_melody_layout']=high_melody_layout(part,lines)
+        report['high_melody_layout']=high_melody_layout(primary_part,lines)
         report['tuplet_bracket_measures']=config.get('tuplet_bracket_measures',[])
     return xml,report
 
@@ -1344,7 +1373,8 @@ def convert_score(xml,report,out,filename):
     if len(harmonies)!=len(report['chords']):raise NeedsReview(f'MuseScore importou {len(harmonies)} cifras de {len(report["chords"])}.')
     assets={};asset_manifest={};events=iter(report['chords']);images=0;previous_chord=None
     report['image_spacing']=[0.0]*len(report['chords']);report['end_spacing']={}
-    for measure_index,measure in enumerate(root.findall('Score/Staff/Measure')):
+    # Chords, diagrams, tempo and system spacing live on the top staff; extra instrument staves only carry notes.
+    for measure_index,measure in enumerate(root.findall('Score/Staff')[0].findall('Measure')):
         placement=vertical_by_measure.get(measure_index)
         lift=placement['lift_spatium'] if placement else 0
         if measure_index in report['system_starts']:previous_chord=None
@@ -1422,7 +1452,7 @@ def convert_score(xml,report,out,filename):
     progress('Conferindo notas, ritmos e diagramas na partitura salva…')
     with zipfile.ZipFile(final) as z:
         native=E.fromstring(z.read(next(n for n in z.namelist() if n.endswith('.mscx'))))
-        assert len(native.findall('Score/Staff'))==1
+        assert len(native.findall('Score/Staff'))==report.get('staff_per_source',{}).get('staves',1)
         assert len(native.findall('.//Image'))==images
         if labels:
             assert [''.join(text.find('text').itertext()) for text in native.findall('Score/Staff/Measure/voice/StaffText')]==[label['text'] for label in labels],'Instrument labels changed during native save'
@@ -1430,32 +1460,37 @@ def convert_score(xml,report,out,filename):
         for im in native.findall('.//Image'):
             path='Pictures/'+Path(im.findtext('path')).name;assert path in z.namelist();assert Path(path).stem==md4(z.read(path))
     reopened=E.parse(out/'reaberto.musicxml');allnotes=[];reopened_labels=[];cursor=0
+    reopened_parts=reopened.findall('part')
+    assert len(reopened_parts)==report.get('staff_per_source',{}).get('staves',1),'Instrument staves changed during MuseScore import'
     # Compare the realized melody after native save/reopen, collapsing tie continuations.
-    for m,b in zip(reopened.findall('part/measure'),report['bars']):
-        div=m.findtext('attributes/divisions')
-        if div is not None:reopened_div=int(div)
-        local=0
-        if labels:
-            position=0
-            for element in m:
-                if element.tag=='direction':
-                    words=element.find('direction-type/words')
-                    if words is not None and ''.join(words.itertext()).strip():
-                        tick=b['start']+position+round(int(element.findtext('offset','0'))/reopened_div*DIV)
-                        reopened_labels.append((tick,''.join(words.itertext())))
-                elif element.tag in ('note','forward','backup') and element.find('grace') is None and element.find('chord') is None:
-                    position+=round(int(element.findtext('duration','0'))/reopened_div*DIV)*(-1 if element.tag=='backup' else 1)
-        for n in m.findall('note'):
-            if n.find('grace') is not None:continue
-            dur=round(int(n.findtext('duration','0'))/reopened_div*DIV)
-            if n.find('pitch') is not None and not any(t.get('type')=='stop' for t in n.findall('tie')):
-                step=n.findtext('pitch/step');alt=int(n.findtext('pitch/alter','0'));octave=int(n.findtext('pitch/octave'))
-                pitch=(octave+1)*12+{'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}[step]+alt
-                allnotes.append((b['start']+local,pitch))
-            if n.find('chord') is None:local+=dur
-        assert local==b['end']-b['start'],('measure length changed',local,b)
-    assert len(reopened.findall('part/measure'))==report['measures']
-    assert allnotes==[(n['start'],n['pitch']) for n in report['notes']],'Melody changed during MuseScore import'
+    for reopened_part in reopened_parts:
+        for m,b in zip(reopened_part.findall('measure'),report['bars']):
+            div=m.findtext('attributes/divisions')
+            if div is not None:reopened_div=int(div)
+            local=0
+            if labels:
+                position=0
+                for element in m:
+                    if element.tag=='direction':
+                        words=element.find('direction-type/words')
+                        if words is not None and ''.join(words.itertext()).strip():
+                            tick=b['start']+position+round(int(element.findtext('offset','0'))/reopened_div*DIV)
+                            reopened_labels.append((tick,''.join(words.itertext())))
+                    elif element.tag in ('note','forward','backup') and element.find('grace') is None and element.find('chord') is None:
+                        position+=round(int(element.findtext('duration','0'))/reopened_div*DIV)*(-1 if element.tag=='backup' else 1)
+            for n in m.findall('note'):
+                if n.find('grace') is not None:continue
+                dur=round(int(n.findtext('duration','0'))/reopened_div*DIV)
+                if n.find('pitch') is not None and not any(t.get('type')=='stop' for t in n.findall('tie')):
+                    step=n.findtext('pitch/step');alt=int(n.findtext('pitch/alter','0'));octave=int(n.findtext('pitch/octave'))
+                    pitch=(octave+1)*12+{'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}[step]+alt
+                    allnotes.append((b['start']+local,pitch))
+                if n.find('chord') is None:local+=dur
+            assert local==b['end']-b['start'],('measure length changed',local,b)
+    assert all(len(part.findall('measure'))==report['measures'] for part in reopened_parts)
+    # Several staves are read part by part; compare the same attacks regardless of staff order.
+    expected=[(n['start'],n['pitch']) for n in report['notes']]
+    assert (sorted(allnotes)==sorted(expected) if len(reopened_parts)>1 else allnotes==expected),'Melody changed during MuseScore import'
     if labels:assert reopened_labels==[(label['tick'],label['text']) for label in labels],'Instrument label position changed during MuseScore import'
     assert len(reopened.findall('.//grace'))==report['melody_analysis']['grace_notes_preserved']
     progress('Preparando as miniaturas e a prévia da partitura…')
@@ -1506,10 +1541,19 @@ def prepare(config):
         harmony['events']=collapsed;harmony['manual_review']=override
         harmony['review_required']=not override.get('review_complete',False)
     (out/'harmonia_fonte.json').write_text(json.dumps(harmony,ensure_ascii=False,indent=2),encoding='utf8')
-    xml,report=build_musicxml(parsed,config,harmony,out,title)
-    report['triage']=config
-    suffix='posicoes personalizadas' if report['custom_diagram_inversions'] else ('posicao fundamental','1a inversao','2a inversao')[report['diagram_inversion']]
-    final=convert_score(xml,report,out,stem+' - cifras '+suffix)
+    def build_and_convert(active):
+        xml,report=build_musicxml(parsed,active,copy.deepcopy(harmony),out,title)
+        report['triage']=active
+        suffix='posicoes personalizadas' if report['custom_diagram_inversions'] else ('posicao fundamental','1a inversao','2a inversao')[report['diagram_inversion']]
+        return convert_score(xml,report,out,stem+' - cifras '+suffix),report
+    try:final,report=build_and_convert(config)
+    except NeedsReview as error:
+        # One staff remains the standard. Only when instrument changes are too close to name
+        # without overlap does this song get one staff per instrument, named in the margin.
+        if error.kind!='instrument_label_layout' or config.get('staff_per_source') or len(config.get('melody_sources') or [])<2:raise
+        progress('As trocas de instrumento estão próximas demais para uma pauta; separando cada instrumento em sua própria pauta…')
+        final,report=build_and_convert(dict(config,staff_per_source=True))
+        report['staff_per_source']['reason']=str(error)
     progress('Salvando o resultado da conferência musical e visual…')
     (out/'validacao.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
     return {'index':index,'filename':config['filename'],'status':'generated_pending_visual_review','path':str(final),'preview':str(out/'previa-geral.png'),'pages':report['pages'],'measures':report['measures'],'notes':report['melody_attacks_verified'],'harmony_warnings':harmony.get('warnings',[])}

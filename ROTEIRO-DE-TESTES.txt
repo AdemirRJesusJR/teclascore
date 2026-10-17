@@ -1,3 +1,9 @@
+TECLASCORE 0.24.0 · PAUTAS EXTRAS SÓ QUANDO NECESSÁRIO
+
+1. Gere novamente "Guilherme Silva - Chicota" com as mesmas pistas: a partitura sai com duas pautas (Electric Guitar clean e Tango Accordion), cifras e diagramas em cima, e o aviso informa a separação.
+2. Gere uma música de uma pista ou com trocas espaçadas: continua em uma pauta, com os nomes dos instrumentos nas trocas.
+3. Confira a reprodução e o PDF da música com várias pautas.
+
 TECLASCORE 0.23.1 · REPETIR, BOTÕES E FILA
 
 1. Na Prévia, sem A e B, clique no ícone de repetir: não liga e o rodapé explica. Reproduza, marque A e B e ligue: o trecho repete. Desligue: A e B voltam a "—".

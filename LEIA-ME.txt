@@ -1,3 +1,7 @@
+TECLASCORE 0.24.0
+
+Músicas que paravam em "As trocas de instrumento estão muito próximas" agora são geradas com uma pauta por instrumento, com o nome na margem. As demais continuam em uma pauta.
+
 TECLASCORE 0.23.1
 
 Prévia: repetir o trecho A–B virou um ícone moderno; desligar a repetição limpa os marcadores. Botões da aba Melodia padronizados. Posições guardadas também nas músicas geradas pela Fila de conversões.

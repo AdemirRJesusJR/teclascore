@@ -40,10 +40,11 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         self.base.mkdir(parents=True,exist_ok=True)
     def tearDown(self):
         if self.temporary:self.temporary.cleanup()
-    def render(self,name,notes,sources=(A,B),transpose=0):
+    def render(self,name,notes,sources=(A,B),transpose=0,staff_per_source=False):
         out=self.base/name;out.mkdir(parents=True,exist_ok=True)
         midi=out/'source.mid';write_midi(midi,notes);before=hashlib.sha256(midi.read_bytes()).hexdigest()
         parsed=engine.parse_midi(midi);config=worker.manual_melody_config(list(sources));config['transpose_semitones']=transpose
+        if staff_per_source:config['staff_per_source']=True
         with patch.object(engine,'BATCH',self.base),redirect_stdout(io.StringIO()):
             xml,report=engine.build_musicxml(parsed,config,harmony(),out,name)
             start=time.monotonic()
@@ -60,7 +61,7 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         with zipfile.ZipFile(final) as archive:
             native=engine.E.fromstring(archive.read(next(name for name in archive.namelist() if name.endswith('.mscx'))))
         self.assertFalse(native.findall('.//InstrumentChange'))
-        self.assertEqual(len(native.findall('Score/Staff')),1)
+        self.assertEqual(len(native.findall('Score/Staff')),report.get('staff_per_source',{}).get('staves',1))
         return report,native
 
     def test_return_transposition_and_tie_across_system_survive_reopen(self):
@@ -96,6 +97,32 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         self.assertTrue(caught.exception.review_points)
         report=json.loads((self.base/'dense/validation.json').read_text(encoding='utf8'))
         self.assertEqual(len(report['instrument_labels']),24)
+
+    def test_dense_alternation_fits_with_one_staff_per_instrument(self):
+        other=dict(B,program=24)
+        notes=[note(i,60+i%3,A if i%2==0 else other) for i in range(24)]
+        report,native=self.render('dense-staves',notes,sources=(A,other),staff_per_source=True)
+        self.assertEqual(report['staff_per_source']['staves'],2)
+        self.assertEqual(report['staff_per_source']['names'],['Acoustic Grand Piano','Acoustic Guitar nylon'])
+        self.assertNotIn('instrument_labels',report)
+        self.assertFalse(native.findall('.//StaffText'))
+        self.assertEqual(report['melody_attacks_verified'],24)
+        self.assertEqual(len(native.findall('Score/Staff')[0].findall('.//Harmony')),len(report['chords']))
+        self.assertFalse(native.findall('Score/Staff')[1].findall('.//Harmony'))
+        self.assertEqual(len(native.findall('.//Image')),report['images'])
+
+    def test_prepare_falls_back_to_staves_only_when_labels_cannot_fit(self):
+        other=dict(B,program=24)
+        notes=[note(i,60+i%3,A if i%2==0 else other) for i in range(24)]
+        out=self.base/'fallback';out.mkdir(parents=True,exist_ok=True);midi=out/'source.mid';write_midi(midi,notes)
+        config=worker.manual_melody_config([A,other])
+        config.update(index=900,filename='fallback.mid',source_path=str(midi),status='ready')
+        with patch.object(engine,'BATCH',self.base),patch.object(engine,'analyze_harmony',lambda parsed,sources:harmony()),redirect_stdout(io.StringIO()):
+            result=engine.prepare(config)
+        report=json.loads((self.base/'901/validacao.json').read_text(encoding='utf8'))
+        self.assertEqual(report['staff_per_source']['staves'],2)
+        self.assertIn('trocas de instrumento',report['staff_per_source']['reason'])
+        self.assertTrue(Path(result['path']).is_file())
 
     def test_crowded_alternation_reserves_lanes_without_missing_instruments(self):
         other=dict(B,program=24)

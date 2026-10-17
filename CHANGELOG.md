@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.24.0 — 17/10/2026
+
+- Pautas extras só quando necessário: a melodia continua em uma pauta. Quando as trocas de instrumento ficam próximas demais para exibir os nomes sem sobreposição (antes, a geração era bloqueada com "Precisa de revisão"), a partitura daquela música é refeita com uma pauta por instrumento, cada uma com o nome na margem. Cifras e diagramas ficam na pauta de cima; todas as notas são conferidas após reabrir no MuseScore.
+- O aviso da geração informa quando a música recebeu pautas separadas e quais instrumentos.
+
 ## 0.23.1 — 17/10/2026
 
 - Repetição do trecho A–B com ícone moderno de alternância, no estilo dos outros controles da Prévia. Sem A e B marcados, não liga e o rodapé explica o que fazer; desligar a repetição também limpa os marcadores (substitui o antigo botão ✕).

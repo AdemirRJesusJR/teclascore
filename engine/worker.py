@@ -254,6 +254,7 @@ def main():
     notice='Partitura gerada e reaberta no MuseScore. Confira a prévia antes de considerar a revisão musical concluída.'
     collisions=report['melody_analysis']['quantized_attack_collisions']
     if collisions and not data['reviewedProfile']:notice+=f' {collisions} ataques próximos foram agrupados; revise os ornamentos.'
+    if report.get('staff_per_source'):notice+=f" As trocas de instrumento ficaram próximas demais para uma pauta; cada instrumento ganhou sua pauta ({', '.join(report['staff_per_source']['names'])})."
     response={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'reviewedProfile':data['reviewedProfile'],'message':notice,'transposeSemitones':config['transpose_semitones']}
     if 'melody_merge' in report['melody_analysis']:response['melodyMerge']=report['melody_analysis']['melody_merge']
     write_queue_receipt(req,workspace,response,data['sha256'])

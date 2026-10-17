@@ -4,7 +4,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <AssemblyName>Teclas.Partituras</AssemblyName>
-    <Version>0.23.1</Version>
+    <Version>0.24.0</Version>
     <Product>TeclaScore</Product>
     <Title>TeclaScore</Title>
     <Description>Partituras de teclado a partir de arquivos MIDI.</Description>
