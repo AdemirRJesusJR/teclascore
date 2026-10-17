@@ -1,3 +1,9 @@
+TECLASCORE 0.30.0 · REPERTÓRIO, TABLET E VÁRIOS COMPUTADORES
+
+1. Na Biblioteca, Repertório em PDF: marque 3 músicas, ligue Acordes e Ordem alfabética e salve. Abra o PDF: índice com links, marcadores por música e a página de acordes depois de cada partitura. Repita com Formato tablet.
+2. Na Prévia, Exportar → PDF para tablet: abra no tablet ou em tela cheia; compassos e diagramas iguais aos do A4, com menos margem.
+3. Em Configurações, escolha uma pasta do OneDrive (ou pen drive) em Biblioteca em vários computadores e feche o app: o arquivo TeclaScore-biblioteca.teclasbackup aparece na pasta. No outro computador, escolha a mesma pasta e reabra o app: ele oferece as músicas novas.
+
 TECLASCORE 0.29.0 · ESTUDO NO TEMPO, ACORDES E HISTÓRICO
 
 1. Abra Prévia → Praticar, ligue No tempo, escolha ♩ = 60 e clique em Começar: ouça a contagem e o metrônomo; toque junto e confira "no tempo", "adiantada" e "atrasada". Pause, continue e veja os pontos no fim.

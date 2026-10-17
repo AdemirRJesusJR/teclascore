@@ -263,7 +263,8 @@ public partial class MainWindow
             Status = "Cancelando. Aguarde o término antes de fechar e salvar sua sessão.";
             return;
         }
-        if (!SaveCurrentSession()) e.Cancel = true;
+        if (!SaveCurrentSession()) { e.Cancel = true; return; }
+        DeferCloseForSync(e);
     }
 
     public bool SaveSessionForSmoke() => SaveCurrentSession();

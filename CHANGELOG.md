@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.30.0 — 17/10/2026
+
+- Repertório em PDF (Biblioteca): as partituras marcadas viram um único PDF, com índice (cada linha é um link), marcadores para pular de música no leitor do tablet, ordem da biblioteca ou alfabética e, se quiser, a página de acordes de cada música logo depois da partitura.
+- PDF para tablet: em Exportar, ou no repertório. Margens estreitas e página 3:4 que ocupa a tela; a largura útil não muda, então compassos, cifras e diagramas ficam exatamente como na partitura conferida (cerca de 17% maior num tablet 4:3). A partitura não é alterada.
+- Biblioteca em vários computadores (Configurações → Biblioteca): escolha uma pasta sincronizada (OneDrive, Google Drive, Dropbox ou pen drive). Ao fechar, o app envia a biblioteca se ela mudou; no outro computador, ao abrir, oferece as músicas novas. Músicas que já existem em cada computador ficam como estão.
+- Restaurar backup não duplica mais uma música que já está na biblioteca com o mesmo MIDI em outra pasta.
+
 ## 0.29.0 — 17/10/2026
 
 - Praticar no tempo: a partitura corre no andamento escolhido (30 a 200), com metrônomo e um compasso de contagem. Cada tecla vale pontos pela precisão: no tempo, adiantada ou atrasada; notas perdidas e teclas erradas também contam. Pausar e continuar.

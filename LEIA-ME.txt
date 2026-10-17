@@ -1,3 +1,7 @@
+TECLASCORE 0.30.0
+
+Repertório em um único PDF, com índice e marcadores. PDF para tablet. Biblioteca em vários computadores por uma pasta sincronizada.
+
 TECLASCORE 0.29.0
 
 Praticar no tempo, com metrônomo e pontos por precisão. Praticar os acordes da cifra na mão esquerda. Histórico de estudo por música.

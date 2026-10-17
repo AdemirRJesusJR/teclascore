@@ -27,19 +27,41 @@ public sealed class BatchPdfSelectionWindow : Window
     private bool changingAll;
     public IReadOnlyList<BatchPdfSelectionRow> Rows { get; }
     public IReadOnlyList<BatchPdfSource> SelectedSources => Rows.Where(r => r.Selected && r.CanSelect).Select(r => r.Source).ToArray();
+    /// <summary>Set on confirm when the window was opened for a repertoire (one PDF with every song).</summary>
+    public RepertoireOptions? Repertoire { get; private set; }
+    private readonly TextBox? repertoireTitle;
+    private readonly CheckBox? repertoireIndex, repertoireChords, repertoireTablet, repertoireAlphabetical;
 
     public BatchPdfSelectionWindow(IReadOnlyList<BatchPdfSource> sources) : this(sources, 0) { }
 
     /// <param name="hiddenWithoutScore">Library cards left out because they have no generated score yet.</param>
-    public BatchPdfSelectionWindow(IReadOnlyList<BatchPdfSource> sources, int hiddenWithoutScore)
+    public BatchPdfSelectionWindow(IReadOnlyList<BatchPdfSource> sources, int hiddenWithoutScore, bool repertoire = false)
     {
-        Title = "Exportar partituras em PDF"; Width = 960; Height = 630; MinWidth = 740; MinHeight = 480;
+        Title = repertoire ? "Repertório em PDF" : "Exportar partituras em PDF"; Width = 960; Height = 630; MinWidth = 740; MinHeight = 480;
         ShowInTaskbar = false; UseLayoutRounding = true; DialogUi.Theme(this); NameScope.SetNameScope(this, new NameScope());
         Rows = sources.Select(source => new BatchPdfSelectionRow(source)).ToArray();
         var root = BatchPdfUi.Root(this);
         var top = new StackPanel { Margin = new Thickness(0, 0, 0, 14) }; root.Children.Add(top);
-        top.Children.Add(BatchPdfUi.Heading("Escolha as partituras"));
-        top.Children.Add(BatchPdfUi.Text("Cada música será salva em um PDF separado, com todas as páginas, direto na pasta que você escolher na próxima etapa. Arquivos que já estão na pasta nunca são substituídos.", 8));
+        top.Children.Add(BatchPdfUi.Heading(repertoire ? "Monte o repertório" : "Escolha as partituras"));
+        top.Children.Add(BatchPdfUi.Text(repertoire
+            ? "As músicas marcadas viram um único PDF: índice com links, marcadores para pular de música no leitor do tablet e, se quiser, os acordes de cada música logo depois da partitura."
+            : "Cada música será salva em um PDF separado, com todas as páginas, direto na pasta que você escolher na próxima etapa. Arquivos que já estão na pasta nunca são substituídos.", 8));
+        if (repertoire)
+        {
+            var options = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) }; top.Children.Add(options);
+            options.Children.Add(new TextBlock { Text = "Título", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) });
+            repertoireTitle = new TextBox { Text = "Repertório", Width = 220, Margin = new Thickness(0, 0, 18, 6), VerticalContentAlignment = VerticalAlignment.Center };
+            AutomationProperties.SetName(repertoireTitle, "Título do repertório"); Register(repertoireTitle, "RepertoireTitleBox"); options.Children.Add(repertoireTitle);
+            CheckBox Option(string text, bool value, string tip, string name)
+            {
+                var box = new CheckBox { Content = text, IsChecked = value, ToolTip = tip, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 6) };
+                Register(box, name); options.Children.Add(box); return box;
+            }
+            repertoireIndex = Option("Índice", true, "Primeira página com a lista das músicas e o número da página; cada linha é um link.", "RepertoireIndexCheckBox");
+            repertoireChords = Option("Acordes de cada música", false, "Acrescenta, depois de cada partitura, a página com os diagramas dos acordes usados.", "RepertoireChordsCheckBox");
+            repertoireTablet = Option("Formato tablet", false, "Margens estreitas e página 3:4 que ocupa a tela do tablet; a distribuição dos compassos não muda.", "RepertoireTabletCheckBox");
+            repertoireAlphabetical = Option("Ordem alfabética", false, "Desmarcado, segue a ordem da biblioteca.", "RepertoireAlphabeticalCheckBox");
+        }
         if (hiddenWithoutScore > 0)
             top.Children.Add(BatchPdfUi.Text(hiddenWithoutScore == 1 ? "1 música ainda sem partitura gerada não aparece na lista."
                 : $"{hiddenWithoutScore} músicas ainda sem partitura gerada não aparecem na lista.", 4));
@@ -65,10 +87,19 @@ public sealed class BatchPdfSelectionWindow : Window
         footer.Children.Add(BatchPdfUi.Text("Partituras com alterações pendentes precisam ser atualizadas antes da exportação. Os arquivos originais serão preservados.", 7));
         var buttons = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, -4, 0) }; footer.Children.Add(buttons);
         var cancel = DialogUi.Button("Cancelar", (_, _) => DialogResult = false); cancel.IsCancel = true; buttons.Children.Add(cancel);
-        confirm = DialogUi.Button("Escolher pasta e salvar", (_, _) => { if (SelectedSources.Count > 0) DialogResult = true; }, true);
+        confirm = DialogUi.Button(repertoire ? "Escolher arquivo e montar" : "Escolher pasta e salvar", (_, _) => { if (Confirm()) DialogResult = true; }, true);
         confirm.IsDefault = true; Register(confirm, "ConfirmBatchPdfButton"); buttons.Children.Add(confirm);
         foreach (var row in Rows) row.PropertyChanged += (_, _) => UpdateSummary();
         UpdateSummary();
+    }
+    /// <summary>Accepts the selection; for a repertoire, also reads the options.</summary>
+    internal bool Confirm()
+    {
+        if (SelectedSources.Count == 0) return false;
+        if (repertoireTitle is not null)
+            Repertoire = new(string.IsNullOrWhiteSpace(repertoireTitle.Text) ? "Repertório" : repertoireTitle.Text.Trim(),
+                repertoireIndex!.IsChecked == true, repertoireChords!.IsChecked == true, repertoireTablet!.IsChecked == true, repertoireAlphabetical!.IsChecked == true);
+        return true;
     }
     private void Register(FrameworkElement element, string name) { element.Name = name; RegisterName(name, element); }
     private void SelectAll(bool selected)

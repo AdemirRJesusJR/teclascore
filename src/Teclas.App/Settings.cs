@@ -26,6 +26,10 @@ public sealed class Settings
     public bool PracticeAnyOctave { get; set; } = true;
     public int PracticeBpm { get; set; } = 80;
     public List<StudyRecord> StudyHistory { get; set; } = [];
+    public string LibrarySyncFolder { get; set; } = "";
+    public string LibrarySyncSentHash { get; set; } = "";
+    public DateTimeOffset? LibrarySyncSeen { get; set; }
+    public string LibrarySyncRestoreRoot { get; set; } = "";
     public string MidiFolder { get; set; } = "";
     public bool MidiFolderIncludeSubfolders { get; set; } = true;
     public Dictionary<string, DateTime> MidiFolderVisits { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -122,6 +126,7 @@ public sealed class Settings
         ScorePlaybackSpeed = NormalizeTrackAuditionSpeed(ScorePlaybackSpeed);
         CollectionFilter ??= "";
         PracticeBpm = Math.Clamp(PracticeBpm, 30, 200);
+        LibrarySyncFolder ??= ""; LibrarySyncSentHash ??= ""; LibrarySyncRestoreRoot ??= "";
         StudyHistory = NormalizeStudyHistory(StudyHistory);
         DefaultDiagramInversion = NormalizeDiagramInversion(DefaultDiagramInversion);
         ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" ? ThemeId : "classic";

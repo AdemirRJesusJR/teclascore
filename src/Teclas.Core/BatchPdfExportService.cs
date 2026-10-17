@@ -29,7 +29,7 @@ public sealed class BatchPdfExportService
     private readonly string cacheDirectory;
     private readonly Func<string, string, IProgress<string>?, CancellationToken, Task> export;
     public BatchPdfExportService(string museScorePath, string cacheDirectory)
-        : this(new ScoreExporter(museScorePath, cacheDirectory).ExportPdfAsync, cacheDirectory) { }
+        : this(new ScoreExporter(museScorePath, cacheDirectory) is var exporter ? (score, pdf, progress, token) => exporter.ExportPdfAsync(score, pdf, progress, token) : null!, cacheDirectory) { }
 
     public BatchPdfExportService(Func<string, string, IProgress<string>?, CancellationToken, Task> export, string cacheDirectory)
     {

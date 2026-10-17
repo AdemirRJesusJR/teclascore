@@ -77,8 +77,11 @@ public partial class MainWindow
 
     private async Task ApplyRestoredLibrary(PortableLibraryData data, CancellationToken token)
     {
+        // A song already here (same path, or the same MIDI restored elsewhere) keeps its own settings.
         var existing = Files.Select(row => row.FullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var newItems = data.Library.Where(row => !existing.Contains(row.FullPath)).ToArray();
+        var known = Files.Select(row => row.SourceSha256).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var newItems = data.Library.Where(row => !existing.Contains(row.FullPath) && (string.IsNullOrEmpty(row.Sha256) || !known.Contains(row.Sha256)))
+            .GroupBy(row => string.IsNullOrEmpty(row.Sha256) ? row.FullPath : row.Sha256, StringComparer.OrdinalIgnoreCase).Select(group => group.First()).ToArray();
         var loaded = new List<(SavedMidi Saved, MidiRow Row)>();
         foreach (var saved in newItems)
         {

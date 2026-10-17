@@ -99,6 +99,17 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         finally { try { Directory.Delete(job, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
     }
 
+    /// <summary>Renders every page as PNG at <paramref name="resolution"/> dpi, optionally with a page style (MuseScore -S) applied to the export only.</summary>
+    public async Task<IReadOnlyList<string>> ExportPagesAsync(string scorePath, string destinationPng, int resolution, string? stylePath, CancellationToken token)
+    {
+        ValidateScore(scorePath);
+        if (stylePath is not null && !File.Exists(stylePath)) throw new FileNotFoundException("Estilo de página não encontrado.", stylePath);
+        await ExportAsync(scorePath, destinationPng, token, PerformanceOperation.ScoreExportCopy, allowPagedPng: true, resolution: resolution, stylePath: stylePath);
+        var pages = FindPreviewPages(destinationPng);
+        if (pages.Length == 0) throw new InvalidDataException("O MuseScore não gerou as páginas em PNG.");
+        return pages;
+    }
+
     /// <summary>Renders all pages, returning numbered PNG files in page order.</summary>
     public async Task<IReadOnlyList<string>> ExportPreviewAsync(string input, string destinationPng, CancellationToken token)
     {
@@ -189,7 +200,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         finally { TryDelete(raw); TryDelete(prepared); }
     }
 
-    public async Task ExportPdfAsync(string scorePath, string destination, IProgress<string>? progress, CancellationToken token)
+    public async Task ExportPdfAsync(string scorePath, string destination, IProgress<string>? progress, CancellationToken token, string? stylePath = null)
     {
         token.ThrowIfCancellationRequested();
         progress?.Report("Conferindo a partitura e o destino do PDF…");
@@ -204,7 +215,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         try
         {
             progress?.Report("Exportando todas as páginas para PDF…");
-            await ExportAsync(scorePath, temporary, token, PerformanceOperation.ScoreExportPdf);
+            await ExportAsync(scorePath, temporary, token, PerformanceOperation.ScoreExportPdf, stylePath: stylePath);
             progress?.Report("Conferindo o PDF gerado…");
             await using (var stream = File.OpenRead(temporary))
             {
@@ -226,7 +237,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         if (!File.Exists(museScorePath)) throw new FileNotFoundException("Localize o MuseScore Studio 4 em Configurações para preparar o áudio e exportar PDF.", museScorePath);
     }
 
-    private async Task ExportAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng = false, int resolution = 120)
+    private async Task ExportAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng = false, int resolution = 120, string? stylePath = null)
     {
         using var measurement = (recorder ?? PerformanceDiagnostics.Recorder)?.Begin(operation, PerformanceProcessKind.MuseScore, PerformancePhase.Process)
             ?? PerformanceMeasurement.Disabled;
@@ -242,6 +253,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
             WorkingDirectory = Path.GetDirectoryName(outputPath)!
         };
         if (allowPagedPng) { start.ArgumentList.Add("-r"); start.ArgumentList.Add(resolution.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
+        if (stylePath is not null) { start.ArgumentList.Add("-S"); start.ArgumentList.Add(stylePath); }
         start.ArgumentList.Add("-o"); start.ArgumentList.Add(outputPath); start.ArgumentList.Add(scorePath);
         // On Windows the normal -o conversion is headless. The Qt offscreen platform can hang this build.
         using var timeout = new CancellationTokenSource(processTimeout);

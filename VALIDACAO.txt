@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.30.0
+17/10/2026
+
+- Repertório, tablet e sincronização: 17 verificações de interface e núcleo (estilo de tablet lido da partitura, PDF com índice, links, marcadores, texto escapado e tabela xref conferida objeto a objeto, páginas transparentes achatadas em branco, ordem alfabética, páginas de acordes, nenhum temporário deixado; envio para a pasta, marcador, sem reenvio sem mudanças, recebimento no outro computador ao abrir, oferta única, sem duplicar músicas).
+- Teste nativo com MuseScore real: partitura gerada exportada em A4 e em tablet (página 3:4 confirmada, mesmo layout) e montada em PDF de 13 páginas, aberto e renderizado pelo leitor de PDF do Windows.
+- Sincronização entre dois computadores simulada no mesmo PC (nomes de máquina distintos); OneDrive real não foi usado nesta validação.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.29.0
 17/10/2026
 

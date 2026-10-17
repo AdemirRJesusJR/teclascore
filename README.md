@@ -1,12 +1,14 @@
 # TeclaScore
 
-Versão 0.29.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.30.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Pasta de MIDIs (Ctrl+L):** em vez de importar tudo, escolha uma pasta e marque, dentro do app, os MIDIs que entram na biblioteca. A lista mostra subpasta, tamanho, data e se o arquivo já está na biblioteca; filtre por nome (sem diferenciar acentos) e use ▶ para ouvir antes. Nada é copiado: os cards apontam para os arquivos na própria pasta, e a pasta escolhida fica lembrada. É o botão principal do cabeçalho; para arquivos avulsos use Escolher arquivos… na mesma janela, arraste-os para o app ou Ctrl+O.
 
 **Posições na biblioteca inteira:** em Posições dos diagramas, deixe marcada a opção Aplicar também às outras músicas. As cifras alteradas passam a valer nas músicas com o mesmo acorde tocado (nota e tipo, já com a transposição), e as partituras já geradas são atualizadas em seguida, com a versão anterior no Histórico. As outras cifras de cada música não mudam.
 
 **Instalador completo:** cada entrega gera `debug/TeclaScore-Completo.iss` com a versão atual e o compila em `debug/saida/TeclaScore-X-Completo-Setup-x64.exe`, que instala o aplicativo e, se faltar, o MuseScore Studio 4 do kit. O script é gerenciado e refeito a cada versão; para personalizar, copie-o com outro nome.
+
+**Repertório, tablet e vários computadores:** na Biblioteca, Repertório em PDF junta as partituras escolhidas em um arquivo com índice e marcadores; em Exportar há o PDF para tablet (margens estreitas, página 3:4, mesmo layout). Em Configurações, escolha uma pasta sincronizada para levar a biblioteca a outro computador.
 
 **Estudo no tempo, acordes e histórico:** em Praticar, ligue No tempo para tocar com metrônomo no andamento escolhido e ganhar pontos pela precisão, ou escolha Acordes da cifra para treinar a mão esquerda com as posições dos diagramas. O botão 📈 mostra o histórico de estudo por música.
 
