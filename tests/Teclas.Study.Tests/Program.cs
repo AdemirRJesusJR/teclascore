@@ -44,6 +44,8 @@ Check(Read(defaultCopy).Descendants("Tempo").Single().Element("tempo")!.Value ==
 
 var nativeResults = new List<object>();
 var mapCache = await ScorePlaybackMapCacheChecks.Run(work, Check);
+var metronome = MetronomeChecks.Run(work, Check);
+object? nativeMetronome = null;
 if (args.Length > 1)
 {
     var musicXml = Path.Combine(work, "study.musicxml");
@@ -73,9 +75,10 @@ if (args.Length > 1)
         Check(frequency is > 420 and < 460, "A4 frequency");
         nativeResults.Add(new { speed, duration = audio.Duration.TotalSeconds, frequency, path = audio.Path });
     }
+    nativeMetronome = await MetronomeChecks.RunNative(work, args[1], native, Check);
     Check(originalHash == Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(native))), "Native original preserved");
 }
-var report = JsonSerializer.Serialize(new { checks, mapCache, nativeResults, passed = true }, new JsonSerializerOptions { WriteIndented = true });
+var report = JsonSerializer.Serialize(new { checks, mapCache, metronome, nativeResults, nativeMetronome, passed = true }, new JsonSerializerOptions { WriteIndented = true });
 File.WriteAllText(Path.Combine(work, "report.json"), report);
 Console.WriteLine(report);
 

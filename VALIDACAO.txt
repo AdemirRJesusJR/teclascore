@@ -1,3 +1,16 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.21.0
+17/10/2026
+
+- Runner local completo com MuseScore Studio 4.7.5: 42 etapas aprovadas, zero falhas e 3 grupos opcionais não executados (acervo pessoal, fixtures nativas especializadas e dispositivo de áudio real). Inclui as 20 suítes C#, testes Python, paridade de diagramas e verificações WPF.
+- Metrônomo: batidas lidas do MIDI de reprodução exportado pelo próprio MuseScore. Testes sintéticos cobrem anacruse, repetição, 6/8 e mudança de andamento; integração nativa a 100% e 50% confere 16 tempos com repetição, intervalos por andamento e velocidade, cópia separada no cache, mesma duração e reutilização. Áudio e MIDI exportados alinhados em cerca de 1 ms.
+- Contagem: um compasso no intervalo do tempo atual; começo entre tempos recua ao tempo anterior; anacruse conta só os tempos que faltam. Esc/Parar cancelam sem iniciar a música. 32 verificações de interface com dispositivo simulado (sem som).
+- Atalhos: Espaço, Esc, Ctrl+M, Ctrl+Shift+M, Ctrl+1/2/3, Ctrl+, e Ctrl+F conferidos; campos de texto e botões focados mantêm o comportamento padrão.
+- Pasta de MIDIs: 14 verificações com pasta sintética: subpastas, arquivos ocultos ignorados, filtro sem acentos, arquivo já na biblioteca sem seleção, apenas os marcados viram cards, nenhum arquivo copiado ou alterado (hash conferido) e pasta lembrada.
+- Prévia compacta: 146 verificações de layout aprovadas nas janelas mínima (1100×740) e grande, nos cinco temas; capturas claras e escuras conferidas visualmente. Todas as funções anteriores permanecem acessíveis.
+
+Os testes usam arquivos e configurações sintéticos. Não foi usada uma segunda máquina física nem reprodução em dispositivo de áudio real; o alinhamento auditivo da contagem com a música deve ser conferido no roteiro de testes.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.6
 17/10/2026
 

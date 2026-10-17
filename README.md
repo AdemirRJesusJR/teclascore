@@ -1,6 +1,12 @@
 # TeclaScore
 
-Versão 0.20.6 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.21.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+
+**Pasta de MIDIs (Ctrl+L):** em vez de importar tudo, escolha uma pasta e marque, dentro do app, os MIDIs que entram na biblioteca. A lista mostra subpasta, tamanho, data e se o arquivo já está na biblioteca; filtre por nome (sem diferenciar acentos) e use ▶ para ouvir antes. Nada é copiado: os cards apontam para os arquivos na própria pasta, e a pasta escolhida fica lembrada.
+
+**Metrônomo e contagem:** na Prévia, o grupo Estudo liga o metrônomo (cliques nos tempos, com acento no início do compasso) e a contagem de um compasso antes de tocar. Os tempos vêm do MIDI de reprodução do próprio MuseScore, então respeitam anacruse, repetições, mudanças de andamento e a velocidade de estudo. O áudio com cliques é uma cópia em cache; a partitura não muda.
+
+**Atalhos de teclado:** Espaço toca ou pausa, Esc para, Ctrl+←/→ avança ou volta 5 s, Ctrl+M liga o metrônomo e Ctrl+Shift+M a contagem. Ctrl+O importa, Ctrl+L abre a pasta de MIDIs, Ctrl+P salva PDF, Ctrl+F busca e Ctrl+1/2/3 e Ctrl+, navegam. F1 mostra a lista. Em campos de texto, Espaço, Esc e Ctrl+setas continuam editando.
 
 **Mover a janela:** arraste o título da página ou os espaços vazios do cabeçalho, além da barra de título do Windows. Os botões de PDF e importação continuam clicáveis.
 

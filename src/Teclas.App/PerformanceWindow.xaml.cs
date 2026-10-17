@@ -64,6 +64,7 @@ public partial class PerformanceWindow : Window
         PerformanceOperation.ScoreExportNative => "Exportar partitura",
         PerformanceOperation.ScoreExportPreview => "Renderizar prévia",
         PerformanceOperation.ScoreExportAudio => "Preparar áudio",
+        PerformanceOperation.ScoreExportMidi => "Preparar metrônomo",
         PerformanceOperation.ScoreExportPdf => "Renderizar PDF",
         _ => "Operação do aplicativo"
     };

@@ -13,6 +13,7 @@ public record MidiSource(SourceKey Key,string Name,int Count,int Minimum,int Max
 public record MidiTempoChange(long Tick,int MicrosecondsPerQuarter,int Track=0,int Order=0);
 public record MidiChannelEvent(long Tick,int Track,int Order,int Channel,int Kind,int Data1,int Data2);
 public record MidiTextEvent(long Tick,int Track,int Type,string Text);
+public record MidiTimeSignature(long Tick,int Numerator,int Denominator,int Track=0,int Order=0);
 public record MidiDocument(string Path,string Sha256,int Format,int Ppq,IReadOnlyList<MidiNote> Notes,IReadOnlyList<MidiSource> Sources,IReadOnlyList<string> Warnings)
 {
     public IReadOnlyList<MidiTempoChange> TempoChanges { get; init; } = [];
@@ -22,6 +23,7 @@ public record MidiDocument(string Path,string Sha256,int Format,int Ppq,IReadOnl
     // Notes and ChannelEvents retain their existing analysis/source-isolation contracts.
     public IReadOnlyList<MidiChannelEvent>? PlaybackEvents { get; init; }
     public IReadOnlyList<MidiTextEvent> TextEvents { get; init; } = [];
+    public IReadOnlyList<MidiTimeSignature> TimeSignatures { get; init; } = [];
     public long EndTick { get; init; }
     public bool HasSystemExclusive { get; init; }
 }
@@ -56,7 +58,7 @@ public static class MidiReader
         Need(header);int format=U16(), declared=U16(), ppq=U16();pos+=header-6;
         if(format>1)throw new InvalidDataException("MIDI tipo 2 precisa ser dividido em músicas independentes.");
         if(ppq==0 || (ppq&0x8000)!=0)throw new InvalidDataException("Este MIDI usa tempo SMPTE ou uma resolução inválida; é necessário MIDI com tempo musical PPQ.");
-        var events=new List<Event>();var tempos=new List<MidiTempoChange>();var textEvents=new List<MidiTextEvent>();bool hasSysEx=false;var names=new Dictionary<int,string>();var warnings=new List<string>();int track=0;long last=0;
+        var events=new List<Event>();var tempos=new List<MidiTempoChange>();var signatures=new List<MidiTimeSignature>();var textEvents=new List<MidiTextEvent>();bool hasSysEx=false;var names=new Dictionary<int,string>();var warnings=new List<string>();int track=0;long last=0;
         while(pos+8<=bytes.Length)
         {
             if(track>=declared && Encoding.ASCII.GetString(bytes,pos,4)!="MTrk")break;
@@ -83,6 +85,11 @@ public static class MidiReader
                         if(len==3 && (bytes[pos]|bytes[pos+1]|bytes[pos+2])!=0)
                             tempos.Add(new(tick,(bytes[pos]<<16)|(bytes[pos+1]<<8)|bytes[pos+2],track,order));
                         else warnings.Add($"Tempo inválido na pista {track+1}; foi mantido o andamento anterior.");
+                    }
+                    if(type==0x58 && len>=2)
+                    {
+                        if(bytes[pos] is >0 and <=64 && bytes[pos+1]<=6)signatures.Add(new(tick,bytes[pos],1<<bytes[pos+1],track,order));
+                        else warnings.Add($"Fórmula de compasso inválida na pista {track+1}; foi mantida a anterior.");
                     }
                     pos+=len;continue;
                 }
@@ -127,6 +134,7 @@ public static class MidiReader
         {
             TempoChanges=tempos.OrderBy(t=>t.Tick).ThenBy(t=>t.Track).ThenBy(t=>t.Order).ToArray(),
             TextEvents=textEvents.ToArray(),
+            TimeSignatures=signatures.OrderBy(t=>t.Tick).ThenBy(t=>t.Track).ThenBy(t=>t.Order).ToArray(),
             ChannelEvents=playbackEvents.Where(e=>e.Kind is >=10 and <=14).ToArray(),
             PlaybackEvents=playbackEvents,
             EndTick=last,HasSystemExclusive=hasSysEx

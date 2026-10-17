@@ -41,6 +41,14 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         if (document.Root?.Name.LocalName != "museScore") throw new InvalidDataException("A partitura exportada não está no formato MuseScore.");
     }
 
+    /// <summary>Writes MuseScore's playback MIDI (repeats unrolled, actual time signatures) to a new file.</summary>
+    public async Task ExportMidiAsync(string input, string destination, CancellationToken token)
+    {
+        ValidateScore(input);
+        ValidateNewDestination(input, destination, ".mid");
+        await ExportAsync(input, destination, token, PerformanceOperation.ScoreExportMidi);
+    }
+
     /// <summary>Renders all pages, returning numbered PNG files in page order.</summary>
     public async Task<IReadOnlyList<string>> ExportPreviewAsync(string input, string destinationPng, CancellationToken token)
     {

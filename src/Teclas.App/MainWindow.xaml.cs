@@ -65,6 +65,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeComponent();
         InitializeOperations();
         InitializePlayback();
+        InitializeShortcuts();
         Closed+=(_,_)=>DisposePlayback();
         InitializeTrackAudition(midiOutputFactory);
         profiles=JsonNode.Parse(File.ReadAllText(Path.Combine(engineDirectory,"profiles.json")))!.AsObject();

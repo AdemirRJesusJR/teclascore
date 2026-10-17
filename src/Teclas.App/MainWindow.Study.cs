@@ -42,8 +42,8 @@ public partial class MainWindow
             Notify();
         }
     }
-    public string LoopStartText => loopStart is { } value ? "A · " + FormatTime(value) : "A · não marcado";
-    public string LoopEndText => loopEnd is { } value ? "B · " + FormatTime(value) : "B · não marcado";
+    public string LoopStartText => loopStart is { } value ? "A · " + FormatTime(value) : "A · —";
+    public string LoopEndText => loopEnd is { } value ? "B · " + FormatTime(value) : "B · —";
 
     private void MarkLoopStartClick(object sender, RoutedEventArgs e)
     {

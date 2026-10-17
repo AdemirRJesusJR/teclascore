@@ -19,6 +19,10 @@ public sealed class Settings
     public double LibraryFiltersShare { get; set; } = .55;
     public double TrackAuditionSpeed { get; set; } = 1.0;
     public double ScorePlaybackSpeed { get; set; } = 1.0;
+    public bool ScoreMetronome { get; set; }
+    public bool ScoreCountIn { get; set; }
+    public string MidiFolder { get; set; } = "";
+    public bool MidiFolderIncludeSubfolders { get; set; } = true;
     public bool FavoritesOnly { get; set; }
     public string CollectionFilter { get; set; } = "";
     public int DefaultDiagramInversion { get; set; } = 2;

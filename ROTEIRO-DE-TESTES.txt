@@ -1,3 +1,13 @@
+TECLASCORE 0.21.0 · PASTA DE MIDIS, METRÔNOMO, ATALHOS E PRÉVIA COMPACTA
+
+1. Clique em Pasta de MIDIs (ou Ctrl+L) e escolha a pasta midis. Ligue/desligue Incluir subpastas. Filtre por um nome sem acento. Ouça um MIDI com ▶ e pare com ■.
+2. Marque dois MIDIs e clique em Adicionar à biblioteca: só eles viram cards. Confira que os arquivos não foram copiados e que os já importados aparecem como Na biblioteca, sem caixa de seleção.
+3. Feche e reabra o app: a próxima abertura da janela deve começar na mesma pasta.
+4. Na Prévia, ligue Metrônomo e reproduza: cliques nos tempos, acento no 1. Teste 50% e uma música com repetição. Desligue: o áudio volta ao original.
+5. Ligue Contagem: ao reproduzir, conta um compasso e entra no tempo. Comece no meio de um compasso e numa anacruse. Esc durante a contagem cancela sem tocar.
+6. Atalhos: Espaço (tocar/pausar fora de campos de texto), Esc, Ctrl+←/→, Ctrl+M, Ctrl+Shift+M, Ctrl+P, Ctrl+F, Ctrl+1/2/3, Ctrl+, e F1.
+7. Prévia compacta: confira Velocidade, A/B, Repetir, ✕, Estudo, Acompanhar/Preparar e as ferramentas Editar · Revisar · Arquivo nas janelas mínima e maximizada, temas claro e escuro. Passe o mouse para ver os nomes completos.
+
 TECLASCORE 0.20.6 · DIVISOR DA BIBLIOTECA
 
 1. Arraste a linha entre filtros e cards para cima/baixo. Confira as rolagens independentes e os limites mínimos.

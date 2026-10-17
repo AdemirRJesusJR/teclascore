@@ -15,6 +15,61 @@ public sealed class ScoreStudyAudio(string museScorePath, string cacheDirectory)
         token.ThrowIfCancellationRequested();
         var exporter = new ScoreExporter(museScorePath, cacheDirectory);
         if (speed == 1) return await exporter.PrepareAudioAsync(scorePath, progress, token);
+        var (studyScore, originalHash) = await PrepareStudyScoreAsync(scorePath, speed, progress, token);
+        var audio = await exporter.PrepareAudioAsync(studyScore, progress, token);
+        progress?.Report("Conferindo a partitura original antes de iniciar a reprodução…");
+        if (await HashAsync(scorePath, token) != originalHash)
+            throw new IOException("A partitura mudou durante a preparação do estudo. Tente novamente.");
+        return audio;
+    }
+
+    /// <summary>Beats of the audio rendered at this speed, from MuseScore's own playback MIDI (repeats unrolled).</summary>
+    public async Task<IReadOnlyList<MetronomeBeat>> PrepareBeatsAsync(string scorePath, double speed, IProgress<string>? progress, CancellationToken token)
+    {
+        if (!IsSupportedSpeed(speed)) throw new ArgumentOutOfRangeException(nameof(speed));
+        token.ThrowIfCancellationRequested();
+        string played = speed == 1 ? scorePath : (await PrepareStudyScoreAsync(scorePath, speed, progress, token)).Path;
+        Directory.CreateDirectory(cacheDirectory);
+        string midiPath = Path.Combine(cacheDirectory, $"{await HashAsync(played, token)}-pulsos-v1.mid");
+        if (!File.Exists(midiPath))
+        {
+            string temporary = Path.Combine(cacheDirectory, ".pulsos-" + Guid.NewGuid().ToString("N") + ".mid");
+            try
+            {
+                progress?.Report("Localizando os tempos dos compassos para o metrônomo…");
+                await new ScoreExporter(museScorePath, cacheDirectory).ExportMidiAsync(played, temporary, token);
+                token.ThrowIfCancellationRequested();
+                File.Move(temporary, midiPath, true);
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        }
+        try { return ScoreMetronome.BuildBeats(MidiReader.Read(midiPath)); }
+        catch (InvalidDataException) { File.Delete(midiPath); throw; }
+    }
+
+    /// <summary>Returns a cached copy of the prepared audio with metronome clicks; the original audio stays available.</summary>
+    public async Task<ScoreAudio> PrepareMetronomeAudioAsync(ScoreAudio audio, IReadOnlyList<MetronomeBeat> beats, IProgress<string>? progress, CancellationToken token)
+    {
+        string target = Path.Combine(Path.GetDirectoryName(audio.Path)!, Path.GetFileNameWithoutExtension(audio.Path) + "-metronomo-v1.wav");
+        if (File.Exists(target))
+        {
+            try { return new(target, ScoreExporter.ReadWaveInfo(target).Duration); }
+            catch (Exception ex) when (ex is IOException or InvalidDataException) { File.Delete(target); }
+        }
+        string temporary = Path.Combine(Path.GetDirectoryName(audio.Path)!, ".metronomo-" + Guid.NewGuid().ToString("N") + ".wav");
+        try
+        {
+            progress?.Report("Acrescentando o metrônomo ao áudio…");
+            var info = await Task.Run(() => ScoreMetronome.MixClicks(audio.Path, temporary, beats, token), token);
+            token.ThrowIfCancellationRequested();
+            File.Move(temporary, target, true);
+            return new(target, info.Duration);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    private async Task<(string Path, string OriginalHash)> PrepareStudyScoreAsync(string scorePath, double speed, IProgress<string>? progress, CancellationToken token)
+    {
         progress?.Report($"Conferindo a partitura para estudo a {speed:P0}…");
         Directory.CreateDirectory(cacheDirectory);
         var originalHash = await HashAsync(scorePath, token);
@@ -33,11 +88,7 @@ public sealed class ScoreStudyAudio(string museScorePath, string cacheDirectory)
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
         else progress?.Report("Cópia de estudo encontrada. Procurando o áudio preparado…");
-        var audio = await exporter.PrepareAudioAsync(studyScore, progress, token);
-        progress?.Report("Conferindo a partitura original antes de iniciar a reprodução…");
-        if (await HashAsync(scorePath, token) != originalHash)
-            throw new IOException("A partitura mudou durante a preparação do estudo. Tente novamente.");
-        return audio;
+        return (studyScore, originalHash);
     }
 
     public static void CreateTempoCopy(string source, string destination, double speed)

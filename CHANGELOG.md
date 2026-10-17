@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.21.0 — 17/10/2026
+
+- Pasta de MIDIs: abra uma pasta (com ou sem subpastas), filtre por nome sem diferenciar acentos, ouça cada MIDI e marque apenas os que devem entrar na biblioteca. Nada é copiado; os cards apontam para os arquivos na pasta. A pasta escolhida é lembrada.
+- Metrônomo na Prévia: cliques nos tempos, com acento no início do compasso, seguindo fórmulas de compasso, anacruses, repetições, mudanças de andamento e a velocidade de estudo. O áudio original fica preservado no cache.
+- Contagem de um compasso antes de tocar, no andamento do ponto de início. Começos entre tempos voltam ao tempo anterior; anacruses contam só os tempos que faltam. Esc ou Parar cancelam a contagem.
+- Atalhos de teclado: Espaço (tocar/pausar), Esc (parar), Ctrl+←/→ (5 s), Ctrl+M (metrônomo), Ctrl+Shift+M (contagem), Ctrl+O, Ctrl+Shift+O, Ctrl+L (pasta), Ctrl+P (PDF), Ctrl+F (busca), Ctrl+1/2/3 e Ctrl+, (navegação). F1 ou Sobre → Atalhos mostra a lista.
+- Prévia mais compacta: propriedades em uma linha, opções agrupadas em Velocidade · Trecho · Estudo · Páginas e ferramentas em Editar · Revisar · Arquivo, com rótulos curtos e nomes completos nas dicas. Nenhuma função foi removida.
+
 ## 0.20.6 — 17/10/2026
 
 - Quando o espaçamento horizontal não basta, os diagramas de compassos densos são distribuídos automaticamente em alturas alternadas, mantendo o tamanho das teclas. A alternativa só é aceita após conferir margens, colisões e preservação musical no MuseScore.

@@ -13,7 +13,8 @@ public enum PerformanceOperation
     AppOperation, AppImport, AppAnalyze, AppGenerate, AppPlayback, AppPdfBatch, AppScoreUpdate, AppBackup, AppOther,
     EngineAnalyze, EngineGenerate, EngineMeasureMap, EngineOther,
     ScoreExportNative, ScoreExportPreview, ScoreExportAudio, ScoreExportPdf,
-    SyntheticMidiRead, SyntheticHarmonyAnalysis, SyntheticAudioConversion, SyntheticLayout, SyntheticMetadata
+    SyntheticMidiRead, SyntheticHarmonyAnalysis, SyntheticAudioConversion, SyntheticLayout, SyntheticMetadata,
+    ScoreExportMidi
 }
 public enum PerformancePhase { Total, Process, Conversion }
 public enum PerformanceProcessKind { App, Worker, MuseScore }

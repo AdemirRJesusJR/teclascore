@@ -23,9 +23,9 @@ public partial class MainWindow
     private string playbackStatus = "Gere uma partitura para ouvir aqui no aplicativo.";
     private string PlaybackCacheDirectory => Path.Combine(persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!, "audio-cache");
 
-    public bool CanPlayScore => !IsBusy && !audioOpening && !audioPlaying && SelectedScoreExists;
+    public bool CanPlayScore => !IsBusy && !audioOpening && !audioPlaying && !countingIn && SelectedScoreExists;
     public bool CanPauseScore => audioLoaded && audioPlaying;
-    public bool CanStopScore => audioLoaded || audioOpening;
+    public bool CanStopScore => audioLoaded || audioOpening || countingIn;
     public bool CanExportPdf => !IsBusy && SelectedScoreExists;
     public bool CanSeekScore => audioLoaded && playbackDuration > 0;
     private bool SelectedScoreExists => selectedFile?.HasPendingScoreProperties != true && CurrentScorePath is { } path && File.Exists(path);
@@ -133,6 +133,7 @@ public partial class MainWindow
     private void ResetPlayback(bool preserveStudy = false)
     {
         playbackTimer.Stop(); audioOpenTimer.Stop();
+        CancelCountIn(); loadedBeats = null;
         ClearScoreSynchronization();
         pendingAudioOpen?.TrySetCanceled(); pendingAudioOpen = null;
         audioOpenFailure = null;
@@ -151,6 +152,7 @@ public partial class MainWindow
     private void StopPlayback(string message = "Reprodução parada.")
     {
         if (audioOpening) { ResetPlayback(); PlaybackStatus = message; NotifyPlaybackState(); return; }
+        CancelCountIn();
         audioPlaying = false; playbackTimer.Stop();
         pendingPlaybackPosition = 0;
         scorePlayer.Stop(); UpdateScoreSynchronization(); PlaybackStatus = message; NotifyPlaybackState();
@@ -164,8 +166,7 @@ public partial class MainWindow
         if (audioLoaded && loadedAudioPath is not null)
         {
             if (LoopEnabled && CanLoopScore && (PlaybackPositionSeconds < loopStart || PlaybackPositionSeconds >= loopEnd)) PlaybackPositionSeconds = loopStart!.Value;
-            scorePlayer.Play(); audioPlaying = true; playbackTimer.Start();
-            PlaybackStatus = "Reproduzindo a partitura selecionada."; NotifyPlaybackState(); return;
+            StartScorePlayer("Reproduzindo a partitura selecionada."); return;
         }
         string? identity = SelectedScoreIdentity();
         var requestedSpeed = ScorePlaybackSpeed;
@@ -177,6 +178,8 @@ public partial class MainWindow
             try
             {
                 var audio = await scoreAudioPreparation(exporter, scorePath, requestedSpeed, CreateOperationProgress(), token);
+                var (playedAudio, beats, metronomeWarning) = await PrepareMetronome(exporter, scorePath, requestedSpeed, audio, token);
+                audio = playedAudio;
                 if (FollowScorePlayback) await PrepareScoreSynchronization(scorePath, requestedSpeed, token);
                 token.ThrowIfCancellationRequested();
                 if (playbackDisposed || identity != SelectedScoreIdentity()) throw new OperationCanceledException();
@@ -202,9 +205,9 @@ public partial class MainWindow
                 scorePlayer.Position = TimeSpan.FromSeconds(Math.Clamp(pendingPlaybackPosition, 0, playbackDuration) / loadedAudioSpeed);
                 pendingPlaybackPosition = 0;
                 pendingAudioOpen = null;
-                scorePlayer.Play(); audioPlaying = true; playbackTimer.Start();
-                PlaybackStatus = "Reproduzindo a partitura selecionada.";
-                Status = "Áudio preparado. A reprodução acontece aqui no aplicativo.";
+                loadedBeats = beats;
+                StartScorePlayer("Reproduzindo a partitura selecionada.");
+                Status = metronomeWarning ?? "Áudio preparado. A reprodução acontece aqui no aplicativo.";
             }
             catch (OperationCanceledException)
             {
