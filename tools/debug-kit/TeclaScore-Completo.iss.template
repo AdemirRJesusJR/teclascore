@@ -1,0 +1,84 @@
+; TeclaScore @VERSION@ · instalador completo (aplicativo + MuseScore Studio)
+; Gerado automaticamente por tools/build_debug.py a cada entrega; não edite: é substituído na próxima versão.
+; Para personalizar, copie com outro nome para esta pasta (debug); seus arquivos são preservados.
+; Compilado por tools/build_debug_installer.ps1 (Inno Setup 7) em saida\.
+
+#define AppVersion "@VERSION@"
+#define AppExecutable "Teclas.Partituras.exe"
+#define MuseScoreMsi "@MSI@"
+
+[Setup]
+AppId=TeclaScore.Completo
+AppName=TeclaScore
+AppVersion={#AppVersion}
+AppVerName=TeclaScore {#AppVersion}
+AppPublisher=TeclaScore
+VersionInfoVersion={#AppVersion}
+VersionInfoProductName=TeclaScore
+VersionInfoDescription=Instalador completo do TeclaScore com MuseScore Studio
+DefaultDirName={autopf}\TeclaScore
+DefaultGroupName=TeclaScore
+DisableProgramGroupPage=yes
+; O MSI do MuseScore exige administrador; quem já tem o MuseScore pode instalar só para si.
+PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+MinVersion=10.0.19045
+CloseApplications=yes
+RestartApplications=no
+SetupIconFile=TeclaScore.ico
+UninstallDisplayIcon={app}\{#AppExecutable}
+UninstallDisplayName=TeclaScore (completo)
+WizardStyle=modern
+Compression=lzma2
+SolidCompression=yes
+OutputDir=saida
+OutputBaseFilename=TeclaScore-{#AppVersion}-Completo-Setup-x64
+
+[Languages]
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+
+[Tasks]
+Name: "musescore"; Description: "Instalar o MuseScore Studio 4 (necessário para gerar partituras)"; GroupDescription: "Componentes:"; Check: NeedsMuseScore
+Name: "desktopicon"; Description: "Criar um atalho na área de trabalho"; GroupDescription: "Atalhos:"; Flags: unchecked
+
+[Files]
+Source: "app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "prerequisitos\{#MuseScoreMsi}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Tasks: musescore
+
+[Icons]
+Name: "{group}\TeclaScore"; Filename: "{app}\{#AppExecutable}"; WorkingDir: "{app}"; Comment: "TeclaScore — partituras para teclado"
+Name: "{autodesktop}\TeclaScore"; Filename: "{app}\{#AppExecutable}"; WorkingDir: "{app}"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\{#AppExecutable}"; WorkingDir: "{app}"; Description: "Abrir o TeclaScore"; Flags: postinstall unchecked skipifsilent nowait
+
+[Code]
+function MuseScorePresent: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{commonpf64}\MuseScore 4\bin\MuseScore4.exe'));
+end;
+
+function NeedsMuseScore: Boolean;
+begin
+  // Never reinstall a MuseScore already present; per-user installs cannot run the MSI.
+  Result := (not MuseScorePresent) and IsAdminInstallMode;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if (CurStep = ssPostInstall) and WizardIsTaskSelected('musescore') then
+  begin
+    WizardForm.StatusLabel.Caption := 'Instalando o MuseScore Studio 4…';
+    if not Exec(ExpandConstant('{sys}\msiexec.exe'),
+      '/i "' + ExpandConstant('{tmp}\{#MuseScoreMsi}') + '" /passive /norestart', '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
+      MsgBox('Não foi possível iniciar o instalador do MuseScore. Instale-o depois pelo arquivo da pasta prerequisitos.', mbError, MB_OK)
+    else if (ResultCode <> 0) and (ResultCode <> 3010) then
+      MsgBox('O instalador do MuseScore terminou com o código ' + IntToStr(ResultCode) + '. O TeclaScore foi instalado; instale o MuseScore depois.', mbError, MB_OK)
+    else if ResultCode = 3010 then
+      MsgBox('O MuseScore foi instalado e pede reiniciar o Windows antes do primeiro uso.', mbInformation, MB_OK);
+  end;
+end;

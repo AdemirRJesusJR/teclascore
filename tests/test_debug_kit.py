@@ -17,10 +17,18 @@ class DebugKitTests(unittest.TestCase):
             project=root/'src/Teclas.App/Teclas.App.csproj';project.parent.mkdir(parents=True);project.write_text('<Project><PropertyGroup><Version>1.2.3</Version></PropertyGroup></Project>')
             installer=root/'qa/offline-dependencies/official.msi';installer.parent.mkdir(parents=True);installer.write_bytes(b'test MSI')
             docs=root/'tools/debug-kit';docs.mkdir(parents=True);(docs/'LEIA-ME-INNO.txt').write_text('guide')
+            real_template=Path(__file__).resolve().parents[1]/'tools/debug-kit/TeclaScore-Completo.iss.template'
+            (docs/'TeclaScore-Completo.iss.template').write_text(real_template.read_text(encoding='utf-8'),encoding='utf-8')
+            icon=root/'src/Teclas.App/Assets/teclas.ico';icon.parent.mkdir(parents=True);icon.write_bytes(b'icon')
             (root/'tools/offline-dependencies.json').write_text(json.dumps({'musescore':{'file':'official.msi','sha256':kit.digest(installer)}}))
             result=kit.build(root)
             self.assertIn('app/runtime/python.exe',result['files'])
             self.assertEqual((root/'debug/prerequisitos/official.msi').read_bytes(),b'test MSI')
+            script=(root/'debug/TeclaScore-Completo.iss').read_text(encoding='utf-8-sig')
+            self.assertIn('#define AppVersion "1.2.3"',script)
+            self.assertIn('#define MuseScoreMsi "official.msi"',script)
+            self.assertNotIn('@VERSION@',script)
+            self.assertIn('TeclaScore-Completo.iss',result['files']);self.assertIn('TeclaScore.ico',result['files'])
             (app/'runtime/python.exe').write_bytes(b'changed')
             with self.assertRaises(ValueError): kit.build(root)
     def test_updates_only_owned_files_and_removes_obsolete_entries(self):

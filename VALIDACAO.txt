@@ -1,3 +1,10 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.22.0
+17/10/2026
+
+- Propagação das posições: 17 verificações (regras de acorde tocado, enarmonia, transposição, cifras mistas, só cifras alteradas; atualização das partituras geradas, pendência sem análise, Histórico, opção desmarcada e lembrada). Janela de posições: 810 verificações existentes aprovadas.
+- Instalador completo compilado com Inno Setup 7.1.0 a partir do kit debug verificado por hash.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.21.1
 17/10/2026
 

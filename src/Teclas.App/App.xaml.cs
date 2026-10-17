@@ -17,6 +17,8 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-diagram-propagation-ui")
+        { VerifyDiagramPropagationUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-midi-folder-ui")
         { VerifyMidiFolderUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-metronome-ui")

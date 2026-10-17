@@ -23,6 +23,7 @@ public sealed class Settings
     public bool ScoreCountIn { get; set; }
     public string MidiFolder { get; set; } = "";
     public bool MidiFolderIncludeSubfolders { get; set; } = true;
+    public bool PropagateDiagramPositions { get; set; } = true;
     public bool FavoritesOnly { get; set; }
     public string CollectionFilter { get; set; } = "";
     public int DefaultDiagramInversion { get; set; } = 2;

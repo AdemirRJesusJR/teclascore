@@ -161,4 +161,7 @@ $report = [ordered]@{
 }
 $reportPath = Join-Path $buildRoot 'installer-report.json'
 [IO.File]::WriteAllText($reportPath, ($report | ConvertTo-Json -Depth 6), [Text.UTF8Encoding]::new($false))
-[pscustomobject]@{ installer = $destination; version = $version; sha256 = $hash; installedFiles = $verified.Count; report = $reportPath } | ConvertTo-Json
+# Every delivery also refreshes the complete installer (app + MuseScore) from the debug kit.
+$complete = & (Join-Path $PSScriptRoot 'build_debug_installer.ps1') -CompilerPath $compiler | ConvertFrom-Json
+[pscustomobject]@{ installer = $destination; version = $version; sha256 = $hash; installedFiles = $verified.Count; report = $reportPath
+    completeInstaller = $complete.installer; completeSha256 = $complete.sha256 } | ConvertTo-Json

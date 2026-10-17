@@ -1,3 +1,11 @@
+TECLASCORE 0.22.0 · POSIÇÕES NA BIBLIOTECA E INSTALADOR COMPLETO
+
+1. Em uma música, abra Posições dos diagramas, mude a posição de E e aplique com a opção da biblioteca marcada. Confira outra música com E: o diagrama muda; as outras cifras dela não.
+2. Confira uma música transposta cujo acorde impresso seja E e outra com Abm quando mudar G#m: ambas devem acompanhar.
+3. Desmarque a opção e aplique outra mudança: só a música atual muda. Reabra a janela: a opção continua desmarcada.
+4. Durante a atualização de várias partituras, use Cancelar: as músicas não atualizadas ficam com atualização pendente e as novas posições salvas. Confira o Histórico de uma música atualizada.
+5. Execute debug/saida/TeclaScore-0.22.0-Completo-Setup-x64.exe em um Windows sem MuseScore: deve oferecer a instalação do MuseScore 4 e abrir o TeclaScore. Com MuseScore já instalado, a opção não aparece.
+
 TECLASCORE 0.21.1 · PASTA DE MIDIS COMO AÇÃO PRINCIPAL
 
 1. Confira o cabeçalho: Importar MuseScore e ＋ Pasta de MIDIs em destaque; não há mais Importar arquivos.

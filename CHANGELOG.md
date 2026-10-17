@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.22.0 — 17/10/2026
+
+- Posições dos diagramas valem para a biblioteca: ao aplicar, as cifras alteradas também mudam nas outras músicas que têm o mesmo acorde (mesma nota e tipo, já com a transposição; G#m e Abm contam como iguais). As demais cifras de cada música não mudam.
+- As partituras já geradas dessas músicas são atualizadas em sequência, com progresso e Cancelar; a versão anterior fica no Histórico. Músicas ainda não geradas guardam a posição para a próxima geração. Uma caixa na janela permite aplicar só à música atual, e a escolha é lembrada.
+- Instalador completo gerado a cada entrega: debug/TeclaScore-Completo.iss é recriado com a versão atual e compilado em debug/saida/TeclaScore-X-Completo-Setup-x64.exe (aplicativo + instalação opcional do MuseScore Studio 4 quando ausente).
+
 ## 0.21.1 — 17/10/2026
 
 - Pasta de MIDIs passa a ser a ação principal do cabeçalho, no lugar de Importar arquivos.

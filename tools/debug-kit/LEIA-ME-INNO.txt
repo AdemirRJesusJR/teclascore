@@ -14,6 +14,9 @@ Crie um atalho apontando para {app}\Teclas.Partituras.exe. Para instalar o MuseS
 
 Mantenha seu .iss e a pasta de saída do Inno fora de app\ e prerequisitos\. Seus arquivos próprios na raiz debug são preservados. Não edite os arquivos gerenciados listados em kit-manifest.json: são substituídos automaticamente pelas novas versões.
 
+INSTALADOR COMPLETO PRONTO
+TeclaScore-Completo.iss (nesta pasta) é gerado a cada entrega com a versão atual e compilado automaticamente em saida\TeclaScore-X-Completo-Setup-x64.exe. Ele copia app\ e, se o MuseScore 4 não estiver instalado e a instalação for para todos os usuários, oferece instalar o MSI de prerequisitos\ (códigos 0 e 3010 tratados). O script e o ícone são gerenciados e substituídos na próxima versão; para personalizar, copie-os com outro nome. Para compilar manualmente: pwsh -File tools/build_debug_installer.ps1 -CompilerPath "caminho\ISCC.exe".
+
 ATUALIZAÇÃO AUTOMÁTICA
 Ao preparar a distribuição e finalizar o pacote, tools/prepare_distribution.py e tools/package_app.py atualizam debug a partir do aplicativo publicado, com hashes e versão. Isso acontece a cada entrega; editar o código sem recompilar não atualiza os binários. Não é uma pasta bin\Debug do Visual Studio.
 

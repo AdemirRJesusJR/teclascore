@@ -67,6 +67,15 @@ def build(base=BASE):
         if digest(installer) != dependency['sha256']: raise ValueError('Official dependency missing or changed: '+dependency['file'])
         files['prerequisitos/'+dependency['file']] = installer
     files['LEIA-ME-INNO.txt'] = base/'tools/debug-kit/LEIA-ME-INNO.txt'
+    msi = [dependency['file'] for dependency in dependencies.values() if dependency['file'].lower().endswith('.msi')]
+    if len(msi) != 1: raise ValueError('The debug kit needs exactly one official MuseScore MSI')
+    # The complete-installer script is regenerated with the current version on every delivery.
+    script = base/'qa/debug-kit/TeclaScore-Completo.iss'
+    script.parent.mkdir(parents=True, exist_ok=True)
+    template = (base/'tools/debug-kit/TeclaScore-Completo.iss.template').read_text(encoding='utf-8')
+    script.write_text(template.replace('@VERSION@', version).replace('@MSI@', msi[0]), encoding='utf-8-sig')
+    files['TeclaScore-Completo.iss'] = script
+    files['TeclaScore.ico'] = base/'src/Teclas.App/Assets/teclas.ico'
     files['dependencias.json'] = base/'tools/offline-dependencies.json'
     return sync_owned(base/'debug', files, {'product':'TeclaScore debug kit', 'version':version,
         'note':'Generated app/prerequisitos files are managed. Keep custom Inno scripts outside these folders.'})

@@ -19,10 +19,15 @@ public sealed class DiagramPositionsWindow : Window
 
     public IReadOnlyList<int?> Inversions => occurrenceInversions.ToArray();
     public int ComfortableMaximumSpan { get; private set; }
+    /// <summary>True when the changed chords should also be applied to other library songs with the same chords.</summary>
+    public bool ApplyToLibrary => propagate?.IsChecked == true;
+    private readonly CheckBox? propagate;
 
     public DiagramPositionsWindow(MidiRow row) : this(row, 12) { }
 
-    public DiagramPositionsWindow(MidiRow row, int comfortableMaximumSpan)
+    public DiagramPositionsWindow(MidiRow row, int comfortableMaximumSpan) : this(row, comfortableMaximumSpan, 0, false) { }
+
+    public DiagramPositionsWindow(MidiRow row, int comfortableMaximumSpan, int otherSongsWithSameChords, bool applyToLibrary)
     {
         Title = "Posições dos diagramas";
         Width = 900; Height = 730; MinWidth = 800; MinHeight = 580;
@@ -138,6 +143,15 @@ public sealed class DiagramPositionsWindow : Window
         suggest.ToolTip = "Sugerir uma posição por cifra, considerando a sequência da música e preservando suas escolhas salvas.";
         RegisterName(suggest.Name, suggest); bulk.Children.Add(suggest);
         summary = Muted("", 8); footer.Children.Add(summary);
+        if (otherSongsWithSameChords > 0)
+        {
+            propagate = new CheckBox { Name = "PropagateDiagramPositionsCheckBox", IsChecked = applyToLibrary, Margin = new Thickness(0, 10, 0, 0),
+                Content = otherSongsWithSameChords == 1 ? "Aplicar também à outra música da biblioteca que tem as mesmas cifras"
+                    : $"Aplicar também às outras {otherSongsWithSameChords} músicas da biblioteca que têm as mesmas cifras",
+                ToolTip = "Só as cifras alteradas aqui mudam nas outras músicas, comparando o acorde tocado (nota e tipo, já com a transposição). As partituras geradas são atualizadas em seguida e as versões anteriores ficam no Histórico." };
+            AutomationProperties.SetName(propagate, "Aplicar às outras músicas com as mesmas cifras");
+            RegisterName(propagate.Name, propagate); footer.Children.Add(propagate);
+        }
         footer.Children.Add(Muted("Ao aplicar, todas as ocorrências das cifras alteradas serão atualizadas na partitura. Cancelar mantém as escolhas anteriores.", 5));
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal,

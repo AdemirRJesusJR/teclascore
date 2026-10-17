@@ -1,3 +1,9 @@
+TECLASCORE 0.22.0
+
+Posições dos diagramas: com a opção Aplicar também às outras músicas marcada, as cifras alteradas mudam também nas músicas da biblioteca que têm o mesmo acorde, e as partituras já geradas são atualizadas.
+
+Instalador completo (aplicativo + MuseScore): debug/saida/TeclaScore-0.22.0-Completo-Setup-x64.exe, gerado do script debug/TeclaScore-Completo.iss.
+
 TECLASCORE 0.21.1
 
 Pasta de MIDIs é agora o botão principal do cabeçalho. Para adicionar arquivos avulsos, use Escolher arquivos… na janela da pasta, arraste-os para o app ou Ctrl+O.
