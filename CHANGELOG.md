@@ -2,6 +2,9 @@
 
 ## 0.20.6 — 17/10/2026
 
+- Quando o espaçamento horizontal não basta, os diagramas de compassos densos são distribuídos automaticamente em alturas alternadas, mantendo o tamanho das teclas. A alternativa só é aceita após conferir margens, colisões e preservação musical no MuseScore.
+
+- Arraste da janela também pelo título e espaços vazios do cabeçalho, preservando cliques nos botões.
 - Divisor horizontal ajustável entre filtros e cards, com mouse/teclado, proporção persistente e alturas mínimas.
 - Salvar PDF no tamanho padrão, alinhado ao lado de Importar MuseScore.
 - Última pasta de exportação lembrada para PDF, ZIP e PDFs em lote, inclusive após reabrir. Cancelamentos/falhas sem arquivos salvos não alteram o destino; salvar novo padrão o redefine.

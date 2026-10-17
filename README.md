@@ -2,6 +2,8 @@
 
 Versão 0.20.6 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
+**Mover a janela:** arraste o título da página ou os espaços vazios do cabeçalho, além da barra de título do Windows. Os botões de PDF e importação continuam clicáveis.
+
 **Divisor da biblioteca:** arraste a linha entre os filtros e os cards para ajustar a altura. Também é possível usar Tab e as setas para cima/baixo. A posição fica salva, com espaço mínimo para acessar filtros e músicas. Salvar PDF usa o tamanho padrão e fica ao lado de Importar MuseScore.
 
 **Acesso rápido:** Salvar PDF fica no cabeçalho fixo da Biblioteca, inclusive com controles compactos. Limpar biblioteca remove todos os cards, inclusive os filtrados, com confirmação e Desfazer durante a sessão; os arquivos são preservados. Subir oitava e Descer oitava atualizam todas as notas da partitura atual e sua reprodução, mantendo as cifras no mesmo tom e a versão anterior no Histórico. Valem também para MuseScore importado; estruturas não suportadas ou notas fora do intervalo válido são informadas sem alterar o original. Após essa edição, continue pelo Editor musical.
@@ -281,3 +283,5 @@ Testes de PDF em massa: `dotnet run --project tests/Teclas.BatchPdf.Tests -c Rel
 Ao combinar duas ou mais fontes manualmente, a partitura mostra o nome General MIDI do instrumento na primeira entrada e em cada troca de pista, inclusive quando uma fonte retorna. Os textos identificam a fonte efetivamente usada após aplicar a prioridade; notas descartadas não recebem indicação. Gere novamente uma partitura existente para incluir as indicações em uma nova cópia.
 
 O espaçamento dos nomes é conferido nas páginas renderizadas. Trocas muito próximas que ainda provoquem sobreposição pedem revisão por compasso antes de concluir a geração.
+
+Quando o espaçamento horizontal não basta, os diagramas de compassos densos são distribuídos automaticamente em alturas alternadas, mantendo o tamanho das teclas. A alternativa só é aceita após conferir margens, colisões e preservação musical no MuseScore.

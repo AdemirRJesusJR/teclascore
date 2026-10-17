@@ -1,5 +1,7 @@
 TECLASCORE 0.20.6
 
+Você também pode arrastar a janela pelo título da página e espaços vazios do cabeçalho. Os botões permanecem clicáveis.
+
 PDF, ZIP e PDFs em lote lembram a pasta da última exportação concluída, mesmo depois de fechar o aplicativo. Salvar novo padrão em Configurações redefine esse destino.
 
 Arraste a linha entre os filtros e os cards para ajustar o espaço da biblioteca. A posição será lembrada ao reabrir. Com foco no divisor, use as setas para cima e para baixo. Salvar PDF fica ao lado de Importar MuseScore, com tamanho padrão.
@@ -231,3 +233,5 @@ Transpor atualiza a partitura gerada de MIDI, incluindo notas, cifras, armadura 
 Estude em 25% a 150% sem mudar a afinação e marque A/B para repetir um trecho.
 Use Instalar.cmd para instalar por usuário. Em Sobre, consulte dependências e novas versões.
 Python/Pillow e MuseScore continuam necessários; o runtime .NET está incluído.
+
+Quando o espaçamento horizontal não basta, os diagramas de compassos densos são distribuídos automaticamente em alturas alternadas, mantendo o tamanho das teclas. A alternativa só é aceita após conferir margens, colisões e preservação musical no MuseScore.

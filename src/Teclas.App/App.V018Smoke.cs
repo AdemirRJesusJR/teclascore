@@ -20,6 +20,8 @@ namespace Teclas.App;
 
 public partial class App
 {
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint="SendMessageW")]
+    private static extern IntPtr HeaderHitTestMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
     // CI entry point: no personal MIDI, default settings, audio device or MuseScore.
     // Reports contain only evidence; synthetic music and settings live in sibling work/.
     private async void VerifyV018Ui(string reportPath)
@@ -238,6 +240,28 @@ public partial class App
                 Check(Math.Abs(bounds.Top-importBounds.Top)<1 && Math.Abs(bounds.Height-importBounds.Height)<1
                     && Math.Abs(bounds.Width-importBounds.Width)<1 && Math.Abs(importBounds.Left-bounds.Right-8)<1,
                     "pdf-standard-button-size-aligned-next-to-musescore-compact-"+compact);
+                var title=Descendants(header).OfType<TextBlock>().First(text=>text.Text==window.PageTitle);
+                var titlePoint=title.TransformToAncestor(window).Transform(new Point(10,title.ActualHeight/2));
+                var buttonPoint=pdf.TransformToAncestor(window).Transform(new Point(pdf.ActualWidth/2,pdf.ActualHeight/2));
+                var region=(FrameworkElement)window.FindName("WorkspaceDragRegion");
+                var gapPoint=region.TransformToAncestor(window).Transform(new Point(region.ActualWidth/2,region.ActualHeight-6));
+                Check((bool)Invoke(window,"IsHeaderDragPoint",titlePoint)!,"header-title-is-draggable-"+compact);
+                Check((bool)Invoke(window,"IsHeaderDragPoint",gapPoint)!,"header-gap-is-draggable-"+compact);
+                Check(!(bool)Invoke(window,"IsHeaderDragPoint",buttonPoint)!,"header-pdf-remains-clickable-"+compact);
+                var source=System.Windows.Interop.HwndSource.FromHwnd(new System.Windows.Interop.WindowInteropHelper(window).Handle)!;
+                var screenPoint=window.PointToScreen(titlePoint);
+                long packed=((long)(ushort)(short)screenPoint.Y<<16)|(ushort)(short)screenPoint.X;
+                Check(HeaderHitTestMessage(source.Handle,0x0084,IntPtr.Zero,new IntPtr(packed))==new IntPtr(2),
+                    "native-header-hit-test-delegates-caption-behavior-to-windows-"+compact);
+                window.WindowState=WindowState.Maximized;Flush();window.UpdateLayout();
+                var maximizedPoint=title.PointToScreen(new Point(10,title.ActualHeight/2));
+                long maximizedPacked=((long)(ushort)(short)maximizedPoint.Y<<16)|(ushort)(short)maximizedPoint.X;
+                Check(HeaderHitTestMessage(source.Handle,0x0084,IntPtr.Zero,new IntPtr(maximizedPacked))==new IntPtr(2),
+                    "maximized-header-retains-native-caption-drag-target-"+compact);
+                window.WindowState=WindowState.Normal;Flush();window.UpdateLayout();
+                first.HasPendingScoreProperties=true;Invoke(window,"RefreshSelection");Flush();
+                Check(!pdf.IsEnabled && !(bool)Invoke(window,"IsHeaderDragPoint",buttonPoint)!,"disabled-pdf-does-not-start-window-drag-"+compact);
+                first.HasPendingScoreProperties=false;Invoke(window,"RefreshSelection");Flush();
                 Capture(window,Path.Combine(parent,"v0205-fixed-pdf-"+compact+".png"),1100,740);
             }
             window.IsPreviewControlsCompact=false;

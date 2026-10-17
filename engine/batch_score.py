@@ -5,13 +5,14 @@ from bisect import bisect_right
 from fractions import Fraction
 from statistics import median
 import xml.etree.ElementTree as E
-import ast, struct, math, json, zipfile, subprocess, hashlib, re, copy, os, tempfile, textwrap
+import ast, struct, math, json, zipfile, subprocess, hashlib, re, copy, os, tempfile, textwrap, shutil
 from PIL import Image, ImageDraw
 from inspect_midi import parse_midi, summarize
 from batch_harmony import analyze_harmony, CHORD_INTERVALS
 from batch_svg_qa import analyze as analyze_svg
 import batch_svg_qa as svg_geometry
 import compact_score_layout
+import diagram_lanes
 
 WORK=Path(__file__).resolve().parent
 BATCH=Path(os.environ.get('PARTITURAS_JOB',str(Path(tempfile.gettempdir())/'TeclasPartituras')));BATCH.mkdir(parents=True,exist_ok=True)
@@ -891,6 +892,44 @@ def _compact_diagram_offsets(page,offset,compacted):
             if abs(delta)>.05:moves[offset+i]=delta
     return moves
 
+def repair_diagram_lanes(final,report,out,pages,history):
+    """Try a separate candidate; publish it only after native geometric validation."""
+    with zipfile.ZipFile(final) as archive:contents={name:archive.read(name) for name in archive.namelist()}
+    prepared=diagram_lanes.prepare(contents,pages)
+    if prepared is None:return False
+    native,details=prepared
+    progress('Distribuindo os diagramas mais próximos em alturas alternadas…')
+    with tempfile.TemporaryDirectory(prefix='diagram-lanes-',dir=out) as temporary:
+        folder=Path(temporary);candidate=folder/'score.mscz'
+        with zipfile.ZipFile(folder/'prepared.mscz','w',zipfile.ZIP_DEFLATED) as archive:
+            for name,data in native.items():archive.writestr(name,data)
+        call_musescore(['-o',str(candidate),str(folder/'prepared.mscz')],folder/'save.log')
+        (folder/'render.json').write_text(json.dumps([{'in':str(candidate),'out':[str(folder/'pagina.png'),str(folder/'qa.svg'),str(folder/'reaberto.musicxml')]}]),encoding='utf8')
+        call_musescore(['-r','120','-j',str(folder/'render.json')],folder/'render.log',150)
+        paths=sorted(folder.glob('qa-*.svg'),key=page_order)
+        verified=[analyze_svg(path) for path in paths]
+        if not verified or sum(len(p['diagrams']) for p in verified)!=report['chord_symbols']:return False
+        if any(p['warnings'] or p['overlaps'] or p['clipped'] for p in verified):return False
+        # Include notes, tempo, labels and adjacent staves in the new stack's clearance.
+        for path in paths:
+            ink=compact_score_layout.page_quality(path)
+            if any('Image' in problem['kinds'] or problem['cross_system'] for problem in ink['overlaps']):return False
+            if any(item['kind']=='Image' for item in ink['clipped']):return False
+        with zipfile.ZipFile(candidate) as archive:
+            after={name:archive.read(name) for name in archive.namelist()}
+        if not diagram_lanes.music_preserved(contents,after):return False
+        shutil.copyfile(candidate,final)
+        for pattern in ('pagina-*.png','qa-*.svg'):
+            for old in out.glob(pattern):old.unlink()
+            for page in folder.glob(pattern):shutil.copyfile(page,out/page.name)
+        shutil.copyfile(folder/'reaberto.musicxml',out/'reaberto.musicxml')
+        for page in verified:page['svg_path']=str((out/Path(page['svg_path']).name).resolve())
+        report['diagram_lane_layout']=dict(details,validated=True)
+        report['geometric_layout_qa']={'passed':True,'passes':history,'pages':len(verified),'fallback':'full_size_lanes'}
+        (out/'geometria_verificada.json').write_text(json.dumps(verified,ensure_ascii=False),encoding='utf8')
+        return True
+
+
 def repair_spacing(final,report,out):
     """Use the rendered geometry to reserve space, preserving musical content."""
     history=[];compacted=set()
@@ -933,6 +972,7 @@ def repair_spacing(final,report,out):
             (out/'geometria_verificada.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
             return
         if attempt==9:
+            if repair_diagram_lanes(final,report,out,pages,history):return
             report['geometric_layout_qa']={'passed':False,'passes':history,'pages':len(pages)}
             (out/'geometria_verificada.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
             error=NeedsReview('Não foi possível acomodar todos os diagramas dentro das margens da partitura.',kind='diagram_layout')

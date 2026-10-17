@@ -1,13 +1,16 @@
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.6
 17/10/2026
 
-- Runner local após incluir a lembrança de pasta: 36 etapas aprovadas, zero falhas e 4 grupos opcionais não executados. Inclui 174 testes Python, com 6 casos nativos opcionais omitidos.
+- Runner local final, incluindo o arraste pelo cabeçalho: 36 etapas aprovadas, zero falhas e 4 grupos opcionais não executados. Inclui 183 testes Python, com 6 casos nativos opcionais omitidos.
 - Divisor real WPF: teclado altera as linhas proporcionais; limites mantêm filtros e cards acessíveis; redimensionamento da janela e restauração da proporção após reabrir conferidos. Capturas nos temas claro e escuro verificadas.
+- Cabeçalho: hit-test nativo do Windows aprovado em janela normal e maximizada; título e espaços livres aceitam arraste, botões habilitados/desabilitados ficam excluídos. Não foi simulada movimentação física do mouse.
 - Salvar PDF: tamanho e alinhamento ao lado de Importar MuseScore conferidos em janela mínima, com controles expandidos/compactos e editor rolado.
 - Pasta de exportação: 43 verificações de interface aprovadas. PDF, ZIP e lote usam a última pasta registrada após sucesso; abrir/cancelar o seletor não altera a preferência. A pasta sobrevive ao reinício e não muda o padrão de geração. Salvar novo padrão redefine o próximo destino.
 - Permanecem conferidos os caminhos Unicode, falhas de gravação, cancelamento, preservação de partituras/histórico e destinos já registrados na fila.
 
-Os testes usam arquivos e configurações sintéticos. Não foi usada uma segunda máquina física nem dispositivo real de áudio nesta validação.
+- Diagramas densos: nove testes novos de geometria, escala, preservação musical, rejeição de colisão e publicação condicional. Conversão local isolada do caso relatado: 193 diagramas, 79 compassos e 66 ataques preservados, sete páginas, zero sobreposição/corte de diagramas após alternar alturas. O MIDI original e a biblioteca permanecem intactos.
+
+Os testes automatizados usam arquivos e configurações sintéticos; o caso relatado foi reproduzido separadamente em saída isolada, sem incluí-lo no repositório. Não foi usada uma segunda máquina física nem dispositivo real de áudio nesta validação.
 
 REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.5

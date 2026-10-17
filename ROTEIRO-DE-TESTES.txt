@@ -6,6 +6,8 @@ TECLASCORE 0.20.6 · DIVISOR DA BIBLIOTECA
 4. Confira Salvar PDF ao lado de Importar MuseScore, na mesma linha e tamanho. Role a partitura e compacte os controles: o botão permanece no topo.
 5. Salve um PDF em outra pasta; abra a próxima exportação e confira a pasta. Feche/reabra e confira novamente. Cancele sem salvar: a lembrança não deve mudar. Salvar novo padrão em Configurações deve prevalecer na próxima exportação.
 
+6. Arraste pelo título da página e espaços vazios do cabeçalho, em janela normal e maximizada. Confira PDF/importação e o comportamento normal da barra de título.
+
 TECLASCORE 0.20.5 · AÇÕES DA BIBLIOTECA
 
 1. Abra uma partitura, role a área de edição e compacte o player: Salvar PDF continua no topo. Exporte e confira a pasta padrão e o nome.
@@ -160,3 +162,5 @@ Gere novamente Agora eu pego mesmo com as mesmas pistas e opções da versão de
 
 AO RELATAR UM PROBLEMA
 Informe a versão exibida em Sobre, a música, as pistas/pauta/voz selecionadas, o passo deste roteiro e o que esperava ver. Se houver mensagem de erro, copie o texto ou faça uma captura. Mantenha a partitura original para comparação.
+
+Quando o espaçamento horizontal não basta, os diagramas de compassos densos são distribuídos automaticamente em alturas alternadas, mantendo o tamanho das teclas. A alternativa só é aceita após conferir margens, colisões e preservação musical no MuseScore.
