@@ -1,3 +1,9 @@
+TECLASCORE 0.29.0 · ESTUDO NO TEMPO, ACORDES E HISTÓRICO
+
+1. Abra Prévia → Praticar, ligue No tempo, escolha ♩ = 60 e clique em Começar: ouça a contagem e o metrônomo; toque junto e confira "no tempo", "adiantada" e "atrasada". Pause, continue e veja os pontos no fim.
+2. Em Praticar, escolha Acordes da cifra: o acorde e suas notas aparecem destacados na posição do diagrama; toque o acorde inteiro para avançar. Repita no tempo.
+3. Feche a prática e abra 📈: a música aparece com práticas, tempo e pontuações. Feche e abra o app: o histórico continua lá.
+
 TECLASCORE 0.28.0 · LETRA, CIFRAS SIMPLES, TOM E LOTE
 
 1. Importe um .kar com letra e gere: as sílabas aparecem sob as notas, com hífens. Confira palavras e linhas.

@@ -24,6 +24,8 @@ public sealed class Settings
     public bool ScoreCountIn { get; set; }
     public int CountInLeadMilliseconds { get; set; } = 40;
     public bool PracticeAnyOctave { get; set; } = true;
+    public int PracticeBpm { get; set; } = 80;
+    public List<StudyRecord> StudyHistory { get; set; } = [];
     public string MidiFolder { get; set; } = "";
     public bool MidiFolderIncludeSubfolders { get; set; } = true;
     public Dictionary<string, DateTime> MidiFolderVisits { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -119,6 +121,8 @@ public sealed class Settings
         TrackAuditionSpeed = NormalizeTrackAuditionSpeed(TrackAuditionSpeed);
         ScorePlaybackSpeed = NormalizeTrackAuditionSpeed(ScorePlaybackSpeed);
         CollectionFilter ??= "";
+        PracticeBpm = Math.Clamp(PracticeBpm, 30, 200);
+        StudyHistory = NormalizeStudyHistory(StudyHistory);
         DefaultDiagramInversion = NormalizeDiagramInversion(DefaultDiagramInversion);
         ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" ? ThemeId : "classic";
         CurrentPage = CurrentPage is "library" or "production" or "settings" or "about" ? CurrentPage : "dashboard";
@@ -185,6 +189,12 @@ public sealed class Settings
     public static double NormalizeTrackAuditionSpeed(double value) => value is 0.25 or 0.5 or 0.75 or 1.0 or 1.25 or 1.5 ? value : 1.0;
     public static string NormalizeArrangementSummary(string? value) => string.IsNullOrWhiteSpace(value) ? "" : value.Trim()[..Math.Min(value.Trim().Length,200)];
     public static int NormalizeDiagramInversion(int value) => value is >= 0 and <= 2 ? value : 2;
+    public const int StudyHistoryLimit = 2000;
+    /// <summary>Keeps the newest practice attempts and drops broken entries.</summary>
+    public static List<StudyRecord> NormalizeStudyHistory(IEnumerable<StudyRecord?>? records) => (records ?? [])
+        .OfType<StudyRecord>().Where(r => r.Seconds >= 0 && r.Hits >= 0 && r.Misses >= 0)
+        .Select(r => { r.Song ??= ""; r.Title ??= ""; r.Mode ??= "notas"; r.Score = Math.Clamp(r.Score, 0, 100); return r; })
+        .OrderByDescending(r => r.Date).Take(StudyHistoryLimit).OrderBy(r => r.Date).ToList();
     private static double? Finite(double? value) => value is { } number && double.IsFinite(number) ? number : null;
     private static double? Positive(double? value) => Finite(value) is > 0 ? value : null;
 
@@ -332,4 +342,21 @@ public sealed class SavedMelodySection
     public int FirstMeasure { get; set; }
     public int LastMeasure { get; set; }
     public SavedSource Source { get; set; } = new();
+}
+
+/// <summary>One practice attempt, kept in the settings so progress survives restarts.</summary>
+public sealed class StudyRecord
+{
+    public string Song { get; set; } = "";
+    public string Title { get; set; } = "";
+    public DateTime Date { get; set; }
+    public int Seconds { get; set; }
+    public string Mode { get; set; } = "notas";
+    public int? Bpm { get; set; }
+    public int Hits { get; set; }
+    public int Misses { get; set; }
+    public int Steps { get; set; }
+    public int StepsDone { get; set; }
+    public double Score { get; set; }
+    public bool Completed { get; set; }
 }

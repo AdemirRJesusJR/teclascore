@@ -1,7 +1,13 @@
 namespace Teclas.Core;
 
 /// <summary>One moment of the score to play: every pitch that starts together (all staves).</summary>
-public sealed record PracticeStep(int Measure, double Quarter, IReadOnlyList<int> Pitches);
+public sealed record PracticeStep(int Measure, double Quarter, IReadOnlyList<int> Pitches)
+{
+    /// <summary>Position from the start of the score in quarters, as written (repeats are not unfolded).</summary>
+    public double Start { get; init; }
+    /// <summary>Chord symbol for chord practice; empty for melody steps.</summary>
+    public string Label { get; init; } = "";
+}
 public enum PracticeResult { Ignored, Correct, StepComplete, Finished, Wrong }
 
 /// <summary>
@@ -48,14 +54,51 @@ public sealed class PracticeSession
     public static IReadOnlyList<PracticeStep> FromScore(NativeMusicModel model)
     {
         ArgumentNullException.ThrowIfNull(model);
+        var starts = MeasureStarts(model);
         return model.Measures
             .SelectMany(measure => measure.Events.Where(e => e.Quarter is not null && e.Notes.Count > 0)
                 .Select(e => (measure.Number, Quarter: Math.Round(e.Quarter!.Value, 6), e.Notes)))
             .GroupBy(item => (item.Number, item.Quarter))
             .OrderBy(group => group.Key.Number).ThenBy(group => group.Key.Quarter)
             .Select(group => new PracticeStep(group.Key.Number, group.Key.Quarter,
-                group.SelectMany(item => item.Notes.Select(note => note.Pitch)).Distinct().Order().ToArray()))
+                group.SelectMany(item => item.Notes.Select(note => note.Pitch)).Distinct().Order().ToArray())
+                { Start = starts.GetValueOrDefault(group.Key.Number) + group.Key.Quarter })
             .ToArray();
+    }
+
+    /// <summary>
+    /// Chord steps from the score's chord symbols, voiced like the keyboard diagrams (the diagram's own position,
+    /// else <paramref name="defaultInversion"/>). A repeated symbol stays one step; unsupported symbols are skipped.
+    /// </summary>
+    public static IReadOnlyList<PracticeStep> ChordsFromScore(NativeMusicModel model, int defaultInversion = 2)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        var starts = MeasureStarts(model);
+        var steps = new List<PracticeStep>();
+        foreach (var harmony in model.Measures.SelectMany(measure => measure.Harmonies)
+            .Where(h => h.Quarter is not null).OrderBy(h => h.Measure).ThenBy(h => h.Quarter).ThenBy(h => h.Staff))
+        {
+            if (!KeyboardDiagramVoicing.TryRootPitchClass(harmony.Root, out int root) || !KeyboardDiagramVoicing.SupportsQuality(harmony.Quality)) continue;
+            string label = harmony.Root + harmony.Quality;
+            double quarter = Math.Round(harmony.Quarter!.Value, 6);
+            if (steps.Count > 0 && (steps[^1].Label == label || steps[^1].Measure == harmony.Measure && steps[^1].Quarter == quarter)) continue;
+            int inversion = harmony.DiagramInversion is >= 0 and <= 2 ? harmony.DiagramInversion.Value : Math.Clamp(defaultInversion, 0, 2);
+            steps.Add(new PracticeStep(harmony.Measure, quarter, KeyboardDiagramVoicing.Pitches(root, harmony.Quality, inversion))
+                { Start = starts.GetValueOrDefault(harmony.Measure) + quarter, Label = label });
+        }
+        return steps;
+    }
+
+    /// <summary>Start of each measure in quarters: the longest staff content of the earlier measures (4 when empty).</summary>
+    public static IReadOnlyDictionary<int, double> MeasureStarts(NativeMusicModel model)
+    {
+        var lengths = model.Measures.GroupBy(measure => measure.Number).OrderBy(group => group.Key)
+            .Select(group => (Number: group.Key, Length: group.SelectMany(measure => measure.Events)
+                .Where(e => e.Quarter is not null && e.DurationQuarter is not null)
+                .Select(e => e.Quarter!.Value + e.DurationQuarter!.Value).DefaultIfEmpty(4).Max()));
+        var starts = new Dictionary<int, double>(); double at = 0;
+        foreach (var (number, length) in lengths) { starts[number] = at; at += length > 0 ? length : 4; }
+        return starts;
     }
 
     /// <summary>Portuguese note name with octave (Dó4 is middle C).</summary>

@@ -1,3 +1,7 @@
+TECLASCORE 0.29.0
+
+Praticar no tempo, com metrônomo e pontos por precisão. Praticar os acordes da cifra na mão esquerda. Histórico de estudo por música.
+
 TECLASCORE 0.28.0
 
 Letra dos MIDIs de karaokê sob a melodia. Cifras simplificadas (tríades). Transpor escolhendo o tom desejado. Melodias em lote na Biblioteca.

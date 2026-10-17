@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.29.0 — 17/10/2026
+
+- Praticar no tempo: a partitura corre no andamento escolhido (30 a 200), com metrônomo e um compasso de contagem. Cada tecla vale pontos pela precisão: no tempo, adiantada ou atrasada; notas perdidas e teclas erradas também contam. Pausar e continuar.
+- Praticar os acordes da cifra (mão esquerda): os passos vêm das cifras da partitura, com as mesmas notas e posição dos diagramas. Funciona na espera ou no tempo.
+- Histórico de estudo (📈 na Prévia): práticas, tempo estudado, melhor e última pontuação, músicas concluídas e o andamento mais rápido concluído, por música. Fica salvo no computador e pode ser apagado.
+
 ## 0.28.0 — 17/10/2026
 
 - Melodias em lote (Biblioteca): o app propõe a pista de melodia de cada MIDI ainda sem escolha. Só as escolhas claras vêm marcadas (melhor pista "Boa candidata" com folga sobre a segunda); as demais explicam o motivo. As marcadas viram escolha normal no card e vão para a Fila de conversões.

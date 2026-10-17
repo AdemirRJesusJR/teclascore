@@ -1,49 +1,101 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using Teclas.Core;
 
 namespace Teclas.App;
 
-/// <summary>Wait-mode practice with a MIDI keyboard or the on-screen keys.</summary>
+public enum PracticeMode { Notes, Chords }
+
+/// <summary>
+/// Practice with a MIDI keyboard or the on-screen keys. Two kinds of steps (score notes, or chord symbols voiced like
+/// the diagrams) and two ways to play them: wait mode, which advances only on the right keys, and in-time mode,
+/// which runs the score at a chosen tempo with a click and scores each key by its timing.
+/// </summary>
 public sealed class PracticeWindow : Window
 {
     private const int Low = 36, High = 96; // C2–C7
-    private readonly PracticeSession session;
+    private const double CountInBeats = 4;
+    private readonly IReadOnlyList<PracticeStep> noteSteps, chordSteps;
+    private PracticeSession session;
+    private TimedPracticeSession? timed;
     private readonly Canvas keyboard;
     private readonly Dictionary<int, Rectangle> keys = [];
     private readonly TextBlock expected, progress, feedback;
-    private readonly ComboBox devices;
+    private readonly ComboBox devices, mode;
+    private readonly CheckBox inTime, octave;
+    private readonly Slider tempo;
+    private readonly TextBlock tempoLabel;
+    private readonly Button start, back, skip;
+    private readonly DispatcherTimer clock = new(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(15) };
+    private readonly Stopwatch watch = new();
+    private readonly Stopwatch studied = new();
     private MidiKeyboardInput? input;
+    private IMidiOutputTransport? click;
+    private int lastBeat = int.MinValue;
     private int? lastPressed; private bool lastCorrect;
+    /// <summary>Opens the click output for in-time practice; null keeps it silent (smoke tests).</summary>
+    internal Func<IMidiOutputTransport?> clickOutput = () => new WinMmMidiOutputTransport();
     public PracticeSession Session => session;
+    public TimedPracticeSession? Timed => timed;
+    public PracticeMode Mode => mode.SelectedIndex == 1 ? PracticeMode.Chords : PracticeMode.Notes;
+    public bool InTime => inTime.IsChecked == true;
+    public double Bpm => Math.Round(tempo.Value);
+    public TimeSpan StudyTime => studied.Elapsed;
+    /// <summary>Every attempt in this window, for the study history.</summary>
+    public List<StudyRecord> Attempts { get; } = [];
 
     public PracticeWindow(string title, IReadOnlyList<PracticeStep> steps, bool anyOctave)
+        : this(title, steps, [], anyOctave, 80) { }
+
+    public PracticeWindow(string title, IReadOnlyList<PracticeStep> notes, IReadOnlyList<PracticeStep> chords, bool anyOctave, double bpm)
     {
-        Title = "Praticar · " + title; Width = 980; Height = 520; MinWidth = 760; MinHeight = 440; DialogUi.Theme(this);
-        session = new PracticeSession(steps, anyOctave);
+        Title = "Praticar · " + title; Width = 1000; Height = 580; MinWidth = 780; MinHeight = 480; DialogUi.Theme(this);
+        noteSteps = notes; chordSteps = chords;
+        session = new PracticeSession(notes, anyOctave);
         var root = new DockPanel { Margin = new Thickness(20) }; Content = root;
         var top = new StackPanel(); DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
-        top.Children.Add(new TextBlock { Text = "Toque a nota ou o acorde destacado. A música só avança quando você acerta; o andamento é livre.", TextWrapping = TextWrapping.Wrap });
+        top.Children.Add(new TextBlock { Text = "Toque o que está destacado. Na espera, a música só avança quando você acerta; no tempo, ela corre com metrônomo e cada tecla ganha pontos pela precisão.", TextWrapping = TextWrapping.Wrap });
+
         var options = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) }; top.Children.Add(options);
-        options.Children.Add(new TextBlock { Text = "Teclado MIDI", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+        options.Children.Add(Label("Praticar"));
+        mode = new ComboBox { Width = 210, ItemsSource = new[] { "Notas da partitura", "Acordes da cifra (mão esquerda)" }, SelectedIndex = 0, Margin = new Thickness(0, 0, 16, 6) };
+        AutomationProperties.SetName(mode, "O que praticar");
+        if (chords.Count == 0) mode.ToolTip = "Esta partitura não tem cifras para praticar acordes.";
+        mode.SelectionChanged += (_, _) => { if (Mode == PracticeMode.Chords && chordSteps.Count == 0) { mode.SelectedIndex = 0; feedback!.Text = "Esta partitura não tem cifras para praticar acordes."; return; } Reset(); };
+        options.Children.Add(mode);
+        inTime = new CheckBox { Content = "No tempo", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 6),
+            ToolTip = "Corre a partitura no andamento escolhido, com metrônomo e um compasso de contagem, e dá pontos por tecla: no tempo, adiantada ou atrasada." };
+        inTime.Click += (_, _) => Reset();
+        options.Children.Add(inTime);
+        tempo = new Slider { Width = 140, Minimum = 30, Maximum = 200, Value = Math.Clamp(bpm, 30, 200), SmallChange = 1, LargeChange = 5, IsSnapToTickEnabled = true, TickFrequency = 1, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6) };
+        AutomationProperties.SetName(tempo, "Andamento da prática em batidas por minuto");
+        tempoLabel = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Width = 64, Margin = new Thickness(0, 0, 16, 6) };
+        tempo.ValueChanged += (_, _) => { tempoLabel.Text = $"♩ = {Bpm:0}"; if (timed is not null && !clock.IsEnabled) Reset(); };
+        tempoLabel.Text = $"♩ = {Bpm:0}";
+        options.Children.Add(tempo); options.Children.Add(tempoLabel);
+        octave = new CheckBox { Content = "Qualquer oitava", IsChecked = anyOctave, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 6),
+            ToolTip = "Conta como certa a mesma nota em outra oitava do teclado." };
+        octave.Click += (_, _) => { session.AnyOctave = AnyOctave; if (timed is not null) timed.AnyOctave = AnyOctave; };
+        options.Children.Add(octave);
+        options.Children.Add(Label("Teclado MIDI"));
         var names = MidiKeyboardInput.Devices();
-        devices = new ComboBox { Width = 260, ItemsSource = names.Count > 0 ? names : ["Nenhum teclado MIDI encontrado"], SelectedIndex = 0, IsEnabled = names.Count > 0 };
+        devices = new ComboBox { Width = 220, ItemsSource = names.Count > 0 ? names : ["Nenhum teclado MIDI encontrado"], SelectedIndex = 0, IsEnabled = names.Count > 0, Margin = new Thickness(0, 0, 0, 6) };
         AutomationProperties.SetName(devices, "Teclado MIDI");
         devices.SelectionChanged += (_, _) => OpenDevice();
         options.Children.Add(devices);
-        var octave = new CheckBox { Content = "Aceitar qualquer oitava", IsChecked = anyOctave, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
-            ToolTip = "Conta como certa a mesma nota em outra oitava do teclado." };
-        octave.Click += (_, _) => session.AnyOctave = octave.IsChecked == true;
-        options.Children.Add(octave);
 
         var footer = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, -4, 0) }; DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
-        footer.Children.Add(DialogUi.Button("◀ Voltar", (_, _) => { session.Advance(-1); Refresh(); }));
-        footer.Children.Add(DialogUi.Button("Pular ▶", (_, _) => { session.Advance(1); Refresh(); }));
-        footer.Children.Add(DialogUi.Button("Recomeçar", (_, _) => { session.Restart(); lastPressed = null; Refresh(); }));
-        var close = DialogUi.Button("Fechar", (_, _) => Close(), true); close.IsCancel = true; footer.Children.Add(close);
+        start = DialogUi.Button("▶ Começar", (_, _) => ToggleClock(), true); start.Name = "PracticeStartButton";
+        back = DialogUi.Button("◀ Voltar", (_, _) => { session.Advance(-1); Refresh(); });
+        skip = DialogUi.Button("Pular ▶", (_, _) => { session.Advance(1); Refresh(); });
+        footer.Children.Add(start); footer.Children.Add(back); footer.Children.Add(skip);
+        footer.Children.Add(DialogUi.Button("Recomeçar", (_, _) => Reset()));
+        var close = DialogUi.Button("Fechar", (_, _) => Close()); close.IsCancel = true; footer.Children.Add(close);
 
         var middle = new StackPanel { Margin = new Thickness(0, 18, 0, 0) }; root.Children.Add(middle);
         expected = new TextBlock { FontSize = 30, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
@@ -53,9 +105,18 @@ public sealed class PracticeWindow : Window
         keyboard = new Canvas { Height = 130, HorizontalAlignment = HorizontalAlignment.Left };
         middle.Children.Add(expected); middle.Children.Add(progress); middle.Children.Add(keyboard); middle.Children.Add(feedback);
         BuildKeyboard();
-        Loaded += (_, _) => { OpenDevice(); Refresh(); };
-        Closed += (_, _) => input?.Dispose();
+        clock.Tick += (_, _) => Tick();
+        Loaded += (_, _) => { OpenDevice(); Reset(); studied.Start(); };
+        Closed += (_, _) => { StopClock(); RecordAttempt(); studied.Stop(); input?.Dispose(); click?.Dispose(); };
     }
+
+    private bool AnyOctave => octave.IsChecked == true;
+    private IReadOnlyList<PracticeStep> CurrentSteps => Mode == PracticeMode.Chords ? chordSteps : noteSteps;
+    /// <summary>Clock position in quarters; negative during the count-in.</summary>
+    internal double Position => watch.Elapsed.TotalSeconds * Bpm / 60 - CountInBeats + firstBeat;
+    private double firstBeat;
+
+    private static TextBlock Label(string text) => new() { Text = text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) };
 
     private void OpenDevice()
     {
@@ -65,14 +126,91 @@ public sealed class PracticeWindow : Window
         {
             input = new MidiKeyboardInput(devices.SelectedIndex);
             input.NoteOn += (pitch, _) => Dispatcher.InvokeAsync(() => Play(pitch));
-            feedback.Text = "Teclado conectado. Toque a nota destacada.";
+            feedback.Text = "Teclado conectado.";
         }
         catch (InvalidOperationException error) { feedback.Text = error.Message + " Você ainda pode clicar nas teclas da tela."; }
     }
 
-    /// <summary>Handles one key, from the MIDI keyboard or the screen.</summary>
-    internal PracticeResult Play(int pitch)
+    /// <summary>Starts a new attempt with the chosen steps and mode; the previous one goes to the history.</summary>
+    private void Reset()
     {
+        StopClock(); RecordAttempt(); recorded = false;
+        session = new PracticeSession(CurrentSteps, AnyOctave);
+        timed = InTime ? new TimedPracticeSession(CurrentSteps, Bpm, AnyOctave) : null;
+        attemptStarted = DateTime.Now; attemptMode = Mode; lastPressed = null;
+        start.Visibility = InTime ? Visibility.Visible : Visibility.Collapsed;
+        back.Visibility = skip.Visibility = InTime ? Visibility.Collapsed : Visibility.Visible;
+        tempo.IsEnabled = true; start.Content = "▶ Começar";
+        if (InTime) feedback.Text = "Clique em Começar: há um compasso de contagem antes da primeira nota.";
+        Refresh();
+    }
+    private DateTime attemptStarted = DateTime.Now;
+    private PracticeMode attemptMode;
+
+    private void ToggleClock()
+    {
+        if (timed is null) return;
+        if (clock.IsEnabled) { StopClock(); feedback.Text = "Pausado. Recomeçar volta ao início."; Refresh(); return; }
+        if (timed.IsFinished) Reset();
+        if (timed is null) return;
+        try { click ??= clickOutput(); } catch (InvalidOperationException) { click = null; }
+        // Start one bar before the first step (rounded down to a beat), so long intros are skipped.
+        firstBeat = timed.Steps.Count > 0 ? Math.Max(0, Math.Floor(timed.Steps[0].Start)) : 0;
+        if (timed.Position > 0) firstBeat = Math.Floor(timed.Position);
+        watch.Restart(); lastBeat = int.MinValue; clock.Start();
+        tempo.IsEnabled = false; start.Content = "⏸ Pausar";
+    }
+
+    private void StopClock()
+    {
+        if (!clock.IsEnabled) return;
+        clock.Stop(); watch.Stop();
+        start.Content = "▶ Continuar"; tempo.IsEnabled = timed is null || timed.Hits + timed.Missed + timed.Wrong == 0;
+    }
+
+    /// <summary>Advances the in-time clock: clicks on each beat, closes missed windows, ends after the last step.</summary>
+    internal void Tick(double? at = null)
+    {
+        if (timed is null) return;
+        double position = at ?? Position;
+        int beat = (int)Math.Floor(position);
+        if (beat != lastBeat && at is null)
+        {
+            lastBeat = beat;
+            bool downbeat = ((beat - (int)firstBeat) % 4 + 4) % 4 == 0;
+            try { click?.Send(0x99 | (uint)((downbeat ? 76 : 77) << 8) | (uint)((downbeat ? 110 : 80) << 16)); } catch (InvalidOperationException) { click = null; }
+        }
+        timed.Advance(position);
+        if (timed.IsFinished)
+        {
+            StopClock(); start.Content = "▶ Começar";
+            feedback.Text = $"Fim! {timed.Score:0} pontos · {timed.OnTime} no tempo · {timed.OffTime} fora do tempo · {timed.Missed} perdidas · {timed.Wrong} erradas.";
+            RecordAttempt();
+        }
+        Refresh(position);
+    }
+
+    /// <summary>Handles one key, from the MIDI keyboard or the screen.</summary>
+    internal PracticeResult Play(int pitch) => Play(pitch, null);
+
+    internal PracticeResult Play(int pitch, double? at)
+    {
+        if (timed is not null)
+        {
+            if (!clock.IsEnabled && at is null) { feedback.Text = "Clique em Começar para tocar no tempo."; return PracticeResult.Ignored; }
+            var timing = timed.Press(pitch, at ?? Position);
+            if (timing == TimedPracticeResult.Ignored) return PracticeResult.Ignored;
+            lastPressed = pitch; lastCorrect = timing != TimedPracticeResult.Wrong;
+            feedback.Text = timing switch
+            {
+                TimedPracticeResult.OnTime => "No tempo!",
+                TimedPracticeResult.Early => "Certa, mas adiantada.",
+                TimedPracticeResult.Late => "Certa, mas atrasada.",
+                _ => $"{PracticeSession.NoteName(pitch)} não está neste ponto."
+            };
+            Refresh(at);
+            return timing == TimedPracticeResult.Wrong ? PracticeResult.Wrong : PracticeResult.Correct;
+        }
         var result = session.Press(pitch);
         if (result == PracticeResult.Ignored) return result;
         lastPressed = pitch; lastCorrect = result != PracticeResult.Wrong;
@@ -83,9 +221,29 @@ public sealed class PracticeWindow : Window
             PracticeResult.StepComplete => "Certo!",
             _ => "Certo — falta completar o acorde."
         };
+        if (result == PracticeResult.Finished) RecordAttempt();
         Refresh();
         return result;
     }
+
+    /// <summary>Adds the current attempt to <see cref="Attempts"/> once, if any key was played.</summary>
+    private void RecordAttempt()
+    {
+        int hits = timed?.Hits ?? session.Hits, misses = timed is { } t ? t.Missed + t.Wrong : session.Misses;
+        if (hits + misses == 0 || recorded) return;
+        int total = timed?.Steps.Count ?? session.Steps.Count;
+        int done = timed is { } run ? run.Steps.Count(step => step.Start + run.Tolerance < run.Position) : session.Index;
+        Attempts.Add(new StudyRecord
+        {
+            Date = attemptStarted, Seconds = Math.Max(1, (int)(DateTime.Now - attemptStarted).TotalSeconds),
+            Mode = (attemptMode == PracticeMode.Chords ? "acordes" : "notas") + (timed is null ? "" : " no tempo"),
+            Bpm = timed is null ? null : (int)timed.Bpm, Hits = hits, Misses = misses, Steps = total, StepsDone = Math.Min(done, total),
+            Score = timed?.Score ?? Math.Round(100.0 * session.Accuracy, 1),
+            Completed = timed?.IsFinished ?? session.IsFinished
+        });
+        recorded = true;
+    }
+    private bool recorded;
 
     private void BuildKeyboard()
     {
@@ -109,29 +267,49 @@ public sealed class PracticeWindow : Window
         foreach (var key in keys.Values) key.MouseLeftButtonDown += (sender, _) => Play((int)((Rectangle)sender).Tag);
     }
 
-    private void Refresh()
+    private static string Describe(PracticeStep step) =>
+        step.Label.Length > 0 ? step.Label + "   (" + string.Join(" + ", step.Pitches.Select(PracticeSession.NoteName)) + ")"
+            : string.Join("  +  ", step.Pitches.Select(PracticeSession.NoteName));
+
+    private void Refresh(double? at = null)
     {
-        var accent = (Brush)FindResource("Accent");
+        var accent = TryFindResource("Accent") as Brush ?? Brushes.DodgerBlue;
         foreach (var (pitch, key) in keys)
             key.Fill = (pitch % 12) is 1 or 3 or 6 or 8 or 10 ? Brushes.Black : Brushes.White;
-        foreach (int pitch in session.Remaining)
+        IReadOnlyList<int> highlight = timed is null ? session.Remaining : timed.Waiting.Count > 0 ? timed.Waiting : timed.Current?.Pitches ?? [];
+        foreach (int pitch in highlight)
         {
             int shown = pitch;
             while (shown < Low) shown += 12;
             while (shown > High) shown -= 12;
             if (keys.TryGetValue(shown, out var key)) key.Fill = accent;
         }
-        if (lastPressed is { } last && keys.TryGetValue(last, out var pressed) && !session.Remaining.Contains(last))
+        if (lastPressed is { } last && keys.TryGetValue(last, out var pressed) && !highlight.Contains(last))
             pressed.Fill = lastCorrect ? Brushes.MediumSeaGreen : Brushes.IndianRed;
-        if (session.Current is { } step)
+        if (timed is { } run)
         {
-            expected.Text = string.Join("  +  ", step.Pitches.Select(PracticeSession.NoteName));
-            progress.Text = $"Compasso {step.Measure} · passo {session.Index + 1} de {session.Steps.Count} · {session.Hits} acertos · {session.Misses} erros";
+            double position = at ?? (clock.IsEnabled ? Position : run.Position);
+            if (clock.IsEnabled && position < firstBeat) expected.Text = $"Contagem… {(int)Math.Ceiling(firstBeat - position)}";
+            else expected.Text = run.Current is { } next ? Describe(next) : run.Steps.Count == 0 ? "Nada para praticar nesta escolha." : "Fim da música!";
+            progress.Text = $"{(run.Current is { } step ? $"Compasso {step.Measure} · " : "")}♩ = {run.Bpm:0} · {run.Score:0} pontos · {run.OnTime} no tempo · {run.OffTime} fora · {run.Missed} perdidas · {run.Wrong} erradas";
+            return;
+        }
+        if (session.Current is { } current)
+        {
+            expected.Text = Describe(current);
+            progress.Text = $"Compasso {current.Measure} · passo {session.Index + 1} de {session.Steps.Count} · {session.Hits} acertos · {session.Misses} erros";
         }
         else
         {
             expected.Text = session.Steps.Count == 0 ? "Esta partitura não tem notas para praticar." : "Música concluída!";
             progress.Text = $"{session.Steps.Count} passos · {session.Hits} acertos · {session.Misses} erros · {session.Accuracy:P0} de precisão";
         }
+    }
+
+    /// <summary>For smoke tests: chooses mode and timing as the user would.</summary>
+    internal void Choose(PracticeMode practiceMode, bool timedMode, double bpm)
+    {
+        tempo.Value = bpm; inTime.IsChecked = timedMode; mode.SelectedIndex = (int)practiceMode;
+        Reset();
     }
 }

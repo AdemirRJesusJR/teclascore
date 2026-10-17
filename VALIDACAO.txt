@@ -1,3 +1,9 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.29.0
+17/10/2026
+
+- Prática no tempo, de acordes e histórico: 19 verificações (janela de tempo, adiantada/atrasada, perdidas, erradas, pontos, oitava; acordes com a posição do diagrama, repetições unidas, cifras desconhecidas ignoradas, início dos compassos; troca de modo registrando a tentativa; histórico por música, gravação, limite e janela). Metrônomo e teclado MIDI físicos não foram tocados nesta validação; o clique usa o sintetizador do Windows.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.28.0
 17/10/2026
 
