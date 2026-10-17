@@ -11,7 +11,7 @@ using Teclas.Core;
 
 namespace Teclas.App;
 
-public sealed class MidiFolderItem(MidiFolderEntry entry, bool inLibrary) : INotifyPropertyChanged
+public sealed class MidiFolderItem(MidiFolderEntry entry, bool inLibrary, bool generated = false, bool newSinceVisit = false) : INotifyPropertyChanged
 {
     private bool selected;
     private string listenGlyph = "▶";
@@ -21,8 +21,10 @@ public sealed class MidiFolderItem(MidiFolderEntry entry, bool inLibrary) : INot
     public string Size => Entry.Bytes < 1024 ? $"{Entry.Bytes} B" : $"{Entry.Bytes / 1024d:0.#} KB";
     public string Modified => Entry.ModifiedLocal.ToString("dd/MM/yyyy");
     public bool InLibrary { get; } = inLibrary;
+    public bool Generated { get; } = inLibrary && generated;
+    public bool NewSinceVisit { get; } = !inLibrary && newSinceVisit;
     public bool CanSelect => !InLibrary;
-    public string State => InLibrary ? "Na biblioteca" : "Novo";
+    public string State => Generated ? "Partitura gerada" : InLibrary ? "Na biblioteca" : NewSinceVisit ? "Novo desde a última visita" : "Fora da biblioteca";
     public bool IsSelected { get => selected; set { if (selected == value || InLibrary) return; selected = value; Changed(); } }
     public string ListenGlyph { get => listenGlyph; set { listenGlyph = value; Changed(); } }
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -32,7 +34,9 @@ public sealed class MidiFolderItem(MidiFolderEntry entry, bool inLibrary) : INot
 /// <summary>Browses a MIDI folder in place: nothing is copied, and only the checked files join the library.</summary>
 public sealed class MidiFolderWindow : Window
 {
-    private readonly HashSet<string> library;
+    private readonly Dictionary<string, bool> library;
+    private readonly DateTime? lastVisit;
+    private readonly CheckBox onlyOutside;
     private readonly ObservableCollection<MidiFolderItem> items = [];
     private readonly ICollectionView view;
     private readonly TextBox folderBox, filterBox;
@@ -53,8 +57,15 @@ public sealed class MidiFolderWindow : Window
     internal Task? ScanTask { get; private set; }
 
     public MidiFolderWindow(string folder, bool includeSubfolders, IEnumerable<string> libraryPaths, Action stopOtherPlayback, Func<IMidiOutputTransport>? outputFactory = null)
+        : this(folder, includeSubfolders, libraryPaths.ToDictionary(path => path, _ => false), null, stopOtherPlayback, outputFactory) { }
+
+    /// <param name="libraryPaths">Library files and whether each already has a generated score.</param>
+    /// <param name="lastVisit">When this folder was last opened here; later files are marked new.</param>
+    public MidiFolderWindow(string folder, bool includeSubfolders, IReadOnlyDictionary<string, bool> libraryPaths, DateTime? lastVisit, Action stopOtherPlayback, Func<IMidiOutputTransport>? outputFactory = null)
     {
-        library = new(libraryPaths.Select(p => Path.GetFullPath(p)), StringComparer.OrdinalIgnoreCase);
+        library = new(StringComparer.OrdinalIgnoreCase);
+        foreach (var (path, generated) in libraryPaths) library[Path.GetFullPath(path)] = generated;
+        this.lastVisit = lastVisit;
         this.stopOtherPlayback = stopOtherPlayback; this.outputFactory = outputFactory;
         Title = "Pasta de MIDIs"; Width = 880; Height = 640; MinWidth = 640; MinHeight = 420; DialogUi.Theme(this);
         var root = new DockPanel { Margin = new(20) }; Content = root;
@@ -73,8 +84,11 @@ public sealed class MidiFolderWindow : Window
         filterBox = new TextBox { Margin = new(0, 0, 0, 10), ToolTip = "Filtrar por nome ou subpasta (sem diferenciar acentos)" };
         AutomationName(filterBox, "Filtrar MIDIs da pasta");
         filterBox.TextChanged += (_, _) => { view!.Refresh(); UpdateSummary(); };
+        onlyOutside = new CheckBox { Content = "Mostrar só os que ainda não estão na biblioteca", Margin = new(0, 0, 0, 10) };
+        onlyOutside.Click += (_, _) => { view!.Refresh(); UpdateSummary(); };
         header.Children.Add(new TextBlock { Text = "Filtrar por nome ou subpasta", FontSize = 11, Margin = new(0, 0, 0, 4) });
         header.Children.Add(filterBox);
+        header.Children.Add(onlyOutside);
 
         var footer = new DockPanel { Margin = new(0, 12, 0, 0) }; DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
         var actions = new StackPanel { Orientation = Orientation.Horizontal }; DockPanel.SetDock(actions, Dock.Right);
@@ -92,7 +106,8 @@ public sealed class MidiFolderWindow : Window
         DockPanel.SetDock(selection, Dock.Left);
 
         view = CollectionViewSource.GetDefaultView(items);
-        view.Filter = item => MidiFolderScanner.Matches(((MidiFolderItem)item).Entry, filterBox.Text);
+        view.Filter = item => item is MidiFolderItem folderItem && (onlyOutside.IsChecked != true || !folderItem.InLibrary)
+            && MidiFolderScanner.Matches(folderItem.Entry, filterBox.Text);
         var grid = new DataGrid
         {
             ItemsSource = view, AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false, HeadersVisibility = DataGridHeadersVisibility.Column,
@@ -120,7 +135,7 @@ public sealed class MidiFolderWindow : Window
         grid.Columns.Add(new DataGridTextColumn { Header = "Subpasta", Binding = new Binding(nameof(MidiFolderItem.Folder)), Width = 150, IsReadOnly = true });
         grid.Columns.Add(new DataGridTextColumn { Header = "Tamanho", Binding = new Binding(nameof(MidiFolderItem.Size)), Width = 76, IsReadOnly = true });
         grid.Columns.Add(new DataGridTextColumn { Header = "Modificado", Binding = new Binding(nameof(MidiFolderItem.Modified)), Width = 90, IsReadOnly = true });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new Binding(nameof(MidiFolderItem.State)), Width = 100, IsReadOnly = true });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new Binding(nameof(MidiFolderItem.State)), Width = 170, IsReadOnly = true });
         // Space toggles the checked state of every highlighted row; double click toggles one row.
         grid.PreviewKeyDown += (_, e) =>
         {
@@ -188,7 +203,8 @@ public sealed class MidiFolderWindow : Window
             {
                 var result = await Task.Run(() => MidiFolderScanner.Scan(folder, recursive, token), token);
                 if (token.IsCancellationRequested) return;
-                foreach (var entry in result.Entries) items.Add(new(entry, library.Contains(entry.FullPath)));
+                foreach (var entry in result.Entries)
+                    items.Add(new(entry, library.TryGetValue(entry.FullPath, out bool generated), generated, lastVisit is { } visit && entry.ModifiedLocal > visit));
                 lastScanNote = result.Entries.Count == 0 ? "Nenhum MIDI (.mid, .midi, .kar) nesta pasta." : null;
                 if (result.Truncated) lastScanNote = $"Mostrando os primeiros {MidiFolderScanner.MaximumEntries} MIDIs; escolha uma subpasta para ver o restante.";
                 if (result.SkippedFolders > 0) lastScanNote = (lastScanNote is null ? "" : lastScanNote + " ") + $"{result.SkippedFolders} pasta(s) sem permissão de leitura foram ignoradas.";
@@ -209,7 +225,9 @@ public sealed class MidiFolderWindow : Window
     {
         if (summary is null || addButton is null) return;
         int selected = items.Count(i => i.IsSelected), inLibrary = items.Count(i => i.InLibrary), visible = view.Cast<object>().Count();
-        string counts = items.Count == 0 ? "" : $"{items.Count} MIDIs · {visible} visíveis · {inLibrary} já na biblioteca · {selected} marcados.";
+        int generatedCount = items.Count(i => i.Generated), fresh = items.Count(i => i.NewSinceVisit);
+        string counts = items.Count == 0 ? "" : $"{items.Count} MIDIs · {visible} visíveis · {inLibrary} na biblioteca ({generatedCount} gerados)"
+            + (fresh > 0 ? $" · {fresh} novos desde a última visita" : "") + $" · {selected} marcados.";
         summary.Text = string.Join(" ", new[] { counts, lastScanNote }.Where(t => !string.IsNullOrEmpty(t)));
         addButton.Content = selected == 0 ? "Adicionar à biblioteca" : $"Adicionar {selected} à biblioteca";
         addButton.IsEnabled = selected > 0;

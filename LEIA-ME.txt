@@ -1,3 +1,7 @@
+TECLASCORE 0.26.0
+
+Card avisa MIDIs sem melodia completa. Busca por acorde (F#dim) e tom (Dm, Ré menor). Pasta de MIDIs mostra partituras geradas e arquivos novos desde a última visita. Áudio preparado em segundo plano após gerar.
+
 TECLASCORE 0.25.0
 
 Prévia → Acordes: quadro com todos os acordes da música e seus teclados, para salvar em PNG ou imprimir. Prévia → Exportar…: MusicXML ou imagens PNG. Instrumentos com nomes em português.

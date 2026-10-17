@@ -148,7 +148,7 @@ public partial class MainWindow
         previousPlayer.Close();
         if (!preserveStudy) ResetStudyMarkers();
     }
-    private void DisposePlayback() { playbackDisposed = true; ResetPlayback(); }
+    private void DisposePlayback() { playbackDisposed = true; CancelAudioPrewarm(); ResetPlayback(); }
     private void StopPlayback(string message = "Reprodução parada.")
     {
         if (audioOpening) { ResetPlayback(); PlaybackStatus = message; NotifyPlaybackState(); return; }
@@ -177,6 +177,7 @@ public partial class MainWindow
             var exporter = new ScoreStudyAudio(MuseScorePath, PlaybackCacheDirectory);
             try
             {
+                await AwaitAudioPrewarm(scorePath, token);
                 var audio = await scoreAudioPreparation(exporter, scorePath, requestedSpeed, CreateOperationProgress(), token);
                 var (playedAudio, beats, metronomeWarning) = await PrepareMetronome(exporter, scorePath, requestedSpeed, audio, token);
                 audio = playedAudio;

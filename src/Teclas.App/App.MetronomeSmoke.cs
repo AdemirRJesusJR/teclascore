@@ -70,6 +70,16 @@ public partial class App
             window.Files.Add(row); ((ListBox)window.FindName("Library")).SelectedItem = row;
             window.SelectPageForSmoke("library", 2); Flush();
             Check(!window.MetronomeEnabled && !window.CountInEnabled, "metronome-and-count-in-start-disabled");
+            // Background audio after generation: Play waits for the running preparation instead of starting another.
+            var prewarmDone = new TaskCompletionSource();
+            typeof(MainWindow).GetField("audioPrewarmOverride", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window,
+                new Func<string, double, bool, CancellationToken, Task>((_, _, _, _) => prewarmDone.Task));
+            Invoke("QueueAudioPrewarm", source);
+            var waiting = (Task)Invoke("AwaitAudioPrewarm", source, CancellationToken.None)!;
+            await Task.Delay(50);
+            Check(!waiting.IsCompleted && window.AudioPrewarmCount == 1, "play-waits-for-background-audio");
+            prewarmDone.SetResult(); await waiting.WaitAsync(TimeSpan.FromSeconds(2));
+            Check(((Task)Invoke("AwaitAudioPrewarm", Path.Combine(work, "outra.mscz"), CancellationToken.None)!).IsCompleted, "other-scores-do-not-wait");
             var repeat = (System.Windows.Controls.Primitives.ToggleButton)window.FindName("LoopRepeatToggle");
             Check(repeat.IsEnabled && window.FindName("ClearLoopButton") is null && window.FindName("LoopRepeatCheckBox") is null, "repeat-is-an-icon-toggle-without-clear-button");
             repeat.IsChecked = true; Flush(); await Task.Delay(50); Flush();

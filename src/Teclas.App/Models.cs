@@ -56,6 +56,9 @@ public sealed partial class MidiRow : Observable
     public bool HasPendingScoreProperties{get;set;}
     public MidiDocument? Document{get;init;}
     public JsonObject? Profile{get;init;}
+    /// <summary>Shown on the card before any work: the MIDI lacks a complete melody (catalog) or no track looks like one (analysis).</summary>
+    public string MelodyWarning{get;init;}="";
+    public System.Windows.Visibility MelodyWarningVisibility=>MelodyWarning.Length==0?System.Windows.Visibility.Collapsed:System.Windows.Visibility.Visible;
     public bool HasReviewedProfile=>Profile?["config"]?["status"]?.GetValue<string>()=="ready";
     private bool useReviewedProfile;
     public bool UseReviewedProfile{get=>useReviewedProfile;set{if(Set(ref useReviewedProfile,value))NotifyCategory();}}

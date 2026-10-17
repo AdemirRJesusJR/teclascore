@@ -131,8 +131,23 @@ public partial class MainWindow
         if (currentFilter != "all" && row.CategoryCode != currentFilter) return false;
         if(settings.FavoritesOnly && !row.IsFavorite)return false;
         if(!string.IsNullOrWhiteSpace(settings.CollectionFilter) && !string.Equals(row.Collection,settings.CollectionFilter,StringComparison.OrdinalIgnoreCase))return false;
-        return string.IsNullOrWhiteSpace(searchText) || CultureInfo.GetCultureInfo("pt-BR").CompareInfo.IndexOf(
-            string.Join(" ",row.Name,row.ScoreTitle,row.ScoreArtist,row.ScoreComposer,row.Collection,row.Genre), searchText.Trim(), CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0;
+        if (string.IsNullOrWhiteSpace(searchText)) return true;
+        var compare = CultureInfo.GetCultureInfo("pt-BR").CompareInfo;
+        const CompareOptions loose = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
+        string text = string.Join(" ", row.Name, row.ScoreTitle, row.ScoreArtist, row.ScoreComposer, row.Collection, row.Genre);
+        var words = searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        // A lone letter is a chord only when it is the whole search ("E"); inside a phrase it is a word ("Dois corações e uma").
+        bool IsChordQuery(string word) => LibrarySearch.LooksLikeChord(word) && (word.Length > 1 || words.Length == 1);
+        // A chord query (D, Dm7) must match a chord or key, never letters inside a file name.
+        if (!(words.Length == 1 && IsChordQuery(words[0])) && compare.IndexOf(text, searchText.Trim(), loose) >= 0) return true;
+        // Word by word: chord symbols and keys match exactly (Dm is not Dm7); other words match the text and key names.
+        var chords = row.Chords.Select(chord => chord.Root.Trim() + chord.Quality.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var key = row.Chords.Count > 0 ? LibrarySearch.KeyNames(row.KeyFifths, row.KeyMinor) : [];
+        string keyText = string.Join(" ", key);
+        return words.All(word =>
+            IsChordQuery(word)
+                ? chords.Contains(word) || key.Contains(word, StringComparer.OrdinalIgnoreCase)
+                : compare.IndexOf(text, word, loose) >= 0 || compare.IndexOf(keyText, word, loose) >= 0);
     }
 
     private void RefreshDashboard()

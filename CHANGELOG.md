@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.26.0 — 17/10/2026
+
+- Aviso de melodia no card, logo ao importar: MIDIs do catálogo sem melodia completa ou só com melodia parcial, e MIDIs novos em que nenhuma pista parece conter a melodia.
+- Busca por acorde e tom na Biblioteca: F#dim ou Am7 encontram músicas com esse acorde; Dm ou Ré menor, músicas nesse tom. Cifras e tons são exatos (Dm não encontra Dm7) e as palavras se somam (forró Dm).
+- Pasta de MIDIs: mostra quais cards já têm partitura gerada e marca os arquivos novos desde a última visita àquela pasta; opção para ver só os que ainda não estão na biblioteca.
+- Depois de gerar, o áudio da Prévia (e o metrônomo, se ligado) é preparado em segundo plano; Reproduzir aproveita essa preparação em vez de esperar o MuseScore de novo.
+
 ## 0.25.0 — 17/10/2026
 
 - Nomes de instrumento em português na partitura (trocas e pautas extras) e na lista de pistas, com abreviações curtas nos sistemas seguintes (Piano, Violão, Acord., Fl.).

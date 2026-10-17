@@ -24,6 +24,7 @@ public sealed class Settings
     public bool ScoreCountIn { get; set; }
     public string MidiFolder { get; set; } = "";
     public bool MidiFolderIncludeSubfolders { get; set; } = true;
+    public Dictionary<string, DateTime> MidiFolderVisits { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public bool PropagateDiagramPositions { get; set; } = true;
     public List<SavedChordPreference> ChordPositionPreferences { get; set; } = [];
     public bool ChordPreferencesSeeded { get; set; }

@@ -131,13 +131,23 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(string.Equals(Path.GetExtension(path),".mscz",StringComparison.OrdinalIgnoreCase))return LoadNativeScore(path);
         MidiDocument document=MidiReader.Read(path);
         var profile=profiles[document.Sha256]?.AsObject();
-        var row=new MidiRow{FullPath=Path.GetFullPath(path),DefaultDiagramInversion=settings.DefaultDiagramInversion,Document=document,Profile=profile,UseReviewedProfile=profile?["config"]?["status"]?.GetValue<string>()=="ready"};
+        var suggestions=MelodySourceAdvisor.Analyze(document).ToDictionary(s=>s.Key);
+        string? catalogStatus=profile?["config"]?["status"]?.GetValue<string>();
+        string melodyWarning=catalogStatus switch
+        {
+            "no_melody"=>"⚠ Sem melodia completa: este MIDI traz só o acompanhamento. Para a canção inteira, use um MIDI com a voz principal.",
+            "partial_melody"=>"⚠ Melodia parcial: este MIDI tem só temas ou solos. A canção completa precisa de outra fonte.",
+            "ready"=>"",
+            _=>document.Sources.Count>0 && !suggestions.Values.Any(s=>s.Label=="Boa candidata")
+                ?"⚠ Nenhuma pista parece conter a melodia completa. Ouça as pistas antes de escolher."
+                :""
+        };
+        var row=new MidiRow{FullPath=Path.GetFullPath(path),DefaultDiagramInversion=settings.DefaultDiagramInversion,Document=document,Profile=profile,UseReviewedProfile=catalogStatus=="ready",MelodyWarning=melodyWarning};
         var header=ScoreMetadataOrganizer.Suggest(row.FullPath,document.TextEvents);
         row.ScoreTitle=header.Title;row.ScoreArtist=header.Artist;row.ScoreComposer=header.Composer;
         row.MetadataOrganizationNotice=header.Explanation;
         row.Status=row.HasReviewedProfile?"Perfil musical revisado":profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Sem melodia completa","partial_melody"=>"Somente melodia parcial",_=>"Escolha a pista de melodia"};
         var keys=profile?["config"]?["melody_sources"]?.AsArray().Select(s=>new SourceKey(s!["track"]!.GetValue<int>(),s["channel"]!.GetValue<int>(),s["program"]!.GetValue<int>())).ToHashSet()??[];
-        var suggestions=MelodySourceAdvisor.Analyze(document).ToDictionary(s=>s.Key);
         foreach(var source in document.Sources)
         {
             var track=new TrackRow{Source=source,InstrumentName=source.Key.Channel==10?"Percussão":instruments[source.Key.Program],IsMelody=keys.Contains(source.Key),MelodySuggestion=suggestions.GetValueOrDefault(source.Key)};
@@ -308,6 +318,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         row.PageCount=result["pages"]!.GetValue<int>();row.GeneratedAt=DateTimeOffset.Now;row.HasOperationError=false;row.HasPendingScoreProperties=false;
         row.ArrangementSummary="";
         row.Status=$"Gerada · {row.PageCount} páginas";Status=result["message"]!.GetValue<string>();RememberVersion(row);RefreshSelection();
+        if(ReferenceEquals(row,selectedFile))QueueAudioPrewarm(row.ScorePath);
     }
     private async Task EnsureAnalysisForGeneration(MidiRow row)
     {

@@ -126,6 +126,45 @@ public partial class App
             await looseAccepted.Task;
             await Wait(() => window.IsIdle && window.Files.Count == 3);
             Check(window.Files.Any(f => string.Equals(f.FullPath, Path.GetFullPath(third), StringComparison.OrdinalIgnoreCase)), "loose-file-becomes-a-card");
+            // Library search: chords and keys match exactly; text words still match names.
+            var asa = window.Files.Single(f => f.FullPath == Path.GetFullPath(first));
+            asa.Chords.Add(new ChordRow { Root = "F#", Quality = "dim" }); asa.Chords.Add(new ChordRow { Root = "D", Quality = "m" });
+            asa.KeyFifths = -1; asa.KeyMinor = true;
+            bool Finds(string text) { window.SearchText = text; Flush(); return window.LibraryView.Cast<MidiRow>().Contains(asa); }
+            Check(Finds("F#dim") && Finds("Dm") && Finds("Ré menor") && Finds("asa Dm"), "search-finds-chords-keys-and-text");
+            Check(!Finds("D") && !Finds("Am7") && !Finds("Sol maior"), "search-chords-and-keys-are-exact");
+            Check(Finds("ASA BRANCA.MID") && Finds("asa e branca") && Finds("Asa Branca") && !Finds("asa e xote"), "search-letters-inside-phrases-are-words");
+            window.SearchText = ""; Flush();
+            Check(asa.MelodyWarningVisibility == (asa.MelodyWarning.Length > 0 ? Visibility.Visible : Visibility.Collapsed)
+                && (asa.MelodyWarning.Length == 0 || asa.MelodyWarning.StartsWith("⚠", StringComparison.Ordinal)), "card-melody-warning-is-consistent");
+
+            // A later visit: files changed since then are new; generated cards say so.
+            string score = Path.Combine(work, "asa.mscz"); File.WriteAllText(score, "synthetic"); asa.ScorePath = score;
+            var live = (Settings)typeof(MainWindow).GetField("settings", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+            Check(live.MidiFolderVisits.ContainsKey(Path.GetFullPath(folder)), "folder-visit-is-remembered");
+            live.MidiFolderVisits[Path.GetFullPath(folder)] = DateTime.Now.AddDays(-1);
+            string fourth = Path.Combine(nested, "Baião novo.mid"); File.WriteAllBytes(fourth, TinyMidi());
+            var revisit = new TaskCompletionSource();
+            field.SetValue(window, new Func<MidiFolderWindow, bool?>(w =>
+            {
+                w.ShowActivated = false; w.Opacity = 0; w.Show();
+                var frame = new DispatcherFrame(); w.Closed += (_, _) => frame.Continue = false;
+                _ = Dispatcher.InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        await Wait(() => w.ScanTask is { IsCompleted: true });
+                        Check(w.Items.Single(i => i.Name == "Asa Branca.mid").State == "Partitura gerada", "folder-shows-generated-cards");
+                        Check(w.Items.Single(i => i.Name == "Baião novo.mid") is { NewSinceVisit: true, State: "Novo desde a última visita" }
+                            && w.Items.Where(i => i.InLibrary).All(i => !i.NewSinceVisit), "folder-marks-files-new-since-last-visit");
+                        revisit.TrySetResult(); w.Close();
+                    }
+                    catch (Exception error) { revisit.TrySetException(error); w.Close(); }
+                });
+                Dispatcher.PushFrame(frame); return null;
+            }));
+            typeof(MainWindow).GetMethod("OpenMidiFolderClick", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [window, new RoutedEventArgs()]);
+            await revisit.Task;
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, copiedFiles = 0, soundsPlayed = 0 }, new JsonSerializerOptions { WriteIndented = true }));
             window.Close(); window = null; Shutdown(0);
         }

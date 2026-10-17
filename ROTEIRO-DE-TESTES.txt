@@ -1,3 +1,10 @@
+TECLASCORE 0.26.0 · BIBLIOTECA
+
+1. Importe um MIDI do catálogo sem melodia: o card mostra o aviso em laranja logo ao entrar.
+2. Busque F#dim, Dm e Ré menor: aparecem só as músicas analisadas com esse acorde ou tom. Busque D: músicas só com Dm não aparecem.
+3. Abra a Pasta de MIDIs: cards gerados aparecem como "Partitura gerada". Copie um MIDI novo para a pasta e reabra: ele aparece como "Novo desde a última visita".
+4. Gere uma partitura, espere alguns segundos e clique em Reproduzir: deve começar mais rápido.
+
 TECLASCORE 0.25.0 · ACORDES, EXPORTAÇÃO E NOMES EM PORTUGUÊS
 
 1. Na Prévia de uma música gerada, abra Acordes: cada acorde aparece uma vez, no tom final, com a posição escolhida. Salve em PNG e imprima.

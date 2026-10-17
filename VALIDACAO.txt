@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.26.0
+17/10/2026
+
+- Biblioteca e pasta: 25 verificações de interface (busca exata por cifra e tom, palavras combinadas, letras soltas em frases tratadas como palavras, aviso de melodia, visita lembrada, arquivos novos, partituras geradas). O CI detectou e corrigimos um caso em que "E" num nome de arquivo era tratado como acorde.
+- CI local completo: 45 etapas aprovadas, 0 falhas.
+- Áudio em segundo plano: 2 verificações (Reproduzir aguarda a preparação da mesma partitura; outras não esperam).
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.25.0
 17/10/2026
 
