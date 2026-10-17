@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.33.0
+17/10/2026
+
+- Atualização automática: 9 verificações (instalador e digest lidos da release, download só do endereço fixo do GitHub com hash conferido, arquivo com hash errado descartado, uso do SHA256SUMS sem digest, botão no topo, versão lembrada sem nova consulta, instalação baixando e abrindo o instalador, opção desligada sem consulta). Endereço real do instalador da 0.32.0 conferido no GitHub (200 OK, 61 MB). A atualização de ponta a ponta só poderá ser vista na próxima versão publicada.
+- Motor dividido (score_musicxml.py): 190 testes Python aprovados, incluindo os testes nativos com MuseScore real, nenhum pulado.
+- Assinatura digital do instalador não foi feita: exige um certificado de assinatura de código, que é pago e fica a cargo do usuário.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.32.0
 17/10/2026
 

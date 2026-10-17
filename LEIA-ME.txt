@@ -1,3 +1,7 @@
+TECLASCORE 0.33.0
+
+Aviso de nova versão e atualização com um clique (instalador oficial conferido por SHA-256). Ajustes internos do motor.
+
 TECLASCORE 0.32.0
 
 Vários repertórios salvos, com PDF da lista. Pedal do teclado MIDI e virada de meia página na apresentação. Ouvir e trocar alternativas de cifra. MusicXML conferido ao exportar.

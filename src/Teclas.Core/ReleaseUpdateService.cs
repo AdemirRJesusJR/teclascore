@@ -6,9 +6,14 @@ using System.IO.Compression;
 
 namespace Teclas.Core;
 
-public sealed record ReleaseUpdate(Version Version, string Tag, string PageUrl, string? PackageName, string? PackageSha256);
+public sealed record ReleaseUpdate(Version Version, string Tag, string PageUrl, string? PackageName, string? PackageSha256)
+{
+    /// <summary>The official installer asset and its published SHA-256 (GitHub digest), when present.</summary>
+    public string? SetupName { get; init; }
+    public string? SetupSha256 { get; init; }
+}
 
-/// <summary>On-demand release discovery. Never installs or changes settings.</summary>
+/// <summary>Release discovery and verified download of the official installer. Never installs by itself or changes settings.</summary>
 public sealed partial class ReleaseUpdateService(HttpClient client)
 {
     public const string ReleasesUrl = "https://github.com/AdemirRJesusJR/teclascore/releases";
@@ -34,11 +39,18 @@ public sealed partial class ReleaseUpdateService(HttpClient client)
             || release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean())
             throw new InvalidDataException("A publicação não é uma versão estável reconhecida do TeclaScore.");
         var packageName = $"TeclaScore-{version}-Windows.zip";
-        string? checksum = null;
-        var found = false;
+        var setupName = $"TeclaScore-{version}-Setup-x64.exe";
+        string? checksum = null, setupChecksum = null;
+        var found = false; var setupFound = false;
         if (release.TryGetProperty("assets", out var assets))
             foreach (var asset in assets.EnumerateArray())
-                if (asset.GetProperty("name").GetString() == packageName)
+                if (asset.GetProperty("name").GetString() == setupName)
+                {
+                    setupFound = true;
+                    if (asset.TryGetProperty("digest", out var setupDigest) && setupDigest.GetString() is { } value
+                        && value.StartsWith("sha256:", StringComparison.Ordinal) && HashPattern().IsMatch(value[7..])) setupChecksum = value[7..].ToLowerInvariant();
+                }
+                else if (asset.GetProperty("name").GetString() == packageName)
                 {
                     found = true;
                     if (asset.TryGetProperty("digest", out var digest))
@@ -49,7 +61,65 @@ public sealed partial class ReleaseUpdateService(HttpClient client)
                     }
                 }
         // Never trust an arbitrary URL from a downloaded document.
-        return new(version, tag, ReleasesUrl + "/tag/" + tag, found ? packageName : null, checksum);
+        return new(version, tag, ReleasesUrl + "/tag/" + tag, found ? packageName : null, checksum)
+            { SetupName = setupFound ? setupName : null, SetupSha256 = setupChecksum };
+    }
+
+    /// <summary>
+    /// Downloads the official installer of this release into <paramref name="folder"/> and checks it against the published
+    /// SHA-256 (the GitHub digest, else the release's SHA256SUMS). The address is built from the fixed repository and tag,
+    /// never taken from the downloaded document. A file that does not match is deleted.
+    /// </summary>
+    public async Task<string> DownloadSetupAsync(ReleaseUpdate release, string folder, IProgress<double>? progress, CancellationToken cancellationToken = default)
+    {
+        if (release.SetupName is null) throw new InvalidDataException("Esta versão não publicou o instalador. Baixe-a na página da versão.");
+        string baseUrl = ReleasesUrl + "/download/" + Uri.EscapeDataString(release.Tag) + "/";
+        string? expected = release.SetupSha256;
+        if (expected is null)
+        {
+            string sums = await GetStringAsync(baseUrl + "SHA256SUMS", cancellationToken);
+            string temporarySums = Path.Combine(Path.GetTempPath(), "teclascore-sums-" + Guid.NewGuid().ToString("N"));
+            try { await File.WriteAllTextAsync(temporarySums, sums, cancellationToken); expected = ReadChecksum(temporarySums, release.SetupName); }
+            finally { File.Delete(temporarySums); }
+        }
+        Directory.CreateDirectory(folder);
+        string target = Path.Combine(folder, release.SetupName), partial = target + ".baixando";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, baseUrl + Uri.EscapeDataString(release.SetupName));
+            request.Headers.UserAgent.ParseAdd("TeclaScore-update");
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            long? length = response.Content.Headers.ContentLength;
+            if (length > 1024L * 1024 * 1024) throw new InvalidDataException("O instalador publicado é maior que o permitido.");
+            await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var output = new FileStream(partial, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16, true))
+            {
+                var buffer = new byte[1 << 16]; long done = 0; int read;
+                while ((read = await input.ReadAsync(buffer, cancellationToken)) > 0)
+                {
+                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken); done += read;
+                    if (done > 1024L * 1024 * 1024) throw new InvalidDataException("O instalador publicado é maior que o permitido.");
+                    if (length > 0) progress?.Report((double)done / length.Value);
+                }
+            }
+            string actual;
+            await using (var check = File.OpenRead(partial)) actual = Convert.ToHexString(await SHA256.HashDataAsync(check, cancellationToken));
+            if (!actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("O instalador baixado não corresponde ao SHA-256 publicado e foi descartado. Tente de novo mais tarde.");
+            File.Move(partial, target, overwrite: true);
+            return target;
+        }
+        finally { if (File.Exists(partial)) File.Delete(partial); }
+    }
+
+    private async Task<string> GetStringAsync(string url, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.UserAgent.ParseAdd("TeclaScore-update");
+        using var response = await client.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     public static async Task VerifyPackageAsync(string packagePath, string expectedSha256, CancellationToken cancellationToken = default)

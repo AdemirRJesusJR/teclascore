@@ -1,3 +1,9 @@
+TECLASCORE 0.33.0 · ATUALIZAÇÃO AUTOMÁTICA
+
+1. Com uma versão anterior instalada e internet, abra o app: o botão Atualizar para a versão nova aparece no topo e a barra de status avisa.
+2. Clique em Atualizar e confirme: o download mostra o progresso; o app fecha e o instalador abre. Depois de instalar, a biblioteca e as configurações continuam.
+3. Em Configurações, desligue Avisar quando houver versão nova e reabra: nenhuma consulta é feita.
+
 TECLASCORE 0.32.0 · PALCO, REPERTÓRIOS E CIFRAS
 
 1. Na Apresentação, clique em Novo, crie "Festa junina", adicione 3 músicas, troque para o primeiro repertório e volte: cada lista mantém suas músicas. Gere o PDF do repertório.

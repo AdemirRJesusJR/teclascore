@@ -30,6 +30,12 @@ public sealed class Settings
     public string LibrarySyncSentHash { get; set; } = "";
     public DateTimeOffset? LibrarySyncSeen { get; set; }
     public string LibrarySyncRestoreRoot { get; set; } = "";
+    public bool AutoCheckUpdates { get; set; } = true;
+    public DateTime? LastUpdateCheck { get; set; }
+    /// <summary>Newer release found by the last check: tag, installer name and its SHA-256 (empty when none).</summary>
+    public string KnownUpdateTag { get; set; } = "";
+    public string KnownUpdateSetup { get; set; } = "";
+    public string KnownUpdateSha256 { get; set; } = "";
     public string MidiFolder { get; set; } = "";
     public bool MidiFolderIncludeSubfolders { get; set; } = true;
     public Dictionary<string, DateTime> MidiFolderVisits { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -127,6 +133,7 @@ public sealed class Settings
         CollectionFilter ??= "";
         PracticeBpm = Math.Clamp(PracticeBpm, 30, 200);
         LibrarySyncFolder ??= ""; LibrarySyncSentHash ??= ""; LibrarySyncRestoreRoot ??= "";
+        KnownUpdateTag ??= ""; KnownUpdateSetup ??= ""; KnownUpdateSha256 ??= "";
         StudyHistory = NormalizeStudyHistory(StudyHistory);
         DefaultDiagramInversion = NormalizeDiagramInversion(DefaultDiagramInversion);
         ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" ? ThemeId : "classic";

@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.33.0 — 17/10/2026
+
+- Atualização automática: uma vez por dia o app consulta a última versão no GitHub; havendo nova, aparece o botão Atualizar no topo. Um clique baixa o instalador oficial, confere o SHA-256 publicado (o arquivo é descartado se não bater), salva a sessão, abre o instalador e fecha o app. Nada é baixado sem o clique; a consulta pode ser desligada em Configurações.
+- Motor dividido: a escrita do MusicXML (compassos, notas, cifras com diagramas, letra e sistemas) foi para engine/score_musicxml.py, sem mudança de comportamento.
+
 ## 0.32.0 — 17/10/2026
 
 - Repertórios salvos (Apresentação): várias listas com nome, por exemplo "Festa junina" e "Missa de domingo". Troque, crie e exclua listas (a excluída fica guardada como cópia); cada uma mantém ordem, anotações e página.

@@ -77,6 +77,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializePersistence(smoke,settingsPath);
         InitializeLibrarySync();
         InitializeChordAlternatives();
+        InitializeAutoUpdate(smoke);
         InitializeChordPreferences();
         InitializePreviewLayout();
         InitializeLibraryLayout();
