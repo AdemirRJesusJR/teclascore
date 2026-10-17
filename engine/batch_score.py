@@ -526,9 +526,15 @@ def melody_events(parsed,config,origin,end):
         report['melody_merge']=merge_report
     return events,{b-int(origin//DIV):v for b,v in grids.items()},report
 
+def instrument_names():
+    """Portuguese General MIDI names: (full name, staff abbreviation) for each program."""
+    table=WORK/'gm_pt.json'
+    if table.exists():return [tuple(item) for item in json.loads(table.read_text(encoding='utf8'))]
+    return [(name,name) for name in json.loads((WORK/'gm.json').read_text(encoding='utf8'))]
+
 def instrument_labels(notes,origin=0):
     """First entry and source changes only; rests and tied pieces aren't entries."""
-    names=json.loads((WORK/'gm.json').read_text(encoding='utf8'))
+    names=[full for full,_ in instrument_names()]
     labels=[];previous=None
     for note in notes:
         source=note.get('source')
@@ -753,31 +759,38 @@ def build_musicxml(parsed,config,harmony,out,title):
     labels=instrument_labels(notes,origin) if note_report.get('melody_merge') else []
     staff_groups=None
     if config.get('staff_per_source') and note_report.get('melody_merge'):
-        names=json.loads((WORK/'gm.json').read_text(encoding='utf8'));staff_groups=[]
+        names=instrument_names();staff_groups=[]
         for n in notes:
             source=n.get('source');identity=None if source is None else tuple(source[k] for k in ('track','channel','program'))
             group=next((g for g in staff_groups if g['identity']==identity),None)
             if group is None:
                 program=source['program'] if source else -1
-                group={'identity':identity,'name':names[program] if type(program) is int and 0<=program<len(names) else 'Melodia','notes':[]}
+                full,short=names[program] if type(program) is int and 0<=program<len(names) else ('Melodia','Mel.')
+                group={'identity':identity,'name':full,'short':short,'notes':[]}
                 staff_groups.append(group)
             group['notes'].append(n)
         if len(staff_groups)<2:staff_groups=None
+        else:
+            # The busiest instrument goes on top: it carries chords and diagrams, so fewer of its
+            # rests are split at chord positions. Ties keep the order of first entry.
+            staff_groups.sort(key=lambda group:-len(group['notes']))
+            shorts=[group['short'] for group in staff_groups]
+            for group in staff_groups:
+                if shorts.count(group['short'])>1:group['short']=group['name'] if len(group['name'])<=14 else group['name'][:12].rstrip()+'.'
     if staff_groups:
         # One staff per instrument: each name stays in the system margin, so no captions are
         # needed inside the staff. With more staves per system, MuseScore paginates freely.
         labels=[]
         starts={index:('line' if kind=='page' else kind) for index,kind in starts.items()}
-        part_specs=[(f'P{index+1}',group['name'],group['notes']) for index,group in enumerate(staff_groups)]
-    else:part_specs=[('P1','Teclado',notes)]
+        part_specs=[(f'P{index+1}',group['name'],group['notes'],group['short']) for index,group in enumerate(staff_groups)]
+    else:part_specs=[('P1','Teclado',notes,'')]
     parts=sub(root,'part-list')
-    for pid,name,_ in part_specs:
-        p=sub(parts,'score-part',id=pid);sub(p,'part-name',name)
-        sub(p,'part-abbreviation',(name if len(name)<=14 else name[:12].rstrip()+'.') if staff_groups else '')
+    for pid,name,_,short in part_specs:
+        p=sub(parts,'score-part',id=pid);sub(p,'part-name',name);sub(p,'part-abbreviation',short)
         instrument='I1' if pid=='P1' else pid+'-I1'
         si=sub(p,'score-instrument',id=instrument);sub(si,'instrument-name','Piano');mi=sub(p,'midi-instrument',id=instrument);sub(mi,'midi-channel',1);sub(mi,'midi-program',1)
     primary_part=None
-    for part_index,(pid,name,part_notes) in enumerate(part_specs):
+    for part_index,(pid,name,part_notes,_) in enumerate(part_specs):
         primary=part_index==0
         part=sub(root,'part',id=pid);lastmeter=None;printedtempo=None;lastkey=None
         if primary:primary_part=part

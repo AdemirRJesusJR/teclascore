@@ -20,7 +20,7 @@ class InstrumentLabelTests(unittest.TestCase):
     def test_first_entry_changes_and_return_use_gm_names(self):
         events,_,_=engine.melody_events(parsed(sequence()),worker.manual_melody_config([A,B]),0,28*PPQ)
         labels=engine.instrument_labels(events,4*PPQ)
-        self.assertEqual([(x['tick']/PPQ,x['text']) for x in labels],[(0,'Flute'),(8,'Acoustic Grand Piano'),(20,'Flute')])
+        self.assertEqual([(x['tick']/PPQ,x['text']) for x in labels],[(0,'Flauta'),(8,'Piano acústico'),(20,'Flauta')])
         self.assertEqual([x['original_quarter'] for x in labels],[4,12,24])
         self.assertEqual([x['source']['priority'] for x in labels],[2,1,2])
 
@@ -29,21 +29,21 @@ class InstrumentLabelTests(unittest.TestCase):
             notes=[note(i,60+i%3,A) for i in range(24)]+[note(i,(60 if duplicate else 84)+i%3,B) for i in range(24)]
             events,_,_=engine.melody_events(parsed(notes),worker.manual_melody_config([A,B]),0,24*PPQ)
             labels=engine.instrument_labels(events)
-            self.assertEqual([x['text'] for x in labels],['Acoustic Grand Piano'])
+            self.assertEqual([x['text'] for x in labels],['Piano acústico'])
             self.assertTrue(all(x['source']['program']==0 for x in events))
 
     def test_same_track_channel_different_program_is_a_new_source(self):
         changed=dict(A,program=4)
         notes=[note(i,60+i%3,A if i<12 else changed) for i in range(24)]
         events,_,_=engine.melody_events(parsed(notes),worker.manual_melody_config([A,changed]),0,24*PPQ)
-        self.assertEqual([x['text'] for x in engine.instrument_labels(events)],['Acoustic Grand Piano','Electric Piano 1'])
+        self.assertEqual([x['text'] for x in engine.instrument_labels(events)],['Piano acústico','Piano elétrico 1'])
 
     def test_same_program_different_tracks_still_marks_source_change(self):
         changed=dict(B,program=0)
         notes=[note(i,60+i%3,A if i<12 else changed) for i in range(24)]
         events,_,_=engine.melody_events(parsed(notes),worker.manual_melody_config([A,changed]),0,24*PPQ)
         labels=engine.instrument_labels(events)
-        self.assertEqual([x['text'] for x in labels],['Acoustic Grand Piano']*2)
+        self.assertEqual([x['text'] for x in labels],['Piano acústico']*2)
         self.assertNotEqual(labels[0]['source']['track'],labels[1]['source']['track'])
 
     def test_quantized_not_raw_onset_anchors_the_annotation(self):

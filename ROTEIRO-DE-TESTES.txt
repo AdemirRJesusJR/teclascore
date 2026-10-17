@@ -1,3 +1,9 @@
+TECLASCORE 0.25.0 · ACORDES, EXPORTAÇÃO E NOMES EM PORTUGUÊS
+
+1. Na Prévia de uma música gerada, abra Acordes: cada acorde aparece uma vez, no tom final, com a posição escolhida. Salve em PNG e imprima.
+2. Use Exportar… e salve em MusicXML e em PNG; abra o MusicXML no MuseScore. Exporte de novo para a mesma pasta: o PNG existente é preservado.
+3. Na aba Melodia, os instrumentos aparecem em português. Gere a Chicota: pautas com nomes em português e o instrumento que mais toca em cima.
+
 TECLASCORE 0.24.0 · PAUTAS EXTRAS SÓ QUANDO NECESSÁRIO
 
 1. Gere novamente "Guilherme Silva - Chicota" com as mesmas pistas: a partitura sai com duas pautas (Electric Guitar clean e Tango Accordion), cifras e diagramas em cima, e o aviso informa a separação.

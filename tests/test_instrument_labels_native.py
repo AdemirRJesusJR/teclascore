@@ -71,7 +71,7 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         for n in notes:
             if n['start']>=24*PPQ:n.update(third)
         report,native=self.render('return-tie-transposed',notes,sources=(A,B,third),transpose=2)
-        self.assertEqual([(x['quarter'],x['text']) for x in report['instrument_labels']],[(0,'Flute'),(8,'Acoustic Grand Piano'),(20,'Flute'),(24,'Acoustic Guitar nylon')])
+        self.assertEqual([(x['quarter'],x['text']) for x in report['instrument_labels']],[(0,'Flauta'),(8,'Piano acústico'),(20,'Flauta'),(24,'Violão nylon')])
         self.assertEqual([n['pitch'] for n in report['notes']],[n['pitch']+2 for n in notes])
         self.assertTrue(native.findall('.//Tie') or native.findall('.//Spanner'))
         starts=[report['bars'][index]['start'] for index in report['system_starts']]
@@ -87,12 +87,13 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         second=dict(A,program=4)
         notes=[note(i,60+i%3,A if i<12 else second) for i in range(24)]
         report,_=self.render('program-change',notes,sources=(A,second))
-        self.assertEqual([x['text'] for x in report['instrument_labels']],['Acoustic Grand Piano','Electric Piano 1'])
+        self.assertEqual([x['text'] for x in report['instrument_labels']],['Piano acústico','Piano elétrico 1'])
 
     def test_dense_alternation_with_large_margin_overflow_still_requires_review(self):
-        other=dict(B,program=24)
-        notes=[note(i,60+i%3,A if i%2==0 else other) for i in range(24)]
-        with self.assertRaises(engine.NeedsReview) as caught:self.render('dense',notes,sources=(A,other))
+        # Long Portuguese names alternating on every beat cannot be stacked inside the margins.
+        first=dict(A,program=81);other=dict(B,program=103)
+        notes=[note(i,60+i%3,first if i%2==0 else other) for i in range(24)]
+        with self.assertRaises(engine.NeedsReview) as caught:self.render('dense',notes,sources=(first,other))
         self.assertEqual(caught.exception.kind,'instrument_label_layout')
         self.assertTrue(caught.exception.review_points)
         report=json.loads((self.base/'dense/validation.json').read_text(encoding='utf8'))
@@ -103,7 +104,7 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         notes=[note(i,60+i%3,A if i%2==0 else other) for i in range(24)]
         report,native=self.render('dense-staves',notes,sources=(A,other),staff_per_source=True)
         self.assertEqual(report['staff_per_source']['staves'],2)
-        self.assertEqual(report['staff_per_source']['names'],['Acoustic Grand Piano','Acoustic Guitar nylon'])
+        self.assertEqual(report['staff_per_source']['names'],['Piano acústico','Violão nylon'])
         self.assertNotIn('instrument_labels',report)
         self.assertFalse(native.findall('.//StaffText'))
         self.assertEqual(report['melody_attacks_verified'],24)
@@ -112,10 +113,10 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         self.assertEqual(len(native.findall('.//Image')),report['images'])
 
     def test_prepare_falls_back_to_staves_only_when_labels_cannot_fit(self):
-        other=dict(B,program=24)
-        notes=[note(i,60+i%3,A if i%2==0 else other) for i in range(24)]
+        first=dict(A,program=81);other=dict(B,program=103)
+        notes=[note(i,60+i%3,first if i%2==0 else other) for i in range(24)]
         out=self.base/'fallback';out.mkdir(parents=True,exist_ok=True);midi=out/'source.mid';write_midi(midi,notes)
-        config=worker.manual_melody_config([A,other])
+        config=worker.manual_melody_config([first,other])
         config.update(index=900,filename='fallback.mid',source_path=str(midi),status='ready')
         with patch.object(engine,'BATCH',self.base),patch.object(engine,'analyze_harmony',lambda parsed,sources:harmony()),redirect_stdout(io.StringIO()):
             result=engine.prepare(config)

@@ -9,6 +9,11 @@ public partial class MainWindow
     internal Func<DiagramPositionsWindow, bool?> diagramPositionsDialog = window => window.ShowDialog();
     internal Func<MidiRow, Task>? diagramGeneration = null;
     public bool CanCustomizeDiagrams=>IsIdle && selectedFile is { UsesNativeScoreWorkflow:false } row && row.Chords.Count>0;
+    private void ChordChartClick(object sender,RoutedEventArgs e)
+    {
+        if(!CanCustomizeDiagrams || selectedFile is not {} row || !CommitEdits())return;
+        new ChordChartWindow(row){Owner=this}.ShowDialog();
+    }
     private async void DiagramPositionsClick(object sender,RoutedEventArgs e)
     {
         if(!CanCustomizeDiagrams || selectedFile is not {} row || !CommitEdits())return;

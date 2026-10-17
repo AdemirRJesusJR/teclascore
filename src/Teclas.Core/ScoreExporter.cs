@@ -58,6 +58,47 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         }
     }
 
+    /// <summary>
+    /// Saves a copy as MusicXML (.musicxml) or as one PNG per page (.png, 200 dpi). Rendering happens in the cache;
+    /// existing PNG files are never replaced (repeated names receive a number). Returns the saved files.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ExportCopyAsync(string scorePath, string destination, IProgress<string>? progress, CancellationToken token)
+    {
+        ValidateScore(scorePath);
+        string extension = Path.GetExtension(destination).ToLowerInvariant();
+        if (!Path.IsPathFullyQualified(destination) || extension is not (".musicxml" or ".png"))
+            throw new InvalidOperationException("Escolha um arquivo MusicXML ou PNG com caminho completo.");
+        string job = Path.Combine(cacheDirectory, "copia-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(job);
+        try
+        {
+            string rendered = Path.Combine(job, "partitura" + extension);
+            progress?.Report(extension == ".png" ? "Desenhando cada página em PNG…" : "Exportando a partitura em MusicXML…");
+            await ExportAsync(scorePath, rendered, token, PerformanceOperation.ScoreExportCopy, allowPagedPng: extension == ".png", resolution: 200);
+            token.ThrowIfCancellationRequested();
+            string folder = Path.GetDirectoryName(destination)!; Directory.CreateDirectory(folder);
+            if (extension == ".musicxml")
+            {
+                if (!File.Exists(rendered)) throw new InvalidDataException("O MuseScore não produziu o MusicXML.");
+                File.Copy(rendered, destination, overwrite: true);
+                return [destination];
+            }
+            var pages = FindPreviewPages(rendered);
+            if (pages.Length == 0) throw new InvalidDataException("O MuseScore não gerou as páginas em PNG.");
+            var taken = new HashSet<string>(Directory.EnumerateFileSystemEntries(folder).Select(Path.GetFileName).OfType<string>(), StringComparer.OrdinalIgnoreCase);
+            string stem = Path.GetFileNameWithoutExtension(destination);
+            var saved = new List<string>();
+            for (int index = 0; index < pages.Length; index++)
+            {
+                string name = ScoreFileName.Unique(pages.Length == 1 ? stem : $"{stem} - página {index + 1}", ".png", taken);
+                string target = Path.Combine(folder, name);
+                File.Copy(pages[index], target, overwrite: false); saved.Add(target);
+            }
+            return saved;
+        }
+        finally { try { Directory.Delete(job, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+    }
+
     /// <summary>Renders all pages, returning numbered PNG files in page order.</summary>
     public async Task<IReadOnlyList<string>> ExportPreviewAsync(string input, string destinationPng, CancellationToken token)
     {
@@ -185,7 +226,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         if (!File.Exists(museScorePath)) throw new FileNotFoundException("Localize o MuseScore Studio 4 em Configurações para preparar o áudio e exportar PDF.", museScorePath);
     }
 
-    private async Task ExportAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng = false)
+    private async Task ExportAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng = false, int resolution = 120)
     {
         using var measurement = (recorder ?? PerformanceDiagnostics.Recorder)?.Begin(operation, PerformanceProcessKind.MuseScore, PerformancePhase.Process)
             ?? PerformanceMeasurement.Disabled;
@@ -200,7 +241,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
             StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8,
             WorkingDirectory = Path.GetDirectoryName(outputPath)!
         };
-        if (allowPagedPng) { start.ArgumentList.Add("-r"); start.ArgumentList.Add("120"); }
+        if (allowPagedPng) { start.ArgumentList.Add("-r"); start.ArgumentList.Add(resolution.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
         start.ArgumentList.Add("-o"); start.ArgumentList.Add(outputPath); start.ArgumentList.Add(scorePath);
         // On Windows the normal -o conversion is headless. The Qt offscreen platform can hang this build.
         using var timeout = new CancellationTokenSource(processTimeout);

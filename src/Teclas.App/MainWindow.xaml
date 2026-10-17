@@ -160,6 +160,7 @@
        <Button x:Name="LowerOctaveButton" Content="↓ Oitava" Click="LowerOctaveClick" IsEnabled="{Binding CanShiftOctave}" Style="{StaticResource PreviewToolButton}" Margin="0,0,2,6" AutomationProperties.Name="Descer oitava" ToolTip="Descer oitava: muda todas as notas da partitura atual em uma oitava e atualiza a reprodução. Mantém as cifras no mesmo tom e guarda a versão anterior no Histórico."/>
        <Button x:Name="RaiseOctaveButton" Content="↑ Oitava" Click="RaiseOctaveClick" IsEnabled="{Binding CanShiftOctave}" Style="{StaticResource PreviewToolButton}" AutomationProperties.Name="Subir oitava" ToolTip="Subir oitava: muda todas as notas da partitura atual em uma oitava e atualiza a reprodução. Mantém as cifras no mesmo tom e guarda a versão anterior no Histórico."/>
        <Button x:Name="CustomDiagramsButton" Content="Diagramas" Click="DiagramPositionsClick" IsEnabled="{Binding CanCustomizeDiagrams}" Style="{StaticResource PreviewToolButton}" ToolTip="Posições dos diagramas" AutomationProperties.Name="Posições dos diagramas"/>
+       <Button x:Name="ChordChartButton" Content="Acordes" Click="ChordChartClick" IsEnabled="{Binding CanCustomizeDiagrams}" Style="{StaticResource PreviewToolButton}" ToolTip="Acordes da música: todos os teclados na posição escolhida, no tom final, para estudar, salvar em PNG ou imprimir" AutomationProperties.Name="Acordes da música"/>
        <Border Style="{StaticResource PreviewGroupSeparator}" Margin="4,0,10,6"/>
        <TextBlock Text="REVISAR" Style="{StaticResource PreviewGroupLabel}" Margin="0,0,8,6"/>
        <Button Content="Revisão guiada" Click="ReviewScoreClick" IsEnabled="{Binding CanReviewScore}" Style="{StaticResource PreviewToolButton}"/>
@@ -170,6 +171,7 @@
        <Button Content="Histórico" Click="ScoreHistoryClick" IsEnabled="{Binding CanShowHistory}" Style="{StaticResource PreviewToolButton}"/>
        <Button Content="Organizar" Click="OrganizeScoreClick" IsEnabled="{Binding CanEditScoreProperties}" Style="{StaticResource PreviewToolButton}"/>
        <Button Content="MuseScore ↗" Click="OpenScoreClick" IsEnabled="{Binding CanExportPdf}" Style="{StaticResource PreviewToolButton}" ToolTip="Abrir no MuseScore" AutomationProperties.Name="Abrir no MuseScore"/>
+       <Button x:Name="ExportCopyButton" Content="Exportar…" Click="ExportCopyClick" IsEnabled="{Binding CanExportPdf}" Style="{StaticResource PreviewToolButton}" ToolTip="Salvar uma cópia em MusicXML (para outros editores) ou em imagens PNG, uma por página" AutomationProperties.Name="Exportar MusicXML ou imagens PNG"/>
        <Button Content="Pasta" Click="OpenFolderClick" Style="{StaticResource PreviewToolButton}" ToolTip="Pasta de saída" AutomationProperties.Name="Pasta de saída"/>
       </WrapPanel>
       <TextBlock Text="{Binding SelectedFile.DiagnosticSummary}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/><TextBlock Text="{Binding PreviewMessage}" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,10" TextWrapping="Wrap"/>

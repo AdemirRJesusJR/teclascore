@@ -69,7 +69,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         Closed+=(_,_)=>DisposePlayback();
         InitializeTrackAudition(midiOutputFactory);
         profiles=JsonNode.Parse(File.ReadAllText(Path.Combine(engineDirectory,"profiles.json")))!.AsObject();
-        instruments=JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(engineDirectory,"gm.json")))!;
+        instruments=LoadInstrumentNames(engineDirectory);
         InitDashboard();
         DataContext=this;
         InitializeAppearance();
@@ -81,6 +81,17 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializePerformance(smoke,settingsPath);
         Loaded+=async(_,_)=>await RefreshDraftRecoveryAvailability(announce:true);
         Closed+=(_,_)=>conversionQueue?.Dispose();
+    }
+    /// <summary>Portuguese General MIDI names (engine/gm_pt.json), falling back to the English table.</summary>
+    private static string[] LoadInstrumentNames(string engine)
+    {
+        string portuguese=Path.Combine(engine,"gm_pt.json");
+        if(File.Exists(portuguese))
+        {
+            var table=JsonSerializer.Deserialize<string[][]>(File.ReadAllText(portuguese));
+            if(table is { Length:128 } && table.All(item=>item.Length>0))return table.Select(item=>item[0]).ToArray();
+        }
+        return JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(engine,"gm.json")))!;
     }
     private void RefreshSelection()
     {

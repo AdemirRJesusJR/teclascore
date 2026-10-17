@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.25.0 — 17/10/2026
+
+- Nomes de instrumento em português na partitura (trocas e pautas extras) e na lista de pistas, com abreviações curtas nos sistemas seguintes (Piano, Violão, Acord., Fl.).
+- Pautas extras: o instrumento que mais toca fica na pauta de cima, com cifras e diagramas, reduzindo pausas divididas nas posições dos acordes.
+- Acordes da música (Prévia → Acordes): todos os acordes com o teclado na posição escolhida, no tom final, quantas vezes aparecem e as notas do grave ao agudo. Salve em PNG ou imprima.
+- Exportar… (Prévia): cópia em MusicXML para outros editores ou imagens PNG (uma por página, 200 dpi), sem substituir arquivos existentes.
+
 ## 0.24.0 — 17/10/2026
 
 - Pautas extras só quando necessário: a melodia continua em uma pauta. Quando as trocas de instrumento ficam próximas demais para exibir os nomes sem sobreposição (antes, a geração era bloqueada com "Precisa de revisão"), a partitura daquela música é refeita com uma pauta por instrumento, cada uma com o nome na margem. Cifras e diagramas ficam na pauta de cima; todas as notas são conferidas após reabrir no MuseScore.

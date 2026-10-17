@@ -63,6 +63,16 @@ internal static class MetronomeChecks
             check(again.Path == withClicks.Path, "Metronome audio is reused");
             results.Add(new { speed, beats = beats.Count, path = withClicks.Path });
         }
+        // Copies for other editors and image sharing; an existing PNG is never replaced.
+        var exporter = new ScoreExporter(musescore, Path.Combine(work, "cache"));
+        string copies = Path.Combine(work, "copias"); Directory.CreateDirectory(copies);
+        var xml = await exporter.ExportCopyAsync(native, Path.Combine(copies, "Estudo.musicxml"), null, CancellationToken.None);
+        check(xml.Count == 1 && System.Xml.Linq.XDocument.Load(xml[0]).Root?.Name.LocalName == "score-partwise", "MusicXML copy is a complete score");
+        File.WriteAllText(Path.Combine(copies, "Estudo.png"), "existing");
+        var png = await exporter.ExportCopyAsync(native, Path.Combine(copies, "Estudo.png"), null, CancellationToken.None);
+        check(png.Count >= 1 && File.ReadAllText(Path.Combine(copies, "Estudo.png")) == "existing" && png.All(path => File.ReadAllBytes(path).Take(4).SequenceEqual(new byte[] { 137, 80, 78, 71 })),
+            "PNG pages are saved without replacing an existing file");
+        results.Add(new { musicXml = xml[0], pngPages = png.Count });
         return results;
     }
 

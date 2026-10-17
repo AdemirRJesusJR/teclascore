@@ -1,3 +1,7 @@
+TECLASCORE 0.25.0
+
+Prévia → Acordes: quadro com todos os acordes da música e seus teclados, para salvar em PNG ou imprimir. Prévia → Exportar…: MusicXML ou imagens PNG. Instrumentos com nomes em português.
+
 TECLASCORE 0.24.0
 
 Músicas que paravam em "As trocas de instrumento estão muito próximas" agora são geradas com uma pauta por instrumento, com o nome na margem. As demais continuam em uma pauta.

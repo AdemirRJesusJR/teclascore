@@ -33,7 +33,7 @@ class MelodySectionsTests(unittest.TestCase):
         events,_,report=rendered(basic(),config([section(2,3,B),section(7,8,B)]))
         self.assertEqual([n['pitch'] for n in events],[84+i%3 if 4<=i<12 or 24<=i<32 else 60+i%3 for i in range(48)])
         self.assertEqual([label['text'] for label in engine.instrument_labels(events)],
-                         ['Acoustic Grand Piano','Flute','Acoustic Grand Piano','Flute','Acoustic Grand Piano'])
+                         ['Piano acústico','Flauta','Piano acústico','Flauta','Piano acústico'])
         self.assertEqual([label['quarter'] for label in engine.instrument_labels(events)],[0,4,12,24,32])
         self.assertEqual(report['melody_merge']['sections'],[section(2,3,B),section(7,8,B)])
         self.assertEqual(len(events),48)
@@ -131,7 +131,7 @@ class MelodySectionsTests(unittest.TestCase):
             xml=engine.E.parse(path)
         self.assertEqual(len(xml.findall('./part')),1)
         self.assertEqual([label['quarter'] for label in report['instrument_labels']],[0,4,8,12,16])
-        self.assertEqual([label['text'] for label in report['instrument_labels']],['Acoustic Grand Piano','Flute','Acoustic Grand Piano','Flute','Acoustic Grand Piano'])
+        self.assertEqual([label['text'] for label in report['instrument_labels']],['Piano acústico','Flauta','Piano acústico','Flauta','Piano acústico'])
         self.assertEqual(len(report['notes']),48)
 
     def test_worker_protocol_map_and_sections_analysis_and_source_hash_guard(self):

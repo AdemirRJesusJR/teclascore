@@ -136,6 +136,16 @@ public partial class App
             Check(generatedUntouched.Chords[0].DiagramInversion is null && !generatedUntouched.HasPendingScoreProperties, "first-run-never-changes-generated-scores");
             Check(Settings.Load(settingsPath).ChordPreferencesSeeded, "first-run-happens-once");
 
+            // Chord chart: one tile per chord shape and position, in the printed key.
+            var chartSong = Song("quadro", 2, false, ("D", "", 0), ("D", "", 0), ("Bb", "m", null), ("A", "7", 1));
+            var entries = ChordChartWindow.BuildEntries(chartSong);
+            Check(entries.Select(e => (e.Symbol, e.Inversion, e.Occurrences)).SequenceEqual(new[] { ("E", 0, 2), ("Cm", chartSong.EffectiveDiagramInversion, 1), ("B7", 1, 1) }),
+                "chord-chart-lists-printed-chords-with-chosen-positions");
+            var chart = new ChordChartWindow(chartSong) { ShowActivated = false, Opacity = 0 }; chart.Show();
+            string png = Path.Combine(work, "acordes.png");
+            Check(chart.SavePng(png) == png && new FileInfo(png).Length > 1000, "chord-chart-saves-png");
+            chart.Close();
+
             // Conversion queue: songs analyzed there (future additions) receive the same remembered positions.
             var queued = Song("adicionada-pela-fila", 0, false);
             var options = (System.Text.Json.Nodes.JsonObject)typeof(MainWindow).GetMethod("QueueGenerationOptions", hidden)!.Invoke(window, [queued])!;
