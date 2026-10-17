@@ -1,3 +1,16 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.5
+17/10/2026
+
+- Runner local: 36 etapas aprovadas, zero falhas, 4 grupos opcionais não executados. Inclui 174 testes Python, com 6 casos nativos opcionais omitidos.
+- Limpeza em lote: confirmação/cancelamento, filtros ocultando cards, bloqueio durante operação, persistência vazia, desfazer com ordem/propriedades/versões e preservação dos arquivos.
+- Reprodução MIDI: limpar os cards interrompe o som; desfazer não reinicia áudio.
+- PDF fixo: botão visível e habilitado ao rolar a área de edição em janela mínima, nos modos expandido e compacto. Capturas verificadas visualmente.
+- Oitavas: ações bloqueadas quando há edição pendente/ocupação. 163 verificações de transposição com MuseScore real passaram, incluindo oitava, notas escritas e sonoras, prévia, diagramas, cópia publicada, cancelamento e preservação do original. Subidas/descidas consecutivas e limites de altura também conferidos.
+- A mudança de oitava usa a partitura salva atual; mantém a anterior no Histórico e continua pelo fluxo de edição musical. Estruturas nativas não suportadas são recusadas sem alterar o original.
+
+Os testes usam música sintética e configurações isoladas. Não foi usada uma segunda máquina física nem reprodução em dispositivo de áudio real.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.20.4
 17/10/2026
 

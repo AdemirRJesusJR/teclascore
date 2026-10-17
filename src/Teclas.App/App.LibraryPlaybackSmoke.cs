@@ -214,6 +214,12 @@ public partial class App
             }
             Check(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(firstPath))) == firstHash && first.ScorePath is null && first.AnalysisPath is null,
                 "library-midi-original-file-and-score-workflow-remain-unchanged");
+            var beforeClear=window.Files.ToArray();
+            Invoke("ClearLibrary");Flush();
+            Check(window.Files.Count==0 && Silent() && !first.LibraryPlayback.CanStop && window.CanUndoLibraryRemoval,
+                "bulk-clear-stops-playing-midi-and-exposes-undo");
+            Invoke("UndoRemoveLibraryItemClick",window,new RoutedEventArgs());Flush();
+            Check(window.Files.SequenceEqual(beforeClear) && Silent(),"bulk-undo-restores-cards-without-starting-audio");
             window.Close(); Flush();
             Check(Silent() && outputs.All(output => output.Disposed), "window-close-silences-and-disposes-all-midi-transports");
             Check(string.IsNullOrWhiteSpace(bindingOutput.ToString()), "library-player-bindings-have-no-warnings-or-errors");

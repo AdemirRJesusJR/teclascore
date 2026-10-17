@@ -1,3 +1,7 @@
+TECLASCORE 0.20.5
+
+Salvar PDF permanece no topo da Biblioteca. Limpar biblioteca remove todos os cards, após confirmação, sem apagar arquivos; use Desfazer antes de fechar o aplicativo. Subir oitava e Descer oitava atualizam a versão atual em 12 semitons e preservam a anterior no Histórico.
+
 NOVO NA VERSÃO 0.20.4
 Python e Pillow incluídos: não é necessário instalá-los na outra máquina. MuseScore continua separado; o kit debug inclui seu MSI oficial. debug/app contém os arquivos para Inno Setup; leia debug/LEIA-ME-INNO.txt. A pasta é atualizada a cada preparação e empacotamento.
 

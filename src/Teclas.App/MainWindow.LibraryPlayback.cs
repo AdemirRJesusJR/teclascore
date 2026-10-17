@@ -15,7 +15,7 @@ public partial class MainWindow
     private bool libraryPlaybackDisposed;
     private Func<MidiDocument, CancellationToken, Task<MidiAuditionSequence>> librarySequenceFactory =
         (document, token) => Task.Run(() => MidiAuditionSequence.CreateFull(document, token), token);
-    public double LibraryFiltersMaximumHeight => Math.Clamp((ActualHeight - 230) * .55, 180, 420);
+    public double LibraryFiltersMaximumHeight => Math.Clamp((ActualHeight - 300) * .55, 180, 420);
 
     private void InitializeLibraryPlayback(Func<IMidiOutputTransport>? outputFactory)
     {

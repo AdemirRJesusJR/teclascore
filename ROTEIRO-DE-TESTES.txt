@@ -1,3 +1,10 @@
+TECLASCORE 0.20.5 · AÇÕES DA BIBLIOTECA
+
+1. Abra uma partitura, role a área de edição e compacte o player: Salvar PDF continua no topo. Exporte e confira a pasta padrão e o nome.
+2. Filtre a biblioteca, clique Limpar biblioteca e cancele. Repita confirmando: todos os cards somem, mas arquivos permanecem nas pastas. Desfazer restaura ordem, propriedades e versões.
+3. Em uma partitura gerada e em uma importada, use Subir oitava, ouça e confira notas/cifras; Descer oitava deve retornar às alturas anteriores. Confira o Histórico, PDF e persistência após reabrir.
+4. Cancele a preparação de oitava: a partitura atual deve permanecer intacta. Notas fora do intervalo suportado devem apresentar mensagem sem cortar notas.
+
 TECLASCORE 0.20.4 · KIT DEBUG
 
 1. Confira debug/app/runtime/python.exe e o MSI em debug/prerequisitos.

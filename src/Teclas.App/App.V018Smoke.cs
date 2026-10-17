@@ -193,6 +193,56 @@ public partial class App
                 && window.LibraryView.Cast<MidiRow>().Contains(first) && ReferenceEquals(window.SelectedFile,first)
                 && window.CurrentPage=="library","undo-clears-blocking-filters-and-selects-visible-restored-row");
 
+            // Bulk removal includes hidden rows, has an explicit cancel path and preserves files.
+            void ClearLibrary(bool confirm)
+            {
+                Exception? failure=null;
+                Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=>
+                {
+                    var dialog=Windows.OfType<ClearLibraryWindow>().SingleOrDefault();
+                    try
+                    {
+                        if(dialog is null)throw new InvalidOperationException("Missing bulk confirmation");
+                        dialog.DialogResult=confirm;
+                    }
+                    catch(Exception ex){failure=ex;dialog?.Close();}
+                }));
+                Click(Button(window,"ClearLibraryButton"));Flush();
+                if(failure is not null)throw failure;
+            }
+            ClearLibrary(false);
+            Check(window.Files.Count==3 && !window.CanUndoLibraryRemoval,"bulk-cancel-leaves-library-and-undo-intact");
+            window.SearchText="Nada encontrado";Flush();
+            Invoke(window,"SetBusy",true);
+            Invoke(window,"ClearLibrary");Check(window.Files.Count==3 && !window.CanClearLibrary,"bulk-clear-blocked-during-operation");
+            Invoke(window,"SetBusy",false);
+            ClearLibrary(true);
+            Check(window.Files.Count==0 && window.SelectedFile is null && window.GeneratedCount==0 && !window.CanClearLibrary
+                && !window.CanExportPdf && window.CanUndoLibraryRemoval && Settings.Load(settingsPath).Library.Count==0,
+                "bulk-clear-removes-hidden-and-visible-cards-and-persists-empty-library");
+            Check(hashes.All(pair=>File.Exists(pair.Key)&&Hash(pair.Key)==pair.Value),"bulk-clear-preserves-midi-score-and-preview-files");
+            Click(Button(window,"UndoLibraryRemovalButton"));Flush();
+            Check(window.Files.SequenceEqual(new[]{first,second,ambiguous}) && window.SearchText=="" && window.GeneratedCount==2
+                && !window.CanUndoLibraryRemoval && Settings.Load(settingsPath).Library.Count==3,"bulk-undo-restores-order-edits-and-persistent-library");
+            Select(window,first);window.Width=1100;window.Height=740;Flush();window.UpdateLayout();
+            var pdf=Button(window,"PdfExportButton");var header=(FrameworkElement)window.FindName("WorkspaceHeader");
+            var editorScroll=(ScrollViewer)window.FindName("ScoreEditorScrollViewer");
+            foreach(bool compact in new[]{false,true})
+            {
+                window.IsPreviewControlsCompact=compact;Flush();editorScroll.ScrollToEnd();Flush();window.UpdateLayout();
+                var bounds=pdf.TransformToAncestor(header).TransformBounds(new Rect(pdf.RenderSize));
+                Check(pdf.IsVisible && pdf.IsEnabled && bounds.Left>=0 && bounds.Right<=header.ActualWidth+1
+                    && bounds.Top>=0 && bounds.Bottom<=header.ActualHeight+1,"pdf-fixed-header-visible-after-scroll-compact-"+compact);
+                Capture(window,Path.Combine(parent,"v0205-fixed-pdf-"+compact+".png"),1100,740);
+            }
+            window.IsPreviewControlsCompact=false;
+            Check(window.CanShiftOctave,"octave-actions-enabled-for-generated-score");
+            first.HasPendingScoreProperties=true;Invoke(window,"RefreshSelection");Flush();
+            Check(!window.CanShiftOctave && !Button(window,"RaiseOctaveButton").IsEnabled,"octave-disabled-for-pending-edits");
+            first.HasPendingScoreProperties=false;Invoke(window,"RefreshSelection");
+            Invoke(window,"SetBusy",true);Check(!window.CanShiftOctave,"octave-disabled-during-operation");Invoke(window,"SetBusy",false);
+            await (Task)Invoke(window,"ShiftOctave",0)!;Check(hashes.All(pair=>Hash(pair.Key)==pair.Value),"invalid-octave-action-does-not-alter-originals");
+
             // Measure real app operation wrappers with synthetic success/failure outcomes.
             async Task Operation(Func<Task> action,string name)=>await (Task)Invoke(window,"RunOperation",action,null,name,null)!;
             await Operation(()=>Task.CompletedTask,"Analisando notas e acordes");

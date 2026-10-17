@@ -47,6 +47,13 @@ for(int delta=-12;delta<=12;delta++)
     if(Math.Abs(delta)==12)Check(!xml.Descendants("KeySig").Any() && root==14 && bass==18 && (int)note.Element("tpc")! ==14,"Octave preserves enharmonics and harmony");
 }
 Check(Hash(source)==sourceHash,"Every draft preserves source bytes");
+var octaveUp=Draft(NativeScoreTransposition.CreatePlan(source,new(12)));
+var octaveTwice=Draft(NativeScoreTransposition.CreatePlan(octaveUp,new(12)));
+Check(Xml(octaveTwice).Descendants("pitch").Single().Value=="84","Consecutive octave commands use the current score");
+var octaveBack=Draft(NativeScoreTransposition.CreatePlan(Draft(NativeScoreTransposition.CreatePlan(octaveTwice,new(-12))),new(-12)));
+Check(XNode.DeepEquals(Xml(source),Xml(octaveBack)),"Two octave descents restore pitches harmony rhythm and metadata exactly");
+Check(!NativeScoreTransposition.CreatePlan(Write(Note(120)),new(12)).CanPrepare
+    && !NativeScoreTransposition.CreatePlan(Write(Note(0)),new(-12)).CanPrepare,"Octave overflow and underflow reject entire change without clipping notes");
 var up=NativeScoreTransposition.CreatePlan(source,new(2));var upXml=Xml(Draft(up));
 Check(up.KeySignatures==1 && upXml.Descendants("KeySig").Single().Element("concertKey")?.Value=="2","Implicit C major receives transposed D major signature");
 Check(Throws<IOException>(()=>NativeScoreTransposition.WriteDraft(up,source)),"Cannot overwrite original");

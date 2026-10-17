@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.20.5 — 17/10/2026
+
+- Salvar PDF no cabeçalho fixo da Biblioteca, também no modo compacto.
+- Limpar biblioteca com confirmação, preservação dos arquivos e desfazer em lote.
+- Subir/descer uma oitava na partitura atual, com atualização da prévia/reprodução e histórico.
+- Kit debug e instalador atualizados com Python/Pillow privados.
+
 ## 0.20.4 — 2026-10-17
 
 - Kit debug para Inno Setup com aplicativo publicado, .NET, Python/Pillow privados, instalador oficial do MuseScore e instruções.

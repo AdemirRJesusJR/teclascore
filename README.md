@@ -1,6 +1,8 @@
 # TeclaScore
 
-Versão 0.20.4 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.20.5 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+
+**Acesso rápido:** Salvar PDF fica no cabeçalho fixo da Biblioteca, inclusive com controles compactos. Limpar biblioteca remove todos os cards, inclusive os filtrados, com confirmação e Desfazer durante a sessão; os arquivos são preservados. Subir oitava e Descer oitava atualizam todas as notas da partitura atual e sua reprodução, mantendo as cifras no mesmo tom e a versão anterior no Histórico. Valem também para MuseScore importado; estruturas não suportadas ou notas fora do intervalo válido são informadas sem alterar o original. Após essa edição, continue pelo Editor musical.
 
 **Kit Inno Setup:** a pasta `debug` é atualizada automaticamente ao preparar e empacotar cada versão. `debug/app` contém TeclaScore, .NET e Python 3.13.13 com Pillow 12.3.0; `debug/prerequisitos` contém o MSI oficial do MuseScore Studio 4.6.5. Consulte `debug/LEIA-ME-INNO.txt`. Scripts `.iss` próprios na raiz de debug são preservados. Os binários só mudam após recompilar e preparar uma entrega.
 

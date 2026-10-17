@@ -85,7 +85,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         NotifyDiagnostics();
         NotifyLibraryActions();
         Notify(nameof(CanCustomizeDiagrams));
-        foreach(var name in new[]{nameof(PreviewSourcePath),nameof(CanShowHistory),nameof(GenerateButtonLabel),nameof(LibraryCollections),nameof(CanEditMidi),nameof(CanReviewScore),nameof(CanTransposeScore)})Notify(name);
+        foreach(var name in new[]{nameof(PreviewSourcePath),nameof(CanShowHistory),nameof(GenerateButtonLabel),nameof(LibraryCollections),nameof(CanEditMidi),nameof(CanReviewScore),nameof(CanShiftOctave),nameof(CanTransposeScore)})Notify(name);
         Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore)); Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
@@ -102,7 +102,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;Notify(nameof(CanExportBatchPdf));Notify(nameof(CanRecoverDrafts));Notify(nameof(CanOpenPresentation));Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
+    private void SetBusy(bool value){busy=value;Notify(nameof(CanExportBatchPdf));Notify(nameof(CanRecoverDrafts));Notify(nameof(CanOpenPresentation));Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShiftOctave));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));}
     private void InvalidateAnalysis(MidiRow row)
     {
         if(row.UsesNativeScoreWorkflow)return;
