@@ -1,3 +1,9 @@
+TECLASCORE 0.27.0 · PRATICAR E AJUSTE DA CONTAGEM
+
+1. Conecte um teclado MIDI USB e abra Prévia → Praticar: o teclado aparece na lista. Toque a nota destacada: avança; uma nota errada fica vermelha e conta erro. Teste um acorde, Voltar, Pular, Recomeçar e "Aceitar qualquer oitava".
+2. Sem teclado MIDI, pratique clicando nas teclas da tela.
+3. Em Configurações → Estudo, mude o ajuste da contagem e teste na Prévia com a Contagem ligada até a música entrar no tempo; feche e reabra: o valor permanece.
+
 TECLASCORE 0.26.0 · BIBLIOTECA
 
 1. Importe um MIDI do catálogo sem melodia: o card mostra o aviso em laranja logo ao entrar.

@@ -70,6 +70,26 @@ public partial class App
             window.Files.Add(row); ((ListBox)window.FindName("Library")).SelectedItem = row;
             window.SelectPageForSmoke("library", 2); Flush();
             Check(!window.MetronomeEnabled && !window.CountInEnabled, "metronome-and-count-in-start-disabled");
+            // Count-in calibration: steps of 10 ms, kept within 0–300 ms and saved.
+            window.CountInLeadMilliseconds = 87; Check(window.CountInLeadMilliseconds == 90 && Settings.Load(settingsPath).CountInLeadMilliseconds == 90, "count-in-lead-rounds-and-saves");
+            window.CountInLeadMilliseconds = 900; Check(window.CountInLeadMilliseconds == 300, "count-in-lead-is-limited");
+            window.CountInLeadMilliseconds = 40;
+            // Practice: steps from the saved score; on-screen keys work without a MIDI keyboard.
+            PracticeWindow? practice = null;
+            typeof(MainWindow).GetField("practiceDialog", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, new Func<PracticeWindow, bool?>(w =>
+            {
+                practice = w; w.ShowActivated = false; w.Opacity = 0; w.Show();
+                if (w.Session.Current is { } step)
+                {
+                    w.Play(step.Pitches[0] == 0 ? 1 : (step.Pitches[0] + 1) % 128 == step.Pitches[0] ? 0 : step.Pitches[0] + 1);
+                    foreach (int pitch in step.Pitches) w.Play(pitch);
+                    CaptureFolderWindow(w, Path.Combine(reports, "practice-window.png"));
+                }
+                w.Close(); return true;
+            }));
+            Invoke("PracticeClick", window, new RoutedEventArgs()); await Idle();
+            Check(practice is { } done && done.Session.Steps.Count > 0 && done.Session.Index == 1 && done.Session.Misses == 1, "practice-opens-from-preview-and-counts-keys");
+            Check(window.Status.StartsWith("Prática:", StringComparison.Ordinal), "practice-reports-the-result");
             // Background audio after generation: Play waits for the running preparation instead of starting another.
             var prewarmDone = new TaskCompletionSource();
             typeof(MainWindow).GetField("audioPrewarmOverride", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window,

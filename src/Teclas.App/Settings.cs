@@ -22,6 +22,8 @@ public sealed class Settings
     public double ScorePlaybackSpeed { get; set; } = 1.0;
     public bool ScoreMetronome { get; set; }
     public bool ScoreCountIn { get; set; }
+    public int CountInLeadMilliseconds { get; set; } = 40;
+    public bool PracticeAnyOctave { get; set; } = true;
     public string MidiFolder { get; set; } = "";
     public bool MidiFolderIncludeSubfolders { get; set; } = true;
     public Dictionary<string, DateTime> MidiFolderVisits { get; set; } = new(StringComparer.OrdinalIgnoreCase);

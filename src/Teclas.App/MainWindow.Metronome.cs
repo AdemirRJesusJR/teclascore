@@ -9,7 +9,19 @@ namespace Teclas.App;
 public partial class MainWindow
 {
     // Starts the music player slightly before the count-in ends, covering the Windows player's start-up delay.
-    private const double CountInLeadSeconds = .04;
+    // Each computer and headset differs, so the lead is adjustable in Configurações.
+    private double CountInLeadSeconds => Math.Clamp(settings.CountInLeadMilliseconds, 0, 300) / 1000.0;
+    public int CountInLeadMilliseconds
+    {
+        get => Math.Clamp(settings.CountInLeadMilliseconds, 0, 300);
+        set
+        {
+            int clamped = Math.Clamp((int)Math.Round(value / 10.0) * 10, 0, 300);
+            if (settings.CountInLeadMilliseconds == clamped) return;
+            settings.CountInLeadMilliseconds = clamped; Notify(); Notify(nameof(CountInLeadText)); PersistPreferences();
+        }
+    }
+    public string CountInLeadText => CountInLeadMilliseconds == 0 ? "Sem antecipação" : $"Música começa {CountInLeadMilliseconds} ms antes do fim da contagem";
     private IReadOnlyList<MetronomeBeat>? loadedBeats;
     private CancellationTokenSource? countInCancellation;
     private DispatcherTimer? countInDisplay;

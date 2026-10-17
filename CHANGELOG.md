@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.27.0 — 17/10/2026
+
+- Praticar (Prévia → Estudo): modo de espera com teclado MIDI USB ou clicando nas teclas da tela. A próxima nota ou acorde fica destacado e a música só avança quando você acerta; conta acertos, erros e precisão. Opção de aceitar qualquer oitava; Voltar, Pular e Recomeçar.
+- Ajuste da contagem em Configurações → Estudo: de 0 a 300 ms, para a música entrar no tempo certo depois da contagem em cada computador e fone.
+
 ## 0.26.0 — 17/10/2026
 
 - Aviso de melodia no card, logo ao importar: MIDIs do catálogo sem melodia completa ou só com melodia parcial, e MIDIs novos em que nenhuma pista parece conter a melodia.
