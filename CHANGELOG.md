@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.28.0 — 17/10/2026
+
+- Melodias em lote (Biblioteca): o app propõe a pista de melodia de cada MIDI ainda sem escolha. Só as escolhas claras vêm marcadas (melhor pista "Boa candidata" com folga sobre a segunda); as demais explicam o motivo. As marcadas viram escolha normal no card e vão para a Fila de conversões.
+- Tom desejado ao transpor: escolha o tom de chegada (ex.: Mi menor) e o app calcula os semitons pelo caminho mais curto, a partir do tom analisado.
+- Cifras simplificadas (aba Cifras): para iniciantes, a partitura e os diagramas usam tríades (Am7 → Am, G7 → G, F#m7♭5 → F#dim). A tabela de cifras mantém os acordes analisados; vale também na Fila e no quadro de acordes.
+- Letra dos MIDIs de karaokê (.kar e eventos de letra): as sílabas aparecem sob as notas da melodia, com hífens entre sílabas da mesma palavra. Textos curtos (créditos) são ignorados.
+
 ## 0.27.1 — 17/10/2026
 
 - Corrige a tabela de pistas que invadia o painel de escuta na janela mínima com o menu lateral aberto (os botões da aba Melodia passaram a ocupar três linhas).

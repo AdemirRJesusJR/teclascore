@@ -1,3 +1,10 @@
+TECLASCORE 0.28.0 · LETRA, CIFRAS SIMPLES, TOM E LOTE
+
+1. Importe um .kar com letra e gere: as sílabas aparecem sob as notas, com hífens. Confira palavras e linhas.
+2. Na aba Cifras, ligue Cifras simplificadas e gere: Am7 vira Am, G7 vira G; a tabela continua com os acordes originais. Abra Acordes da música.
+3. Em Transpor, escolha um tom desejado: os semitons são preenchidos sozinhos; gere e confira o tom da partitura.
+4. Na Biblioteca, use Melodias em lote: só as escolhas claras vêm marcadas; confirme e acompanhe a Fila.
+
 TECLASCORE 0.27.1 · AJUSTES
 
 1. Na janela mínima, com o menu lateral aberto, ouça uma pista na aba Melodia: a tabela de pistas não pode cobrir o painel de escuta.

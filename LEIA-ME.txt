@@ -1,3 +1,7 @@
+TECLASCORE 0.28.0
+
+Letra dos MIDIs de karaokê sob a melodia. Cifras simplificadas (tríades). Transpor escolhendo o tom desejado. Melodias em lote na Biblioteca.
+
 TECLASCORE 0.27.1
 
 Corrige a tabela de pistas sobre o painel de escuta na janela mínima. Releases publicadas automaticamente no GitHub.

@@ -241,6 +241,7 @@ public sealed class SavedMidi
     public string Collection { get; set; } = "";
     public string Genre { get; set; } = "";
     public int TransposeSemitones { get; set; }
+    public bool SimplifiedChords { get; set; }
     public List<SavedScoreVersion> Versions { get; set; } = [];
     public string? ScoreTitle { get; set; }
     public string? ScoreSubtitle { get; set; }

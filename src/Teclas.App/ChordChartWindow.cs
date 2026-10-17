@@ -25,6 +25,7 @@ public sealed class ChordChartWindow : Window
     {
         int fallback = row.EffectiveDiagramInversion, transpose = row.TransposeSemitones;
         return row.Chords
+            .Select(chord => row.SimplifiedChords ? new ChordRow { Root = chord.Root, Quality = ChordSimplifier.Simplify(chord.Quality), DiagramInversion = chord.DiagramInversion } : chord)
             .Select(chord => (chord, Shape: DiagramPositionPropagation.Shape(chord.Root, chord.Quality, transpose), Inversion: chord.DiagramInversion ?? fallback))
             .Where(item => item.Shape is not null)
             .GroupBy(item => (item.Shape!.Value, item.Inversion))

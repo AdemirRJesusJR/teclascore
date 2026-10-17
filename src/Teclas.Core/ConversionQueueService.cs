@@ -191,9 +191,10 @@ public sealed class ConversionQueueService : IDisposable
             // Chords analyzed here receive the library's remembered diagram positions, like the editor does.
             if (generate["chordPreferences"] is JsonArray preferences)
                 DiagramPositionPropagation.ApplyPreferences(analyzed, preferences, (int?)generate["transposeSemitones"] ?? 0);
+            if ((bool?)generate["simplifyChords"] == true) analyzed = ChordSimplifier.SimplifyAll(analyzed);
             generate["chords"] = analyzed;
         }
-        generate.Remove("chordPreferences");
+        generate.Remove("chordPreferences"); generate.Remove("simplifyChords");
         generate["analysisPath"] = analysisPath; generate["musescorePath"] = job.Recipe.MuseScorePath; generate["outputDirectory"] = localOutput;
         generate["queueReceipt"] = receipt; generate["queueJobId"] = job.Id; generate["queueRecipeSha256"] = job.RecipeSha256;
         await worker.RunAsync(Clone(job.Recipe), generate, workspace, new StageProgress(message => Stage(job, message, progress, attempt, token)), token).ConfigureAwait(false);

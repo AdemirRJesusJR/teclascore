@@ -526,6 +526,56 @@ def melody_events(parsed,config,origin,end):
         report['melody_merge']=merge_report
     return events,{b-int(origin//DIV):v for b,v in grids.items()},report
 
+def _lyric_text(data):
+    """Keeps leading spaces and slashes: in karaoke files they mark new words and lines."""
+    try:text=data.decode('utf-8')
+    except UnicodeDecodeError:text=data.decode('cp1252',errors='replace')
+    return text.strip('\x00\r\n')
+
+def karaoke_syllables(parsed):
+    """Syllables of the song text: lyric events (type 5), else karaoke text events (type 1, @ headers skipped).
+
+    Fewer than 16 syllables usually means credits or comments, not lyrics, so nothing is returned.
+    """
+    metas=[e for e in parsed.get('events',[]) if e.get('kind')=='meta']
+    source=[e for e in metas if e['type']==5]
+    karaoke=len(source)<16
+    if karaoke:source=[e for e in metas if e['type']==1 and not _lyric_text(e['data']).lstrip().startswith('@')]
+    syllables=[];previous=None
+    for event in sorted(source,key=lambda e:(e['tick'],e['order'])):
+        text=_lyric_text(event['data'])
+        if karaoke:starts=not syllables or text[:1] in (' ','/','\\')
+        else:starts=previous is None or not previous.rstrip().endswith('-')
+        clean=text.lstrip('/\\').strip()
+        if clean.endswith('-'):clean=clean[:-1].rstrip()
+        previous=text
+        if not clean:continue
+        syllables.append({'tick':event['tick'],'text':clean,'word_start':starts})
+    return syllables if len(syllables)>=16 else []
+
+def attach_lyrics(parsed,notes,origin):
+    """Puts each syllable on the melody note starting with it (same time conversion as chords).
+
+    A syllable more than one beat away from any attack is left out; several on one note are joined.
+    """
+    syllables=karaoke_syllables(parsed)
+    attacks=sorted(notes,key=lambda n:n['start'])
+    if not syllables or not attacks:return {'syllables':len(syllables),'attached':0}
+    assigned=[];index=0
+    for syllable in syllables:
+        tick=round(syllable['tick']/parsed['ppq']*DIV)-origin
+        while index+1<len(attacks) and attacks[index+1]['start']<=tick+DIV//4:index+=1
+        note=attacks[index]
+        if abs(note['start']-tick)>DIV:continue
+        if assigned and assigned[-1]['note'] is note:
+            assigned[-1]['text']+=('' if not syllable['word_start'] else ' ')+syllable['text'];assigned[-1]['last_word_start']=syllable['word_start']
+        else:assigned.append({'note':note,'text':syllable['text'],'word_start':syllable['word_start'],'last_word_start':syllable['word_start']})
+    for position,item in enumerate(assigned):
+        following=assigned[position+1]['word_start'] if position+1<len(assigned) else True
+        syllabic=('single' if following else 'begin') if item['word_start'] else ('end' if following else 'middle')
+        item['note']['lyric']={'text':item['text'],'syllabic':syllabic}
+    return {'syllables':len(syllables),'attached':len(assigned)}
+
 def instrument_names():
     """Portuguese General MIDI names: (full name, staff abbreviation) for each program."""
     table=WORK/'gm_pt.json'
@@ -611,6 +661,8 @@ def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
         if tieout:sub(nt,'tied',type='start')
         if triplet and start%DIV==0:sub(nt,'tuplet',type='start',number=1,bracket='no')
         if triplet and (start+dur)%DIV==0:sub(nt,'tuplet',type='stop',number=1)
+    if event is not None and start==event['start'] and event.get('lyric'):
+        lyric=sub(n,'lyric',number='1');sub(lyric,'syllabic',event['lyric']['syllabic']);sub(lyric,'text',event['lyric']['text'])
 
 KINDS={'':'major','m':'minor','7':'dominant','maj7':'major-seventh','m7':'minor-seventh','mMaj7':'major-minor','dim':'diminished','dim7':'diminished-seventh','m7b5':'half-diminished','aug':'augmented','sus2':'suspended-second','sus4':'suspended-fourth','6':'major-sixth','m6':'minor-sixth','9':'dominant-ninth','maj9':'major-ninth','m9':'minor-ninth','7sus4':'dominant','add9':'major','madd9':'minor'}
 
@@ -708,6 +760,7 @@ def build_musicxml(parsed,config,harmony,out,title):
             raise NeedsReview('A transposição ultrapassa as alturas permitidas pelo MIDI. Escolha um intervalo menor.',kind='transpose_range')
         harmony=transpose_harmony(harmony,output_transpose)
         note_report['output_transposition_semitones']=output_transpose
+    note_report['lyrics']=attach_lyrics(parsed,notes,origin)
     key=harmony.get('key') or {'fifths':0,'minor':False};fifths=key.get('fifths',0);ps=spellings(fifths,key.get('minor',False))
     chords=[]
     for ev in harmony['events']:

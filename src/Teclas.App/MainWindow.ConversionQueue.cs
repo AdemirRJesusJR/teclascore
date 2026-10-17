@@ -51,12 +51,14 @@ public partial class MainWindow
                 ["quarter"] = chord.Quarter, ["root"] = chord.Root, ["quality"] = chord.Quality,
                 ["diagramInversion"] = chord.DiagramInversion
             }).ToArray());
+            if (row.SimplifiedChords) options["chords"] = ChordSimplifier.SimplifyAll((JsonArray)options["chords"]!);
         }
         else if (chordPreferences.Count > 0)
             options["chordPreferences"] = new JsonArray(chordPreferences.Select(item => (JsonNode)new JsonObject
             {
                 ["pitchClass"] = item.Key.PitchClass, ["quality"] = item.Key.Quality, ["inversion"] = item.Value
             }).ToArray());
+        if (row.SimplifiedChords && row.Chords.Count == 0) options["simplifyChords"] = true;
         return options;
     }
 

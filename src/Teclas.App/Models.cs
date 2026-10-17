@@ -30,6 +30,8 @@ public sealed partial class MidiRow : Observable
     private string genre="";
     public string Genre{get=>genre;set=>Set(ref genre,value??"");}
     public int TransposeSemitones{get;set;}
+    /// <summary>Generate with basic triads (Am7 → Am); the chord table keeps the analyzed symbols.</summary>
+    public bool SimplifiedChords{get;set;}
     public List<SavedScoreVersion> Versions{get;set;}=[];
     public List<ScoreReviewPoint> ReviewPoints{get;set;}=[];
     private string melodyMergeSummary="";

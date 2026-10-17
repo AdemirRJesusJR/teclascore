@@ -309,6 +309,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         }
         await EnsureAnalysisForGeneration(row);
         var chords=new JsonArray(row.Chords.Select(c=>(JsonNode)new JsonObject{["quarter"]=c.Quarter,["root"]=c.Root,["quality"]=c.Quality,["diagramInversion"]=c.DiagramInversion}).ToArray());
+        if(row.SimplifiedChords)chords=ChordSimplifier.SimplifyAll(chords);
         var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=outputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords,["scoreTitle"]=row.ScoreTitle,["scoreSubtitle"]=row.ScoreSubtitle,["scoreComposer"]=row.ScoreComposer,["diagramInversion"]=row.EffectiveDiagramInversion};
         row.Status="Gerando e conferindo no MuseScore…";
         request["transposeSemitones"]=row.TransposeSemitones;
