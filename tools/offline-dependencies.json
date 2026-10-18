@@ -1,5 +1,7 @@
 {
   "python": {"file": "python-3.13.13-embed-amd64.zip", "url": "https://www.python.org/ftp/python/3.13.13/python-3.13.13-embed-amd64.zip", "sha256": "8766a8775746235e23cf5aee5027ab1060bb981d93110577adcf3508aa0cbd55"},
   "pillow": {"file": "pillow-12.3.0-cp313-cp313-win_amd64.whl", "url": "https://files.pythonhosted.org/packages/a6/9b/7a58e61d62be561da3a356fe2384d4059a6345fc130e23ef1c36a5b81d24/pillow-12.3.0-cp313-cp313-win_amd64.whl", "sha256": "1cca606cd25738df4ed873d5ad46bbdb3d83b5cbca291f6b4ff13a4df6b0bbe8"},
+  "numpy": {"file": "numpy-2.5.3-cp313-cp313-win_amd64.whl", "url": "https://files.pythonhosted.org/packages/f3/ec/100f2b1794ede74a9b3d7ec6b9736927f56713414c1dfe19ab6c383494bf/numpy-2.5.3-cp313-cp313-win_amd64.whl", "sha256": "71cad2b2a7451ab79d8f5e71b453485b6775963d5cf794179144a7463fe6e8ec"},
+  "onnxruntime": {"file": "onnxruntime-1.30.0-cp313-cp313-win_amd64.whl", "url": "https://files.pythonhosted.org/packages/3c/dd/c57c529dbc6dd55eca24b12cfbeab1b6a690de72083824eca689085f55b0/onnxruntime-1.30.0-cp313-cp313-win_amd64.whl", "sha256": "4b63041bd623a9a9ac5e353948436c6fa7f43edd12d6b4a4ebc340bca959ba93"},
   "musescore": {"file": "MuseScore-Studio-4.7.5.260831071-x86_64.msi", "url": "https://github.com/musescore/MuseScore/releases/download/v4.7.5/MuseScore-Studio-4.7.5.260831071-x86_64.msi", "sha256": "07b0f3292612e2df4c7e0632deb790add51b218f0ee33f7fecaa6111dd279ec6"}
 }

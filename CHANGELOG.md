@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.45.0 — 18/10/2026
+
+- Áudio para partitura (Biblioteca): uma gravação (MP3, WAV, M4A, WMA ou FLAC) vira MIDI com melodia e acompanhamento, que entra na biblioteca com a melodia já escolhida. A transcrição usa o modelo Basic Pitch (Spotify, Apache 2.0) no próprio computador, sem internet; o andamento é detectado e as notas alinhadas à grade.
+- Letra do MIDI: a coluna Canto marca com 🎤 a pista que acompanha a letra do karaokê (porcentagem de sílabas sobre as notas dela), e a aba Melodia avisa quando a melodia escolhida deixaria a maior parte da letra de fora, com o botão Usar esta pista. Créditos misturados à letra (e-mail, site) ficam fora da partitura, e o espaço entre sistemas aumenta quando há letra.
+- Professor com IA (Prévia → Estudo): perguntas sobre a música aberta, respondidas pelo Claude (Anthropic) com a cifra, a letra e seus resultados de prática como contexto, em conversa. Opcional: só funciona com a sua chave da Anthropic, guardada no Gerenciador de Credenciais do Windows; sem chave nada é enviado.
+- Acompanhamento me segue (Praticar): tocando a melodia na espera, os acordes da cifra e o baixo soam conforme você avança, no seu ritmo, e a tela mostra o andamento em que você está tocando.
+- PDF ou foto (Biblioteca): com o Audiveris instalado (programa gratuito, instalado à parte), partituras impressas em PDF ou foto viram partituras editáveis; sem ele, o botão explica e abre a página oficial de downloads.
+
 ## 0.44.0 — 18/10/2026
 
 - Pauta dos acordes (aba Cifras): uma pauta embaixo da melodia com cada acorde escrito nota por nota, exatamente na posição do diagrama, mantido até o próximo acorde.

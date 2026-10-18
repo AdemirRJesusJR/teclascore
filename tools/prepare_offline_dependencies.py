@@ -1,4 +1,4 @@
-"""Fetch pinned official packages only with --download, then prepare private Python/Pillow."""
+"""Fetch pinned official packages only with --download, then prepare private Python with Pillow, numpy and onnxruntime."""
 from pathlib import Path
 import argparse
 import json
@@ -28,7 +28,7 @@ def prepare(download=False):
     # Only temporary files created within this project's QA directory are extracted here.
     with tempfile.TemporaryDirectory(prefix='python-build-',dir=cache) as directory:
         scratch=Path(directory)
-        for key,folder in [('python',scratch),('pillow',scratch/'Lib/site-packages')]:
+        for key,folder in [('python',scratch),('pillow',scratch/'Lib/site-packages'),('numpy',scratch/'Lib/site-packages'),('onnxruntime',scratch/'Lib/site-packages')]:
             with zipfile.ZipFile(cache/packages[key]['file']) as archive:
                 for entry in archive.infolist():
                     target=safe_path(folder,entry.filename)
@@ -36,10 +36,12 @@ def prepare(download=False):
                     target.parent.mkdir(parents=True,exist_ok=True); target.write_bytes(archive.read(entry))
         (scratch/'python313._pth').write_text('python313.zip\n.\nLib/site-packages\n../engine\n',encoding='ascii')
         files={p.relative_to(scratch).as_posix():p for p in scratch.rglob('*') if p.is_file()}
-        sync_owned(BASE/'Aplicativo/runtime',files,{'product':'TeclaScore private Python','python':'3.13.13','pillow':'12.3.0'})
+        sync_owned(BASE/'Aplicativo/runtime',files,{'product':'TeclaScore private Python','python':'3.13.13','pillow':'12.3.0','numpy':'2.5.3','onnxruntime':'1.30.0'})
     python=BASE/'Aplicativo/runtime/python.exe'
     subprocess.run([str(python),'-I','-B','-c',
-        "import sys,io,PIL;from PIL import Image;b=io.BytesIO();Image.new('RGB',(2,2)).save(b,format='PNG');b.seek(0);Image.open(b).load();assert PIL.__version__=='12.3.0';print(sys.version);print('Pillow',PIL.__version__)"],check=True,timeout=30)
+        "import sys,io,PIL;from PIL import Image;b=io.BytesIO();Image.new('RGB',(2,2)).save(b,format='PNG');b.seek(0);Image.open(b).load();assert PIL.__version__=='12.3.0';"
+        "import numpy,onnxruntime;assert numpy.__version__=='2.5.3' and onnxruntime.__version__=='1.30.0';"
+        "print(sys.version);print('Pillow',PIL.__version__,'numpy',numpy.__version__,'onnxruntime',onnxruntime.__version__)"],check=True,timeout=60)
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--download',action='store_true');prepare(parser.parse_args().download)

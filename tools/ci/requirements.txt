@@ -1,2 +1,5 @@
 # Verified against the official PyPI release on 2026-10-15.
 Pillow==12.3.0
+# Audio transcription (engine/audio_transcription.py); verified against PyPI on 2026-10-18.
+numpy==2.5.3
+onnxruntime==1.30.0

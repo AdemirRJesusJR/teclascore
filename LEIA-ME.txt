@@ -1,3 +1,8 @@
+TECLASCORE 0.45.0
+
+Áudio para partitura no próprio computador. Marcador da pista que acompanha a letra. Professor com IA opcional (com a sua chave da Anthropic). Acompanhamento que segue você na prática. PDF ou foto para partitura com o Audiveris instalado à parte.
+Componentes de terceiros: modelo Basic Pitch (Spotify, Apache 2.0, licença em engine\models\basic-pitch), numpy (BSD) e onnxruntime (MIT) com suas licenças em runtime\Lib\site-packages, SDK da Anthropic para C# (MIT). O Audiveris (AGPL) não acompanha o TeclaScore.
+
 TECLASCORE 0.44.0
 
 Pauta dos acordes opcional. Impressão em livreto. Dó-Ré-Mi nos diagramas. Notas caindo para estudar. Liberar espaço dos arquivos temporários.

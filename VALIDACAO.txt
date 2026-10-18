@@ -1,3 +1,13 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.45.0
+18/10/2026
+
+- CI local completo: 64 etapas aprovadas, 0 falhas, 3 puladas; 223 testes do motor, incluindo a transcrição de áudio (formatos WAV, reamostragem, gravação estável com 32 notas exatas nos tempos a 100 bpm, andamento oscilante, silêncio recusado) e os que geram no MuseScore 4.7.5. O primeiro CI acusou dois problemas reais, corrigidos: o limite de textos do MIDI ampliado para a letra do karaokê deixava passar textos longos sem limite (agora só sílabas curtas e letras tipo 5 têm o limite maior), e os botões novos empurravam as ações da Biblioteca para baixo (Áudio e PDF ou foto, Melodias e PDFs dividem linha).
+- Áudio para partitura de ponta a ponta: gravação sintética → MIDI → análise e geração no motor real, com acordes C, F e G corretos. No app, o teste achou e corrigiu o nome do MIDI transcrito sendo recusado.
+- Letra no MIDI real do usuário: o acordeom do canal 3 recebe "🎤 95%" (376 de 396 sílabas) e o aviso oferece trocar a melodia; e-mail de crédito fora da letra.
+- Interface 0.45: 22 verificações (transcrição entra na biblioteca com a melodia escolhida; decodificação do Windows; marcador Canto e troca da melodia; chave guardada e removida no Gerenciador de Credenciais; sem chave nada é enviado; professor com contexto da cifra e da prática, em conversa, com cliente simulado; acompanhamento que muda de acorde, mede o andamento e silencia ao fechar; Audiveris ausente oferece o link oficial e, presente, PDF lido e convertido com Audiveris simulado).
+- Não testado com serviços e aparelhos reais: chamada real à API da Anthropic (sem chave neste computador), Audiveris real (não instalado, como combinado), som do acompanhamento num teclado MIDI e transcrição de gravações reais de músicas.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.44.0
 18/10/2026
 

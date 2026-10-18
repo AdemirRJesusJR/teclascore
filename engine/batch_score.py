@@ -549,7 +549,8 @@ def karaoke_syllables(parsed):
         clean=text.lstrip('/\\').strip()
         if clean.endswith('-'):clean=clean[:-1].rstrip()
         previous=text
-        if not clean:continue
+        # Credits mixed into the lyrics (e-mail, web address) are not sung.
+        if not clean or re.search(r'@|https?:|www\.|\.com\b|\.br\b',clean,re.I):continue
         syllables.append({'tick':event['tick'],'text':clean,'word_start':starts})
     return syllables if len(syllables)>=16 else []
 
@@ -722,6 +723,10 @@ def convert_score(xml,report,out,filename):
         style_values.update(minSystemDistance=str(max(float(style_values['minSystemDistance']),label_top+3)),
                             maxSystemDistance=str(max(float(style_values['maxSystemDistance']),label_top+7)),
                             staffUpperBorder=str(label_top+1))
+    lyrics=report.get('melody_analysis',{}).get('lyrics')
+    if isinstance(lyrics,dict) and lyrics.get('attached'):
+        # The words under the staff need room before the next system's chord names and keyboard diagrams.
+        style_values.update(minSystemDistance=str(max(float(style_values['minSystemDistance']),17)),maxSystemDistance=str(max(float(style_values['maxSystemDistance']),24)))
     style_values.update(score_style_values(report.get('score_style')))
     for tag,val in style_values.items():
         n=style.find('Style/'+tag)

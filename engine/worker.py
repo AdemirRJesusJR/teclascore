@@ -174,6 +174,14 @@ def main():
     import batch_score as engine
     from inspect_midi import parse_midi
     from batch_harmony import analyze_harmony,CHORD_INTERVALS,chord_label
+    if req['mode']=='transcribeAudio':
+        # A recording (already decoded to WAV by the app) becomes a MIDI with melody and accompaniment tracks.
+        try:import audio_transcription
+        except ImportError as error:raise ValueError('Componentes de transcrição ausentes (numpy/onnxruntime). Reinstale o TeclaScore.') from error
+        target=Path(req['outputMidi']).resolve();target.parent.mkdir(parents=True,exist_ok=True)
+        report=audio_transcription.transcribe(req['inputAudio'],target,lambda message:send('progress',message=message))
+        send('result',data=dict(report,midiPath=str(target)))
+        return
     if req['mode']=='chordSheet':
         # A chord sheet pasted as text has no MIDI of its own.
         chord_sheet_score(req,workspace,engine,parse_midi,CHORD_INTERVALS)

@@ -1,3 +1,11 @@
+TECLASCORE 0.45.0 · ÁUDIO, LETRA, PROFESSOR, ACOMPANHAMENTO E PDF
+
+1. Na Biblioteca, Áudio para partitura: escolha um MP3 curto de uma melodia clara; confira a melodia na aba Melodia e gere.
+2. Abra um MIDI de karaokê: a coluna Canto mostra 🎤 na pista da letra; se a melodia for outra, use Usar esta pista e gere com Letra do MIDI.
+3. Em Configurações, Professor com IA: cole sua chave, guarde; na Prévia, Professor, faça duas perguntas seguidas. Remova a chave e confira que o botão pede a chave de novo.
+4. Em Praticar, marque Acompanhamento me segue e toque a melodia no teclado MIDI: os acordes mudam quando você chega neles.
+5. Sem o Audiveris, PDF ou foto abre o aviso com o link oficial; com ele instalado, leia um PDF de uma página nítida.
+
 TECLASCORE 0.44.0 · PAUTA DOS ACORDES, LIVRETO, DÓ-RÉ-MI, NOTAS CAINDO E LIMPEZA
 
 1. Na aba Cifras, ligue Pauta dos acordes e gere: os acordes aparecem escritos embaixo da melodia, nas notas dos diagramas.

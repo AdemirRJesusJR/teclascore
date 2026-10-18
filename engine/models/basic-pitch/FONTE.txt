@@ -1,0 +1,5 @@
+Basic Pitch (Spotify), modelo ICASSP 2022 em ONNX.
+Origem: https://github.com/spotify/basic-pitch/blob/v0.4.0/basic_pitch/saved_models/icassp_2022/nmp.onnx
+Versão: v0.4.0 (publicada em 16/08/2024). Licença: Apache 2.0 (arquivo LICENSE ao lado).
+SHA-256 de nmp.onnx: 2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec
+Usado sem modificações pelo engine/audio_transcription.py para transcrever áudio em notas.

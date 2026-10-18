@@ -142,6 +142,7 @@ public sealed partial class PracticeWindow : Window
         var close = DialogUi.Button("Fechar", (_, _) => Close()); close.IsCancel = true; footer.Children.Add(close);
         BuildRecording(footer);
         BuildExtras(study, footer);
+        BuildFollow(study);
 
         var middle = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
         if (previewPath is not null)
@@ -162,7 +163,7 @@ public sealed partial class PracticeWindow : Window
         clock.Tick += (_, _) => Tick();
         restart.Tick += (_, _) => RestartPassage();
         Loaded += (_, _) => { OpenDevice(); Reset(); studied.Start(); PrepareVisualFollow(); };
-        Closed += (_, _) => { restart.Stop(); preparing?.Cancel(); StopMusic(); StopClock(); RecordAttempt(); studied.Stop(); input?.Dispose(); click?.Dispose(); };
+        Closed += (_, _) => { restart.Stop(); preparing?.Cancel(); StopMusic(); StopClock(); RecordAttempt(); studied.Stop(); input?.Dispose(); click?.Dispose(); StopFollow(); followOutput?.Dispose(); };
     }
 
     private bool AnyOctave => octave.IsChecked == true;
@@ -205,6 +206,7 @@ public sealed partial class PracticeWindow : Window
         session = new PracticeSession(steps, AnyOctave);
         timed = InTime ? new TimedPracticeSession(steps, Bpm, AnyOctave) : null;
         attemptStarted = DateTime.Now; attemptMode = Mode; lastPressed = null;
+        ResetFollow();
         start.Visibility = InTime ? Visibility.Visible : Visibility.Collapsed;
         back.Visibility = skip.Visibility = InTime ? Visibility.Collapsed : Visibility.Visible;
         tempo.IsEnabled = !WithMusic; start.Content = "▶ Começar";
@@ -282,8 +284,10 @@ public sealed partial class PracticeWindow : Window
             Refresh(at);
             return timing == TimedPracticeResult.Wrong ? PracticeResult.Wrong : PracticeResult.Correct;
         }
+        var reached = session.Current;
         var result = session.Press(pitch);
         if (result == PracticeResult.Ignored) return result;
+        if (result != PracticeResult.Wrong && reached is not null) FollowStep(reached);
         lastPressed = pitch; lastCorrect = result != PracticeResult.Wrong;
         feedback.Text = result switch
         {
@@ -291,7 +295,7 @@ public sealed partial class PracticeWindow : Window
             PracticeResult.Finished => $"Fim da música! {session.Hits} acertos, {session.Misses} erros ({session.Accuracy:P0} de precisão).",
             PracticeResult.StepComplete => "Certo!",
             _ => "Certo — falta completar o acorde."
-        };
+        } + FollowText;
         if (result == PracticeResult.Finished) { RecordAttempt(); PassageFinished(); }
         Refresh();
         return result;

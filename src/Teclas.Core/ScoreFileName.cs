@@ -24,7 +24,7 @@ public static class ScoreFileName
 
     public static string Unique(string stem, string extension, HashSet<string> used)
     {
-        if (extension is not (".pdf" or ".mscz" or ".png" or ".musicxml")) throw new ArgumentException("Formato de partitura inválido.", nameof(extension));
+        if (extension is not (".pdf" or ".mscz" or ".png" or ".musicxml" or ".mid")) throw new ArgumentException("Formato de partitura inválido.", nameof(extension));
         string name = stem + extension;
         for (int counter = 2; !used.Add(name); counter++) name = stem + $" ({counter})" + extension;
         return name;

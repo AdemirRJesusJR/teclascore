@@ -140,6 +140,9 @@ public sealed class TrackRow : Observable
     /// <summary>Counter-melody written on its own staff below the melody (optional, at most one part).</summary>
     public bool IsSecondVoice{get=>secondVoice;set{if(Set(ref secondVoice,value)){if(value)IsMelody=false;SecondVoiceChanged?.Invoke(this);}}}
     public Action<TrackRow>? SecondVoiceChanged{get;set;}
+    /// <summary>"🎤 95%" on the part that follows the sung lyrics of a karaoke MIDI; empty on the others.</summary>
+    private string lyricsBadge="";public string LyricsBadge{get=>lyricsBadge;set{if(Set(ref lyricsBadge,value))Notify(nameof(LyricsToolTip));}}
+    public string LyricsToolTip=>LyricsBadge.Length==0?"":$"Esta pista acompanha o canto: {LyricsBadge.Replace("🎤 ","")} das sílabas da letra caem nas notas dela. Escolha-a como melodia para a letra entrar na partitura.";
     public Action? Changed{get;set;}
     public required MidiSource Source{get;init;}
     public string InstrumentName{get;init;}="";

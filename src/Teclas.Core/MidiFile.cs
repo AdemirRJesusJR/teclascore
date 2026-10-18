@@ -58,7 +58,7 @@ public static class MidiReader
         Need(header);int format=U16(), declared=U16(), ppq=U16();pos+=header-6;
         if(format>1)throw new InvalidDataException("MIDI tipo 2 precisa ser dividido em músicas independentes.");
         if(ppq==0 || (ppq&0x8000)!=0)throw new InvalidDataException("Este MIDI usa tempo SMPTE ou uma resolução inválida; é necessário MIDI com tempo musical PPQ.");
-        var events=new List<Event>();var tempos=new List<MidiTempoChange>();var signatures=new List<MidiTimeSignature>();var textEvents=new List<MidiTextEvent>();bool hasSysEx=false;var names=new Dictionary<int,string>();var warnings=new List<string>();int track=0;long last=0;
+        var events=new List<Event>();var tempos=new List<MidiTempoChange>();var signatures=new List<MidiTimeSignature>();var textEvents=new List<MidiTextEvent>();int lyricTexts=0,otherTexts=0;bool hasSysEx=false;var names=new Dictionary<int,string>();var warnings=new List<string>();int track=0;long last=0;
         while(pos+8<=bytes.Length)
         {
             if(track>=declared && Encoding.ASCII.GetString(bytes,pos,4)!="MTrk")break;
@@ -74,11 +74,12 @@ public static class MidiReader
                 if(status==255)
                 {
                     int type=Byte(), len=Vlq();if(len>end-pos)throw new InvalidDataException("Metaevento MIDI truncado.");
-                    if(type is 1 or 2 or 3)
+                    if(type is 1 or 2 or 3 or 5)
                     {
                         string value=DecodeText(bytes.AsSpan(pos,len));
                         if(type==3)names[track]=value.Trim('\0','\r','\n');
-                        if(textEvents.Count<256 && value.Length>0)textEvents.Add(new(tick,track,type,value));
+                        // Lyrics (type 5) and short karaoke texts (type 1 syllables) can be hundreds; other texts stay bounded.
+                        if(value.Length>0 && (type==5 || type==1 && value.Length<=64 ? lyricTexts++<20000 : otherTexts++<256))textEvents.Add(new(tick,track,type,value));
                     }
                     if(type==0x51)
                     {
