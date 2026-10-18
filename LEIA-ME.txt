@@ -1,3 +1,7 @@
+TECLASCORE 0.39.0
+
+Etiquetas e listas inteligentes. Importar MusicXML. Cifra em texto com diagramas. Celular como controle da apresentação. Registro de erros.
+
 TECLASCORE 0.38.0
 
 Casas 1 e 2 nas repetições. Revisão guiada das cifras com dúvida. Segunda voz numa pauta própria.

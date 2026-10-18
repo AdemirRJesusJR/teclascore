@@ -93,10 +93,7 @@ jobs:
           & $exe.FullName --version
       - name: Native suite with MuseScore
         run: |
-          # The playback map is verified on the release computer: on this server the rendered preview size and the
-          # exported playback events differ from MuseScore's own pages and MIDI, so synchronization stays off here.
-          ./tools/verify_ci.ps1 -PythonPath python -MuseScorePath $env:MUSESCORE_EXE -NativeEngineTests -OutputDirectory "${{ runner.temp }}/teclas-native" -BenchmarkIterations 3 `
-            -SkipNativeSuites Teclas.PlaybackMap.Tests -SkipNativeReason 'No servidor do GitHub a prévia e os eventos de reprodução exportados diferem; o mapa é conferido no computador de entrega.'
+          ./tools/verify_ci.ps1 -PythonPath python -MuseScorePath $env:MUSESCORE_EXE -NativeEngineTests -OutputDirectory "${{ runner.temp }}/teclas-native" -BenchmarkIterations 3
       - name: Upload native reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

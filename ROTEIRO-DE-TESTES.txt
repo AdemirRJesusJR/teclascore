@@ -1,3 +1,10 @@
+TECLASCORE 0.39.0 · BIBLIOTECA, IMPORTAÇÃO E CELULAR
+
+1. Em Organizar música, escreva etiquetas (lentas, missa) e busque #lentas; teste as listas inteligentes.
+2. Em Importar MuseScore, escolha um arquivo .musicxml de outro editor: ele aparece na biblioteca como partitura.
+3. Em Cifra em texto, cole uma cifra de site e clique em Ver acordes com diagramas.
+4. Na Apresentação, ligue Celular como controle, abra o endereço no celular (mesma rede) e vire as páginas; o Windows pode pedir permissão de rede na primeira vez.
+
 TECLASCORE 0.38.0 · CASAS, REVISÃO DE CIFRAS E SEGUNDA VOZ
 
 1. Numa música cujo refrão repete com final diferente, ligue Ritornelo e gere: aparecem as casas 1 e 2 acima das cifras; ouça para conferir a ordem.

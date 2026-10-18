@@ -31,7 +31,7 @@ public static partial class SupportReport
     public static IReadOnlyList<string> FindDiagnostics(IEnumerable<string> folders) => folders.Where(Directory.Exists)
         .SelectMany(folder =>
         {
-            try { return Directory.EnumerateFiles(folder, "*-error-*.json", SearchOption.AllDirectories); }
+            try { return Directory.EnumerateFiles(folder, "*-error-*.json", SearchOption.AllDirectories).Concat(Directory.EnumerateFiles(folder, "falha-*.txt", SearchOption.AllDirectories)); }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return []; }
         })
         .Select(path => new FileInfo(path)).Where(file => file.Length <= MaximumDiagnosticBytes && file.LastWriteTime > DateTime.Now.AddDays(-14))

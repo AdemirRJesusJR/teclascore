@@ -39,6 +39,7 @@ public sealed class Settings
     public string ScoreMusicFont { get; set; } = "Leland";
     public string ScoreSize { get; set; } = "normal";
     public bool Karaoke { get; set; }
+    public string SmartList { get; set; } = "";
     public Dictionary<string, int> TempoGoals { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public const double MinimumPreviewControlsHeight = 40;
     public DateTime? LastUpdateCheck { get; set; }
@@ -281,6 +282,7 @@ public sealed class SavedMidi
     public bool SimplifiedChords { get; set; }
     public bool FoldRepeats { get; set; }
     public List<SavedSource> SecondVoiceSources { get; set; } = [];
+    public string Tags { get; set; } = "";
     public List<SavedScoreVersion> Versions { get; set; } = [];
     public string? ScoreTitle { get; set; }
     public string? ScoreSubtitle { get; set; }

@@ -9,12 +9,31 @@ public partial class MainWindow
     public string CollectionFilter { get=>settings.CollectionFilter;set { settings.CollectionFilter=value??"";Notify();RefreshLibraryFilters(); } }
     public IEnumerable<string> LibraryCollections=>new[]{""}.Concat(Files.Select(row=>row.Collection).Where(c=>!string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase).Order());
     public bool CanShowHistory=>IsIdle && selectedFile is { } row && (row.Versions.Count>0 || row.ScorePath is not null);
+    public sealed record SmartListOption(string Value, string Label);
+    public IReadOnlyList<SmartListOption> SmartListOptions { get; } =
+    [
+        new("", "Todas as músicas"), new("nao-estudadas", "Ainda não estudadas"), new("estudadas-semana", "Estudadas nos últimos 7 dias"),
+        new("menor", "Em tom menor"), new("maior", "Em tom maior"), new("cifras-duvida", "Com cifras para revisar"),
+        new("favoritas-sem-partitura", "Favoritas ainda sem partitura")
+    ];
+    public string SmartList { get => settings.SmartList; set { settings.SmartList = value ?? ""; Notify(); RefreshLibraryFilters(); } }
+    /// <summary>Lists built from what the library already knows: study history, key, doubtful chords, favorites.</summary>
+    private bool MatchesSmartList(MidiRow row) => settings.SmartList switch
+    {
+        "nao-estudadas" => !settings.StudyHistory.Any(r => string.Equals(r.Song, row.FullPath, StringComparison.OrdinalIgnoreCase)),
+        "estudadas-semana" => settings.StudyHistory.Any(r => string.Equals(r.Song, row.FullPath, StringComparison.OrdinalIgnoreCase) && r.Date >= DateTime.Now.AddDays(-7)),
+        "menor" => row.Chords.Count > 0 && row.KeyMinor,
+        "maior" => row.Chords.Count > 0 && !row.KeyMinor,
+        "cifras-duvida" => ChordReviewWindow.Doubtful(row.Chords).Count > 0,
+        "favoritas-sem-partitura" => row.IsFavorite && row.ScorePath is null,
+        _ => true
+    };
     private void RefreshLibraryFilters() { libraryDirty=true;RefreshDashboard();PersistPreferences(); }
     private void OrganizeScoreClick(object sender,RoutedEventArgs e)
     {
         if(!IsIdle || selectedFile is not {} row)return;
         var dialog=new ScoreOrganizationWindow(row){Owner=this};if(dialog.ShowDialog()!=true)return;
-        row.IsFavorite=dialog.Favorite;row.Collection=dialog.Collection;row.Genre=dialog.Genre;
+        row.IsFavorite=dialog.Favorite;row.Collection=dialog.Collection;row.Genre=dialog.Genre;row.Tags=dialog.Tags;
         Notify(nameof(LibraryCollections));RefreshLibraryFilters();
     }
     private static void RememberVersion(MidiRow row)

@@ -14,7 +14,10 @@ public sealed partial class PresentationWindow
     /// <summary>(songs, title, target file, tablet) → status text.</summary>
     private readonly Func<IReadOnlyList<PresentationEntry>, string, string, bool, Task<string>>? exportPdf;
     private ComboBox? repertoires;
-    private CheckBox? halfPage, midiPedal, tabletPdf;
+    private CheckBox? halfPage, midiPedal, tabletPdf, phoneRemote;
+    private RemoteControlServer? remote;
+    private TextBlock? remoteInfo;
+    internal RemoteControlServer? Remote => remote;
     private MidiKeyboardInput? pedalInput;
     private readonly Dictionary<int, int> pedalValues = [];
     private bool switching;
@@ -53,6 +56,45 @@ public sealed partial class PresentationWindow
         midiPedal = new CheckBox { Name = "PresentationMidiPedal", Content = "Pedal do teclado MIDI vira a página", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 0, 0, 6),
             ToolTip = "Durante a apresentação: pedal de sustentação avança, pedal suave (una corda) volta. Use um teclado MIDI conectado por USB." };
         row.Children.Add(midiPedal);
+        phoneRemote = new CheckBox { Name = "PresentationPhoneRemote", Content = "Celular como controle", VerticalAlignment = VerticalAlignment.Center, Margin = new(16, 0, 0, 6),
+            ToolTip = "Abre um endereço para o celular na mesma rede Wi-Fi virar as páginas. Protegido por um código de seis dígitos; desligue para encerrar. O Windows pode pedir para permitir o TeclaScore na rede privada." };
+        phoneRemote.Click += (_, _) => SetPhoneRemote(phoneRemote.IsChecked == true);
+        row.Children.Add(phoneRemote);
+        remoteInfo = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new(0, 2, 0, 0), Visibility = Visibility.Collapsed };
+        heading.Children.Add(remoteInfo);
+        Closed += (_, _) => SetPhoneRemote(false);
+    }
+
+    /// <summary>Starts or stops the phone remote; commands arrive on the network thread and run here.</summary>
+    internal void SetPhoneRemote(bool enabled)
+    {
+        remote?.Dispose(); remote = null;
+        if (remoteInfo is not null) remoteInfo.Visibility = Visibility.Collapsed;
+        if (!enabled) return;
+        try
+        {
+            remote = new RemoteControlServer(action => Dispatcher.InvokeAsync(() => RemoteCommand(action)));
+            var addresses = remote.Addresses();
+            remoteInfo!.Text = addresses.Count == 0 ? "Sem rede ativa: conecte o computador ao Wi-Fi para usar o celular."
+                : "No celular (mesma rede Wi-Fi), abra: " + string.Join("  ou  ", addresses.Take(2));
+            remoteInfo.Visibility = Visibility.Visible;
+        }
+        catch (System.Net.Sockets.SocketException error)
+        {
+            if (phoneRemote is not null) phoneRemote.IsChecked = false;
+            saveStatus.Text = "Não foi possível abrir o controle pelo celular: " + error.Message;
+        }
+    }
+
+    internal void RemoteCommand(string action)
+    {
+        switch (action)
+        {
+            case "next": ChangePage(1); break;
+            case "prev": ChangePage(-1); break;
+            case "nextsong": ChangeSong(1); break;
+            case "prevsong": ChangeSong(-1); break;
+        }
     }
 
     private void ReloadCatalog(string selectPath)

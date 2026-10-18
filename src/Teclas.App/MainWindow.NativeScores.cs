@@ -105,7 +105,42 @@ public partial class MainWindow
     private async void ImportMuseScoreClick(object sender,RoutedEventArgs e)
     {
         if(!IsIdle || !CommitEdits())return;
-        var dialog=new Microsoft.Win32.OpenFileDialog{Title="Abrir partituras MuseScore para melhorar",Filter="Partitura MuseScore 4|*.mscz",Multiselect=true};
-        if(dialog.ShowDialog(this)==true)await ImportAndOpenLibraryAsync(dialog.FileNames);
+        var dialog=new Microsoft.Win32.OpenFileDialog{Title="Abrir partituras MuseScore ou MusicXML",Filter="Partituras (MuseScore e MusicXML)|*.mscz;*.musicxml;*.mxl;*.xml|Partitura MuseScore 4|*.mscz|MusicXML|*.musicxml;*.mxl;*.xml",Multiselect=true};
+        if(dialog.ShowDialog(this)!=true)return;
+        var files=await ConvertMusicXmlAsync(dialog.FileNames);
+        if(files.Count>0)await ImportAndOpenLibraryAsync(files);
+    }
+
+    internal Func<string,string,CancellationToken,Task>? musicXmlConverter=null;
+
+    /// <summary>
+    /// MusicXML from other editors is converted by MuseScore into a new .mscz in the output folder (the original is kept),
+    /// then imported like any MuseScore score. Keyboard diagrams are added when the score is improved or regenerated.
+    /// </summary>
+    internal async Task<IReadOnlyList<string>> ConvertMusicXmlAsync(IReadOnlyList<string> paths)
+    {
+        var result=paths.Where(path=>Path.GetExtension(path).Equals(".mscz",StringComparison.OrdinalIgnoreCase)).ToList();
+        var xml=paths.Except(result).ToArray();
+        if(xml.Length==0)return result;
+        await RunOperation(async()=>
+        {
+            string folder=!string.IsNullOrWhiteSpace(OutputDirectory)?OutputDirectory:Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"Partituras geradas");
+            Directory.CreateDirectory(folder);
+            var taken=new HashSet<string>(Directory.EnumerateFiles(folder).Select(Path.GetFileName).OfType<string>(),StringComparer.OrdinalIgnoreCase);
+            for(int i=0;i<xml.Length;i++)
+            {
+                SetOperationItems(i,xml.Length,Path.GetFileName(xml[i]));Status=$"Convertendo {Path.GetFileName(xml[i])} para MuseScore…";
+                string target=Path.Combine(folder,ScoreFileName.Unique(ScoreFileName.Stem(null,Path.GetFileNameWithoutExtension(xml[i])),".mscz",taken));
+                try
+                {
+                    if(musicXmlConverter is {} convert)await convert(xml[i],target,cancellation!.Token);
+                    else await new ScoreExporter(MuseScorePath,PlaybackCacheDirectory).ExportNativeAsync(xml[i],target,cancellation!.Token);
+                    result.Add(target);
+                }
+                catch(Exception error) when (error is InvalidOperationException or IOException or InvalidDataException or System.Xml.XmlException)
+                { Status=$"Não foi possível converter {Path.GetFileName(xml[i])}: {error.Message}"; }
+            }
+        },operationTitle:"Convertendo MusicXML");
+        return result;
     }
 }

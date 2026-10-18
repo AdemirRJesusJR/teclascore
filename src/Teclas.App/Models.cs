@@ -29,6 +29,10 @@ public sealed partial class MidiRow : Observable
     public string Collection{get=>collection;set=>Set(ref collection,value??"");}
     private string genre="";
     public string Genre{get=>genre;set=>Set(ref genre,value??"");}
+    private string tags="";
+    /// <summary>Free labels typed by the user, separated by commas ("lentas, missa").</summary>
+    public string Tags{get=>tags;set=>Set(ref tags,value??"");}
+    public IReadOnlyList<string> TagList=>Tags.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
     private int transposeSemitones;public int TransposeSemitones{get=>transposeSemitones;set=>Set(ref transposeSemitones,value);}
     /// <summary>Generate with basic triads (Am7 → Am); the chord table keeps the analyzed symbols.</summary>
     private bool simplifiedChords;public bool SimplifiedChords{get=>simplifiedChords;set=>Set(ref simplifiedChords,value);}

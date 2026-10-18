@@ -17,6 +17,10 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // Automated checks report their own failures; only real sessions keep crash files.
+        if (!e.Args.Any(arg => arg.StartsWith("--verify", StringComparison.Ordinal) || arg.StartsWith("--", StringComparison.Ordinal) && arg.Contains("smoke", StringComparison.OrdinalIgnoreCase))) InstallCrashLog();
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-v039-ui")
+        { VerifyV039Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v038-ui")
         { VerifyV038Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v037-ui")

@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.39.0 — 17/10/2026
+
+- Etiquetas livres (Organizar música) e busca por #etiqueta; listas inteligentes na Biblioteca: ainda não estudadas, estudadas nos últimos 7 dias, tom menor, tom maior, com cifras para revisar e favoritas sem partitura.
+- Importar MusicXML (Importar MuseScore): arquivos de outros editores viram uma partitura MuseScore nova na pasta de saída e entram na biblioteca; o arquivo original é mantido.
+- Cifra em texto (Biblioteca): cole uma cifra de site e veja os acordes com diagramas de teclado, nas posições que você já escolheu; entende 7M, m7(b5), °, 4, (9) e baixos com barra.
+- Celular como controle (Apresentação): o celular na mesma rede Wi-Fi vira as páginas e troca de música, protegido por um código de seis dígitos.
+- Erros inesperados ficam registrados, sem dados pessoais, e entram no Relatório de problema.
+- O acompanhamento compara a proporção da página (e não o tamanho em pixels), o que funciona em telas e resoluções diferentes.
+
 ## 0.38.0 — 17/10/2026
 
 - Casas 1 e 2: com Ritornelo ligado, quando um trecho repetido muda só no último ou nos dois últimos compassos da segunda vez, eles viram primeira e segunda casa. As chaves das casas ficam acima das cifras e dos diagramas.

@@ -131,15 +131,26 @@ public partial class MainWindow
         if (currentFilter != "all" && row.CategoryCode != currentFilter) return false;
         if(settings.FavoritesOnly && !row.IsFavorite)return false;
         if(!string.IsNullOrWhiteSpace(settings.CollectionFilter) && !string.Equals(row.Collection,settings.CollectionFilter,StringComparison.OrdinalIgnoreCase))return false;
+        if (!MatchesSmartList(row)) return false;
         if (string.IsNullOrWhiteSpace(searchText)) return true;
         var compare = CultureInfo.GetCultureInfo("pt-BR").CompareInfo;
         const CompareOptions loose = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
-        string text = string.Join(" ", row.Name, row.ScoreTitle, row.ScoreArtist, row.ScoreComposer, row.Collection, row.Genre);
-        var words = searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string text = string.Join(" ", row.Name, row.ScoreTitle, row.ScoreArtist, row.ScoreComposer, row.Collection, row.Genre, row.Tags);
+        string query = searchText;
+        var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        // #etiqueta matches a label exactly (accents and case ignored); the other words keep the usual search.
+        var tagWords = words.Where(word => word.Length > 1 && word[0] == '#').ToArray();
+        if (tagWords.Length > 0)
+        {
+            if (!tagWords.All(tag => row.TagList.Any(label => compare.Compare(label, tag[1..], loose) == 0))) return false;
+            words = words.Except(tagWords).ToArray();
+            if (words.Length == 0) return true;
+            query = string.Join(' ', words);
+        }
         // A lone letter is a chord only when it is the whole search ("E"); inside a phrase it is a word ("Dois corações e uma").
         bool IsChordQuery(string word) => LibrarySearch.LooksLikeChord(word) && (word.Length > 1 || words.Length == 1);
         // A chord query (D, Dm7) must match a chord or key, never letters inside a file name.
-        if (!(words.Length == 1 && IsChordQuery(words[0])) && compare.IndexOf(text, searchText.Trim(), loose) >= 0) return true;
+        if (!(words.Length == 1 && IsChordQuery(words[0])) && compare.IndexOf(text, query.Trim(), loose) >= 0) return true;
         // Word by word: chord symbols and keys match exactly (Dm is not Dm7); other words match the text and key names.
         var chords = row.Chords.Select(chord => chord.Root.Trim() + chord.Quality.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var key = row.Chords.Count > 0 ? LibrarySearch.KeyNames(row.KeyFifths, row.KeyMinor) : [];

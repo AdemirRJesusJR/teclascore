@@ -119,8 +119,11 @@ public sealed class ScorePlaybackMapService(string museScorePath, string cacheDi
         {
             token.ThrowIfCancellationRequested();
             var dimensions = PngSize(page);
-            if (Math.Abs(dimensions.Width / (width / 12) - 1) > .015 || Math.Abs(dimensions.Height / (height / 12) - 1) > .015)
-            { reliableMeasures = false; limitations.Add("A prévia está recortada ou usa outro tamanho de página. Não será exibido um cursor sem correspondência."); break; }
+            // Positions are used relative to the page, so only the proportions must match (a cropped preview changes them);
+            // the pixel size itself depends on the rendering resolution of each computer.
+            double expected = width / height, actual = dimensions.Width / (double)dimensions.Height;
+            if (!double.IsFinite(expected) || Math.Abs(actual / expected - 1) > .015)
+            { reliableMeasures = false; limitations.Add($"A prévia está recortada ou usa outro tamanho de página ({dimensions.Width}×{dimensions.Height} px para uma página {width / 12:0}×{height / 12:0}). Não será exibido um cursor sem correspondência."); break; }
         }
         var segmentRegions = new List<ScoreSegmentRegion>();
         foreach (var e in rawSegments.Elements)

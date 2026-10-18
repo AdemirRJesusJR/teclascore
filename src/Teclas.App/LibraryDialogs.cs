@@ -40,10 +40,11 @@ internal static class DialogUi
 public sealed class ScoreOrganizationWindow : Window
 {
     private readonly CheckBox favorite;
-    private readonly TextBox collection,genre;
+    private readonly TextBox collection,genre,tags;
     public bool Favorite=>favorite.IsChecked==true;
     public string Collection=>collection.Text.Trim();
     public string Genre=>genre.Text.Trim();
+    public string Tags=>string.Join(", ",tags.Text.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).Distinct(StringComparer.OrdinalIgnoreCase));
     public ScoreOrganizationWindow(MidiRow row)
     {
         Title="Organizar música";Width=470;SizeToContent=SizeToContent.Height;ResizeMode=ResizeMode.NoResize;DialogUi.Theme(this);
@@ -52,6 +53,7 @@ public sealed class ScoreOrganizationWindow : Window
         favorite=new CheckBox { Content="Adicionar aos favoritos",IsChecked=row.IsFavorite,Margin=new(0,20,0,6) };panel.Children.Add(favorite);
         collection=DialogUi.Field(panel,"Coleção / repertório",row.Collection,80);
         genre=DialogUi.Field(panel,"Gênero musical",row.Genre,80);
+        tags=DialogUi.Field(panel,"Etiquetas, separadas por vírgula (busque com #etiqueta)",row.Tags,200);
         panel.Children.Add(new TextBlock { Text="Use o mesmo nome de coleção para reunir músicas de um show, artista ou projeto.",TextWrapping=TextWrapping.Wrap,Margin=new(0,14,0,14) });
         var buttons=new StackPanel { Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right };
         var cancel=DialogUi.Button("Cancelar",(_,_)=>DialogResult=false);cancel.IsCancel=true;buttons.Children.Add(cancel);
