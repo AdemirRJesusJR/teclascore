@@ -7,7 +7,10 @@ param(
     [ValidateRange(1,20)][int]$BenchmarkIterations = 5,
     [ValidateRange(30,1800)][int]$StepTimeoutSeconds = 600,
     # Also run the engine's native MuseScore tests (labels, lyrics, repeats, score style); needs MuseScore installed.
-    [switch]$NativeEngineTests
+    [switch]$NativeEngineTests,
+    # Native suites to leave out, with the reason recorded in the report (e.g. a known difference of a CI server).
+    [string[]]$SkipNativeSuites = @(),
+    [string]$SkipNativeReason = ''
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -162,6 +165,7 @@ try {
         $nativeReady=Invoke-Check 'native-synthetic-fixture' ([IO.Path]::GetFullPath($MuseScorePath)) @('-o',$native,(Join-Path $fixtures 'synthetic.musicxml')) $fixtures
         if ($nativeReady) {
             foreach ($name in @('Teclas.BatchPdf.Tests','Teclas.Study.Tests','Teclas.PlaybackMap.Tests')) {
+                if ($SkipNativeSuites -contains $name) { Record-Skip ('native-'+$name) ($(if ($SkipNativeReason) { $SkipNativeReason } else { 'Left out on request.' })); continue }
                 $nativeWork=Join-Path $work ('native-'+$name);[void][IO.Directory]::CreateDirectory($nativeWork)
                 $nativeArgs=if($name -eq 'Teclas.BatchPdf.Tests'){@($nativeWork,$native,$MuseScorePath)}else{@($nativeWork,$MuseScorePath)}
                 [void](Invoke-Check ('native-'+$name) $dotnet (@((Binary $name ''))+$nativeArgs) $nativeWork)
