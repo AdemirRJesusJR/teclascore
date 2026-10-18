@@ -35,7 +35,7 @@ public partial class MainWindow
         var created = new List<string>(); var reports = new List<string>();
         await RunOperation(async () =>
         {
-            ValidateSettings(false);
+            if (audioTranscriber is null) ValidateSettings(false);
             var token = cancellation!.Token;
             string folder = Path.Combine(await PrepareOutputDirectoryAsync(token), "Transcrições de áudio");
             Directory.CreateDirectory(folder);
