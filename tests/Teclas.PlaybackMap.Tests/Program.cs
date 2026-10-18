@@ -46,7 +46,7 @@ for(int request=0;request<3;request++)
     Check(ReferenceEquals(map,cached),"Native map cache reuses verified real pages and the exact occurrence timeline");
 }
 Check(nativeMapPreparations==1&&mapCache.CacheHits==3,"Four repeated native requests invoke only one MuseScore map export");
-Check(map.CanSynchronize,"Native MuseScore exports enable verified measure synchronization");
+Check(map.CanSynchronize,"Native MuseScore exports enable verified measure synchronization: "+string.Join(" | ",map.Limitations));
 Check(map.Measures.Count==4&&map.MeasureTimeline.Select(t=>t.Measure).SequenceEqual(new[]{1,2,1,2,3,4}),"Repeated measures are represented by actual ordered playback occurrences");
 Check(map.MeasureTimeline.Select(t=>t.StartSeconds).Zip(new[]{0d,4,6,10,12,13.5}).All(p=>Math.Abs(p.First-p.Second)<.012),
     "Tempo changes, return repeats, three-four and pickup durations retain native event times");
