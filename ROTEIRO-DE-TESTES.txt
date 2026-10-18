@@ -1,3 +1,11 @@
+TECLASCORE 0.44.0 · PAUTA DOS ACORDES, LIVRETO, DÓ-RÉ-MI, NOTAS CAINDO E LIMPEZA
+
+1. Na aba Cifras, ligue Pauta dos acordes e gere: os acordes aparecem escritos embaixo da melodia, nas notas dos diagramas.
+2. Na Prévia, Livreto: imprima frente e verso (borda curta), dobre e confira a ordem das páginas.
+3. Em Configurações, Nomes nas teclas: Dó, Ré, Mi; gere de novo e confira os diagramas.
+4. Na Prévia, Notas caindo: toque a 50% com o som ligado.
+5. Em Configurações, Liberar espaço: confira o tamanho e libere; depois toque uma partitura (o áudio é refeito).
+
 TECLASCORE 0.43.0 · ÁUDIO DE ESTUDO, TECLADO, REPETIDAS, PALCO NOTURNO E ALTO CONTRASTE
 
 1. Na Prévia, Áudio MP3: escolha 75%, contagem e só o acompanhamento; copie para o celular e toque junto.

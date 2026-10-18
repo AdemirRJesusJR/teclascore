@@ -143,7 +143,7 @@ public partial class MainWindow
             string.Equals(row.SourceSha256, saved.Sha256, StringComparison.OrdinalIgnoreCase)
             ? Settings.CloneMelodySections(saved.MelodySections) : [];
         row.IsFavorite = saved.IsFavorite; row.Collection = saved.Collection; row.Genre = saved.Genre; row.Tags = saved.Tags ?? "";
-        row.TransposeSemitones = saved.TransposeSemitones; row.SimplifiedChords = saved.SimplifiedChords; row.FoldRepeats = saved.FoldRepeats; row.ChordsOnly = saved.ChordsOnly; row.IncludeLyrics = saved.IncludeLyrics; row.Versions = saved.Versions;
+        row.TransposeSemitones = saved.TransposeSemitones; row.SimplifiedChords = saved.SimplifiedChords; row.FoldRepeats = saved.FoldRepeats; row.ChordsOnly = saved.ChordsOnly; row.IncludeLyrics = saved.IncludeLyrics; row.ChordStaff = saved.ChordStaff; row.Versions = saved.Versions;
         row.ScoreTitle = saved.ScoreTitle ?? ScoreMetadataDefaults.Title(row.FullPath);
         row.ScoreSubtitle = saved.ScoreSubtitle;
         row.ScoreComposer = saved.ScoreComposer ?? "";
@@ -197,7 +197,7 @@ public partial class MainWindow
             remembered.ScoreArtist = row.ScoreArtist; remembered.MetadataOrganizationNotice = row.MetadataOrganizationNotice;
             remembered.DiagramInversion = row.DiagramInversion; remembered.HasPendingScoreProperties = row.HasPendingScoreProperties;
             remembered.IsFavorite = row.IsFavorite; remembered.Collection = row.Collection; remembered.Genre = row.Genre; remembered.Tags = row.Tags;
-            remembered.TransposeSemitones = row.TransposeSemitones; remembered.SimplifiedChords = row.SimplifiedChords; remembered.FoldRepeats = row.FoldRepeats; remembered.ChordsOnly = row.ChordsOnly; remembered.IncludeLyrics = row.IncludeLyrics; remembered.Versions = row.Versions;
+            remembered.TransposeSemitones = row.TransposeSemitones; remembered.SimplifiedChords = row.SimplifiedChords; remembered.FoldRepeats = row.FoldRepeats; remembered.ChordsOnly = row.ChordsOnly; remembered.IncludeLyrics = row.IncludeLyrics; remembered.ChordStaff = row.ChordStaff; remembered.Versions = row.Versions;
             remembered.ScorePath = row.ScorePath; remembered.PreviewPath = row.PreviewPath;
             remembered.PageCount = row.PageCount; remembered.GeneratedAt = row.GeneratedAt;
             remembered.Status = row.Status; remembered.HasOperationError = row.HasOperationError;
@@ -213,7 +213,7 @@ public partial class MainWindow
             MelodySections = Settings.CloneMelodySections(row.MelodySections),
             FullPath = row.FullPath, Sha256 = row.SourceSha256, UseReviewedProfile = row.UseReviewedProfile,
             IsFavorite = row.IsFavorite, Collection = row.Collection, Genre = row.Genre, Tags = row.Tags,
-            TransposeSemitones = row.TransposeSemitones, SimplifiedChords = row.SimplifiedChords, FoldRepeats = row.FoldRepeats, ChordsOnly = row.ChordsOnly, IncludeLyrics = row.IncludeLyrics, Versions = row.Versions,
+            TransposeSemitones = row.TransposeSemitones, SimplifiedChords = row.SimplifiedChords, FoldRepeats = row.FoldRepeats, ChordsOnly = row.ChordsOnly, IncludeLyrics = row.IncludeLyrics, ChordStaff = row.ChordStaff, Versions = row.Versions,
             ScoreTitle = row.ScoreTitle, ScoreSubtitle = row.ScoreSubtitle, ScoreComposer = row.ScoreComposer,
             ScoreArtist = row.ScoreArtist, MetadataOrganizationNotice = row.MetadataOrganizationNotice,
             DefaultDiagramInversion = row.DefaultDiagramInversion, DiagramInversion = row.DiagramInversion,

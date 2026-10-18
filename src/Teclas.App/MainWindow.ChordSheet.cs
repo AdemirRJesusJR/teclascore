@@ -27,6 +27,7 @@ public partial class MainWindow
     {
         ["mode"] = "chordSheet", ["workspace"] = workspace, ["inputMidi"] = "", ["scoreTitle"] = title, ["beats"] = 4,
         ["diagramInversion"] = settings.DefaultDiagramInversion, ["musescorePath"] = MuseScorePath, ["outputDirectory"] = outputDirectory,
+        ["noteNames"] = settings.NoteNames == "solfejo" ? "solfejo" : "letras",
         ["measures"] = new JsonArray(measures.Select(m => (JsonNode)new JsonObject
         {
             ["root"] = m.Chord.Root, ["quality"] = m.Chord.Quality, ["bass"] = m.Chord.Bass, ["words"] = m.Words, ["lineStart"] = m.LineStart,

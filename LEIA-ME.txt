@@ -1,3 +1,7 @@
+TECLASCORE 0.44.0
+
+Pauta dos acordes opcional. Impressão em livreto. Dó-Ré-Mi nos diagramas. Notas caindo para estudar. Liberar espaço dos arquivos temporários.
+
 TECLASCORE 0.43.0
 
 Áudio MP3 de estudo para o celular. Aviso quando a melodia não cabe no seu teclado. Músicas repetidas na biblioteca. Modo noturno e duração do repertório no palco. Tema de alto contraste.

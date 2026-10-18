@@ -17,6 +17,14 @@ public sealed class ScorePlaybackMapCache
         this.capacity = capacity; this.maximumElements = maximumElements;
     }
 
+    /// <summary>Forgets every prepared map (their page files may be about to be deleted).</summary>
+    public void Clear()
+    {
+        gate.Wait();
+        try { entries.Clear(); retainedElements = 0; }
+        finally { gate.Release(); }
+    }
+
     public long CacheHits => Interlocked.Read(ref cacheHits);
     public long Preparations => Interlocked.Read(ref preparations);
 

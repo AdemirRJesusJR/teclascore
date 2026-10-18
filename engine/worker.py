@@ -148,7 +148,8 @@ def chord_sheet_score(req,workspace,engine,parse_midi,intervals):
     harmony={'key':{'fifths':0,'minor':False},'key_changes':[],'events':harmony_events,'warnings':[]}
     config={'index':0,'status':'ready','melody_sources':[],'solo_sources':[],'reserve_high_melody':False,'chords_only':True,
             'filename':title+'.mid','source_path':str(source),'scoreTitle':title,'scoreSubtitle':'Cifra com diagramas de teclado',
-            'diagram_inversion':engine.diagram_inversion(req.get('diagramInversion')),'sheet_lyrics':lyrics,'line_starts':line_starts}
+            'diagram_inversion':engine.diagram_inversion(req.get('diagramInversion')),'sheet_lyrics':lyrics,'line_starts':line_starts,
+            'note_names':'solfejo' if req.get('noteNames')=='solfejo' else 'letras'}
     if req.get('scoreArtist'):config['scoreArtist']=str(req['scoreArtist'])
     exe=Path(req['musescorePath'])
     if not exe.is_file():raise ValueError('Localize o executável do MuseScore nas configurações.')
@@ -271,6 +272,8 @@ def main():
     config['transpose_semitones']=engine.transpose_semitones(req.get('transposeSemitones'))
     config['fold_repeats']=bool(req.get('foldRepeats'))
     config['include_lyrics']=req.get('includeLyrics') is not False
+    config['chord_staff']=bool(req.get('chordStaff'))
+    config['note_names']='solfejo' if req.get('noteNames')=='solfejo' else 'letras'
     if req.get('secondVoiceSources'):config['second_voice_sources']=manual_melody_config(req['secondVoiceSources'])['melody_sources']
     if isinstance(req.get('scoreStyle'),dict):config['score_style']={'music_font':str(req['scoreStyle'].get('musicFont','')),'size':str(req['scoreStyle'].get('size',''))}
     metadata=engine.score_metadata(config,engine.default_score_title(config['filename']))

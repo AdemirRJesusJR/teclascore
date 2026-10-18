@@ -121,7 +121,7 @@ var guitar=Write("<FretDiagram><Harmony><harmonyInfo><root>14</root></harmonyInf
 var guitarPlan=NativeScoreTransposition.CreatePlan(guitar,new(2,true));var gx=Xml(Draft(guitarPlan));
 Check(guitarPlan.CanPrepare&&!gx.Descendants("FretDiagram").Any()&&gx.Descendants("Harmony").Single().Descendants("root").Single().Value=="16","Removing fret diagram preserves and transposes its chord symbol");
 var keyboardType=typeof(NativeScoreDocument).Assembly.GetType("Teclas.Core.NativeHarmonyEditing")!;
-var svg=(XElement)keyboardType.GetMethod("KeyboardSvg",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,[0,"",2])!;
+var svg=(XElement)keyboardType.GetMethod("KeyboardSvg",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,[0,"",2,"C"])!;
 byte[] keyboardBytes=Encoding.UTF8.GetBytes(svg.ToString());
 string keyboardName=(string)keyboardType.GetMethod("Md4",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,[keyboardBytes])!+".svg";
 var keyboard=Write("<Harmony><harmonyInfo><root>14</root></harmonyInfo></Harmony><Image><path>"+keyboardName+"</path><offset x='4.5' y='-6.7'/><size w='14' h='4.170213'/></Image>"+Note(),assets:new(){["Pictures/"+keyboardName]=keyboardBytes});

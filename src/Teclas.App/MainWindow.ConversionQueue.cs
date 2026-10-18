@@ -64,6 +64,8 @@ public partial class MainWindow
         if (row.SimplifiedChords && row.Chords.Count == 0) options["simplifyChords"] = true;
         if (row.FoldRepeats) options["foldRepeats"] = true;
         if (!row.IncludeLyrics) options["includeLyrics"] = false;
+        if (row.ChordStaff && !row.ChordsOnly) options["chordStaff"] = true;
+        if (settings.NoteNames == "solfejo") options["noteNames"] = "solfejo";
         if (SecondVoiceSources(row) is { Count: > 0 } secondVoice && !row.ChordsOnly) options["secondVoiceSources"] = secondVoice;
         if (ScoreStyleRequest() is { } scoreStyle) options["scoreStyle"] = scoreStyle;
         return options;

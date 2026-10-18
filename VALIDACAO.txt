@@ -1,3 +1,13 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.44.0
+18/10/2026
+
+- CI local completo: 63 etapas aprovadas, 0 falhas, 3 puladas; 219 testes do motor, incluindo os que geram no MuseScore 4.7.5. O primeiro CI acusou um teste antigo de transposição que chamava o desenho do teclado do jeito anterior; ajustado (141 verificações de transposição passam).
+- Pauta dos acordes no MuseScore real: segunda pauta com cada acorde nas notas do diagrama, conferida na página gerada; a conferência após a importação passou a contar as notas empilhadas de um acorde no tempo certo.
+- Dó-Ré-Mi: diagramas com "Dó" gerados no MuseScore e reconhecidos pelo editor (editáveis, com a inversão lida); o rótulo é mantido ao editar ou transpor.
+- Interface 0.44: 15 verificações (opções salvas e enviadas ao motor, prévias em Dó-Ré-Mi; ordem do livreto para 4 e 5 páginas, folha A4 deitada e PDF; notas caindo com melodia e acordes, tecla acesa e som na hora certa; limpeza só do cache e das análises sem uso, dentro da pasta da sessão, mantendo MIDIs, partituras e análises em uso).
+- Não testado com aparelhos reais: impressão frente e verso do livreto e o som das notas caindo no sintetizador do Windows.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.43.0
 18/10/2026
 

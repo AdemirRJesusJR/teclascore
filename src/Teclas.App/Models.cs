@@ -41,6 +41,8 @@ public sealed partial class MidiRow : Observable
     private bool chordsOnly;public bool ChordsOnly{get=>chordsOnly;set=>Set(ref chordsOnly,value);}
     /// <summary>Karaoke lyrics of the MIDI under the melody (on by default).</summary>
     private bool includeLyrics=true;public bool IncludeLyrics{get=>includeLyrics;set=>Set(ref includeLyrics,value);}
+    /// <summary>Optional staff below the melody with each chord written as the notes of its keyboard diagram.</summary>
+    private bool chordStaff;public bool ChordStaff{get=>chordStaff;set=>Set(ref chordStaff,value);}
     /// <summary>A melody track is marked, or the song is a chord chart that needs none.</summary>
     public bool HasMelodyChoice=>ChordsOnly||Tracks.Any(track=>track.IsMelody);
     public List<SavedScoreVersion> Versions{get;set;}=[];

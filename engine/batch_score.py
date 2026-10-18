@@ -603,7 +603,9 @@ def instrument_labels(notes,origin=0):
 # The MusicXML writer lives in score_musicxml.py; re-exported for callers and tests.
 from score_musicxml import make_bars, TYPES, pieces, emit_note, KINDS, emit_harmony, layout_bars, high_melody_layout, build_musicxml
 
-def keyboard_asset(rootpc,quality,inversion=2):
+C_LABEL='C'  # name printed under the two C keys of each keyboard diagram ('Dó' with solfège note names)
+
+def keyboard_asset(rootpc,quality,inversion=2,c_label='C'):
     inversion=diagram_inversion(inversion)
     intervals=CHORD_INTERVALS[quality]
     bass_interval=0 if inversion==0 else next(x for x in ((3,4,2,5) if inversion==1 else (7,6,8)) if x in intervals)
@@ -615,6 +617,8 @@ def keyboard_asset(rootpc,quality,inversion=2):
     svg.find(NS+'title').text=('Acorde em posição fundamental','Acorde em primeira inversão','Acorde em segunda inversão')[inversion]
     label=('Fundamental no grave','Terça ou nota suspensa no grave','Quinta no grave')[inversion]
     svg.find(NS+'desc').text=label+'; notas MIDI: '+','.join(map(str,pitches))
+    if c_label!='C':
+        for text in svg.iter(NS+'text'):text.text=c_label
     data=E.tostring(svg,encoding='utf-8',xml_declaration=True)
     return md4(data)+'.svg',data,pitches
 
@@ -759,7 +763,7 @@ def convert_score(xml,report,out,filename):
         for voice in measure.findall('voice'):
             for harmony in list(voice.findall('Harmony')):
                 c=next(events);inversion=chord_diagram_inversion(c,report.get('diagram_inversion',2))
-                path,data,pitches=keyboard_asset(c['root'],c['quality'],inversion);assets['Pictures/'+path]=data
+                path,data,pitches=keyboard_asset(c['root'],c['quality'],inversion,'Dó' if report.get('note_names')=='solfejo' else 'C');assets['Pictures/'+path]=data
                 asset_manifest[path]={'root':c['root'],'quality':c['quality'],'pitches':pitches,'diagram_inversion':inversion}
                 im=E.Element('Image');E.SubElement(im,'offset',x=str(4.5+max(0,len(c['quality'])-1)*.8),y=str(-6.7-lift));sub(im,'path',path);sub(im,'autoScale',0);E.SubElement(im,'size',w='14',h=str(14*84/282));sub(im,'lockAspectRatio',1);sub(im,'sizeIsSpatium',1)
                 if placement:
@@ -845,7 +849,7 @@ def convert_score(xml,report,out,filename):
         for m,b in zip(reopened_part.findall('measure'),report['bars']):
             div=m.findtext('attributes/divisions')
             if div is not None:reopened_div=int(div)
-            local=0
+            local=0;attack=0
             if labels:
                 position=0
                 for element in m:
@@ -859,15 +863,17 @@ def convert_score(xml,report,out,filename):
             for n in m.findall('note'):
                 if n.find('grace') is not None:continue
                 dur=round(int(n.findtext('duration','0'))/reopened_div*DIV)
+                # Stacked notes of a chord start with the note before them (which already advanced the position).
+                if n.find('chord') is None:attack=local
                 if n.find('pitch') is not None and not any(t.get('type')=='stop' for t in n.findall('tie')):
                     step=n.findtext('pitch/step');alt=int(n.findtext('pitch/alter','0'));octave=int(n.findtext('pitch/octave'))
                     pitch=(octave+1)*12+{'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}[step]+alt
-                    allnotes.append((b['start']+local,pitch))
+                    allnotes.append((b['start']+attack,pitch))
                 if n.find('chord') is None:local+=dur
             assert local==b['end']-b['start'],('measure length changed',local,b)
     assert all(len(part.findall('measure'))==report['measures'] for part in reopened_parts)
     # Several staves are read part by part; compare the same attacks regardless of staff order.
-    expected=[(n['start'],n['pitch']) for n in report['notes']+report.get('second_voice',[])]
+    expected=[(n['start'],n['pitch']) for n in report['notes']+report.get('second_voice',[])+report.get('chord_staff_notes',[])]
     assert (sorted(allnotes)==sorted(expected) if len(reopened_parts)>1 else allnotes==expected),'Melody changed during MuseScore import'
     if labels:assert reopened_labels==[(label['tick'],label['text']) for label in labels],'Instrument label position changed during MuseScore import'
     assert len(reopened.findall('.//grace'))==report['melody_analysis']['grace_notes_preserved']

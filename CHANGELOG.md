@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.44.0 — 18/10/2026
+
+- Pauta dos acordes (aba Cifras): uma pauta embaixo da melodia com cada acorde escrito nota por nota, exatamente na posição do diagrama, mantido até o próximo acorde.
+- Livreto (Prévia → Arquivo): PDF com duas páginas por folha A4 deitada, na ordem para imprimir frente e verso (virando pela borda curta), dobrar ao meio e grampear.
+- Nomes nas teclas (Configurações): Dó, Ré, Mi ou C, D, E embaixo das teclas Dó dos diagramas, no app e nas próximas partituras; as cifras continuam em letras. O editor reconhece e edita os dois tipos de diagrama.
+- Notas caindo (Prévia → Estudo): a música como blocos descendo sobre um teclado, melodia em azul e acordes em âmbar, velocidade de 25% a 100%, tocando pelo sintetizador do Windows.
+- Liberar espaço (Configurações): mostra quanto ocupam os áudios, mapas e análises antigas e apaga com um clique; MIDIs, partituras, versões, rascunhos e o histórico nunca são apagados.
+
 ## 0.43.0 — 18/10/2026
 
 - Áudio MP3 (Prévia → Arquivo): um MP3 da partitura para praticar no celular, na velocidade escolhida (50% a 125%), com um compasso de contagem antes e, se quiser, só o acompanhamento (a melodia fica muda e as cifras continuam tocando).

@@ -1,12 +1,14 @@
 # TeclaScore
 
-Versão 0.43.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.44.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Pasta de MIDIs (Ctrl+L):** em vez de importar tudo, escolha uma pasta e marque, dentro do app, os MIDIs que entram na biblioteca. A lista mostra subpasta, tamanho, data e se o arquivo já está na biblioteca; filtre por nome (sem diferenciar acentos) e use ▶ para ouvir antes. Nada é copiado: os cards apontam para os arquivos na própria pasta, e a pasta escolhida fica lembrada. É o botão principal do cabeçalho; para arquivos avulsos use Escolher arquivos… na mesma janela, arraste-os para o app ou Ctrl+O.
 
 **Posições na biblioteca inteira:** em Posições dos diagramas, deixe marcada a opção Aplicar também às outras músicas. As cifras alteradas passam a valer nas músicas com o mesmo acorde tocado (nota e tipo, já com a transposição), e as partituras já geradas são atualizadas em seguida, com a versão anterior no Histórico. As outras cifras de cada música não mudam.
 
 **Instalador completo:** cada entrega gera `debug/TeclaScore-Completo.iss` com a versão atual e o compila em `debug/saida/TeclaScore-X-Completo-Setup-x64.exe`, que instala o aplicativo e, se faltar, o MuseScore Studio 4 do kit. O script é gerenciado e refeito a cada versão; para personalizar, copie-o com outro nome.
+
+**Pauta dos acordes, livreto, Dó-Ré-Mi e notas caindo:** a pauta dos acordes escreve cada acorde do diagrama embaixo da melodia; Livreto imprime duas páginas por folha para dobrar; os diagramas podem mostrar Dó-Ré-Mi; Notas caindo mostra a música descendo sobre um teclado; Liberar espaço apaga os arquivos temporários.
 
 **Áudio, teclado, repetidas e palco noturno:** Áudio MP3 gera o áudio de estudo para o celular (mais lento, com contagem, só acompanhamento); Meu teclado avisa melodias fora da extensão; o ícone de repetidas limpa cards duplicados; a Apresentação tem modo noturno e mostra a duração do repertório; há um tema de alto contraste.
 

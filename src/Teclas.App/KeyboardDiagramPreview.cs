@@ -9,6 +9,8 @@ namespace Teclas.App;
 // A dialog-local cache bounds lifetime and avoids drawing repeated chords again.
 internal sealed class KeyboardDiagramPreview
 {
+    /// <summary>Name under the C keys: "C", or "Dó" with solfège note names (Configurações).</summary>
+    internal static string CLabel { get; set; } = "C";
     private readonly Dictionary<(int Root, string Quality, int Inversion, int Bass), DrawingImage> images = new();
     private static readonly Color BassColor = Color.FromRgb(37, 99, 235);
     private static readonly int[] WhiteNotes = Enumerable.Range(48, 24)
@@ -24,9 +26,9 @@ internal sealed class KeyboardDiagramPreview
             return null;
         int transposedRoot = ((pitchClass + transpose) % 12 + 12) % 12;
         int bassClass = bass is not null && KeyboardDiagramVoicing.TryRootPitchClass(bass, out int b) ? ((b + transpose) % 12 + 12) % 12 : -1;
-        var key = (transposedRoot, quality.Trim(), inversion, bassClass);
+        var key = (transposedRoot, quality.Trim() + "|" + CLabel, inversion, bassClass);
         if (images.TryGetValue(key, out var image)) return image;
-        var pitches = KeyboardDiagramVoicing.Pitches(transposedRoot, key.Item2, inversion);
+        var pitches = KeyboardDiagramVoicing.Pitches(transposedRoot, quality.Trim(), inversion);
         var drawing = new DrawingGroup();
         var ink = new SolidColorBrush(Color.FromRgb(17, 17, 17));
         var border = new Pen(ink, 1);
@@ -56,7 +58,7 @@ internal sealed class KeyboardDiagramPreview
                 if (pitches.Contains(pitch)) dc.DrawEllipse(null, new Pen(blue, 2), center, 7, 7);
                 else dc.DrawRectangle(blue, null, new Rect(center.X - 4.5, center.Y - 4.5, 9, 9));
             }
-            var label = new FormattedText("C", CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            var label = new FormattedText(CLabel, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                 new Typeface("Arial"), 16, new SolidColorBrush(Color.FromRgb(51, 51, 51)), 1);
             foreach (int center in new[] { 11, 151 })
                 dc.DrawText(label, new Point(center - label.Width / 2, 79 - label.Baseline));

@@ -19,6 +19,8 @@ public partial class App : Application
         base.OnStartup(e);
         // Automated checks report their own failures; only real sessions keep crash files.
         if (!e.Args.Any(arg => arg.StartsWith("--verify", StringComparison.Ordinal) || arg.StartsWith("--", StringComparison.Ordinal) && arg.Contains("smoke", StringComparison.OrdinalIgnoreCase))) InstallCrashLog();
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-v044-ui")
+        { VerifyV044Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v043-ui")
         { VerifyV043Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v042-ui")

@@ -45,6 +45,8 @@ public sealed class Settings
     public bool CurrentChord { get; set; }
     /// <summary>Keys of the user's keyboard (49, 61, 76 or 88), to warn about melodies outside it.</summary>
     public int KeyboardKeys { get; set; } = 61;
+    /// <summary>Names under the C keys of the keyboard diagrams: "letras" (C) or "solfejo" (Dó).</summary>
+    public string NoteNames { get; set; } = "letras";
     /// <summary>Stage: page colors inverted (light notes on dark) for dim rooms.</summary>
     public bool NightStage { get; set; }
     /// <summary>Weekly copy of the library into AutoBackupFolder (the newest four are kept).</summary>
@@ -295,6 +297,7 @@ public sealed class SavedMidi
     public bool FoldRepeats { get; set; }
     public bool ChordsOnly { get; set; }
     public bool IncludeLyrics { get; set; } = true;
+    public bool ChordStaff { get; set; }
     public List<SavedSource> SecondVoiceSources { get; set; } = [];
     public string Tags { get; set; } = "";
     public List<SavedScoreVersion> Versions { get; set; } = [];

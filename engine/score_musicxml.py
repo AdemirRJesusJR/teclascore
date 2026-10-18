@@ -66,10 +66,16 @@ def chord_slashes(bars,chords):
     return slashes
 
 def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
-    if event is not None and start==event['start']:
+    if event is not None and event.get('pitches'):
+        # A chord of the chord staff: the keyboard-diagram notes stacked on one stem.
+        for index,pitch in enumerate(event['pitches']):
+            emit_note(measure,start,dur,triplet,{key:value for key,value in event.items() if key!='pitches'}|{'pitch':pitch,'chord':index>0},ps)
+        return
+    if event is not None and start==event['start'] and not event.get('chord'):
         for pitch in event.get('graces',[]):
             g=core.sub(measure,'note');core.sub(g,'grace',slash='yes');core.pitch_xml(g,pitch,ps);core.sub(g,'voice',1);core.sub(g,'type','eighth')
     n=core.sub(measure,'note')
+    if event is not None and event.get('chord'):core.sub(n,'chord')
     if event is None:core.sub(n,'rest',**({'measure':'yes'} if full_rest else {}))
     else:core.pitch_xml(n,event['pitch'],ps)
     core.sub(n,'duration',dur)
@@ -90,7 +96,7 @@ def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
         if tieout:core.sub(nt,'tied',type='start')
         if triplet and start%core.DIV==0:core.sub(nt,'tuplet',type='start',number=1,bracket='no')
         if triplet and (start+dur)%core.DIV==0:core.sub(nt,'tuplet',type='stop',number=1)
-    if event is not None and start==event['start'] and event.get('lyric'):
+    if event is not None and start==event['start'] and event.get('lyric') and not event.get('chord'):
         lyric=core.sub(n,'lyric',number='1');core.sub(lyric,'syllabic',event['lyric']['syllabic']);core.sub(lyric,'text',event['lyric']['text'])
     if event is not None and start==event['start'] and event.get('lyric2'):
         # Second verse of a repeated passage, under the first.
@@ -263,6 +269,18 @@ def build_musicxml(parsed,config,harmony,out,title):
         jump=score_repeats.fold_jumps(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV)
         if jump:note_report['repeat_jump']=jump
         note_report['repeat_folds']=score_repeats.fold_repeats(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV)
+    chord_staff=[]
+    if config.get('chord_staff') and not chords_only:
+        # Optional chord staff below the melody: each chord written with the notes of its keyboard diagram, held until
+        # the next chord. Nothing is invented: these are the same keys the diagrams show.
+        inversion_default=core.diagram_inversion(config.get('diagram_inversion'))
+        ordered=sorted(chords,key=lambda c:c['tick'])
+        for index,chord in enumerate(ordered):
+            stop=ordered[index+1]['tick'] if index+1<len(ordered) else bars[-1]['end']
+            if stop<=chord['tick']:continue
+            _,_,pitches=core.keyboard_asset(chord['root'],chord['quality'],core.chord_diagram_inversion(chord,inversion_default),core.C_LABEL)
+            chord_staff.append({'start':chord['tick'],'end':stop,'pitches':pitches,'pitch':pitches[len(pitches)//2],'chord_staff':True})
+        note_report['chord_staff_chords']=len(chord_staff)
     core.progress('Distribuindo notas e cifras pelos compassos e páginas…')
     # A large custom heading consumes first-page space. Rebalance page breaks,
     # retaining the same systems and events, instead of compressing the music.
@@ -323,6 +341,9 @@ def build_musicxml(parsed,config,harmony,out,title):
         # Melody on top (chords and diagrams), second voice below; MuseScore paginates freely with two staves.
         groups=staff_groups or [{'name':'Melodia','short':'Mel.','notes':notes}]
         staff_groups=groups+[{'name':'Segunda voz','short':'2ª v.','notes':second}]
+    if chord_staff:
+        groups=staff_groups or [{'name':'Melodia','short':'Mel.','notes':notes}]
+        staff_groups=groups+[{'name':'Acordes','short':'Ac.','notes':chord_staff}]
     if staff_groups:
         # One staff per instrument: each name stays in the system margin, so no captions are
         # needed inside the staff. With more staves per system, MuseScore paginates freely.
@@ -356,7 +377,7 @@ def build_musicxml(parsed,config,harmony,out,title):
                     ts=core.sub(at,'time');core.sub(ts,'beats',b['meter'][0]);core.sub(ts,'beat-type',b['meter'][1])
                 if i==0:
                     # A low second voice reads better in the bass clef; the melody keeps the treble clef.
-                    low=not primary and part_notes and sorted(n['pitch'] for n in part_notes)[len(part_notes)//2]<55
+                    low=not primary and part_notes and sorted(n['pitch'] for n in part_notes)[len(part_notes)//2]<(57 if part_notes[0].get('chord_staff') else 55)
                     core.sub(at,'staves',1);cl=core.sub(at,'clef');core.sub(cl,'sign','F' if low else 'G');core.sub(cl,'line',4 if low else 2)
             lastmeter=b['meter']
             lastkey=currentkey
@@ -399,7 +420,7 @@ def build_musicxml(parsed,config,harmony,out,title):
                     bounds=[a]+inner_chords+[z]
                     for left,right in zip(bounds,bounds[1:]):
                         for start,dur,tr in core.pieces(left,right,grids):core.emit_note(measure,start,dur,tr,n,ps)
-            assert sum(int(n.findtext('duration','0')) for n in measure.findall('note'))==b['end']-b['start']
+            assert sum(int(n.findtext('duration','0')) for n in measure.findall('note') if n.find('chord') is None)==b['end']-b['start']
             if primary and i+1 in config.get('tuplet_bracket_measures',[]):
                 # Explicit brackets keep adjacent triplet labels centered over their
                 # separate groups after a very wide measure is respaced by MuseScore.
@@ -421,6 +442,8 @@ def build_musicxml(parsed,config,harmony,out,title):
     report.update(score_metadata=metadata,diagram_inversion=inversion,custom_diagram_inversions=custom_diagrams,transpose_semitones=output_transpose)
     if config.get('score_style'):report['score_style']=dict(config['score_style'])
     if second:report['second_voice']=second
+    if chord_staff:report['chord_staff_notes']=[{'start':event['start'],'pitch':pitch} for event in chord_staff for pitch in event['pitches']]
+    report['note_names']='solfejo' if config.get('note_names')=='solfejo' else 'letras'
     if labels:report['instrument_labels']=labels
     if staff_groups:report['staff_per_source']={'staves':len(staff_groups),'names':[group['name'] for group in staff_groups],
         'notes_per_staff':[len(group['notes']) for group in staff_groups]}

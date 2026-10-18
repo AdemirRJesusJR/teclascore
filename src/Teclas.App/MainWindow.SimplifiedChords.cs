@@ -47,6 +47,37 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>Chord staff below the melody (the diagram notes of each chord); per song.</summary>
+    public bool ChordStaff
+    {
+        get => selectedFile?.ChordStaff == true;
+        set
+        {
+            if (selectedFile is not { UsesNativeScoreWorkflow: false } row || row.ChordStaff == value) return;
+            RememberVersion(row);
+            row.ChordStaff = value;
+            if (row.ScorePath is not null) row.HasPendingScoreProperties = true;
+            Notify(); RefreshSelection(); PersistPreferences();
+            Status = value ? "Pauta dos acordes ligada: cada acorde aparece escrito na pauta de baixo, com as notas do diagrama. Gere de novo." : "Pauta dos acordes desligada. Gere de novo.";
+        }
+    }
+
+    public IReadOnlyList<object> NoteNameOptions { get; } = [new { Value = "letras", Label = "C, D, E (letras)" }, new { Value = "solfejo", Label = "Dó, Ré, Mi (solfejo)" }];
+
+    /// <summary>Names under the C keys of every keyboard diagram, in the app and in the next generated scores.</summary>
+    public string NoteNames
+    {
+        get => settings.NoteNames == "solfejo" ? "solfejo" : "letras";
+        set
+        {
+            string name = value == "solfejo" ? "solfejo" : "letras";
+            if (settings.NoteNames == name) return;
+            settings.NoteNames = name; KeyboardDiagramPreview.CLabel = name == "solfejo" ? "Dó" : "C";
+            Notify(); PersistPreferences();
+            Status = "Nomes das teclas trocados: valem nos diagramas do app e nas próximas partituras geradas (as já geradas mudam ao gerar de novo).";
+        }
+    }
+
     public bool SimplifiedChords
     {
         get => selectedFile?.SimplifiedChords == true;

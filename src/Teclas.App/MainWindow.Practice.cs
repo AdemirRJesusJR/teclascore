@@ -48,6 +48,26 @@ public partial class MainWindow
             : $"Prática: {last.StepsDone} de {last.Steps} passos · {last.Hits} acertos · {last.Misses} erros.";
     }
 
+    internal Func<FallingNotesWindow, bool?> fallingNotesDialog = window => window.ShowDialog();
+
+    /// <summary>The current score as falling blocks over a keyboard, at the score's opening tempo.</summary>
+    private async void FallingNotesClick(object sender, RoutedEventArgs e)
+    {
+        if (!CanExportPdf || CurrentScorePath is not { } scorePath) return;
+        IReadOnlyList<FallingNote>? notes = null; ScoreTempo? tempo = null;
+        int inversion = selectedFile?.EffectiveDiagramInversion ?? settings.DefaultDiagramInversion;
+        await RunOperation(async () =>
+        {
+            (notes, tempo) = await Task.Run(() => (FallingNotes.FromScore(NativeMusicEditor.Open(scorePath, cancellation!.Token), inversion), ScoreTempo.Read(scorePath)), cancellation!.Token);
+        }, operationTitle: "Preparando as notas caindo", operationItem: Path.GetFileNameWithoutExtension(scorePath));
+        if (notes is null || tempo is null) return;
+        if (notes.Count == 0) { Status = "Esta partitura não tem notas para mostrar."; return; }
+        if (audioPlaying || countingIn) StopPlayback();
+        StopTrackAudition();
+        string title = selectedFile?.ScoreTitle is { Length: > 0 } scoreTitle ? scoreTitle : Path.GetFileNameWithoutExtension(scorePath);
+        fallingNotesDialog(new FallingNotesWindow(title, notes, tempo.Bpm, chordPreviewOutput) { Owner = this });
+    }
+
     private void StudyHistoryClick(object sender, RoutedEventArgs e)
     {
         var window = new StudyHistoryWindow(settings.StudyHistory, () => { settings.StudyHistory.Clear(); PersistPreferences(); Status = "Histórico de estudo apagado."; },
