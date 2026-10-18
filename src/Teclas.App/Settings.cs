@@ -35,6 +35,9 @@ public sealed class Settings
     public double? PreviewControlsHeight { get; set; }
     /// <summary>Study goals: minutes per day (0 = off) and a target tempo per song (key: MIDI path or title).</summary>
     public int DailyGoalMinutes { get; set; }
+    /// <summary>Look of generated scores: MuseScore music font and staff size (normal, grande, muito-grande).</summary>
+    public string ScoreMusicFont { get; set; } = "Leland";
+    public string ScoreSize { get; set; } = "normal";
     public Dictionary<string, int> TempoGoals { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public const double MinimumPreviewControlsHeight = 40;
     public DateTime? LastUpdateCheck { get; set; }
@@ -141,6 +144,8 @@ public sealed class Settings
         LibrarySyncFolder ??= ""; LibrarySyncSentHash ??= ""; LibrarySyncRestoreRoot ??= "";
         KnownUpdateTag ??= ""; KnownUpdateSetup ??= ""; KnownUpdateSha256 ??= "";
         DailyGoalMinutes = Math.Clamp(DailyGoalMinutes, 0, 600);
+        ScoreMusicFont = ScoreMusicFont is "Leland" or "Bravura" or "Emmentaler" or "Petaluma" ? ScoreMusicFont : "Leland";
+        ScoreSize = ScoreSize is "normal" or "grande" or "muito-grande" ? ScoreSize : "normal";
         TempoGoals = new Dictionary<string, int>((TempoGoals ?? []).Where(goal => goal.Key is { Length: > 0 } && goal.Value is >= 30 and <= 300), StringComparer.OrdinalIgnoreCase);
         if (PreviewControlsHeight is { } controls && (!double.IsFinite(controls) || controls < MinimumPreviewControlsHeight || controls > 1200)) PreviewControlsHeight = null;
         StudyHistory = NormalizeStudyHistory(StudyHistory);
@@ -273,6 +278,7 @@ public sealed class SavedMidi
     public string Genre { get; set; } = "";
     public int TransposeSemitones { get; set; }
     public bool SimplifiedChords { get; set; }
+    public bool FoldRepeats { get; set; }
     public List<SavedScoreVersion> Versions { get; set; } = [];
     public string? ScoreTitle { get; set; }
     public string? ScoreSubtitle { get; set; }

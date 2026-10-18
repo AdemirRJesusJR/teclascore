@@ -9,11 +9,13 @@ import unittest
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--output", type=Path, required=True)
+parser.add_argument("--native", action="store_true", help="also run the tests that render in MuseScore")
 arguments = parser.parse_args()
 root = Path(__file__).resolve().parents[2]
-# Native tests are a separate opt-in stage. An inherited shell preference must
+# Native tests are a separate opt-in stage (--native). An inherited shell preference must
 # never silently start native rendering while running the managed CI suite.
-os.environ.pop("TECLAS_TEST_NATIVE_LABELS", None)
+if arguments.native: os.environ["TECLAS_TEST_NATIVE_LABELS"] = "1"
+else: os.environ.pop("TECLAS_TEST_NATIVE_LABELS", None)
 sys.path.insert(0, str(root / "tests"))
 suite = unittest.defaultTestLoader.discover(str(root / "tests"), pattern="test_*.py")
 result = unittest.TextTestRunner(verbosity=2).run(suite)

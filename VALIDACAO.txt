@@ -1,3 +1,14 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.36.0
+17/10/2026
+
+- Ritornelo: 4 testes do motor (repetição dobrada, letra impede, cifra diferente ou nota ligada impedem, mudança de andamento impede) e 1 nativo com MuseScore real (4 compassos com um início e um fim de repetição; página renderizada conferida, diagramas no lugar).
+- Aparência: 1 teste do motor e 1 nativo (Bravura e espaço de pauta 2 mm salvos no estilo; verificação de geometria aprovada); 3 verificações no app (sem estilo no padrão, escolha salva e enviada, valor desconhecido volta ao padrão).
+- Relatório: 4 verificações (anonimização de pasta pessoal e e-mail, ZIP sem pasta pessoal nem usuário, diagnósticos só quando pedidos, criação pelo app).
+- Desempenho: 300 MIDIs sintéticos abrem em cerca de 1 s e a busca leva 26 ms; as 212 músicas reais da pasta Forró e Pisadinha importam em 4,5 s e a biblioteca reabre em 1,4 s com a leitura em paralelo.
+- CI local completo com os testes nativos do motor: 55 etapas aprovadas e 197 testes Python, nenhum pulado. Uma queda do MuseScore numa exportação durante o CI levou à nova tentativa automática.
+- CI do GitHub com MuseScore: configurado; o resultado será conferido na execução desta versão.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.35.0
 17/10/2026
 

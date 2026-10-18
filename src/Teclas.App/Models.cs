@@ -32,6 +32,7 @@ public sealed partial class MidiRow : Observable
     private int transposeSemitones;public int TransposeSemitones{get=>transposeSemitones;set=>Set(ref transposeSemitones,value);}
     /// <summary>Generate with basic triads (Am7 → Am); the chord table keeps the analyzed symbols.</summary>
     private bool simplifiedChords;public bool SimplifiedChords{get=>simplifiedChords;set=>Set(ref simplifiedChords,value);}
+    private bool foldRepeats;public bool FoldRepeats{get=>foldRepeats;set=>Set(ref foldRepeats,value);}
     public List<SavedScoreVersion> Versions{get;set;}=[];
     public List<ScoreReviewPoint> ReviewPoints{get;set;}=[];
     private string melodyMergeSummary="";

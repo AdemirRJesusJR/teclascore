@@ -1,3 +1,10 @@
+TECLASCORE 0.36.0 · RITORNELO, APARÊNCIA E RELATÓRIO
+
+1. Numa música com refrão repetido igual, ligue Ritornelo (aba Cifras) e gere: o trecho aparece uma vez entre sinais de repetição; ouça e confira que toca duas vezes.
+2. Em Configurações → Aparência das partituras, escolha Bravura e Grande; gere uma música e compare com a anterior.
+3. Em Configurações, Relatório de problema…: salve o ZIP e abra o resumo; não deve haver o seu nome de usuário nem pastas pessoais.
+4. Com a biblioteca cheia, feche e abra o app: os cards aparecem em poucos segundos.
+
 TECLASCORE 0.35.0 · BUSCA TOCANDO, DUAS MÃOS, METAS E GRAVAÇÃO
 
 1. Na Biblioteca, Buscar tocando: toque 5 a 8 notas do começo de uma música (em outro tom também) e confira se ela aparece no topo.

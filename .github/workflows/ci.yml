@@ -50,3 +50,56 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           include-hidden-files: false
+
+  # Same suite with the official MuseScore installed (version and SHA-256 pinned in tools/offline-dependencies.json),
+  # so the native rendering, score-style, repeat and label tests also run on GitHub, not only on the release computer.
+  native-musescore:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    continue-on-error: true
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: tools/ci/requirements.txt
+      - name: Install test dependency
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: -r tools/ci/requirements.txt
+      - name: Install the official MuseScore (pinned, SHA-256 checked)
+        run: |
+          $pin = (Get-Content tools/offline-dependencies.json -Raw | ConvertFrom-Json).musescore
+          $msi = Join-Path $env:RUNNER_TEMP $pin.file
+          Invoke-WebRequest -Uri $pin.url -OutFile $msi
+          $hash = (Get-FileHash -LiteralPath $msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $pin.sha256) { throw "SHA-256 do MuseScore não confere: $hash" }
+          $install = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Instalação do MuseScore falhou: $($install.ExitCode)" }
+          $exe = Get-ChildItem "$env:ProgramFiles\MuseScore*" -Recurse -Filter 'MuseScore*.exe' | Where-Object { $_.Name -match '^MuseScore\d*\.exe$' } | Select-Object -First 1
+          if (-not $exe) { throw 'MuseScore4.exe não encontrado após a instalação.' }
+          "MUSESCORE_EXE=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          & $exe.FullName --version
+      - name: Native suite with MuseScore
+        run: |
+          ./tools/verify_ci.ps1 -PythonPath python -MuseScorePath $env:MUSESCORE_EXE -NativeEngineTests -OutputDirectory "${{ runner.temp }}/teclas-native" -BenchmarkIterations 3
+      - name: Upload native reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: teclascore-native-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/teclas-native/reports/
+          if-no-files-found: warn
+          retention-days: 14
+          include-hidden-files: false

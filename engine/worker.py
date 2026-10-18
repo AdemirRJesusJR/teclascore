@@ -201,6 +201,8 @@ def main():
         if field in req:config[field]=req[field]
     config['diagram_inversion']=engine.diagram_inversion(req.get('diagramInversion'))
     config['transpose_semitones']=engine.transpose_semitones(req.get('transposeSemitones'))
+    config['fold_repeats']=bool(req.get('foldRepeats'))
+    if isinstance(req.get('scoreStyle'),dict):config['score_style']={'music_font':str(req['scoreStyle'].get('musicFont','')),'size':str(req['scoreStyle'].get('size',''))}
     metadata=engine.score_metadata(config,engine.default_score_title(config['filename']))
     if edited is not None:
         if not edited:raise ValueError('A partitura precisa de pelo menos uma cifra.')

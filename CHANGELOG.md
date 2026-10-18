@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.36.0 — 17/10/2026
+
+- Ritornelo (aba Cifras): trechos de 2 a 8 compassos tocados duas vezes seguidas, exatamente iguais e sem letra, são escritos uma vez entre sinais de repetição; a reprodução continua tocando duas vezes. D.S. e coda não são inferidos.
+- Aparência das partituras (Configurações): fonte musical (Leland, Bravura, Emmentaler ou Petaluma) e tamanho (normal, grande, muito grande) para as próximas partituras; os ajustes de diagramas e páginas se adaptam ao tamanho.
+- Relatório de problema (Configurações): um ZIP com resumo do ambiente, mensagens recentes e, se você quiser, os diagnósticos das conversões com falha; pastas pessoais, nome de usuário e e-mails são trocados por marcadores e a biblioteca entra só como contagem.
+- Biblioteca grande abre mais rápido: os MIDIs são lidos em paralelo ao abrir o app (212 músicas reais em 1,4 s).
+- Exportações (PDF, imagens, áudio, prévias) tentam de novo sozinhas quando o MuseScore fecha com erro de memória, o que às vezes acontece sem motivo aparente.
+- CI do GitHub ganhou um job com o MuseScore oficial instalado (versão e SHA-256 fixados) para rodar também os testes nativos.
+
 ## 0.35.0 — 17/10/2026
 
 - Buscar tocando (Biblioteca): toque um trecho da melodia no teclado MIDI ou na tela, em qualquer tom, e o app lista as músicas com essa melodia (comparação pelos intervalos; meio tom de diferença conta pela metade).

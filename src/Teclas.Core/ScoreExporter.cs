@@ -237,7 +237,25 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         if (!File.Exists(museScorePath)) throw new FileNotFoundException("Localize o MuseScore Studio 4 em Configurações para preparar o áudio e exportar PDF.", museScorePath);
     }
 
+    /// <summary>
+    /// MuseScore 4 sometimes crashes (access violation) on a headless export that succeeds in a fresh process; such crashes
+    /// are retried twice, removing any partial output first. Ordinary export errors are reported at once.
+    /// </summary>
     private async Task ExportAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng = false, int resolution = 120, string? stylePath = null)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try { await ExportOnceAsync(scorePath, outputPath, token, operation, allowPagedPng, resolution, stylePath); return; }
+            catch (MuseScoreCrashException) when (attempt < 3 && !token.IsCancellationRequested)
+            {
+                TryDelete(outputPath);
+                if (allowPagedPng) foreach (var page in FindPreviewPages(outputPath)) TryDelete(page);
+                await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), token);
+            }
+        }
+    }
+
+    private async Task ExportOnceAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng, int resolution, string? stylePath)
     {
         using var measurement = (recorder ?? PerformanceDiagnostics.Recorder)?.Begin(operation, PerformanceProcessKind.MuseScore, PerformancePhase.Process)
             ?? PerformanceMeasurement.Disabled;
@@ -281,7 +299,10 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         if (process.ExitCode != 0 || !(File.Exists(outputPath) || allowPagedPng && FindPreviewPages(outputPath).Length > 0))
         {
             if (details.Length > 1200) details = details[^1200..];
-            throw new InvalidOperationException($"Não foi possível exportar a partitura (MuseScore {process.ExitCode}). {details}".Trim());
+            string message = $"Não foi possível exportar a partitura (MuseScore {process.ExitCode}). {details}".Trim();
+            // 0xC0000005 (access violation) and 0xC0000409 (stack buffer overrun): the process crashed.
+            if (process.ExitCode is -1073741819 or -1073740791) throw new MuseScoreCrashException(message);
+            throw new InvalidOperationException(message);
         }
         measurement.Success();
         }
@@ -365,3 +386,6 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
     private static void TryDelete(string path)
     { try { if (File.Exists(path)) File.Delete(path); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
 }
+
+/// <summary>MuseScore ended with a crash code; a new attempt in a fresh process usually works.</summary>
+public sealed class MuseScoreCrashException(string message) : InvalidOperationException(message);

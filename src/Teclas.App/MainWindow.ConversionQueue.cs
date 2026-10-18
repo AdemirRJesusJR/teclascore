@@ -59,6 +59,8 @@ public partial class MainWindow
                 ["pitchClass"] = item.Key.PitchClass, ["quality"] = item.Key.Quality, ["inversion"] = item.Value
             }).ToArray());
         if (row.SimplifiedChords && row.Chords.Count == 0) options["simplifyChords"] = true;
+        if (row.FoldRepeats) options["foldRepeats"] = true;
+        if (ScoreStyleRequest() is { } scoreStyle) options["scoreStyle"] = scoreStyle;
         return options;
     }
 

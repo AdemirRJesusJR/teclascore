@@ -1,3 +1,7 @@
+TECLASCORE 0.36.0
+
+Ritornelo nas repetições iguais. Fonte e tamanho das partituras. Relatório de problema sem dados pessoais. Biblioteca grande abre mais rápido.
+
 TECLASCORE 0.35.0
 
 Buscar música tocando a melodia. Praticar com as duas mãos. Metas de estudo. Gravar e ouvir a sua execução.

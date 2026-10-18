@@ -54,7 +54,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public string SelectedName=>selectedFile?.Name??"Do MIDI à partitura";
     public string SelectionMessage=>selectedFile is null?"Escolha um MIDI na biblioteca para preparar a melodia, conferir os acordes e gerar sua partitura.":selectedFile is { HasMusicalEdits:true, IsNativeScore:false }?"Partitura com edições musicais: continue no Editor musical. Para voltar à geração pelo MIDI, restaure uma versão anterior às edições no Histórico.":selectedFile.IsNativeScore?"Partitura MuseScore: use o Editor musical ou melhore a apresentação em uma nova cópia.":selectedFile.Document is null?"Este arquivo não pôde ser lido. Substitua-o por uma cópia completa do MIDI.":selectedFile.HasReviewedProfile?"Este MIDI tem uma revisão pronta de melodia, solos e acordes. Você pode aplicá-la ou escolher as pistas manualmente.":selectedFile.Profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Este arquivo foi identificado como acompanhamento, sem a melodia completa. Para transcrever a canção inteira, use um MIDI que contenha a voz principal.","partial_melody"=>"Este MIDI contém apenas parte da melodia ou solos. A seleção manual permite preparar esses trechos; a canção completa precisa de outra fonte.",_=>"MIDI novo: selecione uma ou mais pistas para reunir introdução e melodia; confira a prioridade e os acordes antes de gerar."};
     public string FileCountText=>$"{Files.Count} arquivos · {Files.Count(f=>f.ScorePath is not null)} partituras geradas";
-    public string Status{get=>status;private set{status=value;Notify();}}
+    public string Status{get=>status;private set{status=value;RememberMessage(value);Notify();}}
     public ImageSource? Preview{get=>preview;private set{preview=value;Notify();}}
     public string PreviewMessage=>selectedFile?.HasPendingScoreProperties == true?selectedFile.UsesNativeScoreWorkflow?"Alterações pendentes · atualize a partitura pelo Editor musical ou pelas Propriedades.":"Alterações pendentes · gere novamente para atualizar esta prévia.":selectedFile?.ScorePath is null?"A prévia aparecerá depois da geração.":"Todas as páginas · use as miniaturas, o zoom ou a tela cheia para estudar.";
     public string GenerationHint=>selectedFile is { HasMusicalEdits:true, IsNativeScore:false }?"Continue as alterações no Editor musical. Para gerar a partir do MIDI, restaure uma versão anterior às edições no Histórico.":selectedFile?.IsNativeScore==true?"Melhore a apresentação em uma nova cópia e compare as versões no Histórico.":selectedFile?.AnalysisPath is null?selectedFile is { Document:not null } row && (row.UseReviewedProfile || row.Tracks.Any(track=>track.IsMelody))?"Ao gerar, os acordes serão analisados para a melodia selecionada. Confira as cifras sugeridas.":"Escolha a pista de melodia para gerar a partitura.":UseReviewedProfile?"Perfil revisado carregado. Ajustes feitos na tabela de cifras serão aplicados.":"Confira a fonte de melodia e as cifras: uma análise automática precisa de revisão musical.";
@@ -132,12 +132,29 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(row.Document is not null)row.Status=row.UseReviewedProfile?"Perfil revisado · pronto para gerar":"Seleção alterada · gere para atualizar a partitura";
         NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanGenerate));Notify(nameof(GenerationHint));Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));Notify(nameof(CanPlayMarkedTracks));
     }
+    private Dictionary<string,(MidiDocument Document,Dictionary<SourceKey,MelodySourceSuggestion> Suggestions)>? prefetchedMidis;
+
+    /// <summary>Reads and analyzes the library's MIDI files on several cores; failures are left for the normal path to report.</summary>
+    private void PrefetchLibrary(IEnumerable<string> paths)
+    {
+        var files=paths.Where(path=>!string.Equals(Path.GetExtension(path),".mscz",StringComparison.OrdinalIgnoreCase)).Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var results=new System.Collections.Concurrent.ConcurrentDictionary<string,(MidiDocument,Dictionary<SourceKey,MelodySourceSuggestion>)>(StringComparer.OrdinalIgnoreCase);
+        Parallel.ForEach(files,new ParallelOptions{MaxDegreeOfParallelism=Math.Clamp(Environment.ProcessorCount-1,1,8)},path=>
+        {
+            try{var document=MidiReader.Read(path);results[path]=(document,MelodySourceAdvisor.Analyze(document).ToDictionary(s=>s.Key));}
+            catch(Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException or OverflowException or ArgumentException or NotSupportedException){}
+        });
+        prefetchedMidis=new(results,StringComparer.OrdinalIgnoreCase);
+    }
+
     private MidiRow LoadMidi(string path)
     {
         if(string.Equals(Path.GetExtension(path),".mscz",StringComparison.OrdinalIgnoreCase))return LoadNativeScore(path);
-        MidiDocument document=MidiReader.Read(path);
+        // Opening the app reads the library in parallel first (RestoreSession); a miss reads the file here as before.
+        MidiDocument document;Dictionary<SourceKey,MelodySourceSuggestion> suggestions;
+        if(prefetchedMidis?.TryGetValue(Path.GetFullPath(path),out var ready)==true){document=ready.Document;suggestions=ready.Suggestions;}
+        else{document=MidiReader.Read(path);suggestions=MelodySourceAdvisor.Analyze(document).ToDictionary(s=>s.Key);}
         var profile=profiles[document.Sha256]?.AsObject();
-        var suggestions=MelodySourceAdvisor.Analyze(document).ToDictionary(s=>s.Key);
         string? catalogStatus=profile?["config"]?["status"]?.GetValue<string>();
         string melodyWarning=catalogStatus switch
         {
@@ -319,6 +336,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=outputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords,["scoreTitle"]=row.ScoreTitle,["scoreSubtitle"]=row.ScoreSubtitle,["scoreComposer"]=row.ScoreComposer,["diagramInversion"]=row.EffectiveDiagramInversion};
         row.Status="Gerando e conferindo no MuseScore…";
         request["transposeSemitones"]=row.TransposeSemitones;
+        if(row.FoldRepeats)request["foldRepeats"]=true;
+        if(ScoreStyleRequest() is {} scoreStyle)request["scoreStyle"]=scoreStyle;
         request["scoreArtist"]=row.ScoreArtist;
         var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace!,CreateOperationProgress(),cancellation!.Token);
         row.ScorePath=result["scorePath"]!.GetValue<string>();row.PreviewPath=result["previewPath"]!.GetValue<string>();

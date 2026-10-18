@@ -195,6 +195,10 @@ def build_musicxml(parsed,config,harmony,out,title):
     chords=sorted(unique_chords.values(),key=lambda c:c['tick'])
     if not chords:raise core.NeedsReview('Nenhuma cifra suficientemente apoiada pelas notas do acompanhamento.')
     if len(chords)>len(bars)*3:raise core.NeedsReview('Harmonia excessivamente densa; revisar detecção de acordes.')
+    if config.get('fold_repeats'):
+        # Optional: literal repetitions are written once between repeat barlines (score_repeats.py).
+        import score_repeats
+        note_report['repeat_folds']=score_repeats.fold_repeats(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV)
     core.progress('Distribuindo notas e cifras pelos compassos e páginas…')
     # A large custom heading consumes first-page space. Rebalance page breaks,
     # retaining the same systems and events, instead of compressing the music.
@@ -210,7 +214,9 @@ def build_musicxml(parsed,config,harmony,out,title):
     if metadata['composer']:core.sub(ident,'creator',metadata['composer'],type='composer')
     if metadata['artist']:core.sub(ident,'creator',metadata['artist'],type='performer')
     enc=core.sub(ident,'encoding');core.sub(enc,'software','Preparação de melodia e cifras — MuseScore Studio')
-    defaults=core.sub(root,'defaults');scale=core.sub(defaults,'scaling');core.sub(scale,'millimeters',7);core.sub(scale,'tenths',40)
+    # Staff height in millimeters: 4 spaces of the chosen size (MuseScore reads it as the spatium on import).
+    spatium=float(core.score_style_values(config.get('score_style')).get('spatium','1.75'))
+    defaults=core.sub(root,'defaults');scale=core.sub(defaults,'scaling');core.sub(scale,'millimeters',round(spatium*4,3));core.sub(scale,'tenths',40)
     pl=core.sub(defaults,'page-layout');core.sub(pl,'page-height',1697.14);core.sub(pl,'page-width',1200)
     margins=core.sub(pl,'page-margins',type='both')
     for tag,val in [('left-margin',80),('right-margin',80),('top-margin',70),('bottom-margin',70)]:core.sub(margins,tag,val)
@@ -279,6 +285,8 @@ def build_musicxml(parsed,config,harmony,out,title):
                     core.sub(at,'staves',1);cl=core.sub(at,'clef');core.sub(cl,'sign','G');core.sub(cl,'line',2)
             lastmeter=b['meter']
             lastkey=currentkey
+            if b.get('repeat_start'):
+                bl=core.sub(measure,'barline',location='left');core.sub(bl,'bar-style','heavy-light');core.sub(bl,'repeat',direction='forward')
             active_tempo=max([t for t in tempos if round(t['tick']/parsed['ppq']*core.DIV)<=origin+b['start']] or [tempos[0]],key=lambda t:t['tick'])
             ts=[dict(active_tempo,tick=origin+b['start'])] if i==0 else []
             ts.extend(t for t in tempos if origin+b['start']<=round(t['tick']/parsed['ppq']*core.DIV)<origin+b['end'] and not (i==0 and round(t['tick']/parsed['ppq']*core.DIV)==origin))
@@ -317,10 +325,13 @@ def build_musicxml(parsed,config,harmony,out,title):
                 # separate groups after a very wide measure is respaced by MuseScore.
                 for tuplet in measure.findall('.//tuplet'):
                     if tuplet.get('type')=='start':tuplet.set('bracket','yes');tuplet.set('placement','above')
-            if i==len(bars)-1:bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-heavy')
+            if b.get('repeat_end'):
+                bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-heavy');core.sub(bl,'repeat',direction='backward')
+            elif i==len(bars)-1:bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-heavy')
     E.indent(root);xml=out/'melodia.musicxml';E.ElementTree(root).write(xml,encoding='utf-8',xml_declaration=True)
     report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/core.DIV,'measures':len(bars),'systems':len(lines),'pages_planned':1+sum(kind=='page' for kind in starts.values()),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
     report.update(score_metadata=metadata,diagram_inversion=inversion,custom_diagram_inversions=custom_diagrams,transpose_semitones=output_transpose)
+    if config.get('score_style'):report['score_style']=dict(config['score_style'])
     if labels:report['instrument_labels']=labels
     if staff_groups:report['staff_per_source']={'staves':len(staff_groups),'names':[group['name'] for group in staff_groups],
         'notes_per_staff':[len(group['notes']) for group in staff_groups]}

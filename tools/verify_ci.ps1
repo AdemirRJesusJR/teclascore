@@ -5,7 +5,9 @@ param(
     [string]$OutputDirectory,
     [string]$MuseScorePath,
     [ValidateRange(1,20)][int]$BenchmarkIterations = 5,
-    [ValidateRange(30,1800)][int]$StepTimeoutSeconds = 600
+    [ValidateRange(30,1800)][int]$StepTimeoutSeconds = 600,
+    # Also run the engine's native MuseScore tests (labels, lyrics, repeats, score style); needs MuseScore installed.
+    [switch]$NativeEngineTests
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -48,7 +50,7 @@ function Invoke-Check {
         $info.Environment['DOTNET_CLI_HOME']=Join-Path $output 'dotnet-home'
         $info.Environment['DOTNET_SKIP_FIRST_TIME_EXPERIENCE']='1';$info.Environment['DOTNET_CLI_TELEMETRY_OPTOUT']='1'
         $info.Environment['MSBuildEnableWorkloadResolver']='false'
-        [void]$info.Environment.Remove('TECLAS_TEST_NATIVE_LABELS')
+        if ($NativeEngineTests) { $info.Environment['TECLAS_TEST_NATIVE_LABELS']='1' } else { [void]$info.Environment.Remove('TECLAS_TEST_NATIVE_LABELS') }
         # ProcessStartInfo bypasses pwsh's automatic WinPSModulePath handling.
         # Let Windows PowerShell reconstruct its own module paths instead of
         # loading incompatible PS7 modules (which hides cmdlets like Get-FileHash).
@@ -116,7 +118,7 @@ try {
         [void](Invoke-Check $name $dotnet (@((Binary $name ''))+$testArguments) $suiteWork)
     }
     if ($pythonReady) {
-        [void](Invoke-Check 'python-unittests' $python @('-B',(Join-Path $PSScriptRoot 'ci\run_python_tests.py'),'--output',(Join-Path $reports 'python-tests.json')) $work -JsonReport (Join-Path $reports 'python-tests.json'))
+        [void](Invoke-Check 'python-unittests' $python (@('-B',(Join-Path $PSScriptRoot 'ci\run_python_tests.py'),'--output',(Join-Path $reports 'python-tests.json')) + @(if ($NativeEngineTests) { '--native' })) $work -JsonReport (Join-Path $reports 'python-tests.json'))
         $fixtures=Join-Path $work 'fixtures'
         $fixturesReady=Invoke-Check 'synthetic-fixtures' $python @('-B',(Join-Path $PSScriptRoot 'ci\make_fixtures.py'),$fixtures)
         $parity=Join-Path $work 'Teclas.Voicing.Tests\renderer-parity.json'
@@ -140,6 +142,7 @@ try {
         [void](Invoke-Check 'wpf-v033-ui' $app @('--verify-v033-ui',(Join-Path $reports 'wpf-v033-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v033-ui.json'))
         [void](Invoke-Check 'wpf-v034-ui' $app @('--verify-v034-ui',(Join-Path $reports 'wpf-v034-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v034-ui.json'))
         [void](Invoke-Check 'wpf-v035-ui' $app @('--verify-v035-ui',(Join-Path $reports 'wpf-v035-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v035-ui.json'))
+        [void](Invoke-Check 'wpf-v036-ui' $app @('--verify-v036-ui',(Join-Path $reports 'wpf-v036-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v036-ui.json'))
         [void](Invoke-Check 'wpf-bulk-pdf-ui' $app @('--verify-bulk-pdf-ui',(Join-Path $reports 'wpf-bulk-pdf-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-bulk-pdf-ui.json'))
         [void](Invoke-Check 'wpf-track-audition-ui' $app @('--verify-track-audition',(Join-Path $reports 'wpf-track-audition-ui.json'),'--synthetic') $work -JsonReport (Join-Path $reports 'wpf-track-audition-ui.json'))
         [void](Invoke-Check 'wpf-track-mix-ui' $app @('--verify-track-mix-ui',(Join-Path $reports 'wpf-track-mix-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-track-mix-ui.json'))

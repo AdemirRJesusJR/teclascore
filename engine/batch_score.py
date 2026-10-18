@@ -688,6 +688,18 @@ def _apply_native_header(root,metadata):
         content.clear();content.text=header[role]
     return vbox
 
+MUSIC_FONTS={'Leland':'Leland Text','Bravura':'Bravura Text','Emmentaler':'MScore Text','Petaluma':'Petaluma Text'}
+SCORE_SIZES={'normal':None,'grande':'2.0','muito-grande':'2.3'}
+
+def score_style_values(choice):
+    """Music font and staff size chosen in the app; unknown values keep MuseScore's defaults (Leland, 1.75 mm)."""
+    choice=choice or {};values={}
+    font=choice.get('music_font')
+    if font in MUSIC_FONTS and font!='Leland':values.update(musicalSymbolFont=font,musicalTextFont=MUSIC_FONTS[font])
+    size=SCORE_SIZES.get(choice.get('size'))
+    if size:values['spatium']=size
+    return values
+
 def convert_score(xml,report,out,filename):
     style=E.parse(WORK/'garoto_melodia_cifras'/'melodia-cifras.mss').getroot()
     vertical=report.get('high_melody_layout',[])
@@ -706,6 +718,7 @@ def convert_score(xml,report,out,filename):
         style_values.update(minSystemDistance=str(max(float(style_values['minSystemDistance']),label_top+3)),
                             maxSystemDistance=str(max(float(style_values['maxSystemDistance']),label_top+7)),
                             staffUpperBorder=str(label_top+1))
+    style_values.update(score_style_values(report.get('score_style')))
     for tag,val in style_values.items():
         n=style.find('Style/'+tag)
         if n is None:n=sub(style.find('Style'),tag)
