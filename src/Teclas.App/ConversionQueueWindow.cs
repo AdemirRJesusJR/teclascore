@@ -47,6 +47,11 @@ public sealed class ConversionQueueWindow : Window
     private bool runningQueue, closed, pendingClose;
     private string stage = "";
 
+    /// <summary>Song chosen in the summary to open in the editor; the queue window closes after it.</summary>
+    public string? OpenSource { get; private set; }
+    internal Func<QueueSummaryWindow, bool?> summaryDialog = window => window.ShowDialog();
+    private DateTimeOffset runStarted;
+
     public ConversionQueueWindow(ConversionQueueService service, Action reconcileCompleted)
     {
         this.service = service ?? throw new ArgumentNullException(nameof(service));
@@ -94,6 +99,7 @@ public sealed class ConversionQueueWindow : Window
         var other = new WrapPanel { Margin = new(0, 4, 0, 0) }; footer.Children.Add(other);
         remove = Button("Remover da fila", "QueueRemove", async (_, _) => await Remove()); remove.ToolTip = "Remove somente o registro da fila. Os arquivos continuam salvos."; other.Children.Add(remove);
         openFolder = Button("Abrir pasta do resultado", "QueueOpenFolder", (_, _) => OpenFolder()); other.Children.Add(openFolder);
+        var summary = Button("Resumo", "QueueSummary", (_, _) => ShowSummary(service.Items)); summary.ToolTip = "Prontas, para conferir e com falha"; other.Children.Add(summary);
         other.Children.Add(Button("Fechar", "QueueClose", (_, _) => Close()));
         grid.SelectionChanged += (_, _) => RefreshControls();
         timer.Tick += (_, _) => UpdateActivity();
@@ -104,6 +110,14 @@ public sealed class ConversionQueueWindow : Window
         };
         service.Changed += ServiceChanged;
         RefreshItems(); ReconcileCompleted();
+    }
+
+    internal void ShowSummary(IEnumerable<ConversionQueueItem> items)
+    {
+        var outcomes = ConversionQueueSummary.Build(items);
+        if (outcomes.Count == 0) { message.Text = "Ainda não há conversões concluídas ou com falha para resumir."; return; }
+        var window = new QueueSummaryWindow(outcomes) { Owner = this };
+        if (summaryDialog(window) == true && window.OpenSource is { } source) { OpenSource = source; Close(); }
     }
 
     private static Button Button(string text, string name, RoutedEventHandler action, bool primary = false)
@@ -184,6 +198,7 @@ public sealed class ConversionQueueWindow : Window
     private async Task Start()
     {
         if (!start.IsEnabled) return;
+        runStarted = DateTimeOffset.Now;
         await Run("Preparando a fila", async token =>
         {
             var request = operation;
@@ -198,6 +213,9 @@ public sealed class ConversionQueueWindow : Window
             message.Text = token.IsCancellationRequested ? "Fila pausada. Retome os itens pausados quando desejar." :
                 "Execução concluída. Confira os resultados e os itens que precisam de uma nova tentativa.";
         }, true);
+        // At the end of a run, show what this run produced.
+        var finished = service.Items.Where(item => item.UpdatedAt >= runStarted && item.Status is ConversionQueueStatus.Completed or ConversionQueueStatus.Failed).ToArray();
+        if (!closed && finished.Length > 0) ShowSummary(finished);
     }
 
     private Task Resume(bool all)

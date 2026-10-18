@@ -1,3 +1,10 @@
+TECLASCORE 0.34.0 · PRÉVIA, FILA E DESFAZER
+
+1. Abra a Prévia: a barra de ícones aparece dentro da partitura, embaixo. Teste páginas, zoom, largura, página inteira, miniaturas e tela cheia.
+2. Arraste o divisor acima da partitura para cima e para baixo; feche e abra o app: o tamanho volta igual. Clique duplo no divisor volta ao automático.
+3. Gere várias músicas pela fila: ao terminar, o resumo mostra prontas, para conferir e com falha. Clique duas vezes numa para abri-la.
+4. Com o acompanhamento preparado, clique com o botão direito num compasso: troque e ouça a cifra. Depois use Ctrl+Z e Ctrl+Y.
+
 TECLASCORE 0.33.0 · ATUALIZAÇÃO AUTOMÁTICA
 
 1. Com uma versão anterior instalada e internet, abra o app: o botão Atualizar para a versão nova aparece no topo e a barra de status avisa.

@@ -48,7 +48,7 @@ public partial class MainWindow
     public Thickness PreviewTransportPadding => IsPreviewControlsCompact ? new(7, 4, 7, 4) : new(9, 6, 9, 6);
     public TextWrapping PreviewStatusWrapping => IsPreviewControlsCompact ? TextWrapping.NoWrap : TextWrapping.Wrap;
     // Compact the surrounding controls, never the page's own reading viewport.
-    public double PreviewScoreMinimumHeight => 410;
+    public double PreviewScoreMinimumHeight => 240;
 
     private void QueuePreviewAlignment(bool resetExpanded = false)
     {

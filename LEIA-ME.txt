@@ -1,3 +1,7 @@
+TECLASCORE 0.34.0
+
+Barra flutuante na prévia e área da partitura redimensionável. Resumo da fila. Cifra editada com o botão direito na partitura. Ctrl+Z / Ctrl+Y.
+
 TECLASCORE 0.33.0
 
 Aviso de nova versão e atualização com um clique (instalador oficial conferido por SHA-256). Ajustes internos do motor.

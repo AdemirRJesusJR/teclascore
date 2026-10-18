@@ -46,7 +46,8 @@ public partial class MainWindow
     public bool CanSeekTrackAudition => auditionTrack is not null && TrackAuditionDurationSeconds > 0;
     public Visibility TrackAuditionVisible => auditionTrack is null ? Visibility.Collapsed : Visibility.Visible;
     // Room for the track grid plus wrapped tool buttons at the minimum window width (expanded sidebar).
-    public double ScoreEditorMinimumHeight => EditorTabs?.SelectedIndex == 2 ? 1120 : auditionTrack is null ? 760 : 900;
+    // The preview tab fits the window: its controls scroll on their own and the split gives the score more room.
+    public double ScoreEditorMinimumHeight => EditorTabs?.SelectedIndex == 2 ? 760 : auditionTrack is null ? 760 : 900;
     public string TrackAuditionTitle => auditionTracks.Count switch
     {
         0 => "",

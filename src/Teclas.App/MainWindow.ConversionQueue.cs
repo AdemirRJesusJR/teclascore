@@ -114,8 +114,12 @@ public partial class MainWindow
             StopTrackAudition(); ResetPlayback();
             var service = GetConversionQueue();
             ReconcileQueueResults();
-            new ConversionQueueWindow(service, ReconcileQueueResults) { Owner = this }.ShowDialog();
+            var queue = new ConversionQueueWindow(service, ReconcileQueueResults) { Owner = this };
+            queue.ShowDialog();
             ReconcileQueueResults(); RefreshSelection(); PersistPreferences();
+            // Opening a song from the summary selects its card in the library.
+            if (queue.OpenSource is { } source && Files.FirstOrDefault(row => string.Equals(row.FullPath, source, StringComparison.OrdinalIgnoreCase)) is { } card)
+            { SetCurrentPage("library"); Library.SelectedItem = card; Library.ScrollIntoView(card); }
         }
         catch (Exception error) { Status = "Não foi possível abrir a fila: " + error.Message; }
     }

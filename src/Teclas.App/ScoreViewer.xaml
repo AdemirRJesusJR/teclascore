@@ -4,32 +4,28 @@
  MinHeight="280" Focusable="True" UseLayoutRounding="True"
  Foreground="{DynamicResource Ink}" PreviewKeyDown="ViewerKeyDown">
  <UserControl.Resources>
-  <Style x:Key="ViewerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-   <Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="9,5"/>
-   <Setter Property="FontSize" Value="12"/><Setter Property="Margin" Value="0,0,5,5"/>
+  <!-- Floating toolbar inside the preview: compact icon buttons on a rounded, slightly translucent bar. -->
+  <Style x:Key="ViewerButton" TargetType="Button">
+   <Setter Property="Width" Value="32"/><Setter Property="Height" Value="32"/><Setter Property="Margin" Value="1,0"/>
+   <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"/><Setter Property="FontSize" Value="14"/>
+   <Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="Background" Value="Transparent"/><Setter Property="Cursor" Value="Hand"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="16"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Selection}"/></Trigger>
+     <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SelectionBorder}"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value=".35"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter TargetName="Chrome" Property="BorderThickness" Value="1.5"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
   </Style>
+  <Style x:Key="ViewerSeparator" TargetType="Rectangle"><Setter Property="Width" Value="1"/><Setter Property="Height" Value="18"/><Setter Property="Margin" Value="5,0"/><Setter Property="Fill" Value="{DynamicResource Line}"/></Style>
  </UserControl.Resources>
  <Grid>
-  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-  <WrapPanel Margin="0,0,0,5">
-   <Button x:Name="PreviousPageButton" Content="‹" Style="{StaticResource ViewerButton}" Click="PreviousPageClick" ToolTip="Página anterior (Page Up)" AutomationProperties.Name="Página anterior"/>
-   <TextBlock x:Name="PageCounter" Text="0 / 0" MinWidth="57" TextAlignment="Center" VerticalAlignment="Center" Margin="1,0,6,5" AutomationProperties.Name="Página atual"/>
-   <Button x:Name="NextPageButton" Content="›" Style="{StaticResource ViewerButton}" Click="NextPageClick" ToolTip="Próxima página (Page Down)" AutomationProperties.Name="Próxima página"/>
-   <Button x:Name="ZoomOutButton" Content="−" Style="{StaticResource ViewerButton}" Click="ZoomOutClick" ToolTip="Reduzir zoom" AutomationProperties.Name="Reduzir zoom"/>
-   <ComboBox x:Name="ZoomCombo" Width="80" MinHeight="32" Margin="0,0,5,5" SelectionChanged="ZoomSelected" AutomationProperties.Name="Zoom da partitura">
-    <ComboBoxItem Content="25%" Tag="25"/><ComboBoxItem Content="50%" Tag="50"/><ComboBoxItem Content="75%" Tag="75"/>
-    <ComboBoxItem Content="100%" Tag="100"/><ComboBoxItem Content="125%" Tag="125"/><ComboBoxItem Content="150%" Tag="150"/>
-    <ComboBoxItem Content="200%" Tag="200"/><ComboBoxItem Content="250%" Tag="250"/><ComboBoxItem Content="300%" Tag="300"/>
-   </ComboBox>
-   <Button x:Name="ZoomInButton" Content="+" Style="{StaticResource ViewerButton}" Click="ZoomInClick" ToolTip="Ampliar zoom" AutomationProperties.Name="Ampliar zoom"/>
-   <Button x:Name="FitWidthButton" Content="Largura" Style="{StaticResource ViewerButton}" Click="FitWidthClick" ToolTip="Ajustar à largura disponível"/>
-   <Button x:Name="FitPageButton" Content="Página" Style="{StaticResource ViewerButton}" Click="FitPageClick" ToolTip="Mostrar a página inteira"/>
-   <Button x:Name="ThumbnailsButton" Content="Miniaturas" Style="{StaticResource ViewerButton}" Click="ToggleThumbnailsClick" ToolTip="Mostrar ou ocultar miniaturas"/>
-   <Button x:Name="FullscreenButton" Content="Tela cheia" Style="{StaticResource ViewerButton}" Click="FullscreenClick" ToolTip="Abrir em tela cheia (F11)"/>
-  </WrapPanel>
-  <Grid Grid.Row="1">
-   <Grid.ColumnDefinitions><ColumnDefinition x:Name="ThumbnailColumn" Width="112"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-   <ListBox x:Name="ThumbnailList" Margin="0,0,8,0" BorderThickness="0" SelectionChanged="ThumbnailSelected"
+  <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Grid>
+   <Grid.ColumnDefinitions><ColumnDefinition x:Name="ThumbnailColumn" Width="112" MinWidth="0" MaxWidth="260"/><ColumnDefinition x:Name="ThumbnailSplitterColumn" Width="6"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <ListBox x:Name="ThumbnailList" Margin="0,0,2,0" BorderThickness="0" SelectionChanged="ThumbnailSelected"
     ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" AutomationProperties.Name="Miniaturas das páginas">
     <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="Padding" Value="5"/><Setter Property="Margin" Value="0,0,0,5"/></Style></ListBox.ItemContainerStyle>
     <ListBox.ItemTemplate><DataTemplate><StackPanel>
@@ -37,10 +33,11 @@
      <TextBlock Text="{Binding Label}" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0"/>
     </StackPanel></DataTemplate></ListBox.ItemTemplate>
    </ListBox>
-   <Border Grid.Column="1" BorderBrush="{DynamicResource Line}" BorderThickness="1" Background="{DynamicResource Background}" CornerRadius="6" ClipToBounds="True">
+   <GridSplitter x:Name="ThumbnailSplitter" Grid.Column="1" Width="6" HorizontalAlignment="Stretch" Background="Transparent" ResizeBehavior="PreviousAndNext" Cursor="SizeWE" ToolTip="Arraste para ajustar a largura das miniaturas" AutomationProperties.Name="Ajustar largura das miniaturas"/>
+   <Border x:Name="PreviewSurface" Grid.Column="2" BorderBrush="{DynamicResource Line}" BorderThickness="1" Background="{DynamicResource Background}" CornerRadius="6" ClipToBounds="True" MouseEnter="PreviewHover" MouseLeave="PreviewHover">
     <Grid>
      <ScrollViewer x:Name="PageScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="PageViewportChanged" PreviewMouseWheel="PageMouseWheel">
-      <Grid x:Name="PageSurface" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Top" Background="Transparent" MouseLeftButtonDown="PageSelected">
+      <Grid x:Name="PageSurface" Margin="12,12,12,64" HorizontalAlignment="Center" VerticalAlignment="Top" Background="Transparent" MouseLeftButtonDown="PageSelected" MouseRightButtonUp="PageContextRequested">
        <Image x:Name="PageImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Top" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Página da partitura"/>
        <Canvas x:Name="PositionOverlay" IsHitTestVisible="False" ClipToBounds="True"/>
       </Grid>
@@ -48,9 +45,32 @@
      <Border x:Name="ViewerMessagePanel" Background="{DynamicResource Background}" Padding="24">
       <TextBlock x:Name="ViewerMessage" Text="Gere ou selecione uma partitura para visualizar suas páginas." TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" MaxWidth="420"/>
      </Border>
+     <Border x:Name="ViewerToolbar" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,22" Padding="6,4" CornerRadius="20"
+      Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Opacity=".9" AutomationProperties.Name="Barra da prévia">
+      <Border.Effect><DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity=".22" Direction="270"/></Border.Effect>
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+       <Button x:Name="ThumbnailsButton" Content="&#xE8A9;" Style="{StaticResource ViewerButton}" Click="ToggleThumbnailsClick" ToolTip="Mostrar ou ocultar miniaturas" AutomationProperties.Name="Miniaturas"/>
+       <Rectangle Style="{StaticResource ViewerSeparator}"/>
+       <Button x:Name="PreviousPageButton" Content="&#xE76B;" Style="{StaticResource ViewerButton}" Click="PreviousPageClick" ToolTip="Página anterior (Page Up)" AutomationProperties.Name="Página anterior"/>
+       <TextBlock x:Name="PageCounter" Text="0 / 0" MinWidth="52" TextAlignment="Center" VerticalAlignment="Center" FontSize="12" Margin="2,0" AutomationProperties.Name="Página atual"/>
+       <Button x:Name="NextPageButton" Content="&#xE76C;" Style="{StaticResource ViewerButton}" Click="NextPageClick" ToolTip="Próxima página (Page Down)" AutomationProperties.Name="Próxima página"/>
+       <Rectangle Style="{StaticResource ViewerSeparator}"/>
+       <Button x:Name="ZoomOutButton" Content="&#xE71F;" Style="{StaticResource ViewerButton}" Click="ZoomOutClick" ToolTip="Reduzir zoom (Ctrl + roda do mouse)" AutomationProperties.Name="Reduzir zoom"/>
+       <ComboBox x:Name="ZoomCombo" Width="74" Height="28" Margin="2,0" FontSize="12" VerticalContentAlignment="Center" SelectionChanged="ZoomSelected" ToolTip="Zoom" AutomationProperties.Name="Zoom da partitura">
+        <ComboBoxItem Content="25%" Tag="25"/><ComboBoxItem Content="50%" Tag="50"/><ComboBoxItem Content="75%" Tag="75"/>
+        <ComboBoxItem Content="100%" Tag="100"/><ComboBoxItem Content="125%" Tag="125"/><ComboBoxItem Content="150%" Tag="150"/>
+        <ComboBoxItem Content="200%" Tag="200"/><ComboBoxItem Content="250%" Tag="250"/><ComboBoxItem Content="300%" Tag="300"/>
+       </ComboBox>
+       <Button x:Name="ZoomInButton" Content="&#xE8A3;" Style="{StaticResource ViewerButton}" Click="ZoomInClick" ToolTip="Ampliar zoom (Ctrl + roda do mouse)" AutomationProperties.Name="Ampliar zoom"/>
+       <Rectangle Style="{StaticResource ViewerSeparator}"/>
+       <Button x:Name="FitWidthButton" Content="&#xE9A6;" Style="{StaticResource ViewerButton}" Click="FitWidthClick" ToolTip="Ajustar à largura" AutomationProperties.Name="Ajustar à largura"/>
+       <Button x:Name="FitPageButton" Content="&#xE7C3;" Style="{StaticResource ViewerButton}" Click="FitPageClick" ToolTip="Mostrar a página inteira" AutomationProperties.Name="Página inteira"/>
+       <Button x:Name="FullscreenButton" Content="&#xE740;" Style="{StaticResource ViewerButton}" Click="FullscreenClick" ToolTip="Tela cheia (F11)" AutomationProperties.Name="Tela cheia"/>
+      </StackPanel>
+     </Border>
     </Grid>
    </Border>
   </Grid>
-  <TextBlock Grid.Row="2" x:Name="ViewerStatus" FontSize="10" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,7,0,0" Text="Miniaturas · zoom · tela cheia"/>
+  <TextBlock Grid.Row="1" x:Name="ViewerStatus" FontSize="10" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,7,0,0" Text="Miniaturas · zoom · tela cheia"/>
  </Grid>
 </UserControl>

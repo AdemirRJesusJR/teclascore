@@ -216,6 +216,7 @@ public partial class ScoreViewer : UserControl
         ZoomOutButton.IsEnabled = PageCount > 0 && Zoom > 25;
         ZoomInButton.IsEnabled = PageCount > 0 && Zoom < 300;
         ZoomCombo.IsEnabled = FitWidthButton.IsEnabled = FitPageButton.IsEnabled = FullscreenButton.IsEnabled = PageCount > 0;
+        ViewerToolbar.Visibility = PageCount > 0 ? Visibility.Visible : Visibility.Collapsed;
         settingZoom = true;
         try
         {
@@ -255,7 +256,7 @@ public partial class ScoreViewer : UserControl
             // Reserve the themed scrollbar and image margins so fitting does not
             // alternate between showing and hiding a scrollbar on each layout.
             var width = Math.Max(1, PageScroll.ActualWidth - 38);
-            var height = Math.Max(1, PageScroll.ActualHeight - 38);
+            var height = Math.Max(1, PageScroll.ActualHeight - 90); // room for the floating bar under the page
             if (width <= 1 || height <= 1) return;
             var zoom = width / pageBitmap.Width * 100;
             if (fitMode == "page") zoom = Math.Min(zoom, height / pageBitmap.Height * 100);
@@ -279,11 +280,20 @@ public partial class ScoreViewer : UserControl
     private void FitWidthClick(object sender, RoutedEventArgs e) { fitMode = "width"; ApplyFit(); }
     private void FitPageClick(object sender, RoutedEventArgs e) { fitMode = "page"; ApplyFit(); }
     private void PageViewportChanged(object sender, SizeChangedEventArgs e) => ApplyFit();
+    private double thumbnailWidth = 112;
+
+    /// <summary>The floating bar stays discreet over the music and becomes solid while the mouse is over the preview.</summary>
+    private void PreviewHover(object sender, System.Windows.Input.MouseEventArgs e) =>
+        ViewerToolbar.Opacity = PreviewSurface.IsMouseOver || ViewerToolbar.IsKeyboardFocusWithin ? 1 : .72;
+
     private void ToggleThumbnailsClick(object sender, RoutedEventArgs e)
     {
+        // Hiding keeps the width the user dragged, so showing again restores it.
+        if (thumbnailsVisible && ThumbnailColumn.ActualWidth > 40) thumbnailWidth = ThumbnailColumn.ActualWidth;
         thumbnailsVisible = !thumbnailsVisible;
-        ThumbnailColumn.Width = new GridLength(thumbnailsVisible ? 112 : 0);
-        ThumbnailList.Visibility = thumbnailsVisible ? Visibility.Visible : Visibility.Collapsed;
+        ThumbnailColumn.Width = new GridLength(thumbnailsVisible ? thumbnailWidth : 0);
+        ThumbnailSplitterColumn.Width = new GridLength(thumbnailsVisible ? 6 : 0);
+        ThumbnailList.Visibility = ThumbnailSplitter.Visibility = thumbnailsVisible ? Visibility.Visible : Visibility.Collapsed;
     }
     private void ThumbnailSelected(object sender, SelectionChangedEventArgs e)
     {
@@ -325,7 +335,7 @@ public partial class ScoreViewer : UserControl
         };
         window.SetResourceReference(BackgroundProperty, "Background");
         window.SetResourceReference(ForegroundProperty, "Ink");
-        viewer.FullscreenButton.Content = "Sair da tela cheia";
+        viewer.FullscreenButton.Content = "\uE73F";
         viewer.FullscreenButton.ToolTip = "Voltar (Esc ou F11)";
         viewer.fullScreenHost = window;
         viewer.playbackMap = playbackMap;
@@ -400,6 +410,23 @@ public partial class ScoreViewer : UserControl
         double x = point.X / PageSurface.ActualWidth, y = point.Y / PageSurface.ActualHeight;
         e.Handled = TrySelectPosition(x, y);
     }
+
+    /// <summary>Right click on a measure (or on its chord symbols above the staff); 0 means the measure map is not prepared yet.</summary>
+    public event EventHandler<int>? MeasureContextRequested;
+
+    private void PageContextRequested(object sender, MouseButtonEventArgs e)
+    {
+        if (pageBitmap is null || PageSurface.ActualWidth <= 0 || PageSurface.ActualHeight <= 0) return;
+        if (playbackMap?.CanSynchronize != true) { MeasureContextRequested?.Invoke(this, 0); e.Handled = true; return; }
+        var point = e.GetPosition(PageSurface);
+        if (MeasureAt(point.X / PageSurface.ActualWidth, point.Y / PageSurface.ActualHeight) is { } measure)
+        { MeasureContextRequested?.Invoke(this, measure); e.Handled = true; }
+    }
+
+    /// <summary>Measure under a page point; chord names and diagrams sit above the staff, so the band reaches higher.</summary>
+    internal int? MeasureAt(double x, double y) => playbackMap?.Measures
+        .Where(m => m.Bounds.Page == CurrentPage && x >= m.Bounds.X && x <= m.Bounds.X + m.Bounds.Width && y >= m.Bounds.Y - .075 && y <= m.Bounds.Y + m.Bounds.Height + .014)
+        .OrderBy(m => Math.Abs(y - (m.Bounds.Y + m.Bounds.Height / 2))).Select(m => (int?)m.Measure).FirstOrDefault();
 
     private bool TrySelectPosition(double x, double y)
     {

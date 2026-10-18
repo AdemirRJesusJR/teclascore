@@ -29,9 +29,9 @@ public sealed partial class MidiRow : Observable
     public string Collection{get=>collection;set=>Set(ref collection,value??"");}
     private string genre="";
     public string Genre{get=>genre;set=>Set(ref genre,value??"");}
-    public int TransposeSemitones{get;set;}
+    private int transposeSemitones;public int TransposeSemitones{get=>transposeSemitones;set=>Set(ref transposeSemitones,value);}
     /// <summary>Generate with basic triads (Am7 → Am); the chord table keeps the analyzed symbols.</summary>
-    public bool SimplifiedChords{get;set;}
+    private bool simplifiedChords;public bool SimplifiedChords{get=>simplifiedChords;set=>Set(ref simplifiedChords,value);}
     public List<SavedScoreVersion> Versions{get;set;}=[];
     public List<ScoreReviewPoint> ReviewPoints{get;set;}=[];
     private string melodyMergeSummary="";
@@ -51,7 +51,7 @@ public sealed partial class MidiRow : Observable
     private string scoreArtist="";
     public string ScoreArtist{get=>scoreArtist;set=>Set(ref scoreArtist,value??"");}
     public string MetadataOrganizationNotice{get;set;}="";
-    public int DefaultDiagramInversion{get;set;}=2;
+    private int defaultDiagramInversion=2;public int DefaultDiagramInversion{get=>defaultDiagramInversion;set{if(Set(ref defaultDiagramInversion,value))Notify(nameof(EffectiveDiagramInversion));}}
     private int? diagramInversion;
     public int? DiagramInversion{get=>diagramInversion;set{if(Set(ref diagramInversion,value))Notify(nameof(EffectiveDiagramInversion));}}
     public int EffectiveDiagramInversion=>DiagramInversion??DefaultDiagramInversion;

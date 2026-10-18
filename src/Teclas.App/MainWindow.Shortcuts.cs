@@ -23,6 +23,7 @@ public partial class MainWindow
         ("Ctrl+1 / Ctrl+2 / Ctrl+3", "Visão geral, Biblioteca, Produção"),
         ("Ctrl+,", "Configurações"),
         ("F11", "Partitura em tela cheia (com a prévia em foco)"),
+        ("Ctrl+Z / Ctrl+Y", "Desfazer ou refazer alterações do card: cifras, posições dos diagramas e transposição"),
         ("F1", "Mostrar esta lista"),
     ];
 
@@ -57,6 +58,9 @@ public partial class MainWindow
         // Text fields keep Space, Esc and Ctrl+arrows for editing; buttons and check boxes keep Space for activation.
         bool typing = focus is TextBoxBase or PasswordBox || focus is ComboBox { IsEditable: true };
         if (typing) return false;
+        // Outside text fields (which keep their own undo), Ctrl+Z / Ctrl+Y step through the card's changes.
+        if (modifiers == ctrl && key == Key.Z) { Undo(); return true; }
+        if (modifiers == ctrl && key == Key.Y || modifiers == ctrlShift && key == Key.Z) { Redo(); return true; }
         if (modifiers == ModifierKeys.None && key == Key.Space && focus is not ButtonBase && currentPage == "library")
         {
             if (CanPauseScore) PauseScoreClick(this, new RoutedEventArgs());

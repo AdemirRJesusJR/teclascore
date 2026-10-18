@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.34.0
+17/10/2026
+
+- Prévia e divisor: 18 verificações (barra flutuante sobre a página com os oito comandos, troca de página pela barra, miniaturas ocultas com o divisor e de volta na largura arrastada, divisor da partitura dando mais altura, barra visível na janela, tamanho lembrado e clique duplo voltando ao automático).
+- Fila, cifras e desfazer: 12 verificações (classificação pronta/conferir/falha e manchete; cifras do compasso ligadas às do card pela ordem; troca aplicada e pendente; aviso sem acompanhamento; Ctrl+Z, Ctrl+Y, alterações próximas desfeitas juntas, campos de texto com o próprio desfazer).
+- O clique direito na partitura real depende do acompanhamento preparado pelo MuseScore; foi testado com um modelo sintético.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.33.0
 17/10/2026
 

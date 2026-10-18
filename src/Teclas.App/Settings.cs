@@ -31,6 +31,9 @@ public sealed class Settings
     public DateTimeOffset? LibrarySyncSeen { get; set; }
     public string LibrarySyncRestoreRoot { get; set; } = "";
     public bool AutoCheckUpdates { get; set; } = true;
+    /// <summary>Height of the controls above the score in the preview tab; null keeps it automatic.</summary>
+    public double? PreviewControlsHeight { get; set; }
+    public const double MinimumPreviewControlsHeight = 40;
     public DateTime? LastUpdateCheck { get; set; }
     /// <summary>Newer release found by the last check: tag, installer name and its SHA-256 (empty when none).</summary>
     public string KnownUpdateTag { get; set; } = "";
@@ -134,6 +137,7 @@ public sealed class Settings
         PracticeBpm = Math.Clamp(PracticeBpm, 30, 200);
         LibrarySyncFolder ??= ""; LibrarySyncSentHash ??= ""; LibrarySyncRestoreRoot ??= "";
         KnownUpdateTag ??= ""; KnownUpdateSetup ??= ""; KnownUpdateSha256 ??= "";
+        if (PreviewControlsHeight is { } controls && (!double.IsFinite(controls) || controls < MinimumPreviewControlsHeight || controls > 1200)) PreviewControlsHeight = null;
         StudyHistory = NormalizeStudyHistory(StudyHistory);
         DefaultDiagramInversion = NormalizeDiagramInversion(DefaultDiagramInversion);
         ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" ? ThemeId : "classic";

@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.34.0 — 17/10/2026
+
+- Prévia com barra flutuante dentro da própria partitura: miniaturas, páginas, zoom, largura, página inteira e tela cheia em ícones compactos, no lugar da fileira de botões acima.
+- Área da partitura redimensionável: arraste o divisor entre os controles e a partitura (clique duplo volta ao automático); o tamanho fica lembrado. As miniaturas também têm divisor. A prévia passou a caber na janela, com os controles rolando por dentro quando falta espaço.
+- Resumo ao fim da fila de conversões: quais partituras saíram prontas, quais têm cifras com dúvida ou pontos de revisão e quais falharam; um clique duplo abre a música.
+- Editar cifra direto na partitura: clique com o botão direito num compasso da prévia para trocar e ouvir as cifras dele.
+- Desfazer e refazer (Ctrl+Z / Ctrl+Y) nas alterações do card: cifras, posições dos diagramas, transposição e cifras simplificadas.
+
 ## 0.33.0 — 17/10/2026
 
 - Atualização automática: uma vez por dia o app consulta a última versão no GitHub; havendo nova, aparece o botão Atualizar no topo. Um clique baixa o instalador oficial, confere o SHA-256 publicado (o arquivo é descartado se não bater), salva a sessão, abre o instalador e fecha o app. Nada é baixado sem o clique; a consulta pode ser desligada em Configurações.
