@@ -104,17 +104,38 @@ def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
 
 KINDS={'':'major','m':'minor','7':'dominant','maj7':'major-seventh','m7':'minor-seventh','mMaj7':'major-minor','dim':'diminished','dim7':'diminished-seventh','m7b5':'half-diminished','aug':'augmented','sus2':'suspended-second','sus4':'suspended-fourth','6':'major-sixth','m6':'minor-sixth','9':'dominant-ninth','maj9':'major-ninth','m9':'minor-ninth','7sus4':'dominant','add9':'major','madd9':'minor'}
 
+# How chord symbols are written, chosen by the user: the suffix shown for each quality (e.g. 7M instead of maj7) and
+# whether altered roots are written with flats or sharps ('auto' keeps the spelling of the key). Set per score.
+CHORD_TEXT={}
+CHORD_ACCIDENTALS='auto'
+STEP_PC={'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}
+FLAT_NAMES=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];SHARP_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+
+def set_chord_notation(notation):
+    global CHORD_TEXT,CHORD_ACCIDENTALS
+    notation=notation if isinstance(notation,dict) else {}
+    texts=notation.get('texts') if isinstance(notation.get('texts'),dict) else {}
+    CHORD_TEXT={str(q):str(t)[:12] for q,t in texts.items() if q in KINDS and isinstance(t,str)}
+    CHORD_ACCIDENTALS=notation.get('accidentals') if notation.get('accidentals') in ('flats','sharps') else 'auto'
+
+def respell(step,alt):
+    """An altered note written with flats or sharps as preferred; natural notes and 'auto' keep their spelling."""
+    if not alt or CHORD_ACCIDENTALS=='auto':return step,alt
+    name=(FLAT_NAMES if CHORD_ACCIDENTALS=='flats' else SHARP_NAMES)[(STEP_PC[step]+alt)%12]
+    return name[0],name.count('#')-name.count('b')
+
 def emit_harmony(measure,event,barstart,ps):
     h=core.sub(measure,'harmony',placement='above');rt=core.sub(h,'root');step,alt=ps[event['root']]
     if event.get('root_spelling'):
         spelling=event['root_spelling'];step=spelling[0];alt=spelling.count('#')-spelling.count('b')
+    step,alt=respell(step,alt)
     core.sub(rt,'root-step',step)
     if alt:core.sub(rt,'root-alter',alt)
-    q=event['quality'];core.sub(h,'kind',core.KINDS[q],text=q)
+    q=event['quality'];core.sub(h,'kind',core.KINDS[q],text=CHORD_TEXT.get(q,q))
     if event.get('bass_spelling'):
         # Slash chord (G/B): the bass note is written after the symbol; the diagram keeps the chord itself.
-        spelling=event['bass_spelling'];b=core.sub(h,'bass');core.sub(b,'bass-step',spelling[0])
-        alter=spelling.count('#')-spelling.count('b')
+        spelling=event['bass_spelling'];bstep,alter=respell(spelling[0],spelling.count('#')-spelling.count('b'))
+        b=core.sub(h,'bass');core.sub(b,'bass-step',bstep)
         if alter:core.sub(b,'bass-alter',alter)
     if q in ('add9','madd9'):
         d=core.sub(h,'degree');core.sub(d,'degree-value',9);core.sub(d,'degree-alter',0);core.sub(d,'degree-type','add')
@@ -189,6 +210,7 @@ def high_melody_layout(part,lines):
 
 def build_musicxml(parsed,config,harmony,out,title):
     core.progress('Organizando a melodia e conferindo a duração das notas…')
+    set_chord_notation(config.get('chord_notation'))
     inversion=core.diagram_inversion(config.get('diagram_inversion'))
     event_inversions=[core.chord_diagram_inversion(chord,inversion) for chord in harmony['events']]
     custom_diagrams=any(value!=inversion for value in event_inversions)
@@ -444,6 +466,7 @@ def build_musicxml(parsed,config,harmony,out,title):
     if second:report['second_voice']=second
     if chord_staff:report['chord_staff_notes']=[{'start':event['start'],'pitch':pitch} for event in chord_staff for pitch in event['pitches']]
     report['note_names']='solfejo' if config.get('note_names')=='solfejo' else 'letras'
+    report['chord_texts']=dict(CHORD_TEXT)
     if labels:report['instrument_labels']=labels
     if staff_groups:report['staff_per_source']={'staves':len(staff_groups),'names':[group['name'] for group in staff_groups],
         'notes_per_staff':[len(group['notes']) for group in staff_groups]}

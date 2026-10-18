@@ -40,7 +40,8 @@ public partial class MainWindow
             cancellation.Token.ThrowIfCancellationRequested(); map = result;
         }, operationTitle: "Lendo compassos da música", operationItem: row.ScoreTitle);
         if (operationsDisposed || map is null || selectedFile != row || row.Document != document || !CanEditMelodySections) return;
-        var dialog = new MelodySectionsWindow(map, row.Tracks.Where(track => track.Channel != 10).ToArray(), row.MelodySections, initialMeasure) { Owner = this };
+        var measureMap = map;
+        var dialog = new MelodySectionsWindow(map, row.Tracks.Where(track => track.Channel != 10).ToArray(), row.MelodySections, initialMeasure) { Owner = this, Propose = () => ProposeSections(row, measureMap) };
         if (dialog.ShowDialog() == true) ApplyMelodySections(row, map, dialog.Sections);
     }
 

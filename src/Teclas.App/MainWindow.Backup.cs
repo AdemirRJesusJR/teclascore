@@ -107,7 +107,7 @@ public partial class MainWindow
                     row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
                     row.KeyFifths = saved.KeyFifths; row.KeyMinor = saved.KeyMinor;
                     foreach (var chord in saved.Chords.Where(_ => row.Document is null || saved.HasMusicalEdits)) row.Chords.Add(new ChordRow
-                    { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence,
+                    { Quarter = chord.Quarter, Bass = chord.Bass, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence,
                         DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
                 }
                 ApplySavedScoreProperties(row, saved); RememberVersion(row);

@@ -150,6 +150,7 @@ def chord_sheet_score(req,workspace,engine,parse_midi,intervals):
             'filename':title+'.mid','source_path':str(source),'scoreTitle':title,'scoreSubtitle':'Cifra com diagramas de teclado',
             'diagram_inversion':engine.diagram_inversion(req.get('diagramInversion')),'sheet_lyrics':lyrics,'line_starts':line_starts,
             'note_names':'solfejo' if req.get('noteNames')=='solfejo' else 'letras'}
+    if isinstance(req.get('chordNotation'),dict):config['chord_notation']=req['chordNotation']
     if req.get('scoreArtist'):config['scoreArtist']=str(req['scoreArtist'])
     exe=Path(req['musescorePath'])
     if not exe.is_file():raise ValueError('Localize o executável do MuseScore nas configurações.')
@@ -291,6 +292,7 @@ def main():
     config['include_lyrics']=req.get('includeLyrics') is not False
     config['chord_staff']=bool(req.get('chordStaff'))
     config['note_names']='solfejo' if req.get('noteNames')=='solfejo' else 'letras'
+    if isinstance(req.get('chordNotation'),dict):config['chord_notation']=req['chordNotation']
     if req.get('secondVoiceSources'):config['second_voice_sources']=manual_melody_config(req['secondVoiceSources'])['melody_sources']
     if isinstance(req.get('scoreStyle'),dict):config['score_style']={'music_font':str(req['scoreStyle'].get('musicFont','')),'size':str(req['scoreStyle'].get('size',''))}
     metadata=engine.score_metadata(config,engine.default_score_title(config['filename']))
@@ -309,6 +311,13 @@ def main():
             old=next((x for x in harmony['events'] if x['tick']==tick),{})
             changed=(old.get('root'),old.get('quality'))!=(pc,quality)
             event=dict(old,tick=tick,root=pc,quality=quality,root_spelling=root,confidence=old.get('confidence',0) if not changed else 0)
+            bass=str(c.get('bass') or '').strip().replace('♯','#').replace('♭','b')
+            if bass:
+                if not re.fullmatch('[A-G](#{1,2}|b{1,2})?',bass):raise ValueError('Baixo de acorde inválido: '+bass)
+                event['bass']=(naturals[bass[0]]+bass.count('#')-bass.count('b'))%12;event['bass_spelling']=bass
+            elif changed:
+                # Another chord at this position: the old slash bass does not belong to it.
+                event.pop('bass',None);event.pop('bass_spelling',None)
             selected_inversion=c.get('diagramInversion')
             event['diagram_inversion']=None if selected_inversion is None else engine.diagram_inversion(selected_inversion)
             event['pitch_classes']=sorted((pc+x)%12 for x in CHORD_INTERVALS[quality])

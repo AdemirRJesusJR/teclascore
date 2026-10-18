@@ -47,6 +47,8 @@ public sealed class Settings
     public int KeyboardKeys { get; set; } = 61;
     /// <summary>Names under the C keys of the keyboard diagrams: "letras" (C) or "solfejo" (Dó).</summary>
     public string NoteNames { get; set; } = "letras";
+    /// <summary>How chord symbols are written (7M or maj7, ø or m7(b5), flats or sharps…).</summary>
+    public SavedChordNotation? ChordNotation { get; set; }
     /// <summary>Stage: page colors inverted (light notes on dark) for dim rooms.</summary>
     public bool NightStage { get; set; }
     /// <summary>Weekly copy of the library into AutoBackupFolder (the newest four are kept).</summary>
@@ -369,6 +371,16 @@ public sealed class SavedSource
 }
 
 /// <summary>Library-wide remembered diagram position for a keyboard chord (final pitch class and quality).</summary>
+/// <summary>The chord notation chosen in Settings (see Teclas.Core.ChordNotationPreference).</summary>
+public sealed class SavedChordNotation
+{
+    public string Major7 { get; set; } = "maj7";
+    public string HalfDiminished { get; set; } = "m7b5";
+    public string Diminished { get; set; } = "dim";
+    public string Add9 { get; set; } = "add9";
+    public string Accidentals { get; set; } = "auto";
+}
+
 public sealed class SavedChordPreference
 {
     public int PitchClass { get; set; }
@@ -378,6 +390,7 @@ public sealed class SavedChordPreference
 
 public sealed class SavedChord
 {
+    public string? Bass { get; set; }
     public int? DiagramInversion { get; set; }
     public double Quarter { get; set; }
     public string Root { get; set; } = "C";

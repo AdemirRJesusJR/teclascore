@@ -52,7 +52,7 @@ public partial class MainWindow
             Title=row.ScoreTitle,Subtitle=row.ScoreSubtitle,Composer=row.ScoreComposer,DefaultInversion=row.DefaultDiagramInversion,Inversion=row.DiagramInversion,
             Artist=row.ScoreArtist,MetadataOrganizationNotice=row.MetadataOrganizationNotice,
             TransposeSemitones=row.TransposeSemitones,KeyFifths=row.KeyFifths,KeyMinor=row.KeyMinor,
-            Chords=row.Chords.Select(c=>new SavedChord { Quarter=c.Quarter,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence,DiagramInversion=c.DiagramInversion,Recommendation=c.Recommendation,Alternatives=c.Alternatives }).ToList() });
+            Chords=row.Chords.Select(c=>new SavedChord { Quarter=c.Quarter,Bass=c.Bass,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence,DiagramInversion=c.DiagramInversion,Recommendation=c.Recommendation,Alternatives=c.Alternatives }).ToList() });
     }
     private void ScoreHistoryClick(object sender,RoutedEventArgs e)
     {
@@ -84,7 +84,7 @@ public partial class MainWindow
         row.ScoreArtist=version.Artist;row.MetadataOrganizationNotice=version.MetadataOrganizationNotice;
         row.DefaultDiagramInversion=version.DefaultInversion;row.DiagramInversion=version.Inversion;row.TransposeSemitones=version.TransposeSemitones;
         row.KeyFifths=version.KeyFifths;row.KeyMinor=version.KeyMinor;row.Chords.Clear();
-        foreach(var chord in version.Chords)row.Chords.Add(new ChordRow { Quarter=chord.Quarter,Root=chord.Root,Quality=chord.Quality,Confidence=chord.Confidence,DiagramInversion=chord.DiagramInversion,Recommendation=chord.Recommendation,Alternatives=chord.Alternatives });
+        foreach(var chord in version.Chords)row.Chords.Add(new ChordRow { Quarter=chord.Quarter,Bass=chord.Bass,Root=chord.Root,Quality=chord.Quality,Confidence=chord.Confidence,DiagramInversion=chord.DiagramInversion,Recommendation=chord.Recommendation,Alternatives=chord.Alternatives });
         row.HasPendingScoreProperties=false;row.HasOperationError=false;row.Status="Versão restaurada · "+row.PageCountText;
         }
         finally{loading=false;}
@@ -95,7 +95,7 @@ public partial class MainWindow
             remembered.MelodySections=Settings.CloneMelodySections(version.MelodySections);
             remembered.Sha256=version.SourceSha256;remembered.UseReviewedProfile=version.UseReviewedProfile;
             remembered.MelodySources=version.MelodySources.Select(s=>new SavedSource {Track=s.Track,Channel=s.Channel,Program=s.Program}).ToList();
-            remembered.Chords=version.Chords.Select(c=>new SavedChord {Quarter=c.Quarter,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence,DiagramInversion=c.DiagramInversion,Recommendation=c.Recommendation,Alternatives=c.Alternatives}).ToList();
+            remembered.Chords=version.Chords.Select(c=>new SavedChord {Quarter=c.Quarter,Bass=c.Bass,Root=c.Root,Quality=c.Quality,Confidence=c.Confidence,DiagramInversion=c.DiagramInversion,Recommendation=c.Recommendation,Alternatives=c.Alternatives}).ToList();
             remembered.KeyFifths=version.KeyFifths;remembered.KeyMinor=version.KeyMinor;
             remembered.AnalysisPath=version.AnalysisPath;remembered.Workspace=version.Workspace;
         }

@@ -1,3 +1,7 @@
+TECLASCORE 0.49.0
+
+Cifra digitada por compasso. Escrita das cifras à sua escolha (7M, ø, °, bemóis). Melodia montada por trechos. Planilha de títulos e artistas. Exportação para OpenLP e Holyrics. Falhas repetidas com ajuste automático.
+
 TECLASCORE 0.48.0
 
 Piloto automático da biblioteca. Nota de confiança e lista Revisar primeiro. Revisão em sequência com atalhos. Regras aplicadas às músicas parecidas. Comandos com Ctrl+K. Repertório rápido para culto ou show.

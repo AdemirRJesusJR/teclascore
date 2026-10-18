@@ -182,7 +182,7 @@ public partial class MainWindow
                 if (selection is MidiRow row && MatchesLibraryFilter(row) && Library is not null)
                     Library.SelectedItem = row;
             }
-            foreach (var name in new[] { nameof(TotalCount), nameof(ReadyCount), nameof(ReviewCount),
+            foreach (var name in new[] { nameof(RetryFailuresVisibility), nameof(TotalCount), nameof(ReadyCount), nameof(ReviewCount),
                 nameof(GeneratedCount), nameof(ErrorCount), nameof(CompletedPages), nameof(CompletionPercent),
                 nameof(ReadyPercent), nameof(ReviewPercent), nameof(GeneratedPercent), nameof(ErrorPercent),
                 nameof(HasFiles), nameof(HasGenerated), nameof(CanBatch), nameof(CanExportBatchPdf), nameof(SessionSummary),

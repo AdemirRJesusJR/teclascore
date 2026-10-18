@@ -63,6 +63,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         settings=Settings.Load(settingsPath);
         ThemeManager.Apply(ThemeManager.StartupId(settings.ThemeId, !smoke && SystemParameters.HighContrast));
         KeyboardDiagramPreview.CLabel = settings.NoteNames == "solfejo" ? "Dó" : "C";
+        Teclas.Core.ChordNotation.Current = ToPreference(settings.ChordNotation);
         InitializeComponent();
         InitializeOperations();
         InitializePlayback();
@@ -346,7 +347,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             if(row==selectedFile){ResetPlayback();NotifyPlaybackState();Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));}
         }
         await EnsureAnalysisForGeneration(row);
-        var chords=new JsonArray(row.Chords.Select(c=>(JsonNode)new JsonObject{["quarter"]=c.Quarter,["root"]=c.Root,["quality"]=c.Quality,["diagramInversion"]=c.DiagramInversion}).ToArray());
+        var chords=new JsonArray(row.Chords.Select(c=>(JsonNode)WithBass(new JsonObject{["quarter"]=c.Quarter,["root"]=c.Root,["quality"]=c.Quality,["diagramInversion"]=c.DiagramInversion},c)).ToArray());
         if(row.SimplifiedChords)chords=ChordSimplifier.SimplifyAll(chords);
         var request=new JsonObject{["mode"]="generate",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["analysisPath"]=row.AnalysisPath,["musescorePath"]=MuseScorePath,["outputDirectory"]=outputDirectory,["keyFifths"]=row.KeyFifths,["keyMinor"]=row.KeyMinor,["chords"]=chords,["scoreTitle"]=row.ScoreTitle,["scoreSubtitle"]=row.ScoreSubtitle,["scoreComposer"]=row.ScoreComposer,["diagramInversion"]=row.EffectiveDiagramInversion};
         row.Status="Gerando e conferindo no MuseScore…";
@@ -355,6 +356,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(!row.IncludeLyrics)request["includeLyrics"]=false;
         if(row.ChordStaff && !row.ChordsOnly)request["chordStaff"]=true;
         if(settings.NoteNames=="solfejo")request["noteNames"]="solfejo";
+        AddNotation(request);
         if(SecondVoiceSources(row) is {Count:>0} secondVoice && !row.ChordsOnly)request["secondVoiceSources"]=secondVoice;
         if(ScoreStyleRequest() is {} scoreStyle)request["scoreStyle"]=scoreStyle;
         request["scoreArtist"]=row.ScoreArtist;

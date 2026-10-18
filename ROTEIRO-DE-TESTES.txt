@@ -1,3 +1,12 @@
+TECLASCORE 0.49.0 · CIFRA DIGITADA, ESCRITA DAS CIFRAS, TRECHOS, PLANILHA E PROJEÇÃO
+
+1. Aba Cifras › Digitar a cifra: corrija uma música inteira e confira a partitura e os diagramas.
+2. Configurações › Escrita das cifras: escolha 7M, m7(b5), ° e bemóis; gere uma música e confira; depois Aplicar à biblioteca.
+3. Aba Melodia › Pistas por trecho › Propor automaticamente numa música com solo de outro instrumento; ouça e gere.
+4. Ícone de tabela na Biblioteca: preencha pelo nome do arquivo, cole uma coluna do Excel e salve.
+5. Ctrl+K › Exportar para projeção: importe um .xml no OpenLP e um .txt no Holyrics.
+6. Visão geral › Tentar de novo com ajuste, com músicas que falharam.
+
 TECLASCORE 0.48.0 · PILOTO AUTOMÁTICO, REVISÃO E REPERTÓRIO RÁPIDO
 
 1. Na Biblioteca, Piloto: rode com algumas músicas sem partitura; confira o relatório (prontas, para revisar, precisam de você, falharam) e os PDFs.

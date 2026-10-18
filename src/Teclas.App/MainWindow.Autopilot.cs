@@ -64,6 +64,7 @@ public partial class MainWindow
 
     internal async Task<IReadOnlyList<AutopilotOutcome>> RunAutopilotAsync(IReadOnlyList<MidiRow> candidates, bool exportPdf, bool keepAwake)
     {
+        LastAdjustments = new Dictionary<MidiRow, string>();
         var outcomes = new List<AutopilotOutcome>();
         var ready = new List<MidiRow>();
         foreach (var row in candidates)
@@ -83,7 +84,7 @@ public partial class MainWindow
                 {
                     var token = cancellation!.Token;
                     Status = $"Piloto automático: gerando {ready.Count} partitura(s)…";
-                    failures = autopilotGenerate is { } generate ? await generate(ready, token) : await GenerateThroughQueueAsync(ready, token);
+                    failures = autopilotGenerate is { } generate ? await generate(ready, token) : await GenerateWithAdjustmentsAsync(ready, token);
                     var made = ready.Where(r => r.ScorePath is not null && !failures.ContainsKey(r)).ToList();
                     if (exportPdf && made.Count > 0)
                     {
@@ -101,6 +102,7 @@ public partial class MainWindow
             RefreshConfidence(row);
             if (failures.TryGetValue(row, out var error)) outcomes.Add(new(row, "Falharam", error));
             else if (row.ScorePath is null) outcomes.Add(new(row, "Falharam", "a partitura não foi gerada (fila pausada ou cancelada)"));
+            else if (LastAdjustments.TryGetValue(row, out var adjusted)) outcomes.Add(new(row, "Para revisar", $"gerada {adjusted} depois de uma falha"));
             else if (row.Confidence is { Score: >= 85 } good) outcomes.Add(new(row, "Prontas", $"{good.Score}%"));
             else outcomes.Add(new(row, "Para revisar", row.Confidence is { } c ? $"{c.Score}% · {string.Join("; ", c.Reasons)}" : "conferir"));
         }

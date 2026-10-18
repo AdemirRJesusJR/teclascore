@@ -768,9 +768,19 @@ def convert_score(xml,report,out,filename):
         for voice in measure.findall('voice'):
             for harmony in list(voice.findall('Harmony')):
                 c=next(events);inversion=chord_diagram_inversion(c,report.get('diagram_inversion',2))
+                written=(report.get('chord_texts') or {}).get(c['quality'])
+                if written:
+                    # MuseScore turns some suffixes back into its own (7M into maj7); the chosen notation is written in the score.
+                    info=harmony.find('harmonyInfo')
+                    if info is None:info=harmony
+                    name_tag=info.find('name')
+                    if name_tag is None:
+                        name_tag=E.Element('name');root_tag=info.find('root')
+                        info.insert(list(info).index(root_tag) if root_tag is not None else 0,name_tag)
+                    name_tag.text=written
                 path,data,pitches=keyboard_asset(c['root'],c['quality'],inversion,'Dó' if report.get('note_names')=='solfejo' else 'C');assets['Pictures/'+path]=data
                 asset_manifest[path]={'root':c['root'],'quality':c['quality'],'pitches':pitches,'diagram_inversion':inversion}
-                im=E.Element('Image');E.SubElement(im,'offset',x=str(4.5+max(0,len(c['quality'])-1)*.8),y=str(-6.7-lift));sub(im,'path',path);sub(im,'autoScale',0);E.SubElement(im,'size',w='14',h=str(14*84/282));sub(im,'lockAspectRatio',1);sub(im,'sizeIsSpatium',1)
+                im=E.Element('Image');E.SubElement(im,'offset',x=str(4.5+max(0,len(written or c['quality'])-1)*.8),y=str(-6.7-lift));sub(im,'path',path);sub(im,'autoScale',0);E.SubElement(im,'size',w='14',h=str(14*84/282));sub(im,'lockAspectRatio',1);sub(im,'sizeIsSpatium',1)
                 if placement:
                     # One shared row keeps each chord symbol aligned with its
                     # keyboard instead of letting harmony autoplace independently.

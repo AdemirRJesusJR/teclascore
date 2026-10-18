@@ -26,6 +26,21 @@ public sealed class MelodySectionsWindow : Window
     private readonly Button update, remove, apply;
     public IReadOnlyList<SavedMelodySection> Sections => Settings.CloneMelodySections(items.Select(item => item.Value));
 
+    /// <summary>Automatic proposal of the sections (where the melody passes between parts); shown as a button when set.</summary>
+    public Func<IReadOnlyList<SavedMelodySection>>? Propose { get; init; }
+
+    /// <summary>Replaces the list with the automatic proposal; returns how many sections it has.</summary>
+    internal int UseProposal()
+    {
+        var proposal = Propose?.Invoke() ?? [];
+        if (proposal.Count == 0) { validation.Text = "A melodia não troca de instrumento nesta música: uma só pista basta."; return 0; }
+        items.Clear();
+        foreach (var section in Settings.CloneMelodySections(proposal).OrderBy(section => section.FirstMeasure)) items.Add(ToItem(section));
+        Refresh();
+        validation.Text = $"Proposta automática com {proposal.Count} trecho(s), só com notas do MIDI. Confira e aplique.";
+        return proposal.Count;
+    }
+
     public MelodySectionsWindow(MelodyMeasureMap map, IReadOnlyList<TrackRow> tracks, IEnumerable<SavedMelodySection> current, int? initialMeasure = null)
     {
         ArgumentNullException.ThrowIfNull(map); ArgumentNullException.ThrowIfNull(tracks);
@@ -102,6 +117,10 @@ public sealed class MelodySectionsWindow : Window
         footer.Children.Add(new TextBlock { Text = "A troca considera os ataques das notas. Uma nota de outra fonte que já começou antes do trecho não será reiniciada. Aplicar exige analisar ou gerar novamente e preserva a partitura anterior no Histórico.",
             TextWrapping = TextWrapping.Wrap, FontSize = 12, Margin = new(0, 0, 0, 10) });
         var actions = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right }; footer.Children.Add(actions);
+        var propose = DialogUi.Button("Propor automaticamente", (_, _) => UseProposal()); propose.Name = "MelodySectionsPropose";
+        propose.ToolTip = "Propõe onde a melodia passa de um instrumento para outro (voz, solo, voz), pela letra e pelo desenho melódico";
+        Loaded += (_, _) => propose.Visibility = Propose is null ? Visibility.Collapsed : Visibility.Visible;
+        actions.Children.Add(propose);
         var cancel = DialogUi.Button("Cancelar", (_, _) => DialogResult = false); cancel.IsCancel = true; actions.Children.Add(cancel);
         apply = DialogUi.Button("Aplicar trechos", (_, _) =>
         {

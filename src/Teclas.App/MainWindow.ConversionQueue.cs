@@ -49,11 +49,11 @@ public partial class MainWindow
         if (row.Chords.Count > 0)
         {
             options["keyFifths"] = row.KeyFifths; options["keyMinor"] = row.KeyMinor;
-            options["chords"] = new JsonArray(row.Chords.Select(chord => (JsonNode)new JsonObject
+            options["chords"] = new JsonArray(row.Chords.Select(chord => (JsonNode)WithBass(new JsonObject
             {
                 ["quarter"] = chord.Quarter, ["root"] = chord.Root, ["quality"] = chord.Quality,
                 ["diagramInversion"] = chord.DiagramInversion
-            }).ToArray());
+            }, chord)).ToArray());
             if (row.SimplifiedChords) options["chords"] = ChordSimplifier.SimplifyAll((JsonArray)options["chords"]!);
         }
         else if (chordPreferences.Count > 0)
@@ -66,6 +66,7 @@ public partial class MainWindow
         if (!row.IncludeLyrics) options["includeLyrics"] = false;
         if (row.ChordStaff && !row.ChordsOnly) options["chordStaff"] = true;
         if (settings.NoteNames == "solfejo") options["noteNames"] = "solfejo";
+        AddNotation(options);
         if (SecondVoiceSources(row) is { Count: > 0 } secondVoice && !row.ChordsOnly) options["secondVoiceSources"] = secondVoice;
         if (ScoreStyleRequest() is { } scoreStyle) options["scoreStyle"] = scoreStyle;
         return options;

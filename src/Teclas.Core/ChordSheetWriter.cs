@@ -66,7 +66,7 @@ public static class ChordSheetWriter
         }
     }
 
-    private static string Name(MusicHarmony harmony) => harmony.Root + harmony.Quality + (harmony.Bass is { } bass ? "/" + bass : "");
+    private static string Name(MusicHarmony harmony) => ChordNotation.Root(harmony.Root) + ChordNotation.Display(harmony.Quality) + (harmony.Bass is { } bass ? "/" + ChordNotation.Root(bass) : "");
 
     private static string ChordsOnly(IReadOnlyList<MusicHarmony> chords, int start, int end, Func<string, string>? format = null) =>
         string.Join(" | ", Enumerable.Range(start, end - start + 1)

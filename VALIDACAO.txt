@@ -1,3 +1,13 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.49.0
+18/10/2026
+
+- CI local completo: 68 etapas aprovadas, 0 falhas, 3 puladas; 233 testes do motor, incluindo a escrita das cifras (7M, m7(b5), °, bemóis e sustenidos, sem vazar entre partituras).
+- No MuseScore 4.7.5: o MuseScore converte "7M" de volta para "maj7" e "°" para "dim" ao importar; o motor agora regrava os nomes no .mscz depois da conversão, e a página mostra C7M, Bm7(♭5) e F♯°. Transposição com bemóis gerou Db, Gb e Ab.
+- Interface 0.49: 25 verificações com geração simulada: cifra digitada (barras entre linhas, ponto, %, qualquer escrita, erros por compasso, ida e volta), aplicada com versão no histórico e baixo do acorde com barra salvo e enviado ao motor; escrita das cifras com prévia, pedido ao motor, partituras em outra escrita entendidas pelo editor, cifra em texto e prática; trechos propostos para o solo de flauta (compassos 5–6) e aplicados, inclusive pela janela Pistas por trecho; planilha preenchendo pelo nome do arquivo e colando linhas do Excel; OpenLyrics com acordes e texto do Holyrics, pulando músicas sem letra; falhas repetidas sem dobrar repetições e só com cifras, com as opções restauradas para a que continua falhando.
+- Os testes acharam e corrigiram: uma quebra de linha entre barras virava compasso vazio; o baixo digitado não ia ao motor e o motor herdava o baixo antigo quando o acorde mudava; o botão novo da aba Melodia encostava na tabela de pistas no layout compacto (passou para dentro de Pistas por trecho); o título "Seu repertório" era cortado pelos ícones (agora "Repertório").
+- Não testado com programas reais: importação no OpenLP e no Holyrics.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.48.0
 18/10/2026
 

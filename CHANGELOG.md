@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.49.0 — 18/10/2026
+
+- Digitar a cifra (aba Cifras): a cifra inteira em texto, um compasso entre barras (| C | G/B | Am F | % |), aplicada compasso a compasso; a partitura é gerada de novo e a versão anterior fica no histórico. Acordes com barra mantêm o baixo, também ao reabrir o app.
+- Escrita das cifras (Configurações): 7M, maj7 ou Δ; m7(b5), m7b5 ou ø; ° ou dim; (9) ou add9; bemóis, sustenidos ou pelo tom. Vale para as partituras, a cifra em texto e o repertório; "Aplicar à biblioteca" gera de novo as já prontas. O editor e a prática entendem partituras escritas em qualquer dessas formas.
+- Propor automaticamente (aba Melodia › Pistas por trecho): quando a melodia passa de um instrumento para outro (voz, solo de flauta, voz), o app propõe os trechos de cada pista pela letra e pelo desenho melódico, só com notas reais do MIDI, e você confirma.
+- Títulos e artistas (ícone no cabeçalho da Biblioteca): todas as músicas numa tabela para editar título, artista, compositor e coleção, com preenchimento pelo nome do arquivo e colagem de colunas do Excel.
+- Projeção: letras e cifras exportadas para OpenLP (OpenLyrics, com acordes) e Holyrics (texto, um slide por estrofe), pela paleta de comandos e junto com o Repertório rápido.
+- Repetir falhas com ajuste: quando uma música falha, o Piloto, o Repertório rápido e o botão da Visão geral tentam de novo sem dobrar as repetições e depois só com cifras, dizendo o que precisou mudar; as que continuam falhando mantêm suas opções.
+
 ## 0.48.0 — 18/10/2026
 
 - Piloto automático (Biblioteca): processa todas as músicas sem partitura. Escolhe a melodia quando ela é clara (a pista do canto ou a candidata bem à frente), analisa, gera e salva o PDF; no fim separa as prontas, as para revisar, as que precisam de você (melodia duvidosa nunca é adivinhada) e as que falharam. Mantém o computador acordado, para rodar à noite.

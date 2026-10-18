@@ -55,7 +55,7 @@ public partial class MainWindow
             await RunOperation(async () =>
             {
                 Status = $"Repertório: gerando {regenerate.Count} música(s) no tom escolhido…";
-                failures = autopilotGenerate is { } generate ? await generate(regenerate, cancellation!.Token) : await GenerateThroughQueueAsync(regenerate, cancellation!.Token);
+                failures = autopilotGenerate is { } generate ? await generate(regenerate, cancellation!.Token) : await GenerateWithAdjustmentsAsync(regenerate, cancellation!.Token);
             }, operationTitle: "Preparando o repertório");
             foreach (var (row, error) in failures) leftOut.Add($"{row.Name}: {error}");
         }
@@ -91,9 +91,11 @@ public partial class MainWindow
             var store = new PresentationStore(stage); var loaded = store.Load();
             store.Save(loaded.Document with { Title = title, Entries = entries, SelectedId = entries[0].Id });
         }
+        // 5. Lyrics for the projection software (songs with words).
+        var projection = await ExportProjectionAsync(ready);
         PersistPreferences(); RefreshSelection();
         var span = TimeSpan.FromSeconds(seconds);
-        Status = $"Repertório \"{title}\": {ready.Count} música(s), cerca de {(span.TotalHours >= 1 ? $"{(int)span.TotalHours}h{span.Minutes:00}" : span.TotalMinutes >= 1 ? $"{(int)Math.Round(span.TotalMinutes)} min" : $"{span.Seconds} s")}. PDF e cifras em {folder} (cifras copiadas); a lista está na Apresentação." +
+        Status = $"Repertório \"{title}\": {ready.Count} música(s), cerca de {(span.TotalHours >= 1 ? $"{(int)span.TotalHours}h{span.Minutes:00}" : span.TotalMinutes >= 1 ? $"{(int)Math.Round(span.TotalMinutes)} min" : $"{span.Seconds} s")}. PDF e cifras em {folder} (cifras copiadas); a lista está na Apresentação" + (projection.Exported > 0 ? $"; letras para OpenLP e Holyrics em {projection.Folder}." : ".") +
                  (leftOut.Count > 0 ? $" Ficaram de fora: {string.Join("; ", leftOut)}." : "");
         return new(pdf, sheet, stage, seconds, leftOut);
     }

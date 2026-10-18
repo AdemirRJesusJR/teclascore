@@ -53,7 +53,7 @@ public partial class MainWindow
                         row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
                         row.KeyFifths = saved.KeyFifths; row.KeyMinor = saved.KeyMinor;
                         foreach (var chord in saved.Chords) row.Chords.Add(new ChordRow
-                        { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
+                        { Quarter = chord.Quarter, Bass = chord.Bass, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
                         row.HasOperationError = saved.HasOperationError;
                         row.Status = "Partitura editada preservada · arquivo de origem alterado ou sem identificação anterior";
                     }
@@ -82,7 +82,7 @@ public partial class MainWindow
                     row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
                     row.KeyFifths = saved.KeyFifths; row.KeyMinor = saved.KeyMinor;
                     foreach (var chord in saved.Chords) row.Chords.Add(new ChordRow
-                    { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
+                    { Quarter = chord.Quarter, Bass = chord.Bass, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
                 }
                 var freshHeader=(row.ScoreTitle,row.ScoreSubtitle,row.ScoreComposer,row.ScoreArtist,row.ArrangementSummary);
                 ApplySavedScoreProperties(row, saved);
@@ -119,7 +119,7 @@ public partial class MainWindow
         foreach (var track in row.Tracks) if (second.Contains(track.Source.Key)) track.IsSecondVoice = true;
         row.KeyFifths = saved.KeyFifths; row.KeyMinor = saved.KeyMinor;
         foreach (var chord in saved.Chords) row.Chords.Add(new ChordRow
-        { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
+        { Quarter = chord.Quarter, Bass = chord.Bass, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
         row.Workspace = saved.Workspace;
         row.AnalysisPath = File.Exists(saved.AnalysisPath) && Directory.Exists(saved.Workspace) ? saved.AnalysisPath : null;
         RestoreReviewPoints(row);
@@ -205,7 +205,7 @@ public partial class MainWindow
             remembered.Status = row.Status; remembered.HasOperationError = row.HasOperationError;
             remembered.KeyFifths = row.KeyFifths; remembered.KeyMinor = row.KeyMinor;
             remembered.Chords = row.Chords.Select(chord => new SavedChord
-                { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives }).ToList();
+                { Quarter = chord.Quarter, Bass = chord.Bass, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives }).ToList();
             return remembered;
         }
         return new SavedMidi
@@ -224,7 +224,7 @@ public partial class MainWindow
             MelodySources = SaveMelodyPriority(GetOrderedMelodySources(row)),
             SecondVoiceSources = row.Tracks.Where(track => track.IsSecondVoice).Select(track => new SavedSource { Track = track.Source.Key.Track, Channel = track.Source.Key.Channel, Program = track.Source.Key.Program }).ToList(),
             Chords = row.Chords.Select(chord => new SavedChord
-                { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives }).ToList(),
+                { Quarter = chord.Quarter, Bass = chord.Bass, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives }).ToList(),
             KeyFifths = row.KeyFifths, KeyMinor = row.KeyMinor, AnalysisPath = row.AnalysisPath, Workspace = row.Workspace,
             ScorePath = row.ScorePath, PreviewPath = row.PreviewPath, PageCount = row.PageCount, GeneratedAt = row.GeneratedAt,
             HasOperationError = row.HasOperationError, Status = row.Status

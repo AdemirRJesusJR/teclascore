@@ -23,7 +23,9 @@ public partial class MainWindow
     }
 
     /// <summary>The engine request for a chord sheet score: one measure per chord, words and line starts, remembered positions.</summary>
-    internal JsonObject ChordSheetRequest(IReadOnlyList<SheetMeasure> measures, string title, string workspace, string outputDirectory) => new()
+    internal JsonObject ChordSheetRequest(IReadOnlyList<SheetMeasure> measures, string title, string workspace, string outputDirectory)
+    { var request = ChordSheetRequestCore(measures, title, workspace, outputDirectory); AddNotation(request); return request; }
+    private JsonObject ChordSheetRequestCore(IReadOnlyList<SheetMeasure> measures, string title, string workspace, string outputDirectory) => new()
     {
         ["mode"] = "chordSheet", ["workspace"] = workspace, ["inputMidi"] = "", ["scoreTitle"] = title, ["beats"] = 4,
         ["diagramInversion"] = settings.DefaultDiagramInversion, ["musescorePath"] = MuseScorePath, ["outputDirectory"] = outputDirectory,

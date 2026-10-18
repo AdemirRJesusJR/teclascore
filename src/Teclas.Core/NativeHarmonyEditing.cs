@@ -32,7 +32,8 @@ internal static class NativeHarmonyEditing
             !harmony.Ancestors().Any(parent => ReferenceEquals(parent, archive.Score)))
             return Block("", "", "Selecione uma cifra existente na partitura principal.");
         var info = harmony.Element("harmonyInfo") ?? harmony;
-        string quality = (string?)info.Element("name") ?? "";
+        // Scores may be written in another notation (7M, ø, °): the internal name is what the app works with.
+        string quality = ChordNotation.Canonical((string?)info.Element("name") ?? "");
         if (!int.TryParse((string?)info.Element("root"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int tpc) ||
             !TryRoot(tpc, out string root))
             return Block("", quality, "Esta cifra textual ou funcional não possui uma fundamental convencional editável.");
@@ -106,8 +107,10 @@ internal static class NativeHarmonyEditing
             // MuseScore serializes the suffix before the root. Keep that native order so
             // reopening the edited chord does not change its structural fingerprint.
             var name = info.Element("name");
-            if (name is null) name = new XElement("name", quality);
-            else { name.Value = quality; name.Remove(); }
+            // Written in the user's notation; read back to the internal name by Inspect.
+            string written = ChordNotation.Display(quality);
+            if (name is null) name = new XElement("name", written);
+            else { name.Value = written; name.Remove(); }
             info.Element("root")!.AddBeforeSelf(name);
         }
     }
