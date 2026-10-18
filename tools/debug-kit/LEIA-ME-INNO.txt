@@ -24,7 +24,7 @@ Em um checkout novo, prepare uma vez os downloads oficiais com:
 python tools/prepare_offline_dependencies.py --download
 Os arquivos são fixados por versão e SHA-256 em tools/offline-dependencies.json. Não se utiliza o Python do computador do desenvolvedor nem suas configurações pessoais no pacote.
 
-MuseScore e código-fonte oficial: https://github.com/musescore/MuseScore/releases/tag/v4.6.5
+MuseScore e código-fonte oficial: https://github.com/musescore/MuseScore/releases/tag/v4.7.5
 Python oficial: https://www.python.org/ftp/python/3.13.13/
 Pillow oficial: https://pypi.org/project/Pillow/12.3.0/
 

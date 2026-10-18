@@ -17,6 +17,8 @@ public enum PracticeResult { Ignored, Correct, StepComplete, Finished, Wrong }
 public sealed class PracticeSession
 {
     private readonly HashSet<int> played = [];
+    private readonly List<MeasureMark> log = [];
+    public IReadOnlyList<MeasureMark> Log => log;
     public IReadOnlyList<PracticeStep> Steps { get; }
     public bool AnyOctave { get; set; }
     public int Index { get; private set; }
@@ -39,8 +41,8 @@ public sealed class PracticeSession
         if (Current is not { } step || pitch is < 0 or > 127) return PracticeResult.Ignored;
         int? match = step.Pitches.Where(expected => !played.Contains(expected))
             .Select(expected => (int?)expected).FirstOrDefault(expected => expected == pitch || AnyOctave && expected % 12 == pitch % 12);
-        if (match is null) { Misses++; return PracticeResult.Wrong; }
-        played.Add(match.Value); Hits++;
+        if (match is null) { Misses++; log.Add(new(step.Measure, MeasureMarkKind.Wrong)); return PracticeResult.Wrong; }
+        played.Add(match.Value); Hits++; log.Add(new(step.Measure, MeasureMarkKind.OnTime));
         if (played.Count < step.Pitches.Count) return PracticeResult.Correct;
         Advance(1);
         return IsFinished ? PracticeResult.Finished : PracticeResult.StepComplete;
@@ -48,7 +50,7 @@ public sealed class PracticeSession
 
     /// <summary>Moves by whole steps (negative goes back); clears keys already played in the step.</summary>
     public void Advance(int steps) { Index = Math.Clamp(Index + steps, 0, Steps.Count); played.Clear(); }
-    public void Restart() { Index = 0; Hits = 0; Misses = 0; played.Clear(); }
+    public void Restart() { Index = 0; Hits = 0; Misses = 0; played.Clear(); log.Clear(); }
 
     /// <summary>Steps from a saved score: notes starting together on any staff form one step; rests and grace notes are skipped.</summary>
     public static IReadOnlyList<PracticeStep> FromScore(NativeMusicModel model)

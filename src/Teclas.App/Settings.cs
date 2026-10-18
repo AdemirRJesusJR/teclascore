@@ -38,6 +38,7 @@ public sealed class Settings
     /// <summary>Look of generated scores: MuseScore music font and staff size (normal, grande, muito-grande).</summary>
     public string ScoreMusicFont { get; set; } = "Leland";
     public string ScoreSize { get; set; } = "normal";
+    public bool Karaoke { get; set; }
     public Dictionary<string, int> TempoGoals { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public const double MinimumPreviewControlsHeight = 40;
     public DateTime? LastUpdateCheck { get; set; }

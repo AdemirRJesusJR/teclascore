@@ -10,6 +10,9 @@ public enum TimedPracticeResult { Ignored, OnTime, Early, Late, Wrong }
 public sealed class TimedPracticeSession
 {
     private readonly List<(int Step, int Pitch)> pending = [];
+    private readonly List<MeasureMark> log = [];
+    /// <summary>Every key judged, by measure, for the report after the attempt.</summary>
+    public IReadOnlyList<MeasureMark> Log => log;
     private int nextStep;
     public IReadOnlyList<PracticeStep> Steps { get; }
     public double Bpm { get; }
@@ -57,6 +60,7 @@ public sealed class TimedPracticeSession
             int step = nextStep++;
             pending.AddRange(Steps[step].Pitches.Select(pitch => (step, pitch)));
         }
+        foreach (var note in pending.Where(note => Steps[note.Step].Start + Tolerance < position)) log.Add(new(Steps[note.Step].Measure, MeasureMarkKind.Missed));
         Missed += pending.RemoveAll(note => Steps[note.Step].Start + Tolerance < position);
     }
 
@@ -66,11 +70,11 @@ public sealed class TimedPracticeSession
         Advance(position);
         var candidates = pending.Where(note => note.Pitch == pitch || AnyOctave && note.Pitch % 12 == pitch % 12)
             .OrderBy(note => Math.Abs(Steps[note.Step].Start - Position)).ToArray();
-        if (candidates.Length == 0) { Wrong++; return TimedPracticeResult.Wrong; }
+        if (candidates.Length == 0) { Wrong++; if (Current is { } at) log.Add(new(at.Measure, MeasureMarkKind.Wrong)); return TimedPracticeResult.Wrong; }
         var hit = candidates[0]; pending.Remove(hit);
         double offset = Position - Steps[hit.Step].Start;
-        if (Math.Abs(offset) <= Tolerance / 2) { OnTime++; return TimedPracticeResult.OnTime; }
-        OffTime++;
+        if (Math.Abs(offset) <= Tolerance / 2) { OnTime++; log.Add(new(Steps[hit.Step].Measure, MeasureMarkKind.OnTime)); return TimedPracticeResult.OnTime; }
+        OffTime++; log.Add(new(Steps[hit.Step].Measure, MeasureMarkKind.OffTime));
         return offset < 0 ? TimedPracticeResult.Early : TimedPracticeResult.Late;
     }
 }

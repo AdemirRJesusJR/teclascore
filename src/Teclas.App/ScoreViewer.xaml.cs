@@ -370,6 +370,20 @@ public partial class ScoreViewer : UserControl
         return false;
     }
 
+    /// <summary>Karaoke line over the page: sung syllables muted, the current one bold in the accent color.</summary>
+    public void SetKaraoke(IReadOnlyList<KaraokePiece> line)
+    {
+        KaraokeText.Inlines.Clear();
+        KaraokeBar.Visibility = line.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var piece in line)
+        {
+            var run = new System.Windows.Documents.Run(piece.Text);
+            if (piece.State == KaraokeState.Current) { run.FontWeight = FontWeights.Bold; run.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, "Accent"); }
+            else run.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, piece.State == KaraokeState.Sung ? "Muted" : "Ink");
+            KaraokeText.Inlines.Add(run);
+        }
+    }
+
     public void SetPlaybackMap(ScorePlaybackMap? map)
     {
         Dispatcher.VerifyAccess();

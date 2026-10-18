@@ -1,3 +1,7 @@
+TECLASCORE 0.37.0
+
+Karaokê na prévia. Resultado por compasso e metrônomo que acelera na prática. Instalador completo com MuseScore 4.7.5.
+
 TECLASCORE 0.36.1
 
 Acompanhamento da partitura mais resistente a falhas do MuseScore.

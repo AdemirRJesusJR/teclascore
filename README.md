@@ -1,12 +1,14 @@
 # TeclaScore
 
-Versão 0.36.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.37.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Pasta de MIDIs (Ctrl+L):** em vez de importar tudo, escolha uma pasta e marque, dentro do app, os MIDIs que entram na biblioteca. A lista mostra subpasta, tamanho, data e se o arquivo já está na biblioteca; filtre por nome (sem diferenciar acentos) e use ▶ para ouvir antes. Nada é copiado: os cards apontam para os arquivos na própria pasta, e a pasta escolhida fica lembrada. É o botão principal do cabeçalho; para arquivos avulsos use Escolher arquivos… na mesma janela, arraste-os para o app ou Ctrl+O.
 
 **Posições na biblioteca inteira:** em Posições dos diagramas, deixe marcada a opção Aplicar também às outras músicas. As cifras alteradas passam a valer nas músicas com o mesmo acorde tocado (nota e tipo, já com a transposição), e as partituras já geradas são atualizadas em seguida, com a versão anterior no Histórico. As outras cifras de cada música não mudam.
 
 **Instalador completo:** cada entrega gera `debug/TeclaScore-Completo.iss` com a versão atual e o compila em `debug/saida/TeclaScore-X-Completo-Setup-x64.exe`, que instala o aplicativo e, se faltar, o MuseScore Studio 4 do kit. O script é gerenciado e refeito a cada versão; para personalizar, copie-o com outro nome.
+
+**Karaokê e prática por compasso:** ligue Karaokê na Prévia para ver a letra acompanhando a música; na prática, veja quais compassos erraram, treine só eles e deixe o metrônomo acelerar a cada passagem limpa.
 
 **Ritornelo, aparência e suporte:** ligue Ritornelo para escrever repetições iguais uma vez só; escolha fonte e tamanho das partituras em Configurações; gere um relatório de problema para enviar quando algo der errado.
 
@@ -50,7 +52,7 @@ Versão 0.36.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artis
 
 **Acesso rápido:** Salvar PDF fica no cabeçalho fixo da Biblioteca, inclusive com controles compactos. Limpar biblioteca remove todos os cards, inclusive os filtrados, com confirmação e Desfazer durante a sessão; os arquivos são preservados. Subir oitava e Descer oitava atualizam todas as notas da partitura atual e sua reprodução, mantendo as cifras no mesmo tom e a versão anterior no Histórico. Valem também para MuseScore importado; estruturas não suportadas ou notas fora do intervalo válido são informadas sem alterar o original. Após essa edição, continue pelo Editor musical.
 
-**Kit Inno Setup:** a pasta `debug` é atualizada automaticamente ao preparar e empacotar cada versão. `debug/app` contém TeclaScore, .NET e Python 3.13.13 com Pillow 12.3.0; `debug/prerequisitos` contém o MSI oficial do MuseScore Studio 4.6.5. Consulte `debug/LEIA-ME-INNO.txt`. Scripts `.iss` próprios na raiz de debug são preservados. Os binários só mudam após recompilar e preparar uma entrega.
+**Kit Inno Setup:** a pasta `debug` é atualizada automaticamente ao preparar e empacotar cada versão. `debug/app` contém TeclaScore, .NET e Python 3.13.13 com Pillow 12.3.0; `debug/prerequisitos` contém o MSI oficial do MuseScore Studio 4.7.5. Consulte `debug/LEIA-ME-INNO.txt`. Scripts `.iss` próprios na raiz de debug são preservados. Os binários só mudam após recompilar e preparar uma entrega.
 
 **Nomes ao salvar:** PDFs e arquivos MuseScore usam **artista/intérprete - título**, conforme as propriedades da partitura. Sem intérprete, usam apenas o título. A regra vale para PDF individual e em lote, geração MIDI, novas versões editadas e arquivos do ZIP. Caracteres inválidos são substituídos e nomes repetidos recebem numeração; as versões anteriores permanecem intactas.
 

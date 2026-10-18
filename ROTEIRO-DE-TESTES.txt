@@ -1,3 +1,10 @@
+TECLASCORE 0.37.0 · KARAOKÊ, COMPASSOS E ACELERAÇÃO
+
+1. Numa música com letra (.kar), ligue Karaokê e Acompanhar e reproduza: a letra aparece sobre a partitura e a sílaba atual muda junto com a música.
+2. Em Praticar, termine uma tentativa no tempo e clique em Ver compassos: escolha o pior e treine só ele.
+3. Ligue Acelerar, defina uma meta de andamento no histórico e faça passagens limpas: o andamento sobe de 5 em 5 até a meta.
+4. Instale pelo instalador completo num computador sem MuseScore e confira a versão 4.7.5.
+
 TECLASCORE 0.36.1 · ACOMPANHAMENTO
 
 1. Na Prévia, clique em Preparar (Páginas) e reproduza: o destaque segue os compassos.

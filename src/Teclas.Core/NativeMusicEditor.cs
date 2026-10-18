@@ -12,6 +12,9 @@ public sealed record MusicEvent(string Id, int Staff, int Measure, int Voice, do
     public bool CanRestructure { get; init; }
     public string StructureRestriction { get; init; } = "";
     public double? DurationQuarter { get; init; }
+    /// <summary>First lyric syllable on this event (verse 1) and whether a word continues after it.</summary>
+    public string Lyric { get; init; } = "";
+    public bool LyricContinues { get; init; }
 }
 public sealed record MusicHarmony(string Id, int Staff, int Measure, int Voice, double? Quarter, string Root,
     string Quality, bool CanEdit, string Restriction, bool HasDiagram, int? DiagramInversion);
@@ -254,6 +257,8 @@ public static partial class NativeMusicEditor
                             var item = new MusicEvent(id, si + 1, mi, vi, quarter, child.Name.LocalName, type, dots,
                                 eventNotes.ToArray(), restrictionDuration.Length == 0, restrictionDuration)
                             { DurationQuarter = EventLength(child, measureQuarter),
+                              Lyric = (string?)child.Elements("Lyrics").FirstOrDefault(l => (string?)l.Element("no") is null or "0")?.Element("text") ?? "",
+                              LyricContinues = (string?)child.Elements("Lyrics").FirstOrDefault(l => (string?)l.Element("no") is null or "0")?.Element("syllabic") is "begin" or "middle",
                               StructureRestriction = First(global, staffRestriction, timing, StructureRestriction(child)),
                               CanRestructure = First(global, staffRestriction, timing, StructureRestriction(child)).Length == 0 };
                             var target = new EventTarget(child, item, EventLength(child, measureQuarter));

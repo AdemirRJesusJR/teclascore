@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.37.0 — 17/10/2026
+
+- Karaokê (Prévia → Páginas): durante a reprodução, a letra aparece sobre a partitura com a sílaba cantada destacada (precisa de Acompanhar).
+- Praticar: depois de cada tentativa, o resultado por compasso (certas, fora do tempo, perdidas e erradas) e os compassos mais difíceis; escolha um e treine só ele.
+- Acelerar a cada passagem limpa: no tempo com metrônomo, cada passagem com 90 pontos sobe o andamento em 5 e recomeça, até a meta de andamento da música.
+- Instalador completo passa a trazer o MuseScore Studio 4.7.5 oficial (antes 4.6.5, que falhava no preparo do acompanhamento no servidor de testes). O CI do GitHub usa o mesmo MSI.
+
 ## 0.36.1 — 17/10/2026
 
 - O preparo do acompanhamento (destaque dos compassos) também tenta de novo quando o MuseScore fecha com erro, e a mensagem de falha passa a trazer o código do MuseScore.

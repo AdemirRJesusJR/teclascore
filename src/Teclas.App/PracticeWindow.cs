@@ -141,6 +141,7 @@ public sealed partial class PracticeWindow : Window
         footer.Children.Add(DialogUi.Button("Recomeçar", (_, _) => Reset()));
         var close = DialogUi.Button("Fechar", (_, _) => Close()); close.IsCancel = true; footer.Children.Add(close);
         BuildRecording(footer);
+        BuildExtras(study, footer);
 
         var middle = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
         if (previewPath is not null)

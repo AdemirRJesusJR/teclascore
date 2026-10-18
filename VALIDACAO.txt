@@ -1,3 +1,10 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.37.0
+17/10/2026
+
+- Karaokê, compassos e aceleração: 9 verificações (sílabas na ordem, linha com a sílaba atual, avanço com a música, linha sobre a prévia a partir do mapa, desligar oculta; resultado por compasso, escolher compasso para treinar, passagem limpa sobe o andamento) e 1 verificação nativa (18 sílabas de uma partitura gerada pelo MuseScore real lidas na ordem).
+- MuseScore 4.7.5 oficial baixado do GitHub do MuseScore e conferido pelo SHA-256 publicado antes de entrar no instalador completo.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.36.1
 17/10/2026
 

@@ -136,6 +136,8 @@ public sealed partial class PracticeWindow
     private void PassageFinished()
     {
         bool mastered = timed is { } run ? run.Score >= 90 : session.Misses == 0;
+        feedback.Text += SummarizeMeasures();
+        if (mastered && ScheduleFasterPass()) return;
         if (mastered)
         {
             feedback.Text += passageAttempt == 1 ? " Trecho dominado na primeira tentativa!" : $" Trecho dominado em {passageAttempt} tentativas!";
@@ -155,6 +157,7 @@ public sealed partial class PracticeWindow
     private void RestartPassage()
     {
         restart.Stop();
+        if (pendingTempo is { } faster) { pendingTempo = null; tempo.Value = faster; }
         int attempt = passageAttempt;
         Reset(keepAttempt: true);
         passageAttempt = attempt;
