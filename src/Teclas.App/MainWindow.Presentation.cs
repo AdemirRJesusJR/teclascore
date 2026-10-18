@@ -19,8 +19,14 @@ public partial class MainWindow
             .Select(row => new PresentationLibraryItem(row.FullPath, row.ScorePath ?? row.FullPath, row.ScoreTitle, row.PreviewPath)).ToArray();
         var catalog = persistenceEnabled ? new PresentationCatalog(Path.Combine(directory, "presentation.json")) : null;
         new PresentationWindow(store, choices, PreparePresentationPages, catalog, ExportPresentationPdf) { Owner = this, PageLyrics = PresentationPageLyrics, ExportSongbook = ExportPresentationSongbook,
-            TempoOf = item => File.Exists(item.ScorePath) ? ScoreTempo.Read(item.ScorePath) : null }.ShowDialog();
+            TempoOf = item => File.Exists(item.ScorePath) ? ScoreTempo.Read(item.ScorePath) : null,
+            DurationOf = PresentationDuration, NightInitial = settings.NightStage, SaveNight = night => { settings.NightStage = night; PersistPreferences(); } }.ShowDialog();
     }
+
+    /// <summary>Length of a song from its original MIDI (tempo changes included); null for scores without a MIDI.</summary>
+    internal static double? PresentationDuration(PresentationEntry item) =>
+        item.SourcePath is { } source && File.Exists(source) && Path.GetExtension(source).ToLowerInvariant() is ".mid" or ".midi" or ".kar"
+            ? MidiDuration.Seconds(MidiReader.Read(source)) : null;
 
     /// <summary>The text chord sheets of a saved repertoire as one PDF, in its order.</summary>
     internal async Task<string> ExportPresentationSongbook(IReadOnlyList<PresentationEntry> songs, string title, string target)

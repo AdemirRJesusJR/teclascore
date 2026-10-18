@@ -28,6 +28,32 @@ public partial class ScoreViewer : UserControl
     public int CurrentPage { get => (int)GetValue(CurrentPageProperty); set => SetValue(CurrentPageProperty, value); }
     public double Zoom { get => (double)GetValue(ZoomProperty); set => SetValue(ZoomProperty, value); }
     public int PageCount => (int)GetValue(PageCountProperty);
+    private bool nightMode;
+    /// <summary>Light notes on a dark page (colors inverted) for dim stages; the image files do not change.</summary>
+    public bool NightMode
+    {
+        get => nightMode;
+        set { if (nightMode == value) return; nightMode = value; if (pages.Count > 0) _ = ShowPageAsync(); }
+    }
+
+    /// <summary>A page drawn as light ink on a dark background: composited on white, inverted, softened to gray levels 24–230.</summary>
+    internal static BitmapSource Night(BitmapSource page)
+    {
+        var bgra = new FormatConvertedBitmap(page, PixelFormats.Bgra32, null, 0);
+        int width = bgra.PixelWidth, height = bgra.PixelHeight;
+        var pixels = new byte[width * height * 4]; bgra.CopyPixels(pixels, width * 4, 0);
+        var gray = new byte[width * height];
+        for (int i = 0, p = 0; i < gray.Length; i++, p += 4)
+        {
+            int alpha = pixels[p + 3], luminance = (pixels[p + 2] * 299 + pixels[p + 1] * 587 + pixels[p] * 114) / 1000;
+            int onWhite = (luminance * alpha + 255 * (255 - alpha)) / 255;
+            gray[i] = (byte)(24 + (255 - onWhite) * 206 / 255);
+        }
+        var night = BitmapSource.Create(width, height, page.DpiX, page.DpiY, PixelFormats.Gray8, null, gray, width);
+        night.Freeze();
+        return night;
+    }
+
     /// <summary>Image files of the pages, in order.</summary>
     internal IReadOnlyList<string> PagePaths => pages.Select(page => page.Path).ToArray();
 
@@ -165,7 +191,8 @@ public partial class ScoreViewer : UserControl
         RefreshControls();
         try
         {
-            var bitmap = await Task.Run(() => ReadBitmap(page.Path));
+            bool night = nightMode;
+            var bitmap = await Task.Run(() => night ? Night(ReadBitmap(page.Path)) : (BitmapSource)ReadBitmap(page.Path));
             if (request != imageRequest) return;
             pageBitmap = bitmap;
             PageImage.Source = bitmap;

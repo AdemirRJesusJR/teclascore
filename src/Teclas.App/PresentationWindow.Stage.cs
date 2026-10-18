@@ -17,7 +17,14 @@ public sealed partial class PresentationWindow
     /// <summary>(songs, title, target file, tablet) → status text.</summary>
     private readonly Func<IReadOnlyList<PresentationEntry>, string, string, bool, Task<string>>? exportPdf;
     private ComboBox? repertoires;
-    private CheckBox? halfPage, midiPedal, tabletPdf, phoneRemote, lyricsScreen;
+    private CheckBox? halfPage, midiPedal, tabletPdf, phoneRemote, lyricsScreen, nightStage;
+    private TextBlock? durationInfo;
+    private readonly Dictionary<Guid, double?> durations = [];
+    /// <summary>Length of a song in seconds (null when unknown); set by the main window and tests.</summary>
+    internal Func<PresentationEntry, double?>? DurationOf { get; init; }
+    /// <summary>Night mode as saved in the settings, and where to save a change.</summary>
+    internal bool NightInitial { get; init; }
+    internal Action<bool>? SaveNight { get; init; }
     private RemoteControlServer? remote;
     private TextBlock? remoteInfo;
     private Image? remoteQr;
@@ -117,6 +124,13 @@ public sealed partial class PresentationWindow
             ToolTip = "Abre uma janela com a letra da página atual em letras grandes, para um segundo monitor ou projetor (vai sozinha para a segunda tela, se houver). Acompanha as viradas de página." };
         lyricsScreen.Click += async (_, _) => await SetLyricsScreen(lyricsScreen.IsChecked == true);
         row.Children.Add(lyricsScreen);
+        nightStage = new CheckBox { Name = "PresentationNight", Content = "Modo noturno", VerticalAlignment = VerticalAlignment.Center, Margin = new(16, 0, 0, 6),
+            ToolTip = "Inverte as cores das páginas (notas claras em fundo escuro) para não ofuscar em palco ou igreja com pouca luz. Os arquivos não mudam." };
+        nightStage.Click += (_, _) => SetNight(nightStage.IsChecked == true, save: true);
+        row.Children.Add(nightStage);
+        durationInfo = new TextBlock { Name = "PresentationDuration", TextWrapping = TextWrapping.Wrap, Margin = new(0, 4, 0, 0) };
+        heading.Children.Add(durationInfo);
+        Loaded += (_, _) => { if (NightInitial) { nightStage.IsChecked = true; SetNight(true, save: false); } Refresh(); };
         var remoteRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new(0, 6, 0, 0), Visibility = Visibility.Collapsed }; remotePanel = remoteRow;
         remoteQr = new Image { Width = 112, Height = 112, Margin = new(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Top };
         RenderOptions.SetBitmapScalingMode(remoteQr, BitmapScalingMode.NearestNeighbor);
@@ -168,9 +182,43 @@ public sealed partial class PresentationWindow
         return image;
     }
 
+    internal void SetNight(bool enabled, bool save)
+    {
+        viewer.NightMode = enabled;
+        if (nightStage is not null) nightStage.IsChecked = enabled;
+        if (save) SaveNight?.Invoke(enabled);
+    }
+
+    /// <summary>Length of a song, read once; null when unknown.</summary>
+    internal double? Duration(PresentationEntry entry)
+    {
+        if (DurationOf is null) return null;
+        if (!durations.TryGetValue(entry.Id, out var seconds))
+        {
+            try { seconds = DurationOf(entry); }
+            catch (Exception error) when (IsStorageFailure(error) || error is InvalidDataException or InvalidOperationException) { seconds = null; }
+            durations[entry.Id] = seconds;
+        }
+        return seconds;
+    }
+
+    /// <summary>"12 músicas · 42:10 · tocadas 3 (10:05) · faltam 32:05" for the open repertoire.</summary>
+    internal string DurationSummary()
+    {
+        if (DurationOf is null || entries.Count == 0) return "";
+        int index = Current is { } current ? entries.IndexOf(current) : 0;
+        var lengths = entries.Select(Duration).ToArray();
+        double total = lengths.Sum(l => l ?? 0), played = lengths.Take(Math.Max(0, index)).Sum(l => l ?? 0);
+        int unknown = lengths.Count(l => l is null);
+        return $"{entries.Count} música(s) · {MidiDuration.Format(total)} no total" +
+            (index > 0 ? $" · tocadas {index} ({MidiDuration.Format(played)}) · faltam {MidiDuration.Format(total - played)}" : "") +
+            (unknown > 0 ? $" · {unknown} sem duração conhecida" : "");
+    }
+
     /// <summary>Song and page for the phone and the lyrics screen; called whenever either changes.</summary>
     private void PublishState()
     {
+        if (durationInfo is not null) durationInfo.Text = DurationSummary();
         int index = Current is { } current ? entries.IndexOf(current) : -1;
         if (remote is not null)
         {

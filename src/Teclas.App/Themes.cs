@@ -62,8 +62,19 @@ public static class ThemeManager
             "#F6F8FC", "#FFFFFF", "#21344D", "#607086", "#2563EB", "#FFFFFF", "#DEE6F1",
             "#E8EFFA", "#21344D", "#52657D", "#CDDBF4", "#DAE5F6", "#B7C9E5",
             "#DEE9FA", "#E8F0FE", "#21344D", "#48617F", "#C9DCF5",
-            "#E9F0FC", "#2453A4", "#E4EDFC", "#9DB9E5", "#EDF3FC", "#536C86", "#F9FBFE", "#E8EFF9")
+            "#E9F0FC", "#2453A4", "#E4EDFC", "#9DB9E5", "#EDF3FC", "#536C86", "#F9FBFE", "#E8EFF9"),
+        Create(ContrastId, "Alto contraste", "Preto, branco e amarelo, com bordas fortes, para enxergar melhor. Usado sozinho quando o Windows está em alto contraste.", true,
+            "#000000", "#0A0A0A", "#FFFFFF", "#E8E8E8", "#FFE500", "#000000", "#FFFFFF",
+            "#000000", "#FFFFFF", "#E8E8E8", "#3D3700", "#0A0A0A", "#FFFFFF",
+            "#000000", "#141400", "#FFFFFF", "#F2F2F2", "#2E2A00",
+            "#1A1A1A", "#FFE500", "#3D3700", "#FFE500", "#1A1A1A", "#FFFFFF", "#101010", "#333333")
     });
+
+    public const string ContrastId = "contrast";
+
+    /// <summary>The saved theme, or high contrast while Windows itself is in a high-contrast mode and no theme was chosen.</summary>
+    public static string StartupId(string? saved, bool windowsHighContrast) =>
+        windowsHighContrast && (string.IsNullOrEmpty(saved) || saved == DefaultId) ? ContrastId : NormalizeId(saved);
 
     public static ThemeDefinition Current { get; private set; } = Themes[0];
     public static string NormalizeId(string? id) => Themes.FirstOrDefault(theme => theme.Id == id)?.Id ?? DefaultId;
@@ -113,7 +124,7 @@ public static class ThemeManager
         {
             ["Background"] = background, ["Card"] = card, ["Ink"] = ink, ["Muted"] = muted,
             ["Accent"] = accent, ["AccentInk"] = accentInk, ["Line"] = line,
-            ["InputBorder"] = dark ? "#667180" : "#8B9C9F", ["Soft"] = soft, ["SoftInk"] = softInk,
+            ["InputBorder"] = id == ContrastId ? "#FFFFFF" : dark ? "#667180" : "#8B9C9F", ["Soft"] = soft, ["SoftInk"] = softInk,
             ["Hover"] = selection, ["Selection"] = selection, ["SelectionBorder"] = selectionBorder,
             ["Sidebar"] = sidebar, ["SidebarInk"] = sidebarInk, ["SidebarMuted"] = sidebarMuted,
             ["SidebarActive"] = sidebarActive, ["SidebarPanel"] = sidebarPanel, ["SidebarLine"] = sidebarLine,
@@ -121,8 +132,8 @@ public static class ThemeManager
             ["HeroMuted"] = heroMuted, ["HeroPanel"] = heroPanel,
             ["KeyboardWhite"] = "#FAFCFF", ["KeyboardBlack"] = "#1C2735",
             ["KeyboardActive"] = dark ? "#F2BD62" : id is "ocean" or "light" ? "#9CBFEB" : id == "indigo" ? "#BDA4E8" : "#B2D5BF",
-            ["Ready"] = dark ? "#77D7B8" : "#16715C", ["Generated"] = dark ? "#9ABDEB" : "#42689C",
-            ["Review"] = dark ? "#EAC17B" : "#8A6225", ["Error"] = dark ? "#F0A298" : "#A94C43",
+            ["Ready"] = id == ContrastId ? "#7CFFB2" : dark ? "#77D7B8" : "#16715C", ["Generated"] = id == ContrastId ? "#9FD0FF" : dark ? "#9ABDEB" : "#42689C",
+            ["Review"] = id == ContrastId ? "#FFE500" : dark ? "#EAC17B" : "#8A6225", ["Error"] = id == ContrastId ? "#FF9C8F" : dark ? "#F0A298" : "#A94C43",
             ["ChartTrack"] = chartTrack, ["TableHeader"] = tableHeader, ["TableHeaderInk"] = tableHeaderInk,
             ["TableAlternate"] = tableAlternate, ["PreviewCanvas"] = dark ? "#181B21" : "#E8EEEB"
         };

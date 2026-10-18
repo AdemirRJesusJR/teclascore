@@ -19,6 +19,8 @@ public partial class App : Application
         base.OnStartup(e);
         // Automated checks report their own failures; only real sessions keep crash files.
         if (!e.Args.Any(arg => arg.StartsWith("--verify", StringComparison.Ordinal) || arg.StartsWith("--", StringComparison.Ordinal) && arg.Contains("smoke", StringComparison.OrdinalIgnoreCase))) InstallCrashLog();
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-v043-ui")
+        { VerifyV043Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v042-ui")
         { VerifyV042Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v041-ui")
@@ -390,8 +392,8 @@ public partial class App : Application
         var results = new Dictionary<string, object>();
         try
         {
-            Require(ThemeManager.Themes.Count == 5, "The five approved palettes must remain available.");
-            Require(ThemeManager.Themes.Select(theme => theme.Id).Distinct().Count() == 5, "Theme IDs must be unique.");
+            Require(ThemeManager.Themes.Count == 6, "The five approved palettes and high contrast must remain available.");
+            Require(ThemeManager.Themes.Select(theme => theme.Id).Distinct().Count() == 6, "Theme IDs must be unique.");
             var content = (FrameworkElement)window.Content;
             var canvasSamples = new HashSet<string>();
             foreach (var theme in ThemeManager.Themes)
@@ -451,6 +453,8 @@ public partial class App : Application
                     double ratio = Contrast(theme.Palette[foreground], theme.Palette[background]);
                     contrast[foreground + "/" + background] = Math.Round(ratio, 2);
                     Require(ratio >= 4.5, $"{theme.Id}: {foreground}/{background} contrast is {ratio:0.00}:1 (requires 4.5:1).");
+                    // High contrast meets the enhanced level (7:1) everywhere.
+                    Require(theme.Id != ThemeManager.ContrastId || ratio >= 7, $"{theme.Id}: {foreground}/{background} contrast is {ratio:0.00}:1 (requires 7:1).");
                 }
                 results["contrast-" + theme.Id] = contrast;
                 results["live-switch-" + theme.Id] = true;

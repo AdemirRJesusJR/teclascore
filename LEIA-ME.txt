@@ -1,3 +1,7 @@
+TECLASCORE 0.43.0
+
+Áudio MP3 de estudo para o celular. Aviso quando a melodia não cabe no seu teclado. Músicas repetidas na biblioteca. Modo noturno e duração do repertório no palco. Tema de alto contraste.
+
 TECLASCORE 0.42.0
 
 Caderno de cifras em PDF. ChordPro. Transpor e simplificar a cifra colada. Acordes para aprender e músicas parecidas. Andamento e contagem no palco. Cópia automática semanal da biblioteca.

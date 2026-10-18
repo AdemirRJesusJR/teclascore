@@ -234,7 +234,7 @@ public sealed partial class PresentationWindow : Window
     private void Refresh()
     {
         int index = Current is { } current ? entries.IndexOf(current) : -1;
-        currentTitle.Text = index < 0 ? "Seu repertório" : $"{index + 1} / {entries.Count} · {entries[index].Title}" + (CurrentTempo() is { } tempo ? "  ·  " + tempo.Label : "");
+        currentTitle.Text = index < 0 ? "Seu repertório" : $"{index + 1} / {entries.Count} · {entries[index].Title}" + (CurrentTempo() is { } tempo ? "  ·  " + tempo.Label : "") + (Duration(entries[index]) is { } length ? "  ·  " + MidiDuration.Format(length) : "");
         nextTitle.Text = index >= 0 && index + 1 < entries.Count ? "Próxima: " + entries[index + 1].Title : index >= 0 ? "Última música do repertório" : "Nenhuma música selecionada";
         PublishState();
         upButton.IsEnabled = !persistenceBlocked && index > 0; downButton.IsEnabled = !persistenceBlocked && index >= 0 && index + 1 < entries.Count;

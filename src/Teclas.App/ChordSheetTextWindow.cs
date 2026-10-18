@@ -41,6 +41,7 @@ public sealed class ChordSheetTextWindow : Window
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
         AutomationProperties.SetName(text, "Cifra em texto da partitura");
         root.Children.Add(text);
+        Loaded += (_, _) => text.Focus();
     }
 
     private void Copy()

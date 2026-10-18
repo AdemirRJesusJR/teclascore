@@ -1,3 +1,11 @@
+TECLASCORE 0.43.0 · ÁUDIO DE ESTUDO, TECLADO, REPETIDAS, PALCO NOTURNO E ALTO CONTRASTE
+
+1. Na Prévia, Áudio MP3: escolha 75%, contagem e só o acompanhamento; copie para o celular e toque junto.
+2. Em Configurações, Meu teclado: escolha o seu; veja o aviso nas músicas que passam da extensão e a lista Não cabem no meu teclado.
+3. Na Biblioteca, clique no ícone de repetidas ao lado da lixeira e confira os grupos antes de retirar.
+4. Na Apresentação, ligue Modo noturno e confira a duração total no topo.
+5. Em Configurações, escolha o tema Alto contraste e navegue pelas janelas novas só com Tab, Enter e Esc.
+
 TECLASCORE 0.42.0 · CADERNO DE CIFRAS, ESTUDO DE ACORDES, CONTAGEM E CÓPIA AUTOMÁTICA
 
 1. Na Biblioteca, Caderno de cifras: marque algumas músicas e salve o PDF; confira o índice e o alinhamento dos acordes.

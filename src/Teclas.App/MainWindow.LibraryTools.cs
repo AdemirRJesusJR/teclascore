@@ -14,7 +14,7 @@ public partial class MainWindow
     [
         new("", "Todas as músicas"), new("nao-estudadas", "Ainda não estudadas"), new("estudadas-semana", "Estudadas nos últimos 7 dias"),
         new("menor", "Em tom menor"), new("maior", "Em tom maior"), new("cifras-duvida", "Com cifras para revisar"),
-        new("favoritas-sem-partitura", "Favoritas ainda sem partitura")
+        new("favoritas-sem-partitura", "Favoritas ainda sem partitura"), new("fora-do-teclado", "Não cabem no meu teclado")
     ];
     public string SmartList { get => settings.SmartList; set { settings.SmartList = value ?? ""; Notify(); RefreshLibraryFilters(); } }
     /// <summary>Lists built from what the library already knows: study history, key, doubtful chords, favorites.</summary>
@@ -26,6 +26,7 @@ public partial class MainWindow
         "maior" => row.Chords.Count > 0 && !row.KeyMinor,
         "cifras-duvida" => ChordReviewWindow.Doubtful(row.Chords).Count > 0,
         "favoritas-sem-partitura" => row.IsFavorite && row.ScorePath is null,
+        "fora-do-teclado" => !FitsKeyboard(row),
         _ => true
     };
     private void RefreshLibraryFilters() { libraryDirty=true;RefreshDashboard();PersistPreferences(); }

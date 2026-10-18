@@ -1,3 +1,13 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.43.0
+18/10/2026
+
+- CI local completo: 62 etapas aprovadas, 0 falhas, 3 puladas; 216 testes do motor, incluindo os que geram no MuseScore 4.7.5. O primeiro CI acusou que o tema Alto contraste não sobrevivia ao recarregar as configurações; corrigido.
+- Interface 0.43: 20 verificações no CI e 21 aqui com o MuseScore (cópia só com acompanhamento, partitura da contagem no compasso certo, junção de MP3 sem cabeçalhos e com a contagem cortada em um compasso, áudio de estudo pela Prévia; extensão dos teclados de 49 a 88 teclas, aviso com a oitava e lista inteligente; repetidas pelo mesmo arquivo e pelo nome sem marcas de cópia, card com partitura mantido e arquivo preservado; página noturna, modo noturno lembrado, duração total, tocada e restante; tema de alto contraste aplicado e escolhido quando o Windows está em alto contraste).
+- Áudio de estudo real: MP3 gerado pelo MuseScore a 75% com contagem e só acompanhamento; os cliques da contagem conferidos no áudio (um por tempo, a 90 batidas por minuto), e a sobra de silêncio que o MuseScore deixa depois deles é cortada.
+- Contraste do tema Alto contraste: todos os pares de cor de texto e fundo com pelo menos 7:1.
+- Não testado com aparelhos reais: o MP3 tocando num celular e o modo noturno num projetor.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.42.0
 18/10/2026
 

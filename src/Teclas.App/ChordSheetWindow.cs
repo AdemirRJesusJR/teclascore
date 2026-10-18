@@ -56,6 +56,7 @@ public sealed class ChordSheetWindow : Window
         AutomationProperties.SetName(text, "Texto da cifra");
         text.TextChanged += (_, _) => Analyze();
         root.Children.Add(text);
+        Loaded += (_, _) => text.Focus();
         Analyze();
     }
 

@@ -43,6 +43,10 @@ public sealed class Settings
     public string ScoreSize { get; set; } = "normal";
     public bool Karaoke { get; set; }
     public bool CurrentChord { get; set; }
+    /// <summary>Keys of the user's keyboard (49, 61, 76 or 88), to warn about melodies outside it.</summary>
+    public int KeyboardKeys { get; set; } = 61;
+    /// <summary>Stage: page colors inverted (light notes on dark) for dim rooms.</summary>
+    public bool NightStage { get; set; }
     /// <summary>Weekly copy of the library into AutoBackupFolder (the newest four are kept).</summary>
     public bool AutoBackup { get; set; }
     public string AutoBackupFolder { get; set; } = "";
@@ -160,7 +164,7 @@ public sealed class Settings
         if (PreviewControlsHeight is { } controls && (!double.IsFinite(controls) || controls < MinimumPreviewControlsHeight || controls > 1200)) PreviewControlsHeight = null;
         StudyHistory = NormalizeStudyHistory(StudyHistory);
         DefaultDiagramInversion = NormalizeDiagramInversion(DefaultDiagramInversion);
-        ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" ? ThemeId : "classic";
+        ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" or "contrast" ? ThemeId : "classic";
         CurrentPage = CurrentPage is "library" or "production" or "settings" or "about" ? CurrentPage : "dashboard";
         CurrentFilter = CurrentFilter is "ready" or "review" or "generated" or "error" ? CurrentFilter : "all";
         SearchText ??= "";

@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.43.0 — 18/10/2026
+
+- Áudio MP3 (Prévia → Arquivo): um MP3 da partitura para praticar no celular, na velocidade escolhida (50% a 125%), com um compasso de contagem antes e, se quiser, só o acompanhamento (a melodia fica muda e as cifras continuam tocando).
+- Meu teclado (Configurações): escolha 49, 61, 76 ou 88 teclas; o app avisa quando a melodia passa da extensão e sugere subir ou descer a oitava. A lista inteligente Não cabem no meu teclado reúne essas músicas.
+- Músicas repetidas (ícone no cabeçalho da Biblioteca): encontra o mesmo arquivo em pastas diferentes e a mesma música com outro nome; você escolhe o card que fica, os outros saem (com Desfazer) e nenhum arquivo é apagado.
+- Modo noturno (Apresentação): páginas com notas claras em fundo escuro, lembrado para a próxima vez.
+- Duração do repertório (Apresentação): tempo de cada música no título e, no topo, o total da lista, o que já foi tocado e quanto falta.
+- Acessibilidade: tema Alto contraste (preto, branco e amarelo, contraste de pelo menos 7:1), escolhido sozinho quando o Windows está em alto contraste; as janelas novas abrem com o foco no lugar certo, com Enter e Esc funcionando.
+
 ## 0.42.0 — 18/10/2026
 
 - Caderno de cifras (Biblioteca, e Cifras do repertório na Apresentação): a cifra em texto das músicas escolhidas num PDF com índice e marcadores, uma música por página.

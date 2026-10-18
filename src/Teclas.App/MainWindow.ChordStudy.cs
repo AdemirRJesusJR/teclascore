@@ -93,6 +93,7 @@ public sealed class ChordsToLearnWindow : Window
             list.Children.Add(row);
         }
         root.Children.Add(new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        Loaded += (_, _) => list.Children.OfType<Grid>().SelectMany(g => g.Children.OfType<Button>()).FirstOrDefault()?.Focus();
     }
 }
 
@@ -118,7 +119,8 @@ public sealed class SimilarSongsWindow : Window
         list.MouseDoubleClick += (_, _) => { if (Chosen is not null) DialogResult = true; };
         if (list.Items.Count > 0) list.SelectedIndex = 0;
         root.Children.Add(list);
-        var open = DialogUi.Button("Abrir na biblioteca", (_, _) => { if (Chosen is not null) DialogResult = true; }, true); buttons.Children.Add(open);
+        var open = DialogUi.Button("Abrir na biblioteca", (_, _) => { if (Chosen is not null) DialogResult = true; }, true); open.IsDefault = true; buttons.Children.Add(open);
+        Loaded += (_, _) => { list.Focus(); (list.ItemContainerGenerator.ContainerFromIndex(0) as ListBoxItem)?.Focus(); };
         var close = DialogUi.Button("Fechar", (_, _) => Close()); close.IsCancel = true; buttons.Children.Add(close);
     }
 }
