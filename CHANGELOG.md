@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.48.0 — 18/10/2026
+
+- Piloto automático (Biblioteca): processa todas as músicas sem partitura. Escolhe a melodia quando ela é clara (a pista do canto ou a candidata bem à frente), analisa, gera e salva o PDF; no fim separa as prontas, as para revisar, as que precisam de você (melodia duvidosa nunca é adivinhada) e as que falharam. Mantém o computador acordado, para rodar à noite.
+- Nota de confiança: cada partitura gerada recebe uma nota de 0 a 100 (acordes duvidosos, pontos de revisão, melodia automática sem certeza, letra fora da melodia, falhas), mostrada no card com os motivos. As listas inteligentes "Revisar primeiro" (ordenada pela nota) e "Aprovadas na revisão".
+- Revisão em sequência: as partituras geradas uma após a outra, as de nota mais baixa primeiro, com a página grande; A aprova, R refaz com a próxima melodia candidata, E abre no editor, setas navegam.
+- Regras por coleção: depois de escolher a melodia, a transposição e a posição dos diagramas de uma música, o app oferece aplicar o mesmo às músicas da mesma pasta ou coleção com as mesmas pistas.
+- Comandos (Ctrl+K): digite parte do nome de qualquer ação ou música, sem se preocupar com acentos, e execute com Enter.
+- Repertório rápido (ícone no cabeçalho da Biblioteca): escolha as músicas, a ordem e o tom de cada uma; o app gera de novo as que mudaram de tom e cria o PDF único, a cifra em texto para o grupo (já copiada) e a lista do palco com o tom em cada música e a duração total.
+
 ## 0.47.0 — 18/10/2026
 
 - Gravar ideia mais musical: tercinas são reconhecidas e escritas como tercinas; colcheias com balanço (swing) viram colcheias retas, com aviso; notas antes do primeiro tempo forte formam uma anacruse (compasso inicial curto) em vez de um compasso de pausas; o último acorde termina com a música, sem compasso vazio no fim.

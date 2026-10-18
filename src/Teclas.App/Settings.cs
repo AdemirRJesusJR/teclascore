@@ -291,6 +291,9 @@ public sealed class SavedMidi
     public string ArrangementSummary { get; set; } = "";
     public bool IsFavorite { get; set; }
     public string Collection { get; set; } = "";
+    public bool Approved { get; set; }
+    public bool AutoMelody { get; set; }
+    public bool AutoMelodyConfident { get; set; }
     public string Genre { get; set; } = "";
     public int TransposeSemitones { get; set; }
     public bool SimplifiedChords { get; set; }

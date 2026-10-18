@@ -20,6 +20,7 @@ public partial class MainWindow
         ("Ctrl+L", "Pasta de MIDIs: escolher arquivos de uma pasta, sem copiar"),
         ("Ctrl+P", "Salvar a partitura em PDF"),
         ("Ctrl+F", "Buscar na biblioteca"),
+        ("Ctrl+K", "Comandos: digite o nome de qualquer ação ou música"),
         ("Ctrl+1 / Ctrl+2 / Ctrl+3", "Visão geral, Biblioteca, Produção"),
         ("Ctrl+,", "Configurações"),
         ("F11", "Partitura em tela cheia (com a prévia em foco)"),
@@ -48,6 +49,7 @@ public partial class MainWindow
             case (ctrlShift, Key.O): if (IsIdle) ImportMuseScoreClick(this, new RoutedEventArgs()); return true;
             case (ctrl, Key.P): if (CanExportPdf) ExportPdfClick(this, new RoutedEventArgs()); return true;
             case (ctrl, Key.F): FocusLibrarySearch(); return true;
+            case (ctrl, Key.K): CommandPaletteClick(this, new RoutedEventArgs()); return true;
             case (ctrl, Key.M): if (IsIdle) MetronomeEnabled = !MetronomeEnabled; return true;
             case (ctrlShift, Key.M): if (IsIdle) CountInEnabled = !CountInEnabled; return true;
             case (ctrl, Key.D1 or Key.NumPad1): NavigateByShortcut("dashboard"); return true;

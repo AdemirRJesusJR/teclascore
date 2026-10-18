@@ -124,7 +124,7 @@ public partial class MainWindow
         foreach (string name in new[] { nameof(CanAuditionTracks), nameof(CanPlayMarkedTracks), nameof(CanPauseTrackAudition), nameof(CanStopTrackAudition),
             nameof(CanSeekTrackAudition), nameof(TrackAuditionVisible), nameof(ScoreEditorMinimumHeight), nameof(TrackAuditionTitle), nameof(TrackSelectionHint), nameof(TrackPauseLabel),
             nameof(TrackAuditionPositionSeconds), nameof(TrackAuditionPositionText), nameof(TrackAuditionDurationSeconds), nameof(TrackAuditionDurationText),
-            nameof(LyricsTrackHint), nameof(LyricsTrackVisibility) }) Notify(name);
+            nameof(LyricsTrackHint), nameof(LyricsTrackVisibility), nameof(CollectionRuleHint), nameof(CollectionRuleVisibility) }) Notify(name);
     }
 
     private void OnTrackAuditionSelectionChanged()

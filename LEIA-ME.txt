@@ -1,3 +1,7 @@
+TECLASCORE 0.48.0
+
+Piloto automático da biblioteca. Nota de confiança e lista Revisar primeiro. Revisão em sequência com atalhos. Regras aplicadas às músicas parecidas. Comandos com Ctrl+K. Repertório rápido para culto ou show.
+
 TECLASCORE 0.47.0
 
 Tercinas, swing e anacruse no Gravar ideia. Teste de microfone. Baião, xote, bossa nova, sertanejo e guarânia no acompanhamento. Medir a voz cantando. Buscar cantarolando. Acompanhamento junto com o metrônomo.

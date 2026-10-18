@@ -1,3 +1,12 @@
+TECLASCORE 0.48.0 · PILOTO AUTOMÁTICO, REVISÃO E REPERTÓRIO RÁPIDO
+
+1. Na Biblioteca, Piloto: rode com algumas músicas sem partitura; confira o relatório (prontas, para revisar, precisam de você, falharam) e os PDFs.
+2. Listas inteligentes › Revisar primeiro: confira a ordem pela nota e os motivos no card.
+3. Revisar: aprove com A, refaça uma com R, abra outra no editor com E.
+4. Escolha a melodia de uma música de uma pasta com arranjos iguais e use Aplicar às parecidas.
+5. Ctrl+K: digite "pdf", "transpor" e o nome de uma música.
+6. Repertório rápido: três músicas, uma em outro tom; confira PDF, cifras copiadas e a lista na Apresentação.
+
 TECLASCORE 0.47.0 · RITMO, MICROFONE, VOZ E RITMOS BRASILEIROS
 
 1. Gravar ideia: toque uma frase com tercinas, outra com balanço e uma que comece antes do tempo forte; confira a partitura.

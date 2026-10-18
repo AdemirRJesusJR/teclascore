@@ -1,3 +1,12 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.48.0
+18/10/2026
+
+- CI local completo: 67 etapas aprovadas, 0 falhas, 3 puladas; 229 testes do motor.
+- Interface 0.48: 22 verificações com geração simulada (sem motor nem MuseScore): nota de confiança pesando cada tipo de problema; regra aplicada às 2 músicas da mesma pasta com as mesmas pistas; piloto automático escolhendo a pista do canto no karaokê, gerando, separando prontas, para revisar e falhas, e salvando os PDFs; selo e motivos no card; lista Revisar primeiro ordenada pela nota; revisão em sequência refazendo com a próxima melodia, aprovando (aprovação salva) e pedindo o editor; Ctrl+K achando ações sem acento e músicas; repertório rápido gerando de novo a música em outro tom, com PDF, cifras numeradas com o tom e a lista do palco.
+- Os testes acharam e corrigiram: a mensagem de "refeita" era apagada pelo aviso de prévia ausente; a lista do palco era recusada por começar na página 0; o tom do repertório descontava a transposição atual (o tom analisado é o do MIDI original); a duração de repertórios curtos aparecia como "0 min".
+- Não testado de ponta a ponta com o motor real: o piloto automático numa biblioteca grande (usa a mesma fila de conversões já validada) e o repertório rápido com MuseScore desenhando as páginas.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.47.0
 18/10/2026
 

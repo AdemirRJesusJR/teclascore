@@ -189,7 +189,7 @@ public partial class MainWindow
                 if (activate)
                 {
                     RestoreVersion(row, version);
-                    row.Status = $"Gerada pela fila · {result.Pages} páginas";
+                    row.Status = $"Gerada pela fila · {result.Pages} páginas"; row.Approved = false;
                     // Keep review information visible, without making a stale analysis reusable.
                     if (analysis is not null) ParseReviewPoints(row, JsonSerializer.SerializeToElement(analysis));
                 }

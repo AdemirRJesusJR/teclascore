@@ -64,7 +64,7 @@ public partial class MainWindow
         row.ScorePath = result.Path;
         row.PreviewPath = result.PreviewPages.FirstOrDefault();
         row.PageCount = result.PreviewPages.Count;
-        row.GeneratedAt = DateTimeOffset.Now;
+        row.GeneratedAt = DateTimeOffset.Now; row.Approved = false;
         row.ScoreTitle = result.Metadata.Title; row.ScoreSubtitle = result.Metadata.Subtitle;
         row.ScoreArtist = result.Metadata.Artist; row.ScoreComposer = result.Metadata.Composer;
         row.HasMusicalEdits = true;

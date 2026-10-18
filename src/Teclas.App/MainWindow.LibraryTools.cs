@@ -14,7 +14,8 @@ public partial class MainWindow
     [
         new("", "Todas as músicas"), new("nao-estudadas", "Ainda não estudadas"), new("estudadas-semana", "Estudadas nos últimos 7 dias"),
         new("menor", "Em tom menor"), new("maior", "Em tom maior"), new("cifras-duvida", "Com cifras para revisar"),
-        new("favoritas-sem-partitura", "Favoritas ainda sem partitura"), new("fora-do-teclado", "Não cabem no meu teclado")
+        new("favoritas-sem-partitura", "Favoritas ainda sem partitura"), new("fora-do-teclado", "Não cabem no meu teclado"),
+        new("revisar-primeiro", "Revisar primeiro (pela nota)"), new("aprovadas", "Aprovadas na revisão")
     ];
     public string SmartList { get => settings.SmartList; set { settings.SmartList = value ?? ""; Notify(); RefreshLibraryFilters(); } }
     /// <summary>Lists built from what the library already knows: study history, key, doubtful chords, favorites.</summary>
@@ -27,9 +28,11 @@ public partial class MainWindow
         "cifras-duvida" => ChordReviewWindow.Doubtful(row.Chords).Count > 0,
         "favoritas-sem-partitura" => row.IsFavorite && row.ScorePath is null,
         "fora-do-teclado" => !FitsKeyboard(row),
+        "revisar-primeiro" => row.ScorePath is not null && !row.Approved,
+        "aprovadas" => row.Approved,
         _ => true
     };
-    private void RefreshLibraryFilters() { libraryDirty=true;RefreshDashboard();PersistPreferences(); }
+    private void RefreshLibraryFilters() { ApplyReviewSort(); libraryDirty=true;RefreshDashboard();PersistPreferences(); }
     private void OrganizeScoreClick(object sender,RoutedEventArgs e)
     {
         if(!IsIdle || selectedFile is not {} row)return;

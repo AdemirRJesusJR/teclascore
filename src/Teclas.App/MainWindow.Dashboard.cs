@@ -167,6 +167,7 @@ public partial class MainWindow
         dashboardRefreshing = true;
         try
         {
+            RefreshAllConfidence();
             dashboardMetrics = DashboardMetrics.Calculate(Files.Select(row => row.DashboardFacts));
             ReplaceRows(RecentFiles, Files.Reverse().Take(4));
             ReplaceRows(GeneratedFiles, Files.Where(row => row.Category == DashboardCategory.Generated)

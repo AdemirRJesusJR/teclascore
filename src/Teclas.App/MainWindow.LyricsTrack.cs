@@ -57,5 +57,5 @@ public partial class MainWindow
             track.LyricsBadge = best is not null && track.Source.Key == best.Source ? $"🎤 {best.Share:P0}" : "";
     }
 
-    private void NotifyLyricsTrack() { Notify(nameof(LyricsTrackHint)); Notify(nameof(LyricsTrackVisibility)); }
+    private void NotifyLyricsTrack() { Notify(nameof(LyricsTrackHint)); Notify(nameof(LyricsTrackVisibility)); NotifyCollectionRule(); }
 }

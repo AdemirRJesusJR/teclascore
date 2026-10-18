@@ -16,7 +16,7 @@ public partial class MainWindow
         if (melodyBatchDialog(dialog) != true) return;
         var chosen = dialog.SelectedRows;
         // The proposal becomes an ordinary melody choice: it stays visible and editable on each card.
-        foreach (var item in chosen) item.Track!.IsMelody = true;
+        foreach (var item in chosen) { item.Track!.IsMelody = true; item.Row.AutoMelody = true; item.Row.AutoMelodyConfident = item.Proposal.Confident; }
         PersistPreferences();
         int added = 0; var failed = new List<string>();
         await RunOperation(async () =>
