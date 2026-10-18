@@ -109,7 +109,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore)); Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
-        foreach(var name in new[]{nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText)})Notify(name);
+        foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText)})Notify(name);
         RefreshDashboard();
         Preview=null;
         if(selectedFile?.PreviewPath is { } path && File.Exists(path))
@@ -174,7 +174,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         foreach(var source in document.Sources)
         {
             var track=new TrackRow{Source=source,InstrumentName=source.Key.Channel==10?"Percussão":instruments[source.Key.Program],IsMelody=keys.Contains(source.Key),MelodySuggestion=suggestions.GetValueOrDefault(source.Key)};
-            track.Changed=()=>{if(!loading)InvalidateAnalysis(row);};row.Tracks.Add(track);
+            track.Changed=()=>{if(!loading)InvalidateAnalysis(row);};track.SecondVoiceChanged=changed=>SecondVoiceChanged(row,changed);row.Tracks.Add(track);
         }
         return row;
     }
@@ -275,6 +275,17 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(generating && !File.Exists(MuseScorePath))throw new InvalidOperationException("Localize o MuseScore Studio 4 na aba Configurações.");
         if(generating && !Settings.TryValidateOutputDirectory(OutputDirectory,out _,out var outputError))throw new InvalidOperationException(outputError+" Abra Configurações para salvar a pasta padrão.");
     }
+    /// <summary>The track marked as second voice (one part), in the engine's source format.</summary>
+    private static JsonArray SecondVoiceSources(MidiRow row)=>new(row.Tracks.Where(t=>t.IsSecondVoice).Take(1).Select(t=>(JsonNode)new JsonObject{["track"]=t.Source.Key.Track,["channel"]=t.Source.Key.Channel,["program"]=t.Source.Key.Program}).ToArray());
+    /// <summary>Only one part is the second voice; choosing it leaves the score pending regeneration.</summary>
+    private void SecondVoiceChanged(MidiRow row,TrackRow changed)
+    {
+        if(changed.IsSecondVoice)foreach(var other in row.Tracks.Where(t=>t!=changed&&t.IsSecondVoice))other.IsSecondVoice=false;
+        if(loading)return;
+        if(row.ScorePath is not null)row.HasPendingScoreProperties=true;
+        PersistPreferences();
+        if(changed.IsSecondVoice)Status=$"Segunda voz: {changed.Instrument}. Gere de novo para ver a pauta extra abaixo da melodia.";
+    }
     private JsonArray Sources(MidiRow row)=>new(GetOrderedMelodySources(row).Select(key=>(JsonNode)new JsonObject{["track"]=key.Track,["channel"]=key.Channel,["program"]=key.Program}).ToArray());
     private static void RequireMidiWorkflow(MidiRow row)
     {
@@ -337,6 +348,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         row.Status="Gerando e conferindo no MuseScore…";
         request["transposeSemitones"]=row.TransposeSemitones;
         if(row.FoldRepeats)request["foldRepeats"]=true;
+        if(SecondVoiceSources(row) is {Count:>0} secondVoice)request["secondVoiceSources"]=secondVoice;
         if(ScoreStyleRequest() is {} scoreStyle)request["scoreStyle"]=scoreStyle;
         request["scoreArtist"]=row.ScoreArtist;
         var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace!,CreateOperationProgress(),cancellation!.Token);

@@ -723,6 +723,11 @@ def convert_score(xml,report,out,filename):
         n=style.find('Style/'+tag)
         if n is None:n=sub(style.find('Style'),tag)
         n.text=val
+    if any(fold.get('endings') for fold in report.get('melody_analysis',{}).get('repeat_folds',[])):
+        # First/second ending brackets go above the chord names and keyboard diagrams, never through them.
+        volta=style.find('Style/voltaPosAbove')
+        if volta is None:volta=sub(style.find('Style'),'voltaPosAbove')
+        volta.attrib.update(x='0',y='-9.5')
     st=out/'estilo.mss';E.ElementTree(style).write(st,encoding='utf-8',xml_declaration=True)
     initial=out/'melodia_importada.mscz';call_musescore(['-S',str(st),'-o',str(initial),str(xml)],out/'importacao.log')
     progress('Inserindo os diagramas de teclado junto às cifras…')
@@ -851,7 +856,7 @@ def convert_score(xml,report,out,filename):
             assert local==b['end']-b['start'],('measure length changed',local,b)
     assert all(len(part.findall('measure'))==report['measures'] for part in reopened_parts)
     # Several staves are read part by part; compare the same attacks regardless of staff order.
-    expected=[(n['start'],n['pitch']) for n in report['notes']]
+    expected=[(n['start'],n['pitch']) for n in report['notes']+report.get('second_voice',[])]
     assert (sorted(allnotes)==sorted(expected) if len(reopened_parts)>1 else allnotes==expected),'Melody changed during MuseScore import'
     if labels:assert reopened_labels==[(label['tick'],label['text']) for label in labels],'Instrument label position changed during MuseScore import'
     assert len(reopened.findall('.//grace'))==report['melody_analysis']['grace_notes_preserved']

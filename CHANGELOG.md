@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.38.0 — 17/10/2026
+
+- Casas 1 e 2: com Ritornelo ligado, quando um trecho repetido muda só no último ou nos dois últimos compassos da segunda vez, eles viram primeira e segunda casa. As chaves das casas ficam acima das cifras e dos diagramas.
+- Revisar cifras com dúvida (aba Cifras): percorre uma a uma as cifras com pouco apoio das notas ou com alternativas, tocando o trecho do MIDI, a cifra escolhida e cada alternativa; troque com um clique ou mantenha e siga.
+- Segunda voz (aba Melodia, coluna "2ª voz"): um contracanto ou dueto ganha uma pauta própria abaixo da melodia, em clave de fá quando é grave; cifras e diagramas ficam na pauta de cima.
+
 ## 0.37.0 — 17/10/2026
 
 - Karaokê (Prévia → Páginas): durante a reprodução, a letra aparece sobre a partitura com a sílaba cantada destacada (precisa de Acompanhar).

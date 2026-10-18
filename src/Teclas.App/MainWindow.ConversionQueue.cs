@@ -60,6 +60,7 @@ public partial class MainWindow
             }).ToArray());
         if (row.SimplifiedChords && row.Chords.Count == 0) options["simplifyChords"] = true;
         if (row.FoldRepeats) options["foldRepeats"] = true;
+        if (SecondVoiceSources(row) is { Count: > 0 } secondVoice) options["secondVoiceSources"] = secondVoice;
         if (ScoreStyleRequest() is { } scoreStyle) options["scoreStyle"] = scoreStyle;
         return options;
     }

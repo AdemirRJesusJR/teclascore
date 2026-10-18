@@ -30,7 +30,7 @@ public partial class MainWindow
     {
         ChordGrid.SelectionChanged += (_, _) => RefreshChordAlternatives();
         chordPreviewStop.Tick += (_, _) => SilenceChordPreview();
-        Closed += (_, _) => { SilenceChordPreview(); chordPreview?.Dispose(); chordPreview = null; };
+        Closed += (_, _) => { SilenceChordPreview(); chordPreview?.Dispose(); chordPreview = null; StopPassage(); reviewPlayer?.Dispose(); };
     }
 
     /// <summary>Buttons to hear the chosen chord and each alternative in the diagram position, and to use one.</summary>

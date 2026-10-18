@@ -175,6 +175,17 @@ def build_musicxml(parsed,config,harmony,out,title):
         harmony=core.transpose_harmony(harmony,output_transpose)
         note_report['output_transposition_semitones']=output_transpose
     note_report['lyrics']=core.attach_lyrics(parsed,notes,origin)
+    second=[]
+    if config.get('second_voice_sources'):
+        # Optional second voice (counter-melody or duet) on its own staff, with the same time grid and transposition.
+        second_config={key:value for key,value in config.items() if key not in ('melody_sources','merge_mode','melody_sections','solo_sources','second_voice_sources','melody_source_priority')}
+        second_config.update(melody_sources=config['second_voice_sources'],solo_sources=[],reserve_high_melody=False)
+        second,_,_=core.melody_events(parsed,second_config,origin,end)
+        for note in second:
+            note['pitch']+=output_transpose
+            note.pop('lyric',None)
+        if any(not 0<=note['pitch']<=127 for note in second):raise core.NeedsReview('A transposição ultrapassa as alturas da segunda voz.',kind='transpose_range')
+        note_report['second_voice_notes']=len(second)
     key=harmony.get('key') or {'fifths':0,'minor':False};fifths=key.get('fifths',0);ps=core.spellings(fifths,key.get('minor',False))
     chords=[]
     for ev in harmony['events']:
@@ -195,7 +206,7 @@ def build_musicxml(parsed,config,harmony,out,title):
     chords=sorted(unique_chords.values(),key=lambda c:c['tick'])
     if not chords:raise core.NeedsReview('Nenhuma cifra suficientemente apoiada pelas notas do acompanhamento.')
     if len(chords)>len(bars)*3:raise core.NeedsReview('Harmonia excessivamente densa; revisar detecção de acordes.')
-    if config.get('fold_repeats'):
+    if config.get('fold_repeats') and not second:
         # Optional: literal repetitions are written once between repeat barlines (score_repeats.py).
         import score_repeats
         note_report['repeat_folds']=score_repeats.fold_repeats(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV)
@@ -250,6 +261,10 @@ def build_musicxml(parsed,config,harmony,out,title):
             shorts=[group['short'] for group in staff_groups]
             for group in staff_groups:
                 if shorts.count(group['short'])>1:group['short']=group['name'] if len(group['name'])<=14 else group['name'][:12].rstrip()+'.'
+    if second:
+        # Melody on top (chords and diagrams), second voice below; MuseScore paginates freely with two staves.
+        groups=staff_groups or [{'name':'Melodia','short':'Mel.','notes':notes}]
+        staff_groups=groups+[{'name':'Segunda voz','short':'2ª v.','notes':second}]
     if staff_groups:
         # One staff per instrument: each name stays in the system margin, so no captions are
         # needed inside the staff. With more staves per system, MuseScore paginates freely.
@@ -282,11 +297,16 @@ def build_musicxml(parsed,config,harmony,out,title):
                 if b['meter']!=lastmeter:
                     ts=core.sub(at,'time');core.sub(ts,'beats',b['meter'][0]);core.sub(ts,'beat-type',b['meter'][1])
                 if i==0:
-                    core.sub(at,'staves',1);cl=core.sub(at,'clef');core.sub(cl,'sign','G');core.sub(cl,'line',2)
+                    # A low second voice reads better in the bass clef; the melody keeps the treble clef.
+                    low=not primary and part_notes and sorted(n['pitch'] for n in part_notes)[len(part_notes)//2]<55
+                    core.sub(at,'staves',1);cl=core.sub(at,'clef');core.sub(cl,'sign','F' if low else 'G');core.sub(cl,'line',4 if low else 2)
             lastmeter=b['meter']
             lastkey=currentkey
-            if b.get('repeat_start'):
-                bl=core.sub(measure,'barline',location='left');core.sub(bl,'bar-style','heavy-light');core.sub(bl,'repeat',direction='forward')
+            if b.get('repeat_start') or b.get('ending_start'):
+                bl=core.sub(measure,'barline',location='left')
+                if b.get('repeat_start'):core.sub(bl,'bar-style','heavy-light')
+                if b.get('ending_start'):core.sub(bl,'ending',f"{b['ending_start']}.",number=str(b['ending_start']),type='start')
+                if b.get('repeat_start'):core.sub(bl,'repeat',direction='forward')
             active_tempo=max([t for t in tempos if round(t['tick']/parsed['ppq']*core.DIV)<=origin+b['start']] or [tempos[0]],key=lambda t:t['tick'])
             ts=[dict(active_tempo,tick=origin+b['start'])] if i==0 else []
             ts.extend(t for t in tempos if origin+b['start']<=round(t['tick']/parsed['ppq']*core.DIV)<origin+b['end'] and not (i==0 and round(t['tick']/parsed['ppq']*core.DIV)==origin))
@@ -325,13 +345,17 @@ def build_musicxml(parsed,config,harmony,out,title):
                 # separate groups after a very wide measure is respaced by MuseScore.
                 for tuplet in measure.findall('.//tuplet'):
                     if tuplet.get('type')=='start':tuplet.set('bracket','yes');tuplet.set('placement','above')
-            if b.get('repeat_end'):
-                bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-heavy');core.sub(bl,'repeat',direction='backward')
+            if b.get('repeat_end') or b.get('ending_stop'):
+                bl=core.sub(measure,'barline',location='right')
+                core.sub(bl,'bar-style','light-heavy' if b.get('repeat_end') or i==len(bars)-1 else 'regular')
+                if b.get('ending_stop'):core.sub(bl,'ending',number=str(b['ending_stop']),type='stop' if b.get('repeat_end') else 'discontinue')
+                if b.get('repeat_end'):core.sub(bl,'repeat',direction='backward')
             elif i==len(bars)-1:bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-heavy')
     E.indent(root);xml=out/'melodia.musicxml';E.ElementTree(root).write(xml,encoding='utf-8',xml_declaration=True)
     report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/core.DIV,'measures':len(bars),'systems':len(lines),'pages_planned':1+sum(kind=='page' for kind in starts.values()),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
     report.update(score_metadata=metadata,diagram_inversion=inversion,custom_diagram_inversions=custom_diagrams,transpose_semitones=output_transpose)
     if config.get('score_style'):report['score_style']=dict(config['score_style'])
+    if second:report['second_voice']=second
     if labels:report['instrument_labels']=labels
     if staff_groups:report['staff_per_source']={'staves':len(staff_groups),'names':[group['name'] for group in staff_groups],
         'notes_per_staff':[len(group['notes']) for group in staff_groups]}

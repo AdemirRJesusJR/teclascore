@@ -1,3 +1,9 @@
+TECLASCORE 0.38.0 · CASAS, REVISÃO DE CIFRAS E SEGUNDA VOZ
+
+1. Numa música cujo refrão repete com final diferente, ligue Ritornelo e gere: aparecem as casas 1 e 2 acima das cifras; ouça para conferir a ordem.
+2. Na aba Cifras, Revisar cifras com dúvida: ouça o trecho e as alternativas de cada uma; troque algumas e gere de novo.
+3. Na aba Melodia, marque um contracanto em "2ª voz" e gere: a partitura ganha uma pauta abaixo da melodia.
+
 TECLASCORE 0.37.0 · KARAOKÊ, COMPASSOS E ACELERAÇÃO
 
 1. Numa música com letra (.kar), ligue Karaokê e Acompanhar e reproduza: a letra aparece sobre a partitura e a sílaba atual muda junto com a música.

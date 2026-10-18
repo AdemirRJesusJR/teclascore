@@ -115,6 +115,8 @@ public partial class MainWindow
         row.UseReviewedProfile = saved.UseReviewedProfile && row.HasReviewedProfile;
         var sources = saved.MelodySources.Select(source => new SourceKey(source.Track, source.Channel, source.Program)).ToHashSet();
         foreach (var track in row.Tracks) track.IsMelody = sources.Contains(track.Source.Key);
+        var second = (saved.SecondVoiceSources ?? []).Select(source => new SourceKey(source.Track, source.Channel, source.Program)).ToHashSet();
+        foreach (var track in row.Tracks) if (second.Contains(track.Source.Key)) track.IsSecondVoice = true;
         row.KeyFifths = saved.KeyFifths; row.KeyMinor = saved.KeyMinor;
         foreach (var chord in saved.Chords) row.Chords.Add(new ChordRow
         { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives });
@@ -217,6 +219,7 @@ public partial class MainWindow
             DefaultDiagramInversion = row.DefaultDiagramInversion, DiagramInversion = row.DiagramInversion,
             HasPendingScoreProperties = row.HasPendingScoreProperties,
             MelodySources = SaveMelodyPriority(GetOrderedMelodySources(row)),
+            SecondVoiceSources = row.Tracks.Where(track => track.IsSecondVoice).Select(track => new SavedSource { Track = track.Source.Key.Track, Channel = track.Source.Key.Channel, Program = track.Source.Key.Program }).ToList(),
             Chords = row.Chords.Select(chord => new SavedChord
                 { Quarter = chord.Quarter, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives }).ToList(),
             KeyFifths = row.KeyFifths, KeyMinor = row.KeyMinor, AnalysisPath = row.AnalysisPath, Workspace = row.Workspace,

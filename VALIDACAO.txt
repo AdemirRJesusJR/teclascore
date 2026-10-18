@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.38.0
+17/10/2026
+
+- Casas 1 e 2: 1 teste do motor e 1 nativo com MuseScore real (5 compassos, duas chaves de casa); página renderizada conferida e corrigida para as casas passarem acima das cifras e diagramas.
+- Segunda voz: 2 testes do motor (pauta própria sem cifras, clave de fá para voz grave) e 1 nativo (duas pautas salvas, verificação de geometria aprovada); página renderizada conferida.
+- Revisão de cifras e segunda voz no app: 9 verificações (tempo da cifra com mudança de andamento, só cifras com dúvida, trecho tocado, escolha aplicada e contada; segunda voz exclusiva, troca, envio ao motor e gravação).
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.37.0
 17/10/2026
 

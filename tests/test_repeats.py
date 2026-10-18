@@ -57,6 +57,37 @@ class FoldTests(unittest.TestCase):
         self.assertEqual(score_repeats.fold_repeats(b, notes, chords, grids, [{'tick': 0}, {'tick': tempo_tick}], [], PPQ, 0, DIV), [])
 
 
+class EndingTests(unittest.TestCase):
+    def test_different_last_measure_becomes_first_and_second_ending(self):
+        # A B C | A B D | E : three bars repeated, the last one different the second time.
+        pitches = [[60, 62, 64, 65], [67, 65, 64, 62], [60, 60, 60, 60], [60, 62, 64, 65], [67, 65, 64, 62], [55, 57, 59, 60], [72, 71, 69, 67]]
+        notes = [n for i, p in enumerate(pitches) for n in phrase(i, p)]
+        chords = [{'tick': i * BAR, 'root': 0, 'quality': ''} for i in range(7)]
+        b, grids = bars(7), {beat: 4 for beat in range(28)}
+        folds = score_repeats.fold_repeats(b, notes, chords, grids, [], [], PPQ, 0, DIV)
+        self.assertEqual(folds, [{'first_measure': 1, 'measures': 3, 'endings': 1, 'removed_quarters': 8.0}])
+        self.assertEqual(len(b), 5)
+        self.assertTrue(b[0]['repeat_start'] and b[2]['repeat_end'])
+        self.assertEqual((b[2]['ending_start'], b[2]['ending_stop'], b[3]['ending_start'], b[3]['ending_stop']), (1, 1, 2, 2))
+        self.assertEqual([n['pitch'] for n in notes if 3 * BAR <= n['start'] < 4 * BAR], [55, 57, 59, 60])
+
+
+def ending_midi(path):
+    """A B C, A B D, E: the same two bars twice with different third bars (quarter notes, 4/4)."""
+    def vlq(value):
+        data = [value & 127]; value >>= 7
+        while value: data.insert(0, (value & 127) | 128); value >>= 7
+        return bytes(data)
+    pitches = [60, 62, 64, 65, 67, 65, 64, 62, 60, 64, 67, 72] + [60, 62, 64, 65, 67, 65, 64, 62, 59, 62, 65, 67] + [72, 71, 69, 67]
+    body = b''; previous = 0
+    for index, pitch in enumerate(pitches):
+        for tick, message in ((index * PPQ, bytes([0x90, pitch, 90])), (index * PPQ + PPQ - 1, bytes([0x80, pitch, 0]))):
+            body += vlq(tick - previous) + message; previous = tick
+    body += b'\x00\xff\x2f\x00'
+    conductor = b'\x00\xff\x58\x04\x04\x02\x18\x08\x00\xff\x2f\x00'
+    path.write_bytes(b'MThd' + struct.pack('>IHHH', 6, 1, 2, PPQ) + b'MTrk' + struct.pack('>I', len(conductor)) + conductor + b'MTrk' + struct.pack('>I', len(body)) + body)
+
+
 def repeated_midi(path):
     """Two bars, the same two bars again, then two different bars (quarter notes, 4/4)."""
     def vlq(value):
@@ -92,6 +123,25 @@ class NativeRepeatTests(unittest.TestCase):
             self.assertEqual(len(native.findall('.//Staff/Measure')), 4)
             self.assertEqual(len(native.findall('.//startRepeat')), 1)
             self.assertEqual(len(native.findall('.//endRepeat')), 1)
+
+
+@unittest.skipUnless(os.environ.get('TECLAS_TEST_NATIVE_LABELS') == '1', 'Set TECLAS_TEST_NATIVE_LABELS=1 to render in MuseScore')
+class NativeEndingTests(unittest.TestCase):
+    def test_endings_survive_musescore(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder); out = base / 'casas'; out.mkdir()
+            path = out / 'casas.mid'; ending_midi(path); parsed = engine.parse_midi(path)
+            harmony = dict(key={'fifths': 0, 'minor': False}, events=[dict(tick=i * 4 * PPQ, root=r, quality=q, confidence=1., pitch_classes=[r])
+                                                                    for i, (r, q) in enumerate([(0, ''), (7, '7'), (0, ''), (0, ''), (7, '7'), (7, '7'), (5, '')])])
+            config = worker.manual_melody_config([dict(A, track=1)]); config['fold_repeats'] = True
+            with patch.object(engine, 'BATCH', base), redirect_stdout(io.StringIO()):
+                xml, report = engine.build_musicxml(parsed, config, harmony, out, 'Casas')
+                final = engine.convert_score(xml, report, out, 'Casas')
+            self.assertEqual(report['melody_analysis']['repeat_folds'][0]['endings'], 1)
+            with zipfile.ZipFile(final) as archive:
+                native = engine.E.fromstring(archive.read(next(n for n in archive.namelist() if n.endswith('.mscx'))))
+            self.assertEqual(len(native.findall('.//Staff/Measure')), 5)
+            self.assertEqual(len([s for s in native.iter('Spanner') if s.get('type') == 'Volta' and s.find('Volta') is not None]), 2)
 
 
 if __name__ == '__main__': unittest.main()

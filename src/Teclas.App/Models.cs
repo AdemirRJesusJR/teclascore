@@ -123,7 +123,11 @@ public sealed class TrackRow : Observable
     public string AuditionGlyph=>IsAuditioning?"■":"▶";
     public string AuditionToolTip=>$"{(IsAuditioning?"Parar":"Ouvir")} pista {Track}, canal {Channel}: {Instrument}";
     private bool melody;
-    public bool IsMelody{get=>melody;set{if(Set(ref melody,value))Changed?.Invoke();}}
+    public bool IsMelody{get=>melody;set{if(Set(ref melody,value)){if(value)IsSecondVoice=false;Changed?.Invoke();}}}
+    private bool secondVoice;
+    /// <summary>Counter-melody written on its own staff below the melody (optional, at most one part).</summary>
+    public bool IsSecondVoice{get=>secondVoice;set{if(Set(ref secondVoice,value)){if(value)IsMelody=false;SecondVoiceChanged?.Invoke(this);}}}
+    public Action<TrackRow>? SecondVoiceChanged{get;set;}
     public Action? Changed{get;set;}
     public required MidiSource Source{get;init;}
     public string InstrumentName{get;init;}="";
