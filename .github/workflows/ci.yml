@@ -51,7 +51,8 @@ jobs:
           retention-days: 14
           include-hidden-files: false
 
-  # Same suite with the official MuseScore installed (version and SHA-256 pinned in tools/offline-dependencies.json),
+  # Same suite with the official MuseScore installed (version and SHA-256 pinned in tools/ci/musescore.json, the version
+  # validated on the release computer),
   # so the native rendering, score-style, repeat and label tests also run on GitHub, not only on the release computer.
   native-musescore:
     runs-on: windows-2025
@@ -80,7 +81,7 @@ jobs:
           python -m pip install --disable-pip-version-check --only-binary=:all: -r tools/ci/requirements.txt
       - name: Install the official MuseScore (pinned, SHA-256 checked)
         run: |
-          $pin = (Get-Content tools/offline-dependencies.json -Raw | ConvertFrom-Json).musescore
+          $pin = (Get-Content tools/ci/musescore.json -Raw | ConvertFrom-Json).musescore
           $msi = Join-Path $env:RUNNER_TEMP $pin.file
           Invoke-WebRequest -Uri $pin.url -OutFile $msi
           $hash = (Get-FileHash -LiteralPath $msi -Algorithm SHA256).Hash.ToLowerInvariant()
