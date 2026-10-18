@@ -136,9 +136,22 @@ public sealed class TransposeWindow:Window
         row.Children.Add(new TextBlock { Text = "de", VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 0, 6, 0) }); row.Children.Add(voiceLow);
         row.Children.Add(new TextBlock { Text = "até", VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 0, 6, 0) }); row.Children.Add(voiceHigh);
         var suggest = DialogUi.Button("Sugerir tom", (_, _) => SuggestForVoice(melody)); suggest.Name = "SuggestVoiceButton"; row.Children.Add(suggest);
+        var sing = DialogUi.Button("Medir cantando", (_, _) => MeasureVoice(melody)); sing.Name = "MeasureVoiceButton";
+        sing.ToolTip = "Cante a nota mais grave e a mais aguda que você alcança com conforto; o microfone mede e preenche as notas"; row.Children.Add(sing);
         panel.Children.Add(row);
         voiceResult = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new(0, 6, 0, 0) };
         panel.Children.Add(voiceResult);
+    }
+
+    internal static Func<VoiceRangeWindow, bool?> voiceRangeDialog = window => window.ShowDialog();
+
+    /// <summary>Measures the range by singing and suggests the key at once.</summary>
+    internal void MeasureVoice((int Low, int High) melody)
+    {
+        var window = new VoiceRangeWindow { Owner = this };
+        if (voiceRangeDialog(window) != true || window.Low is not { } low || window.High is not { } high) return;
+        voiceLow!.SelectedValue = Math.Clamp(low, 36, 84); voiceHigh!.SelectedValue = Math.Clamp(high, 36, 84);
+        SuggestForVoice(melody);
     }
 
     internal void SuggestForVoice((int Low, int High) melody)

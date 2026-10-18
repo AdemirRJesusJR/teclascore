@@ -18,6 +18,8 @@ public sealed class MicrophoneNoteDetector
     private bool attackPending;
     private int refractory;
     public double Level { get; private set; }
+    /// <summary>The pitch heard in the last window as a fractional MIDI number (69 = A4), or null when unclear or silent.</summary>
+    public double? Pitch { get; private set; }
 
     public MicrophoneNoteDetector(int sampleRate = 44100)
     {
@@ -47,6 +49,7 @@ public sealed class MicrophoneNoteDetector
         double sum = 0; foreach (float s in frame) sum += s * s;
         double level = Math.Sqrt(sum / Window); Level = level;
         double gate = Math.Max(.01, noiseFloor * 4);
+        Pitch = null;
         if (level < gate)
         {
             noiseFloor = noiseFloor * .95 + level * .05;
@@ -61,7 +64,9 @@ public sealed class MicrophoneNoteDetector
         if (attack && !attackPending) { attackPending = true; return null; }
         var (frequency, clarity) = Yin.Detect(frame, sampleRate);
         if (frequency <= 0 || clarity < .8) return null;
-        int pitch = (int)Math.Round(69 + 12 * Math.Log2(frequency / 440));
+        double exact = 69 + 12 * Math.Log2(frequency / 440);
+        if (exact is >= 21 and <= 108) Pitch = exact;
+        int pitch = (int)Math.Round(exact);
         if (pitch is < 21 or > 108) return null;
         if (attackPending)
         {
@@ -116,4 +121,33 @@ public static class Yin
         }
         return (sampleRate / (best + shift), 1 - Math.Min(1, normalized[best]));
     }
+}
+
+/// <summary>
+/// Measures a singer's range from the microphone pitch: a note counts once it is held steadily (within half a
+/// semitone) for 0.4 s, so slides and breaks between notes are ignored. Low and High are the extreme held notes.
+/// </summary>
+public sealed class VoiceRangeMeter
+{
+    private double? anchor; private double since, last;
+    public int? Low { get; private set; }
+    public int? High { get; private set; }
+    /// <summary>The held note being sung right now, if any.</summary>
+    public int? Holding { get; private set; }
+
+    /// <summary>Adds the pitch heard at a moment (seconds); null for silence.</summary>
+    public void Add(double? pitch, double seconds)
+    {
+        last = seconds;
+        if (pitch is not { } p || p < 33 || p > 96) { anchor = null; Holding = null; return; }
+        if (anchor is not { } a || Math.Abs(p - a) > .5) { anchor = p; since = seconds; Holding = null; return; }
+        anchor = a * .9 + p * .1;
+        if (seconds - since < .4) return;
+        int note = (int)Math.Round(anchor.Value);
+        Holding = note;
+        if (Low is null || note < Low) Low = note;
+        if (High is null || note > High) High = note;
+    }
+
+    public void Clear() { anchor = null; Low = High = Holding = null; }
 }

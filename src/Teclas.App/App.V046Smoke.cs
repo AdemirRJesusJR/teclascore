@@ -16,8 +16,11 @@ public partial class App
     private sealed class FakeNoteSource : IDisposableNoteSource
     {
         public event Action<int>? NoteOn;
+        public event Action<double>? PitchHeard;
+        public double Level { get; set; }
         public bool Disposed { get; private set; }
         public void Strike(int pitch) => NoteOn?.Invoke(pitch);
+        public void Sing(double pitch) => PitchHeard?.Invoke(pitch);
         public void Dispose() => Disposed = true;
     }
 

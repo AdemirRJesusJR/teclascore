@@ -66,7 +66,17 @@ public partial class MainWindow
         int meter = report["meter"]?.GetValue<int>() ?? 4;
         Status = $"Ideia transformada: ♩ ≈ {report["bpm"]?.GetValue<double>() ?? 0:0} (pelo seu ritmo), compasso {meter}/4, {report["melody_notes"]?.GetValue<int>() ?? 0} notas na melodia" +
                  (chords.Count > 0 ? $", acordes {string.Join(" ", chords.Take(8))}{(chords.Count > 8 ? " …" : "")}" : "") +
-                 (clear ? "" : " (sem melodia clara: só cifras)") + ". Confira e gere a partitura.";
+                 (clear ? "" : " (sem melodia clara: só cifras)") + RhythmNotes(report) + ". Confira e gere a partitura.";
         return midi;
+    }
+
+    /// <summary>What the rhythm analysis found beyond the plain grid: triplets, a swung feel and a pickup.</summary>
+    internal static string RhythmNotes(JsonObject report)
+    {
+        var notes = new List<string>();
+        if (report["triplet_beats"]?.GetValue<int>() is > 0 and var triplets) notes.Add(triplets == 1 ? "1 tempo em tercina" : $"{triplets} tempos em tercinas");
+        if (report["swing"]?.GetValue<bool>() == true) notes.Add("balanço (swing) escrito em colcheias retas");
+        if (report["pickup_beats"]?.GetValue<int>() is > 0 and var pickup) notes.Add(pickup == 1 ? "anacruse de 1 tempo" : $"anacruse de {pickup} tempos");
+        return notes.Count == 0 ? "" : "; " + string.Join(", ", notes);
     }
 }

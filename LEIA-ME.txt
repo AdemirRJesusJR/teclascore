@@ -1,3 +1,7 @@
+TECLASCORE 0.47.0
+
+Tercinas, swing e anacruse no Gravar ideia. Teste de microfone. Baião, xote, bossa nova, sertanejo e guarânia no acompanhamento. Medir a voz cantando. Buscar cantarolando. Acompanhamento junto com o metrônomo.
+
 TECLASCORE 0.46.0
 
 Gravar ideia no teclado MIDI com o andamento descoberto pelo seu ritmo. Praticar pelo microfone. Estilos de mão esquerda e baixo dos acordes com barra no acompanhamento. Professor com respostas ao vivo, perguntas por compasso e exercícios. Acordes reconhecidos no áudio. Conferência da leitura do Audiveris.

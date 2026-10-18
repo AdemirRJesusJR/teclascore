@@ -1,3 +1,11 @@
+TECLASCORE 0.47.0 · RITMO, MICROFONE, VOZ E RITMOS BRASILEIROS
+
+1. Gravar ideia: toque uma frase com tercinas, outra com balanço e uma que comece antes do tempo forte; confira a partitura.
+2. Configurações › Testar microfone: toque e cante; se não abrir, use Privacidade do microfone.
+3. Praticar › Acompanhamento me segue: experimente baião, xote, bossa nova, sertanejo e guarânia, na espera e no tempo.
+4. Transpor › Medir cantando: cante grave e agudo; confira as notas e o tom sugerido.
+5. Buscar tocando › Entrada → Microfone: cantarole o começo de uma música da biblioteca.
+
 TECLASCORE 0.46.0 · IDEIAS, MICROFONE, ESTILOS, PROFESSOR E CONFERÊNCIA
 
 1. Na Biblioteca, Gravar ideia: toque uma melodia com acordes, acelerando um pouco no fim; transforme e confira andamento, compasso e cifras. Repita com uma valsa.

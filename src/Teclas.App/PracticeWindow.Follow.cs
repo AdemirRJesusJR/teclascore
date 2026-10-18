@@ -14,7 +14,7 @@ namespace Teclas.App;
 /// </summary>
 public partial class PracticeWindow
 {
-    private static readonly string[] StyleNames = ["Acordes", "Arpejo", "Valsa", "Balada"];
+    private static readonly string[] StyleNames = ["Acordes", "Arpejo", "Valsa", "Balada", "Baião", "Xote", "Bossa nova", "Sertanejo", "Guarânia"];
     private CheckBox? followMe;
     private ComboBox? followStyle;
     private AccompanimentFollower? follower;
@@ -46,17 +46,18 @@ public partial class PracticeWindow
         {
             Content = "Acompanhamento me segue", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 6, 6), IsEnabled = chordSteps.Count > 0,
             ToolTip = chordSteps.Count == 0 ? "Esta partitura não tem cifras para acompanhar."
-                : "Na espera, tocando as notas da partitura: os acordes da cifra e o baixo soam conforme você avança, no seu ritmo. Se você parar, o acompanhamento espera."
+                : "Na espera, os acordes da cifra e o baixo soam conforme você avança, no seu ritmo, e esperam se você parar. No tempo, tocam junto com o metrônomo, no estilo escolhido."
         };
         AutomationProperties.SetName(followMe, "Acompanhamento me segue");
         followMe.Click += (_, _) =>
         {
-            if (followMe.IsChecked == true) { mode.SelectedIndex = 0; inTime.IsChecked = false; withMusic.IsChecked = false; }
+            // Works in wait mode (following the player) and in time mode (with the metronome); the score audio has its own.
+            if (followMe.IsChecked == true) { mode.SelectedIndex = 0; withMusic.IsChecked = false; }
             Reset();
         };
         study.Children.Add(followMe);
-        followStyle = new ComboBox { Width = 92, ItemsSource = StyleNames, SelectedIndex = 0, Margin = new Thickness(0, 0, 0, 6), IsEnabled = chordSteps.Count > 0,
-            ToolTip = "Como a mão esquerda toca: acordes segurados, arpejo em colcheias, valsa (baixo e dois acordes) ou balada (baixo e acorde no 1º e no 3º tempo)" };
+        followStyle = new ComboBox { Width = 112, ItemsSource = StyleNames, SelectedIndex = 0, Margin = new Thickness(0, 0, 0, 6), IsEnabled = chordSteps.Count > 0,
+            ToolTip = "Como a mão esquerda toca: acordes segurados, arpejo, valsa, balada ou ritmos brasileiros (baião, xote, bossa nova, sertanejo e guarânia)" };
         AutomationProperties.SetName(followStyle, "Estilo do acompanhamento");
         followStyle.SelectionChanged += (_, _) => { ReleaseFollow(); if (follower is { Label.Length: > 0 }) RestartPattern(); };
         study.Children.Add(followStyle);
@@ -67,7 +68,8 @@ public partial class PracticeWindow
     private void ResetFollow()
     {
         StopFollow();
-        follower = FollowMe && Mode == PracticeMode.Notes && !InTime && chordSteps.Count > 0 ? new AccompanimentFollower(chordSteps) : null;
+        follower = FollowMe && Mode == PracticeMode.Notes && !WithMusic && chordSteps.Count > 0 ? new AccompanimentFollower(chordSteps) : null;
+        timedChord = null;
         if (follower is null) return;
         try { followOutput ??= followOutputFactory(); } catch (InvalidOperationException) { followOutput = null; }
     }
@@ -75,7 +77,7 @@ public partial class PracticeWindow
     /// <summary>The player reached this melody step: changes chord when the cipher changes, and resumes a paused pattern.</summary>
     private void FollowStep(PracticeStep step)
     {
-        if (follower is null) return;
+        if (follower is null || InTime) return;
         double now = followNow();
         bool changed = follower.Follow(step.Start, now) is not null;
         lastStepAt = now;
@@ -130,6 +132,44 @@ public partial class PracticeWindow
         }
         catch (InvalidOperationException) { followOutput = null; }
     }
+
+    private PracticeStep? timedChord;
+
+    /// <summary>
+    /// Time mode: the chords follow the clock (the score position in quarters) instead of the player, each chord's
+    /// pattern starting where the chord starts and repeating until the next one.
+    /// </summary>
+    internal void TimedFollow(double position)
+    {
+        if (follower is null || !InTime || WithMusic) return;
+        if (follower.ChordAt(position) is not { } chord) { ReleaseFollow(); timedChord = null; return; }
+        if (!ReferenceEquals(chord, timedChord))
+        {
+            ReleaseFollow(); timedChord = chord;
+            pattern = AccompanimentPattern.Bar(FollowStyle, AccompanimentFollower.Voice(chord));
+            patternBeats = AccompanimentPattern.BeatsPerBar(FollowStyle, 4); patternNext = 0;
+            // Joining in the middle of a chord (after a pause), the pattern resumes at the right beat.
+            double into = (position - chord.Start) % patternBeats;
+            // (a clock tick lands a little after the chord start: events of the last eighth of a beat still sound)
+            while (patternNext < pattern.Count && pattern[patternNext].Beat < into - .12) patternNext++;
+            patternStart = chord.Start + Math.Floor((position - chord.Start) / patternBeats) * patternBeats;
+        }
+        double beat = position - patternStart;
+        while (true)
+        {
+            if (patternNext >= pattern.Count)
+            {
+                if (beat < patternBeats) break;
+                patternStart += patternBeats; beat -= patternBeats; patternNext = 0;
+            }
+            var e = pattern[patternNext];
+            if (e.Beat > beat) break;
+            Send(e.Pitch, e.On); patternNext++;
+        }
+    }
+
+    /// <summary>Time mode paused or stopped: the keys are released; the chord starts again where the clock resumes.</summary>
+    internal void PauseTimedFollow() { ReleaseFollow(); timedChord = null; }
 
     private void ReleaseFollow() { foreach (int pitch in followSounding.ToArray()) Send(pitch, false); }
 

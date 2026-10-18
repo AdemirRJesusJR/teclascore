@@ -78,19 +78,20 @@ public sealed class AccompanimentFollower
 }
 
 /// <summary>How the left hand plays each chord while following the player.</summary>
-public enum AccompanimentStyle { Block, Arpeggio, Waltz, Ballad }
+public enum AccompanimentStyle { Block, Arpeggio, Waltz, Ballad, Baiao, Xote, Bossa, Sertanejo, Guarania }
 
 /// <summary>One note switching on or off at a beat of the pattern bar.</summary>
 public sealed record PatternEvent(double Beat, int Pitch, bool On);
 
 /// <summary>
-/// Left-hand patterns over one bar, for a voicing whose first note is the bass. Block holds the chord; Arpeggio walks
+/// Left-hand patterns over one bar, for a voicing whose first note is the bass. Brazilian rhythms (baião, xote, bossa
+/// nova, sertanejo, guarânia) are simplified keyboard versions of their usual figures. Block holds the chord; Arpeggio walks
 /// up and down in eighths over a held bass; Waltz plays bass then two chords (3 beats); Ballad strikes bass and chord on
 /// the first and middle beats (the bass moving to the fifth). Every note switched on is switched off inside the bar.
 /// </summary>
 public static class AccompanimentPattern
 {
-    public static int BeatsPerBar(AccompanimentStyle style, int meter) => style == AccompanimentStyle.Waltz ? 3 : Math.Clamp(meter, 2, 6);
+    public static int BeatsPerBar(AccompanimentStyle style, int meter) => style is AccompanimentStyle.Waltz or AccompanimentStyle.Guarania ? 3 : Math.Clamp(meter, 2, 6);
 
     public static IReadOnlyList<PatternEvent> Bar(AccompanimentStyle style, IReadOnlyList<int> voicing, int meter = 4)
     {
@@ -102,6 +103,7 @@ public static class AccompanimentPattern
         var events = new List<PatternEvent>();
         void Note(double at, double length, int pitch) { events.Add(new(at, pitch, true)); events.Add(new(Math.Min(beats - .02, at + length), pitch, false)); }
         void Chord(double at, double length) { foreach (int pitch in chord) Note(at, length, pitch); }
+        int fifth = bass + (bass - 5 >= AccompanimentFollower.BassFloor ? -5 : 7);
         switch (style)
         {
             case AccompanimentStyle.Arpeggio:
@@ -116,6 +118,26 @@ public static class AccompanimentPattern
                 double half = beats / 2.0;
                 Note(0, half - .05, bass); Chord(0, half - .05);
                 Note(half, half - .05, bass + (bass + 7 - 12 >= AccompanimentFollower.BassFloor ? 7 - 12 : 7)); Chord(half, half - .05);
+                break;
+            case AccompanimentStyle.Baiao:
+                // Dotted eighth, sixteenth and quarter in the bass (the zabumba figure), short chords on the offbeats.
+                for (double cell = 0; cell + 2 <= beats; cell += 2)
+                { Note(cell, .7, bass); Note(cell + .75, .2, bass); Note(cell + 1, .9, fifth); Chord(cell + .5, .25); Chord(cell + 1.5, .4); }
+                break;
+            case AccompanimentStyle.Xote:
+                Note(0, .9, bass); Chord(1, .45); Note(2, .9, fifth); Chord(3, .4); Chord(3.5, .4);
+                break;
+            case AccompanimentStyle.Bossa:
+                // Root and fifth in half notes, the chord on 1, on the "and" of 2 and on 4.
+                Note(0, 1.9, bass); Note(2, 1.9, fifth); Chord(0, .45); Chord(1.5, .9); Chord(3, .45);
+                break;
+            case AccompanimentStyle.Sertanejo:
+                // Bass on the beats alternating root and fifth, chords on the offbeats.
+                for (int beat = 0; beat < beats; beat++) { Note(beat, .45, beat % 2 == 0 ? bass : fifth); Chord(beat + .5, .4); }
+                break;
+            case AccompanimentStyle.Guarania:
+                // Slow 3/4 with the long bass and the chords against it (the guarânia sway).
+                Note(0, 1.4, bass); Chord(1.5, .4); Chord(2, .45);
                 break;
             default:
                 Note(0, beats - .02, bass); Chord(0, beats - .02);

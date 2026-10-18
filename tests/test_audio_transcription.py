@@ -129,6 +129,61 @@ class AudioTranscriptionTests(unittest.TestCase):
             bass = sorted([n for n in parsed['notes'] if n['track'] == 2 and n['pitch'] < 48], key=lambda n: n['start'])
             self.assertTrue(all(n['start'] % (3 * parsed['ppq']) == 0 for n in bass))
 
+    @staticmethod
+    def rhythm(onsets, pitches, chords, beat=.6, meter=4, offset=0):
+        """Melody attacks at beat positions (fractions allowed), each lasting to the next; chords on each downbeat."""
+        rng = np.random.default_rng(7); notes = []
+        ends = list(onsets[1:]) + [onsets[-1] + 1]
+        for at, end, pitch in zip(onsets, ends, pitches):
+            notes.append(dict(start=(at + offset) * beat + float(rng.normal(0, .008)), end=(end + offset) * beat - .03, pitch=pitch, velocity=75))
+        for bar, chord in enumerate(chords):
+            for k, pitch in enumerate(chord):
+                notes.append(dict(start=(bar * meter + offset) * beat, end=(bar * meter + meter + offset) * beat - .05, pitch=pitch, velocity=95 if k == 0 else 70))
+        return notes
+
+    def melody_ticks(self, midi):
+        parsed = parse_midi(midi)
+        return parsed['ppq'], [n['start'] for n in sorted((n for n in parsed['notes'] if n['track'] == 1), key=lambda n: n['start'])]
+
+    def test_keyboard_idea_keeps_triplets(self):
+        onsets = [float(b) for b in range(4)] + [4, 4 + 1/3, 4 + 2/3, 5, 5 + 1/3, 5 + 2/3] + [float(b) for b in range(6, 16)]
+        pitches = [72 + (i % 5) for i in range(len(onsets))]
+        chords = [[36, 52, 55], [41, 57, 60], [43, 55, 59], [36, 52, 55]]
+        with tempfile.TemporaryDirectory() as folder:
+            midi = Path(folder) / 't.mid'
+            report = at.transcribe_notes(self.rhythm(onsets, pitches, chords), midi)
+            ppq, ticks = self.melody_ticks(midi)
+            self.assertEqual(report['triplet_beats'], 2); self.assertFalse(report['swing'])
+            self.assertEqual([t - ticks[0] for t in ticks[4:10]], [4 * ppq, 4 * ppq + 160, 4 * ppq + 320, 5 * ppq, 5 * ppq + 160, 5 * ppq + 320])
+
+    def test_keyboard_idea_swing_is_written_as_eighths(self):
+        onsets = [b + f for b in range(16) for f in (0, 2/3)]
+        pitches = [67 + (i % 6) for i in range(len(onsets))]
+        chords = [[36, 52, 55], [41, 57, 60], [43, 55, 59], [36, 52, 55]]
+        with tempfile.TemporaryDirectory() as folder:
+            midi = Path(folder) / 's.mid'
+            report = at.transcribe_notes(self.rhythm(onsets, pitches, chords), midi)
+            ppq, ticks = self.melody_ticks(midi)
+            self.assertTrue(report['swing'])
+            self.assertEqual(sorted({(t - ticks[0]) % ppq for t in ticks}), [0, ppq // 2])
+
+    def test_keyboard_idea_pickup_starts_a_short_measure(self):
+        onsets = [0.0] + [float(b) for b in range(1, 17)]
+        pitches = [67] + [72 + (i % 5) for i in range(16)]
+        chords = [[36, 52, 55], [41, 57, 60], [43, 55, 59], [36, 52, 55]]
+        with tempfile.TemporaryDirectory() as folder:
+            midi = Path(folder) / 'p.mid'
+            # The first note comes one beat before the first chord (the downbeat).
+            notes = self.rhythm(onsets[1:], pitches[1:], chords, offset=1)
+            notes.append(dict(start=0.0, end=.57, pitch=67, velocity=75))
+            report = at.transcribe_notes(notes, midi)
+            self.assertEqual(report['pickup_beats'], 1)
+            parsed = parse_midi(midi); ppq = parsed['ppq']
+            self.assertEqual([m['tick'] for m in summarize(parsed)['time_signatures']], [0, ppq])
+            bass = sorted(n['start'] for n in parsed['notes'] if n['track'] == 2 and n['pitch'] < 48)
+            self.assertEqual(bass[0], ppq)
+            self.assertEqual(self.melody_ticks(midi)[1][0], 0)
+
     def test_silence_and_short_audio_are_refused(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 's.wav'; pcm = bytes(44100 * 4)

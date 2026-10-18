@@ -281,7 +281,7 @@ public sealed partial class PracticeWindow : Window
     private void StopClock()
     {
         if (!clock.IsEnabled) return;
-        clock.Stop(); watch.Stop();
+        clock.Stop(); watch.Stop(); PauseTimedFollow();
         start.Content = "▶ Continuar"; tempo.IsEnabled = timed is null || timed.Hits + timed.Missed + timed.Wrong == 0;
     }
 
@@ -298,8 +298,10 @@ public sealed partial class PracticeWindow : Window
             try { click?.Send(0x99 | (uint)((downbeat ? 76 : 77) << 8) | (uint)((downbeat ? 110 : 80) << 16)); } catch (InvalidOperationException) { click = null; }
         }
         timed.Advance(position);
+        TimedFollow(position);
         if (timed.IsFinished)
         {
+            PauseTimedFollow();
             StopMusic(); StopClock(); start.Content = "▶ Começar";
             feedback.Text = $"Fim! {timed.Score:0} pontos · {timed.OnTime} no tempo · {timed.OffTime} fora do tempo · {timed.Missed} perdidas · {timed.Wrong} erradas.";
             if (TempoGoal is { } goal && timed.Bpm >= goal && timed.Score >= 80) feedback.Text += $" Meta de andamento ♩ = {goal} atingida!";

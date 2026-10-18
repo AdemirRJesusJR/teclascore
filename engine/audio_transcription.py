@@ -234,6 +234,48 @@ def meter_guess(notes, beats, ppq=480):
     return 3 if lift(3) > lift(4) * 1.15 else 4
 
 
+def beat_grids(onsets, ppq=480):
+    """For each beat, the subdivision the attacks follow: 'straight' (sixteenths), 'triplet' (thirds of the beat) or
+    'swing' (two eighths played long-short, written as straight eighths). onsets are ticks on the beat grid. Returns
+    (grids by beat, swing) where swing tells that most beats with an offbeat were played long-short."""
+    by_beat = {}
+    for tick in onsets:
+        beat = int((tick + ppq / 8) // ppq)
+        by_beat.setdefault(beat, []).append((tick - beat * ppq) / ppq)
+    grids = {}; swung = offbeat_beats = 0
+    for beat, offsets in by_beat.items():
+        inner = [f for f in offsets if .12 < f < .88]
+        if not inner: grids[beat] = 'straight'; continue
+        offbeat_beats += 1
+        error16 = sum(abs(f * 4 - round(f * 4)) / 4 for f in inner) / len(inner)
+        error3 = sum(abs(f * 3 - round(f * 3)) / 3 for f in inner) / len(inner)
+        thirds = {round(f * 3) for f in inner if abs(f * 3 - round(f * 3)) < .12}
+        if error3 < error16 * .6 and error3 < .05:
+            if thirds == {2}: grids[beat] = 'swing'; swung += 1
+            else: grids[beat] = 'triplet'
+        else: grids[beat] = 'straight'
+    swing = offbeat_beats >= 4 and swung >= .6 * offbeat_beats
+    if not swing: grids = {b: ('triplet' if g == 'swing' else g) for b, g in grids.items()}
+    else:
+        # In a swung piece, a single late offbeat is the short eighth even when it drifted towards the sixteenth.
+        for beat, offsets in by_beat.items():
+            inner = [f for f in offsets if .12 < f < .88]
+            if grids.get(beat) == 'straight' and len(inner) == 1 and .55 < inner[0] < .85: grids[beat] = 'swing'
+    return grids, swing
+
+
+def snap(tick, grids, ppq=480):
+    """A tick moved onto its beat's grid: sixteenths, thirds, or for swing the long-short pair written as eighths."""
+    beat = int((tick + ppq / 8) // ppq)
+    grid = grids.get(beat, 'straight')
+    offset = (tick - beat * ppq) / ppq
+    if grid == 'triplet': return beat * ppq + round(offset * 3) * (ppq // 3)
+    if grid == 'swing':
+        step = round(offset * 3)
+        return beat * ppq + (0 if step == 0 else ppq // 2 if step == 2 else ppq if step == 3 else ppq // 3)
+    return beat * ppq + round(offset * 4) * (ppq // 4)
+
+
 CHORD_TEMPLATES = {'': (0, 4, 7), 'm': (0, 3, 7), '7': (0, 4, 7, 10), 'm7': (0, 3, 7, 10)}
 NOTE_NAMES = ('C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')
 
@@ -296,6 +338,9 @@ def audio_chords(melody, accompaniment, beats, phase=0, span=2, melody_weight=.2
             if (previous[2], previous[3]) == (root, quality) or score_of(chroma, bass, previous[2], previous[3]) >= score - .05:
                 result[-1] = (previous[0], float(b), previous[2], previous[3]); continue
         result.append((float(a), float(b), root, quality))
+    # The beat grid runs on past the music; the last chord ends with the last note, not with an empty measure.
+    last = max([e for _, e, _, _ in melody + accompaniment] or [0])
+    if result and result[-1][1] > last: result[-1] = (result[-1][0], max(result[-1][0] + .05, last), result[-1][2], result[-1][3])
     return result
 
 
@@ -322,16 +367,28 @@ def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords
     chords = list(chords)
     first = to_ticks(min([n[0] for n in melody + accompaniment + chords] or [0]), beats, ppq) + (meter - phase) % meter * ppq
     shift = (meter - phase) % meter * ppq - min(0, first // (meter * ppq) * (meter * ppq))  # never negative ticks; keep whole measures
+    # Subdivision by beat (sixteenths, triplets or swung eighths), decided from the melody and accompaniment attacks.
+    grids, swing = beat_grids([to_ticks(n[0], beats, ppq) + shift for n in melody + accompaniment], ppq)
+    bar = meter * ppq
+    # Anacrusis: notes leading into the first downbeat start a short first measure instead of a measure of rests.
+    starts = [snap(to_ticks(n[0], beats, ppq) + shift, grids, ppq) for n in melody + accompaniment + chords]
+    lead = min(starts) if starts else 0
+    skip = lead // bar * bar
+    pickup = 0
+    if lead - skip >= ppq:
+        pickup = bar - (lead - skip) // ppq * ppq
+        skip = lead // ppq * ppq
+    write_midi.last = {'swing': swing, 'triplet_beats': sum(1 for g in grids.values() if g == 'triplet'), 'pickup_beats': pickup // ppq}
     def vlq(value):
         out = [value & 127]; value >>= 7
         while value: out.insert(0, (value & 127) | 128); value >>= 7
         return bytes(out)
     def track(notes, channel, name):
         events = [(0, b'\xff\x03' + vlq(len(name.encode('latin-1'))) + name.encode('latin-1')), (0, bytes([0xC0 | channel, 0]))]
-        grid = ppq // 4  # sixteenth: a live recording jitters a little around the beat; written music does not
+        # A live recording jitters a little around the beat; written music does not: every time goes onto the grid.
         for start, end, pitch, amplitude in notes:
-            a = round((to_ticks(start, beats, ppq) + shift) / grid) * grid
-            b = max(a + grid, round((to_ticks(end, beats, ppq) + shift) / grid) * grid)
+            a = snap(to_ticks(start, beats, ppq) + shift, grids, ppq) - skip
+            b = max(a + ppq // 4, snap(to_ticks(end, beats, ppq) + shift, grids, ppq) - skip)
             velocity = max(30, min(120, int(40 + amplitude * 100)))
             events += [(a, bytes([0x90 | channel, pitch, velocity])), (b, bytes([0x80 | channel, pitch, 0]))]
         body = b''; previous = 0
@@ -340,7 +397,9 @@ def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords
         body += b'\x00\xff\x2f\x00'
         return b'MTrk' + struct.pack('>I', len(body)) + body
     tempo = int(round(60_000_000 / max(30, min(240, round(bpm)))))
-    conductor = b'\x00\xff\x51\x03' + tempo.to_bytes(3, 'big') + b'\x00\xff\x58\x04' + bytes([meter]) + b'\x02\x18\x08\x00\xff\x2f\x00'
+    signature = b'\xff\x58\x04' + bytes([meter]) + b'\x02\x18\x08'
+    # A pickup is a short first measure: the same meter restated at the first downbeat closes it early.
+    conductor = b'\x00\xff\x51\x03' + tempo.to_bytes(3, 'big') + b'\x00' + signature + (vlq(pickup) + signature if pickup else b'') + b'\x00\xff\x2f\x00'
     data = b'MThd' + struct.pack('>IHHH', 6, 1, 4 if chords else 3, ppq) + b'MTrk' + struct.pack('>I', len(conductor)) + conductor
     data += track(melody, 0, names[0]) + track(accompaniment, 1, names[1])
     if chords: data += track(chords, 2, names[2])
@@ -375,7 +434,7 @@ def transcribe(wav_path, midi_path, progress=lambda message: None):
     return {'notes': len(notes), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),
             'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
             'bpm': round(bpm, 1), 'beats': len(beats), 'downbeat_phase': phase, 'seconds': round(len(audio) / SAMPLE_RATE, 1),
-            'melody_range': [min(pitches), max(pitches)] if pitches else None}
+            'melody_range': [min(pitches), max(pitches)] if pitches else None, **write_midi.last}
 
 
 def transcribe_notes(played, midi_path, progress=lambda message: None):
@@ -410,4 +469,4 @@ def transcribe_notes(played, midi_path, progress=lambda message: None):
     return {'notes': len(notes), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),
             'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
             'bpm': round(bpm, 1), 'meter': meter, 'beats': len(beats), 'downbeat_phase': phase,
-            'seconds': round(max(e for _, e, _, _ in notes), 1), 'melody_range': [min(pitches), max(pitches)] if pitches else None}
+            'seconds': round(max(e for _, e, _, _ in notes), 1), 'melody_range': [min(pitches), max(pitches)] if pitches else None, **write_midi.last}

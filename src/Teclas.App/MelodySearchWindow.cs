@@ -18,6 +18,11 @@ public sealed class MelodySearchWindow : Window
     private readonly ListBox results;
     private readonly ComboBox devices;
     private MidiKeyboardInput? input;
+    private IDisposableNoteSource? microphone;
+    internal Func<IDisposableNoteSource> microphoneFactory = () => new MicrophoneNoteInput();
+    internal TimeSpan microphoneTimeout = TimeSpan.FromSeconds(5);
+    internal const string HumChoice = "🎤 Microfone (cantarolar ou piano)";
+    public bool UsesMicrophone => devices.SelectedItem as string == HumChoice;
     public IReadOnlyList<MelodySearchHit> Hits { get; private set; } = [];
     public string? ChosenId { get; private set; }
 
@@ -28,12 +33,16 @@ public sealed class MelodySearchWindow : Window
         var root = new DockPanel { Margin = new Thickness(20) }; Content = root;
         var top = new StackPanel(); DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
         top.Children.Add(new TextBlock { Text = "Buscar tocando", FontSize = 20, FontWeight = FontWeights.SemiBold });
-        top.Children.Add(new TextBlock { Text = $"Toque um trecho da melodia (pelo menos {MelodySearch.MinimumNotes} notas), em qualquer tom. A busca compara os intervalos com a melodia de cada música da biblioteca.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 10) });
+        top.Children.Add(new TextBlock { Text = $"Toque ou cantarole um trecho da melodia (pelo menos {MelodySearch.MinimumNotes} notas), em qualquer tom. Para cantarolar, escolha o microfone e cante uma sílaba por nota (tá-tá-tá). A busca compara os intervalos com a melodia de cada música da biblioteca.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 10) });
         var line = new WrapPanel(); top.Children.Add(line);
-        line.Children.Add(new TextBlock { Text = "Teclado MIDI", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) });
-        var names = MidiKeyboardInput.Devices();
-        devices = new ComboBox { Width = 240, ItemsSource = names.Count > 0 ? names : ["Nenhum teclado MIDI encontrado"], SelectedIndex = 0, IsEnabled = names.Count > 0, Margin = new Thickness(0, 0, 12, 6) };
-        AutomationProperties.SetName(devices, "Teclado MIDI");
+        line.Children.Add(new TextBlock { Text = "Entrada", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) });
+        var names = MidiKeyboardInput.Devices().ToList();
+        midiCount = names.Count;
+        if (names.Count == 0) names.Add(PracticeWindow.NoMidiChoice);
+        // Humming goes through the microphone; it opens only when chosen.
+        if (PracticeWindow.microphoneAvailable()) names.Add(HumChoice);
+        devices = new ComboBox { Width = 240, ItemsSource = names, SelectedIndex = 0, IsEnabled = names.Count > 1 || midiCount > 0, Margin = new Thickness(0, 0, 12, 6) };
+        AutomationProperties.SetName(devices, "Entrada: teclado MIDI ou microfone");
         devices.SelectionChanged += (_, _) => OpenDevice();
         line.Children.Add(devices);
         line.Children.Add(DialogUi.Button("Apagar notas", (_, _) => { played.Clear(); Update(); }));
@@ -50,13 +59,30 @@ public sealed class MelodySearchWindow : Window
         results.MouseDoubleClick += (_, e) => { if (e.ChangedButton == MouseButton.Left) Choose(); };
         root.Children.Add(results);
         Loaded += (_, _) => { OpenDevice(); Update(); };
-        Closed += (_, _) => input?.Dispose();
+        Closed += (_, _) => { input?.Dispose(); microphone?.Dispose(); microphone = null; microphoneGeneration++; };
     }
+    private int midiCount, microphoneGeneration;
 
-    private void OpenDevice()
+    private async void OpenDevice()
     {
-        input?.Dispose(); input = null;
-        if (!devices.IsEnabled || devices.SelectedIndex < 0) return;
+        input?.Dispose(); input = null; microphone?.Dispose(); microphone = null;
+        int generation = ++microphoneGeneration;
+        if (!devices.IsEnabled || devices.SelectedIndex < 0 || devices.SelectedItem as string == PracticeWindow.NoMidiChoice) return;
+        if (devices.SelectedItem as string == HumChoice)
+        {
+            summary.Text = "Abrindo o microfone…";
+            try
+            {
+                var source = await MicrophoneOpener.OpenAsync(microphoneFactory, microphoneTimeout);
+                if (generation != microphoneGeneration || !IsLoaded) { source.Dispose(); return; }
+                microphone = source;
+                microphone.NoteOn += pitch => Dispatcher.InvokeAsync(() => Play(pitch));
+                played.Clear(); Update();
+                summary.Text = "Ouvindo: cantarole o trecho, uma sílaba por nota.";
+            }
+            catch (InvalidOperationException error) { if (generation == microphoneGeneration) summary.Text = error.Message + " Use as teclas da tela."; }
+            return;
+        }
         try { input = new MidiKeyboardInput(devices.SelectedIndex); input.NoteOn += (pitch, _) => Dispatcher.InvokeAsync(() => Play(pitch)); }
         catch (InvalidOperationException error) { summary.Text = error.Message + " Use as teclas da tela."; }
     }

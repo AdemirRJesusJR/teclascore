@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.47.0 — 18/10/2026
+
+- Gravar ideia mais musical: tercinas são reconhecidas e escritas como tercinas; colcheias com balanço (swing) viram colcheias retas, com aviso; notas antes do primeiro tempo forte formam uma anacruse (compasso inicial curto) em vez de um compasso de pausas; o último acorde termina com a música, sem compasso vazio no fim.
+- Testar microfone (Configurações): barra de volume e nota reconhecida ao vivo, com botão para a página de privacidade do Windows quando o microfone está bloqueado.
+- Ritmos brasileiros no acompanhamento: baião, xote, bossa nova, sertanejo e guarânia, além de acordes, arpejo, valsa e balada.
+- Medir cantando (Transpor › Para a minha voz): cante a nota mais grave e a mais aguda confortáveis; o microfone mede a extensão, preenche as notas e sugere o tom.
+- Buscar cantarolando (Buscar tocando › Entrada → Microfone): cantarole o trecho, uma sílaba por nota, para achar a música.
+- Acompanhamento no tempo: com "Acompanhamento me segue" no modo No tempo, os acordes tocam junto com o metrônomo no estilo escolhido, sem precisar do áudio da partitura.
+
 ## 0.46.0 — 18/10/2026
 
 - Gravar ideia (Biblioteca): toque livremente no teclado MIDI, sem metrônomo, com pedal se quiser. O TeclaScore descobre o andamento pela sua velocidade (acompanhando quando você acelera ou desacelera), o compasso (3/4 ou 4/4) e as figuras, separa a melodia do acompanhamento, lê as cifras e cria a música na biblioteca.

@@ -35,6 +35,9 @@ public partial class MainWindow
         TeacherKeyStore.Delete(); TeacherKeyBox.Clear(); Status = "Chave do professor removida deste computador."; NotifyTeacher();
     }
 
+    internal Func<MicrophoneTestWindow, bool?> microphoneTestDialog = window => window.ShowDialog();
+    private void MicrophoneTestClick(object sender, RoutedEventArgs e) => microphoneTestDialog(new MicrophoneTestWindow { Owner = this });
+
     private void NotifyTeacher() { Notify(nameof(HasTeacherKey)); Notify(nameof(TeacherKeyStatus)); }
 
     /// <summary>What the teacher knows about the song: title, chord sheet with lyrics and the practice results.</summary>

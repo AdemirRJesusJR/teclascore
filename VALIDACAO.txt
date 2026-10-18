@@ -1,3 +1,12 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.47.0
+18/10/2026
+
+- CI local completo: 66 etapas aprovadas, 0 falhas, 3 puladas; 229 testes do motor, incluindo tercinas exatas (terços do tempo), swing reconhecido e escrito em colcheias retas, e anacruse de 1 tempo com o compasso curto no início.
+- No MuseScore 4.7.5: ideia com anacruse e uma tercina gerou o compasso inicial implícito (o seguinte numerado 2), a tercina escrita com o 3 e as cifras C F G C, sem compasso vazio no fim (antes, o último acorde se estendia até a última batida detectada; corrigido). Os testes também acharam colcheias com balanço que derivavam para semicolcheias; agora, numa música com swing, o contratempo tardio é tratado como colcheia.
+- Interface 0.47: 24 verificações (avisos de ritmo; teste de microfone com volume e nota, liberando o microfone ao fechar, e aviso de privacidade quando ele não responde; nove estilos de acompanhamento equilibrados, com a figura do baião; extensão vocal só com notas firmes e o tom sugerido em Transpor; busca cantarolando achando a música pelos intervalos; acordes seguindo o relógio no modo No tempo e soltos ao pausar).
+- Não testado com aparelhos reais: microfone (o deste computador não abre pelo Windows), teclado MIDI físico, voz e piano de verdade.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.46.0
 18/10/2026
 
