@@ -13,8 +13,10 @@ public partial class MainWindow
     private ConversionQueueService GetConversionQueue()
     {
         if (!persistenceEnabled) throw new InvalidOperationException("A fila precisa de uma sessão salva.");
+        // Two conversions at a time on computers with four or more processor threads.
         return conversionQueue ??= new ConversionQueueService(Path.Combine(
-            persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!, "conversion-queue"));
+            persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!, "conversion-queue"))
+            { MaxParallel = ConversionQueueService.SuggestedParallel };
     }
 
     private bool HasCurrentMelodyAnalysis(MidiRow row)

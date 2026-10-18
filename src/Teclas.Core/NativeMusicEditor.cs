@@ -15,9 +15,16 @@ public sealed record MusicEvent(string Id, int Staff, int Measure, int Voice, do
     /// <summary>First lyric syllable on this event (verse 1) and whether a word continues after it.</summary>
     public string Lyric { get; init; } = "";
     public bool LyricContinues { get; init; }
+    /// <summary>Verse 2 syllable (second time through a repeat), when the score has one.</summary>
+    public string Lyric2 { get; init; } = "";
+    public bool Lyric2Continues { get; init; }
 }
 public sealed record MusicHarmony(string Id, int Staff, int Measure, int Voice, double? Quarter, string Root,
-    string Quality, bool CanEdit, string Restriction, bool HasDiagram, int? DiagramInversion);
+    string Quality, bool CanEdit, string Restriction, bool HasDiagram, int? DiagramInversion)
+{
+    /// <summary>Bass of a slash chord (G/B → "B"); null when the bass is the root.</summary>
+    public string? Bass { get; init; }
+}
 public sealed record MusicMeasure(int Staff, int Number, string Label, IReadOnlyList<MusicEvent> Events, IReadOnlyList<MusicHarmony> Harmonies);
 public sealed record NativeMusicModel(string SourcePath, string SourceSha256, NativeScoreMetadata Metadata,
     IReadOnlyList<MusicMeasure> Measures, IReadOnlyList<string> Limitations);
@@ -259,6 +266,8 @@ public static partial class NativeMusicEditor
                             { DurationQuarter = EventLength(child, measureQuarter),
                               Lyric = (string?)child.Elements("Lyrics").FirstOrDefault(l => (string?)l.Element("no") is null or "0")?.Element("text") ?? "",
                               LyricContinues = (string?)child.Elements("Lyrics").FirstOrDefault(l => (string?)l.Element("no") is null or "0")?.Element("syllabic") is "begin" or "middle",
+                              Lyric2 = (string?)child.Elements("Lyrics").FirstOrDefault(l => (string?)l.Element("no") == "1")?.Element("text") ?? "",
+                              Lyric2Continues = (string?)child.Elements("Lyrics").FirstOrDefault(l => (string?)l.Element("no") == "1")?.Element("syllabic") is "begin" or "middle",
                               StructureRestriction = First(global, staffRestriction, timing, StructureRestriction(child)),
                               CanRestructure = First(global, staffRestriction, timing, StructureRestriction(child)).Length == 0 };
                             var target = new EventTarget(child, item, EventLength(child, measureQuarter));
@@ -273,7 +282,8 @@ public static partial class NativeMusicEditor
                                 var harmony = NativeHarmonyEditing.Inspect(archive, child);
                                 string restriction = First(global, harmony.CanEdit ? "" : harmony.Restriction);
                                 var view = new MusicHarmony(id, si + 1, mi, vi, quarter, harmony.Root, harmony.Quality,
-                                    restriction.Length == 0, restriction, harmony.HasDiagram, harmony.DiagramInversion);
+                                    restriction.Length == 0, restriction, harmony.HasDiagram, harmony.DiagramInversion)
+                                { Bass = NativeHarmonyEditing.BassName(child) };
                                 harmonies.Add(id, new(child, view, new(si + 1, mi, vi, elementIndex, -1))); measureHarmonies.Add(view);
                             }
                             if (child.Name != "eid") anchors.Add(new(quarter, null));

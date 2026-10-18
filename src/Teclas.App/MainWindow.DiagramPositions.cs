@@ -9,6 +9,20 @@ public partial class MainWindow
     internal Func<DiagramPositionsWindow, bool?> diagramPositionsDialog = window => window.ShowDialog();
     internal Func<MidiRow, Task>? diagramGeneration = null;
     public bool CanCustomizeDiagrams=>IsIdle && selectedFile is { UsesNativeScoreWorkflow:false } row && row.Chords.Count>0;
+    public bool CanShowChordSheetText=>IsIdle && CurrentScorePath is {} score && File.Exists(score);
+    internal Func<ChordSheetTextWindow, bool?> chordSheetTextDialog = window => window.ShowDialog();
+    /// <summary>The current score as a text chord sheet (chords above the words), to copy or save.</summary>
+    private async void ChordSheetTextClick(object sender,RoutedEventArgs e)
+    {
+        if(!CanShowChordSheetText || selectedFile is not {} row || CurrentScorePath is not {} score)return;
+        try
+        {
+            string sheet=await Task.Run(()=>ChordSheetWriter.FromScore(NativeMusicEditor.Open(score,CancellationToken.None),row.ScoreTitle));
+            chordSheetTextDialog(new ChordSheetTextWindow(sheet,string.IsNullOrWhiteSpace(row.ScoreTitle)?row.Name:row.ScoreTitle){Owner=this});
+        }
+        catch(Exception error) when (error is IOException or InvalidDataException or InvalidOperationException or System.Xml.XmlException)
+        { Status="Não foi possível montar a cifra em texto: "+error.Message; }
+    }
     private void ChordChartClick(object sender,RoutedEventArgs e)
     {
         if(!CanCustomizeDiagrams || selectedFile is not {} row || !CommitEdits())return;

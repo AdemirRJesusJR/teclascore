@@ -52,7 +52,9 @@ public partial class MainWindow
         if (occurrence is null) { ShowKaraoke([]); return; }
         double length = karaokeStarts.TryGetValue(occurrence.Measure, out double start) && karaokeStarts.TryGetValue(occurrence.Measure + 1, out double next) ? next - start : 4;
         double quarter = (position - occurrence.StartSeconds) / (occurrence.EndSeconds - occurrence.StartSeconds) * length;
-        ShowKaraoke(KaraokeLyrics.Line(karaokeSyllables, occurrence.Measure, quarter));
+        // Second time through a repeat: the measures with a verse 2 show it.
+        int pass = map.MeasureTimeline.Count(o => o.Measure == occurrence.Measure && o.StartSeconds <= occurrence.StartSeconds);
+        ShowKaraoke(KaraokeLyrics.Line(KaraokeLyrics.ForPass(karaokeSyllables, pass), occurrence.Measure, quarter));
     }
 
     private void ShowKaraoke(IReadOnlyList<KaraokePiece> line)

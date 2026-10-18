@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.41.0 — 18/10/2026
+
+- Repetições com letra: quando um trecho repetido volta com outra letra, ele é escrito uma vez só, com a 1ª e a 2ª estrofe empilhadas sob a mesma melodia (como nos hinários). Nas casas 1 e 2, cada casa mantém a letra cantada nela. O karaokê mostra a 2ª estrofe na segunda passagem, e a Letra em outra tela mostra as duas.
+- Cifra (Prévia → Editar): a partitura vira cifra em texto, com os acordes sobre a sílaba em que começam e os trechos sem letra em linhas de acordes; copie ou salve em .txt. Acordes com baixo (G/B) saem com o baixo.
+- Para a minha voz (Transpor): informe a nota mais grave e a mais aguda que você canta; o app sugere o tom, considerando que você canta a melodia na sua própria oitava, e avisa quando nenhum tom cabe inteiro.
+- Acorde atual (Prévia → Páginas): durante a reprodução, o acorde que está tocando aparece grande, com o diagrama de teclado e o próximo acorde (precisa de Acompanhar).
+- Partitura no tablet: no endereço do celular como controle, Ver a partitura aqui mostra a página atual no tablet ou celular, acompanhando as viradas; tocar na metade direita ou esquerda vira a página.
+- Fila de conversões: em computadores com quatro ou mais núcleos, duas partituras são geradas ao mesmo tempo.
+
 ## 0.40.0 — 18/10/2026
 
 - D.S., Coda e Fine: com Repetições ligado (antes "Ritornelo"), quando a música volta a um trecho anterior de 4 ou mais compassos e termina com ele, a volta vira D.S. al Fine (D.C. quando é o começo); se depois vem um final novo, vira D.S. al Coda. Segno, Coda, Fine e To Coda são sinais de verdade do MuseScore: a reprodução segue os saltos, e eles ficam acima das cifras e dos diagramas.

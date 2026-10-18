@@ -37,11 +37,20 @@ class FoldTests(unittest.TestCase):
         self.assertEqual(sorted(grids), list(range(16)))
         self.assertEqual(b[-1]['end'], 4 * BAR)
 
-    def test_lyrics_keep_the_repetition_written(self):
+    def test_new_words_become_verse_two(self):
         b, notes, chords, grids = self.material()
-        notes[8]['lyric'] = {'text': 'sol', 'syllabic': 'single'}
+        notes[0]['lyric'] = {'text': 'lua', 'syllabic': 'single'}; notes[8]['lyric'] = {'text': 'sol', 'syllabic': 'single'}
+        notes[1]['lyric'] = {'text': 'no', 'syllabic': 'single'}; notes[9]['lyric'] = {'text': 'no', 'syllabic': 'single'}
+        folds = score_repeats.fold_repeats(b, notes, chords, grids, [], [], PPQ, 0, DIV)
+        self.assertEqual(folds[0]['verse_two_syllables'], 1)
+        self.assertEqual(len(b), 4)
+        self.assertEqual((notes[0]['lyric']['text'], notes[0]['lyric2']['text']), ('lua', 'sol'))
+        self.assertNotIn('lyric2', notes[1])  # the same word both times stays a single line
+
+    def test_third_pass_is_not_a_third_verse(self):
+        b, notes, chords, grids = self.material()
+        notes[0]['lyric2'] = {'text': 'já', 'syllabic': 'single'}; notes[8]['lyric'] = {'text': 'sol', 'syllabic': 'single'}
         self.assertEqual(score_repeats.fold_repeats(b, notes, chords, grids, [], [], PPQ, 0, DIV), [])
-        self.assertEqual(len(b), 6)
 
     def test_different_chord_or_tie_across_the_edge_is_not_folded(self):
         b, notes, chords, grids = self.material()
@@ -242,6 +251,50 @@ class NativeJumpTests(unittest.TestCase):
             sounded = engine.parse_midi(midi)['notes']; melody = min(n['channel'] for n in sounded)  # chord symbols play on their own channel
             played = [n['pitch'] for n in sorted(sounded, key=lambda n: n['start']) if n['channel'] == melody]
             self.assertEqual(played, [p for bar in sequence for p in bar])
+
+
+
+def verse_midi(path, pitches, words):
+    """Melody on track 1 (quarter notes) and karaoke lyric events on track 2, one syllable per note."""
+    def vlq(value):
+        data = [value & 127]; value >>= 7
+        while value: data.insert(0, (value & 127) | 128); value >>= 7
+        return bytes(data)
+    def track(events):
+        body = b''; previous = 0
+        for tick, message in sorted(events, key=lambda e: e[0]): body += vlq(tick - previous) + message; previous = tick
+        body += b'\x00\xff\x2f\x00'; return b'MTrk' + struct.pack('>I', len(body)) + body
+    melody = []; text = []
+    for index, pitch in enumerate(pitches):
+        melody += [(index * PPQ, bytes([0x90, pitch, 90])), (index * PPQ + PPQ - 1, bytes([0x80, pitch, 0]))]
+        if index < len(words):
+            data = words[index].encode('cp1252'); text.append((index * PPQ, bytes([0xff, 0x01]) + vlq(len(data)) + data))
+    conductor = b'\x00\xff\x58\x04\x04\x02\x18\x08\x00\xff\x2f\x00'
+    path.write_bytes(b'MThd' + struct.pack('>IHHH', 6, 1, 3, PPQ) + b'MTrk' + struct.pack('>I', len(conductor)) + conductor + track(melody) + track(text))
+
+
+@unittest.skipUnless(os.environ.get('TECLAS_TEST_NATIVE_LABELS') == '1', 'Set TECLAS_TEST_NATIVE_LABELS=1 to render in MuseScore')
+class NativeVerseTests(unittest.TestCase):
+    def test_two_verses_survive_musescore(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder); out = base / 'versos'; out.mkdir()
+            path = out / 'versos.kar'
+            # Two bars sung twice with different words, then two closing bars without words.
+            verse_midi(path, [60, 62, 64, 65, 67, 65, 64, 62] * 2 + [72, 71, 69, 67, 65, 64, 62, 60],
+                       ['Ca', 'sa ', 'bran', 'ca ', 'do ', 'mar ', 'a', 'zul ', 'Lu', 'a ', 'do ', 'ser', 'tão ', 'que ', 'bri', 'lha '])
+            parsed = engine.parse_midi(path)
+            harmony = dict(key={'fifths': 0, 'minor': False}, events=[dict(tick=i * 4 * PPQ, root=r, quality=q, confidence=1., pitch_classes=[r])
+                                                                    for i, (r, q) in enumerate([(0, ''), (7, '7'), (0, ''), (7, '7'), (5, ''), (0, '')])])
+            config = worker.manual_melody_config([dict(A, track=1)]); config['fold_repeats'] = True
+            with patch.object(engine, 'BATCH', base), redirect_stdout(io.StringIO()):
+                xml, report = engine.build_musicxml(parsed, config, harmony, out, 'Versos')
+                final = engine.convert_score(xml, report, out, 'Versos')
+            folds = report['melody_analysis']['repeat_folds']
+            self.assertTrue(folds and folds[0].get('verse_two_syllables'), folds)
+            with zipfile.ZipFile(final) as archive:
+                native = engine.E.fromstring(archive.read(next(n for n in archive.namelist() if n.endswith('.mscx'))))
+            verses = {l.findtext('no') or '0' for l in native.iter('Lyrics')}
+            self.assertEqual(verses, {'0', '1'})
 
 
 if __name__ == '__main__': unittest.main()

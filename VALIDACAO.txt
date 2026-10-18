@@ -1,3 +1,15 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.41.0
+18/10/2026
+
+- CI local completo: 60 etapas aprovadas, 0 falhas, 3 puladas; 216 testes do motor, incluindo os que geram no MuseScore 4.7.5.
+- Estrofes: um MIDI de karaokê com dois compassos cantados duas vezes com letras diferentes virou ritornelo com as estrofes 1 e 2 no MuseScore real (conferido na página gerada); a mesma palavra nas duas vezes fica numa linha só; uma terceira estrofe não é criada.
+- Interface 0.41: 17 verificações (estrofe 2 lida da partitura e usada na segunda passagem do karaokê, as duas estrofes na tela de letra, baixo G/B lido da partitura, cifra em texto alinhada e salva, sugestão de tom para a voz com a oitava do cantor, caixa do acorde atual, imagem da página para o tablet só com o código e só PNG, faixas da fila).
+- Cifra em texto conferida em três partituras geradas no MuseScore (estrofes, cifra com letra e D.S. al Coda).
+- Fila em paralelo: 4 conversões simuladas com duas ao mesmo tempo, cada uma publicada na sua pasta (41 verificações da fila).
+- Página do tablet vista num navegador em tamanho de celular, nos modos botões e partitura.
+- Não testado com aparelhos reais: tablet na rede Wi-Fi e acorde atual tocando com um teclado de verdade.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.40.0
 18/10/2026
 

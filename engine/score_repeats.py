@@ -1,8 +1,9 @@
 """Repeat signs for literal repetitions: a block of 2–8 measures played twice in a row is written once between
 repeat barlines; when only its last one or two measures differ the second time, they become first and second endings
 (casas 1 e 2). Only exact repetitions are folded (same notes, durations, chords and diagram positions, same meter),
-and never when the block carries lyrics, a tempo or key change, or a note tied across its edges. Playback in MuseScore
-still plays the block twice.
+and never across a tempo or key change or a note tied across its edges. When the words change the second time, they
+become verse 2 under the same notes (as in hymnals); endings keep their own words. Playback in MuseScore still plays
+the block twice.
 
 Longer returns become jumps (fold_jumps): when the music goes back to an earlier passage of 4 or more measures
 (not right after it) and either ends with it or then plays a new ending, the second time is replaced by D.S. al Fine
@@ -30,6 +31,27 @@ def _has_lyrics(notes, start, end):
     return any(n.get('lyric') for n in notes if start <= n['start'] < end)
 
 
+def _second_verse(notes, first, second, length):
+    """Pairs the words of the second pass (second..second+length) with the notes of the first pass by position.
+
+    Returns [(first-pass note, words)] for the syllables that differ, or None when a verse 2 is already there (three
+    passes would need a third verse)."""
+    if any(n.get('lyric2') for n in notes if first <= n['start'] < second + length): return None
+    by_offset = {n['start'] - first: n for n in notes if first <= n['start'] < first + length}
+    pairs = []
+    for n in notes:
+        if not (second <= n['start'] < second + length) or not n.get('lyric'): continue
+        target = by_offset.get(n['start'] - second)
+        if target is None: return None
+        if target.get('lyric') != n['lyric']: pairs.append((target, n['lyric']))
+    return pairs
+
+
+def _apply_second_verse(pairs):
+    for note, words in pairs: note['lyric2'] = dict(words)
+    return len(pairs)
+
+
 def fold_repeats(bars, notes, chords, grids, tempos, key_changes, ppq, origin, div):
     """Folds repeated blocks in place (bars, notes, chords, grids and the tempo/key change ticks) and returns what was folded.
 
@@ -50,7 +72,7 @@ def fold_repeats(bars, notes, chords, grids, tempos, key_changes, ppq, origin, d
                 continue
             first, second, after = bars[k]['start'], bars[k + length]['start'], bars[k + 2 * length - 1]['end']
             if any(_crosses(notes, tick) for tick in (first, second, after)): continue
-            if _has_lyrics(notes, first, after): continue
+            if _second_verse(notes, first, second, second - first) is None: continue
             if any(second < tick < after for tick in tempo_ticks()) or any(first < tick < second for tick in tempo_ticks()): continue
             if any(bar.get('repeat_start') or bar.get('repeat_end') for bar in bars[k:k + 2 * length]): continue
             if _touches_jump(bars, k, 2 * length): continue
@@ -67,6 +89,7 @@ def fold_repeats(bars, notes, chords, grids, tempos, key_changes, ppq, origin, d
         removed = after - second
         if removed % div:  # beat grids are kept per quarter; odd meters stay written out
             k += 1; continue
+        verse_two = _apply_second_verse(_second_verse(notes, first, second, second - first))
         notes[:] = [n for n in notes if not second <= n['start'] < after]
         chords[:] = [c for c in chords if not second <= c['tick'] < after]
         for n in notes:
@@ -85,7 +108,9 @@ def fold_repeats(bars, notes, chords, grids, tempos, key_changes, ppq, origin, d
         for change in list(tempos) + list(key_changes):
             tick = round(change['tick'] / ppq * div) - origin
             if tick >= after: change['tick'] = (tick - removed + origin) * ppq / div
-        folds.append({'first_measure': k + 1, 'measures': length, 'removed_quarters': removed / div})
+        fold = {'first_measure': k + 1, 'measures': length, 'removed_quarters': removed / div}
+        if verse_two: fold['verse_two_syllables'] = verse_two
+        folds.append(fold)
         k += length
     return folds
 
@@ -101,7 +126,7 @@ def _ending(signatures, bars, notes, k, length, tempo_ticks):
         first, second, after = bars[k]['start'], bars[k + length]['start'], bars[k + 2 * length - 1]['end']
         repeat_end = bars[k + length + common]['start']
         if any(_crosses(notes, tick) for tick in (first, bars[k + common]['start'], second, repeat_end, after)): continue
-        if _has_lyrics(notes, first, after): continue
+        if _second_verse(notes, first, second, bars[k + common]['start'] - first) is None: continue
         if any(first < tick < after for tick in tempo_ticks): continue
         if _touches_jump(bars, k, 2 * length): continue
         return ending
@@ -115,6 +140,8 @@ def _fold_with_endings(bars, notes, chords, grids, tempos, key_changes, ppq, ori
     second, resume = bars[k + length]['start'], bars[k + length + common]['start']
     removed = resume - second
     if removed % div: return None
+    # Words of the repeated common part become verse 2; the endings keep the words sung in them.
+    verse_two = _apply_second_verse(_second_verse(notes, bars[k]['start'], second, resume - second))
     notes[:] = [n for n in notes if not second <= n['start'] < resume]
     chords[:] = [c for c in chords if not second <= c['tick'] < resume]
     for n in notes:
@@ -135,7 +162,9 @@ def _fold_with_endings(bars, notes, chords, grids, tempos, key_changes, ppq, ori
     for change in list(tempos) + list(key_changes):
         tick = round(change['tick'] / ppq * div) - origin
         if tick >= resume: change['tick'] = (tick - removed + origin) * ppq / div
-    return {'first_measure': k + 1, 'measures': length, 'endings': ending, 'removed_quarters': removed / div}
+    fold = {'first_measure': k + 1, 'measures': length, 'endings': ending, 'removed_quarters': removed / div}
+    if verse_two: fold['verse_two_syllables'] = verse_two
+    return fold
 
 
 def _touches_jump(bars, k, count):

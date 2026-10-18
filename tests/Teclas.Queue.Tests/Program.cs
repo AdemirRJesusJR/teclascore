@@ -209,6 +209,23 @@ using (var queue = new ConversionQueueService(Path.Combine(work, "queue-concurre
     Check(queue.Items[0].Stage == "Concluída" && !queue.IsRunning, "Late progress cannot overwrite a completed status");
 }
 
+// Two lanes: two conversions overlap, each publishes its own folder, and all complete.
+{
+    int running = 0, peak = 0; var parallelWorker = new FakeWorker();
+    parallelWorker.Before = async (request, _, token) =>
+    {
+        int now = Interlocked.Increment(ref running); lock (parallelWorker) peak = Math.Max(peak, now);
+        try { await Task.Delay(150, token); } finally { Interlocked.Decrement(ref running); }
+    };
+    using var lanes = new ConversionQueueService(Path.Combine(work, "queue-lanes"), parallelWorker) { MaxParallel = 2 };
+    for (int i = 0; i < 4; i++) await lanes.EnqueueAsync(Recipe("paralela-" + i));
+    await lanes.RunAsync();
+    Check(lanes.Items.All(item => item.Status == ConversionQueueStatus.Completed) && peak == 2, $"Two lanes run two conversions at a time and complete all four (peak {peak})");
+    Check(lanes.Items.Select(item => item.Result!.ScorePath).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 4 && lanes.Items.All(item => File.Exists(item.Result!.ScorePath)),
+        "Parallel conversions publish separate folders");
+    Check(ConversionQueueService.SuggestedParallel is 1 or 2, "Suggested lanes depend on the processor threads");
+}
+
 File.WriteAllText(Path.Combine(work, "report.json"), JsonSerializer.Serialize(new { checks = passed.Count, passed }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"PASS: {passed.Count} durable queue checks.");
 
@@ -228,7 +245,7 @@ sealed class FakeWorker : IConversionQueueWorker
     };
     public async Task<JsonObject> RunAsync(ConversionQueueRecipe recipe, JsonObject request, string workspace, IProgress<string>? progress, CancellationToken token)
     {
-        Requests.Add((JsonObject)request.DeepClone()); Progress.Add(progress);
+        lock (Requests) { Requests.Add((JsonObject)request.DeepClone()); Progress.Add(progress); }
         if (Before is not null) await Before(request, progress, token);
         token.ThrowIfCancellationRequested(); progress?.Report("Fake engine running");
         string source = request["inputMidi"]!.GetValue<string>();

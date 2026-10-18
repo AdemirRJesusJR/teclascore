@@ -35,7 +35,7 @@ public partial class MainWindow
     }
     private void UpdateScoreSynchronization()
     {
-        UpdateKaraoke();
+        UpdateKaraoke(); UpdateCurrentChord();
         if (scorePlaybackMap is null || scoreMapIdentity != SelectedScoreIdentity()) return;
         MainScoreViewer.UpdatePlaybackPosition(PlaybackPositionSeconds, FollowScorePlayback && audioPlaying);
     }

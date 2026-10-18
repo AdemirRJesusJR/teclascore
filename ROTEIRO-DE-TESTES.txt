@@ -1,3 +1,12 @@
+TECLASCORE 0.41.0 · ESTROFES, CIFRA EM TEXTO, VOZ, ACORDE ATUAL E TABLET
+
+1. Num MIDI de karaokê cujo refrão repete com outra letra, ligue Repetições e gere: o trecho aparece uma vez, com as duas estrofes; no karaokê, a 2ª estrofe aparece na segunda passagem.
+2. Na Prévia, clique em Cifra: copie a cifra em texto e cole numa mensagem; confira o alinhamento numa fonte de largura fixa.
+3. Em Transpor, escolha a nota mais grave e a mais aguda que você canta e clique em Sugerir tom.
+4. Na Prévia, ligue Acorde atual e Acompanhar e toque: o acorde e o diagrama grande trocam junto com a música.
+5. Na Apresentação, ligue Celular como controle, abra no tablet e toque em Ver a partitura aqui; vire as páginas no computador e no tablet.
+6. Ponha três ou mais músicas na Fila e inicie: duas são geradas ao mesmo tempo.
+
 TECLASCORE 0.40.0 · D.S./CODA, SÓ CIFRAS, CIFRA EM TEXTO E PALCO
 
 1. Numa música que volta ao refrão no fim, ligue Repetições e gere: aparecem segno e D.S. al Fine (ou al Coda); ouça para conferir que a reprodução segue o salto.

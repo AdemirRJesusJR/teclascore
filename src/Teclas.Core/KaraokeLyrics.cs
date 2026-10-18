@@ -1,6 +1,6 @@
 namespace Teclas.Core;
 
-public sealed record KaraokeSyllable(int Measure, double Quarter, string Text, bool Continues);
+public sealed record KaraokeSyllable(int Measure, double Quarter, string Text, bool Continues, int Verse = 1);
 /// <summary>A piece of the karaoke line: already sung, being sung now, or still to come.</summary>
 public sealed record KaraokePiece(string Text, KaraokeState State);
 public enum KaraokeState { Sung, Current, Coming }
@@ -14,11 +14,24 @@ public static class KaraokeLyrics
     public static IReadOnlyList<KaraokeSyllable> FromScore(NativeMusicModel model)
     {
         ArgumentNullException.ThrowIfNull(model);
-        var events = model.Measures.SelectMany(m => m.Events).Where(e => e.Lyric.Length > 0 && e.Quarter is not null).ToArray();
+        var events = model.Measures.SelectMany(m => m.Events).Where(e => (e.Lyric.Length > 0 || e.Lyric2.Length > 0) && e.Quarter is not null).ToArray();
         if (events.Length == 0) return [];
         int top = events.Min(e => e.Staff);
-        return events.Where(e => e.Staff == top).OrderBy(e => e.Measure).ThenBy(e => e.Quarter)
-            .Select(e => new KaraokeSyllable(e.Measure, Math.Round(e.Quarter!.Value, 4), e.Lyric, e.LyricContinues)).ToArray();
+        var ordered = events.Where(e => e.Staff == top).OrderBy(e => e.Measure).ThenBy(e => e.Quarter).ToArray();
+        return ordered.Where(e => e.Lyric.Length > 0).Select(e => new KaraokeSyllable(e.Measure, Math.Round(e.Quarter!.Value, 4), e.Lyric, e.LyricContinues))
+            .Concat(ordered.Where(e => e.Lyric2.Length > 0).Select(e => new KaraokeSyllable(e.Measure, Math.Round(e.Quarter!.Value, 4), e.Lyric2, e.Lyric2Continues, 2)))
+            .OrderBy(s => s.Verse).ThenBy(s => s.Measure).ThenBy(s => s.Quarter).ToArray();
+    }
+
+    /// <summary>
+    /// The syllables sung on a given pass: measures that have a verse 2 use it from the second time on; every other measure
+    /// keeps verse 1.
+    /// </summary>
+    public static IReadOnlyList<KaraokeSyllable> ForPass(IReadOnlyList<KaraokeSyllable> syllables, int pass)
+    {
+        var second = syllables.Where(s => s.Verse == 2).Select(s => s.Measure).ToHashSet();
+        int verse = pass >= 2 ? 2 : 1;
+        return syllables.Where(s => s.Verse == (second.Contains(s.Measure) ? verse : 1)).OrderBy(s => s.Measure).ThenBy(s => s.Quarter).ToArray();
     }
 
     /// <summary>
@@ -29,6 +42,14 @@ public static class KaraokeLyrics
     {
         var where = measures.GroupBy(m => m.Measure).ToDictionary(g => g.Key, g => g.First().Bounds);
         int pages = measures.Count == 0 ? 0 : measures.Max(m => m.Bounds.Page);
+        var first = Texts(syllables.Where(s => s.Verse == 1).ToArray(), where, pages);
+        var second = Texts(syllables.Where(s => s.Verse == 2).ToArray(), where, pages);
+        // A second verse on the page follows the first, after a blank line.
+        return first.Zip(second, (a, b) => b.Length == 0 ? a : a.Length == 0 ? b : a + "\n\n" + b).ToArray();
+    }
+
+    private static IReadOnlyList<string> Texts(IReadOnlyList<KaraokeSyllable> syllables, Dictionary<int, ScorePageRegion> where, int pages)
+    {
         var texts = Enumerable.Range(0, pages).Select(_ => new System.Text.StringBuilder()).ToArray();
         ScorePageRegion? previous = null; bool joined = false;
         foreach (var s in syllables)

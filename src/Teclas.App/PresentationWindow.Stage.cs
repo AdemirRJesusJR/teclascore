@@ -98,7 +98,7 @@ public sealed partial class PresentationWindow
             var addresses = remote.Addresses();
             remoteInfo!.Text = addresses.Count == 0 ? "Sem rede ativa: conecte o computador ao Wi-Fi para usar o celular."
                 : "Aponte a câmera do celular (mesma rede Wi-Fi) para o código, ou abra: " + string.Join("  ou  ", addresses.Take(2)) +
-                  "\nO celular mostra a música e a página atuais.";
+                  "\nO celular mostra a música e a página atuais; num tablet, toque em Ver a partitura aqui para acompanhar as páginas.";
             remoteQr!.Source = addresses.Count == 0 ? null : QrImage(QrCode.Encode(addresses[0]));
             remoteQr.Visibility = addresses.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             remotePanel!.Visibility = Visibility.Visible;
@@ -131,7 +131,11 @@ public sealed partial class PresentationWindow
     {
         int index = Current is { } current ? entries.IndexOf(current) : -1;
         if (remote is not null)
+        {
             remote.State = index < 0 ? null : new RemoteState(entries[index].Title, index + 1, entries.Count, Math.Max(1, viewer.CurrentPage), viewer.PageCount);
+            var pagePaths = viewer.PagePaths; int page = viewer.CurrentPage;
+            remote.PageImage = index >= 0 && page >= 1 && page <= pagePaths.Count ? pagePaths[page - 1] : null;
+        }
         UpdateLyricsScreen();
     }
 

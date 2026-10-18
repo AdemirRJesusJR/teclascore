@@ -10,6 +10,9 @@ public sealed class Settings
     public int ComfortableDiagramMaximumSpan { get; set; } = 12;
     public int SchemaVersion { get; set; } = 2;
     public string PythonPath { get; set; } = "";
+    /// <summary>Comfortable singing range (MIDI pitches) used to suggest a key; G3–C5 until the user sets it.</summary>
+    public int VoiceLow { get; set; } = 55;
+    public int VoiceHigh { get; set; } = 72;
     public string MuseScorePath { get; set; } = "";
     public string OutputDirectory { get; set; } = "";
     public string LastExportDirectory { get; set; } = "";
@@ -39,6 +42,7 @@ public sealed class Settings
     public string ScoreMusicFont { get; set; } = "Leland";
     public string ScoreSize { get; set; } = "normal";
     public bool Karaoke { get; set; }
+    public bool CurrentChord { get; set; }
     public string SmartList { get; set; } = "";
     public Dictionary<string, int> TempoGoals { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public const double MinimumPreviewControlsHeight = 40;

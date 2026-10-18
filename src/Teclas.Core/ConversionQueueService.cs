@@ -21,6 +21,10 @@ public sealed class ConversionQueueService : IDisposable
     public event EventHandler? Changed;
     public string? RecoveryMessage { get; private set; }
     public bool IsRunning { get; private set; }
+    /// <summary>How many conversions run at the same time (1 to 4); each has its own workspace, engine and MuseScore.</summary>
+    public int MaxParallel { get; set; } = 1;
+    /// <summary>Two at a time on computers with four or more processor threads; one otherwise.</summary>
+    public static int SuggestedParallel => Environment.ProcessorCount >= 4 ? 2 : 1;
     public IReadOnlyList<ConversionQueueItem> Items { get { lock (sync) return jobs.Select(Snapshot).ToArray(); } }
 
     public ConversionQueueService(string queueDirectory, IConversionQueueWorker? worker = null)
@@ -106,6 +110,15 @@ public sealed class ConversionQueueService : IDisposable
         IsRunning = true; Notify();
         try
         {
+            int lanes = Math.Clamp(MaxParallel, 1, 4);
+            await Task.WhenAll(Enumerable.Range(0, lanes).Select(_ => Task.Run(() => Lane(progress, token), token))).ConfigureAwait(false);
+        }
+        finally { IsRunning = false; runGate.Release(); Notify(); }
+    }
+
+    /// <summary>One conversion after another; several lanes take the next pending item under the same lock.</summary>
+    private async Task Lane(IProgress<ConversionQueueProgress>? progress, CancellationToken token)
+    {
             while (!token.IsCancellationRequested)
             {
                 Job? job;
@@ -113,7 +126,7 @@ public sealed class ConversionQueueService : IDisposable
                 try
                 {
                     lock (sync) job = jobs.FirstOrDefault(item => item.Status == ConversionQueueStatus.Pending);
-                    if (job is null) break;
+                    if (job is null) return;
                     lock (sync) { job.Status = ConversionQueueStatus.Running; job.Attempts++; job.Error = null; job.Stage = "Conferindo a retomada"; job.UpdatedAt = DateTimeOffset.UtcNow; }
                     Save();
                 }
@@ -131,7 +144,7 @@ public sealed class ConversionQueueService : IDisposable
                 catch (OperationCanceledException) when (!committed)
                 {
                     await SetState(job, ConversionQueueStatus.Paused, "Pausada · pronta para retomar", null, null).ConfigureAwait(false);
-                    Report(job, progress); break;
+                    Report(job, progress); return;
                 }
                 catch (Exception error) when (!committed && error is not OutOfMemoryException)
                 {
@@ -139,8 +152,6 @@ public sealed class ConversionQueueService : IDisposable
                     Report(job, progress);
                 }
             }
-        }
-        finally { IsRunning = false; runGate.Release(); Notify(); }
     }
 
     private async Task<ConversionQueueResult> Execute(Job job, IProgress<ConversionQueueProgress>? progress, CancellationToken token)

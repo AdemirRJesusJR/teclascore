@@ -50,6 +50,15 @@
       <Border.Effect><DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity=".2" Direction="270"/></Border.Effect>
       <TextBlock x:Name="KaraokeText" FontSize="20" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="760"/>
      </Border>
+     <Border x:Name="ChordBar" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16,12,16,0" Padding="14,8" CornerRadius="14" Visibility="Collapsed"
+      Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Opacity=".96" IsHitTestVisible="False" AutomationProperties.Name="Acorde atual">
+      <Border.Effect><DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity=".2" Direction="270"/></Border.Effect>
+      <StackPanel>
+       <TextBlock x:Name="ChordName" FontSize="26" FontWeight="SemiBold"/>
+       <Border Background="White" CornerRadius="4" Padding="2" Margin="0,4,0,4" HorizontalAlignment="Left"><Image x:Name="ChordImage" Height="62" Stretch="Uniform"/></Border>
+       <TextBlock x:Name="NextChord" FontSize="12" Foreground="{DynamicResource Muted}"/>
+      </StackPanel>
+     </Border>
      <Border x:Name="ViewerToolbar" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,22" Padding="6,4" CornerRadius="20"
       Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Opacity=".9" AutomationProperties.Name="Barra da prévia">
       <Border.Effect><DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity=".22" Direction="270"/></Border.Effect>

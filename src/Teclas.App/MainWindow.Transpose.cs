@@ -13,8 +13,10 @@ public partial class MainWindow
         if(!CanTransposeScore || selectedFile is not {} row)return;
         if(row.UsesNativeScoreWorkflow) { await TransposeNativeScore(row); return; }
         if(!CommitEdits())return;
-        var dialog=new TransposeWindow(row.TransposeSemitones,row.Chords.Count>0?row.KeyFifths:null,row.KeyMinor){Owner=this};
-        if(dialog.ShowDialog()!=true || dialog.Semitones==row.TransposeSemitones)return;
+        var dialog=new TransposeWindow(row.TransposeSemitones,row.Chords.Count>0?row.KeyFifths:null,row.KeyMinor,MelodyRange(row),settings.VoiceLow,settings.VoiceHigh){Owner=this};
+        bool accepted=transposeDialog(dialog)==true;
+        if(dialog.VoiceLow!=settings.VoiceLow || dialog.VoiceHigh!=settings.VoiceHigh){settings.VoiceLow=dialog.VoiceLow;settings.VoiceHigh=dialog.VoiceHigh;PersistPreferences();}
+        if(!accepted || dialog.Semitones==row.TransposeSemitones)return;
         RememberVersion(row);
         row.TransposeSemitones=dialog.Semitones;row.HasPendingScoreProperties=true;
         ResetPlayback();RefreshSelection();PersistPreferences();
@@ -23,6 +25,17 @@ public partial class MainWindow
         {
             await Generate(row);EditorTabs.SelectedIndex=2;
         },row,"Transpondo partitura");
+    }
+
+    internal Func<TransposeWindow, bool?> transposeDialog = window => window.ShowDialog();
+
+    /// <summary>Lowest and highest notes of the chosen melody tracks in the original MIDI (null without a melody).</summary>
+    internal static (int Low, int High)? MelodyRange(MidiRow row)
+    {
+        if (row.Document is not { } document) return null;
+        var sources = row.Tracks.Where(track => track.IsMelody).Select(track => track.Source.Key).ToHashSet();
+        var pitches = document.Notes.Where(note => sources.Contains(new SourceKey(note.Track, note.Channel, note.Program))).Select(note => note.Pitch).ToArray();
+        return pitches.Length == 0 ? null : (pitches.Min(), pitches.Max());
     }
 
     private async Task TransposeNativeScore(MidiRow row)
@@ -58,13 +71,24 @@ public partial class MainWindow
 public sealed class TransposeWindow:Window
 {
     private readonly ComboBox steps;
+    private ComboBox? voiceLow, voiceHigh;
+    private TextBlock? voiceResult;
+    private readonly int initialLow, initialHigh;
+    private int? originalKey;
     public int Semitones=>(int)(steps.SelectedValue??0);
+    public int VoiceLow => voiceLow?.SelectedValue as int? ?? initialLow;
+    public int VoiceHigh => voiceHigh?.SelectedValue as int? ?? initialHigh;
     internal ComboBox? TargetKey { get; private set; }
+    internal string VoiceResult => voiceResult?.Text ?? "";
     public TransposeWindow(int current) : this(current, null, false) { }
 
-    /// <summary>With the analyzed key, a target key sets the shortest interval (−6 to +5 semitones).</summary>
-    public TransposeWindow(int current, int? keyFifths, bool keyMinor)
+    /// <summary>
+    /// With the analyzed key, a target key sets the shortest interval (−6 to +5 semitones). With the melody range, the
+    /// singer's comfortable notes suggest the key.
+    /// </summary>
+    public TransposeWindow(int current, int? keyFifths, bool keyMinor, (int Low, int High)? melody = null, int voiceLowest = 55, int voiceHighest = 72)
     {
+        initialLow = voiceLowest; initialHigh = voiceHighest;
         Title="Transpor partitura";Width=510;SizeToContent=SizeToContent.Height;ResizeMode=ResizeMode.NoResize;DialogUi.Theme(this);
         var panel=new StackPanel { Margin=new(24) };Content=panel;
         panel.Children.Add(new TextBlock { Text="Mude o tom para tocar com conforto",FontSize=20,TextWrapping=TextWrapping.Wrap });
@@ -72,7 +96,7 @@ public sealed class TransposeWindow:Window
         steps=new ComboBox { ItemsSource=Enumerable.Range(-12,25).Select(n=>new {Value=n,Label=n==0?"0 · tom original":$"{n:+0;-0} semitons"}).ToArray(),DisplayMemberPath="Label",SelectedValuePath="Value",SelectedValue=current };
         if (keyFifths is int fifths and >= -7 and <= 7)
         {
-            int original = (((fifths * 7) % 12 + 12) % 12 + (keyMinor ? 9 : 0)) % 12;
+            int original = (((fifths * 7) % 12 + 12) % 12 + (keyMinor ? 9 : 0)) % 12; originalKey = original;
             string[] names = ["Dó", "Dó♯/Ré♭", "Ré", "Mi♭", "Mi", "Fá", "Fá♯/Sol♭", "Sol", "Lá♭", "Lá", "Si♭", "Si"];
             string mode = keyMinor ? " menor" : " maior";
             var keys = Enumerable.Range(0, 12).Select(pc => new { Value = pc, Label = names[pc] + mode + (pc == original ? " · original" : "") }).ToArray();
@@ -90,9 +114,42 @@ public sealed class TransposeWindow:Window
             TargetKey = target;
         }
         panel.Children.Add(steps);
+        if (melody is { } range) AddVoice(panel, range);
         panel.Children.Add(new TextBlock { Text="A tabela de cifras permanece no tom de origem para permitir novas transposições sem acumular alterações. A nova versão fica no Histórico.",TextWrapping=TextWrapping.Wrap,Margin=new(0,14,0,18) });
         var buttons=new StackPanel { Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right };
         var cancel=DialogUi.Button("Cancelar",(_,_)=>DialogResult=false);cancel.IsCancel=true;buttons.Children.Add(cancel);
         buttons.Children.Add(DialogUi.Button("Aplicar e atualizar",(_,_)=>DialogResult=true,true));panel.Children.Add(buttons);
+    }
+
+    /// <summary>"Para a minha voz": the singer's lowest and highest comfortable notes suggest the semitones.</summary>
+    private void AddVoice(Panel panel, (int Low, int High) melody)
+    {
+        panel.Children.Add(new TextBlock { Text = "Para a minha voz", FontWeight = FontWeights.SemiBold, Margin = new(0, 16, 0, 4) });
+        panel.Children.Add(new TextBlock { Text = $"A melodia vai de {VoiceRange.NoteName(melody.Low)} a {VoiceRange.NoteName(melody.High)}. Escolha as notas que você canta com conforto (Dó4 é o dó central).",
+            TextWrapping = TextWrapping.Wrap, Margin = new(0, 0, 0, 6) });
+        var notes = Enumerable.Range(36, 49).Select(p => new { Value = p, Label = VoiceRange.NoteName(p) }).ToArray();
+        var row = new WrapPanel();
+        voiceLow = new ComboBox { Name = "VoiceLowCombo", ItemsSource = notes, DisplayMemberPath = "Label", SelectedValuePath = "Value", SelectedValue = Math.Clamp(initialLow, 36, 84), Width = 90, Margin = new(0, 0, 8, 0) };
+        voiceHigh = new ComboBox { Name = "VoiceHighCombo", ItemsSource = notes, DisplayMemberPath = "Label", SelectedValuePath = "Value", SelectedValue = Math.Clamp(initialHigh, 36, 84), Width = 90, Margin = new(0, 0, 8, 0) };
+        System.Windows.Automation.AutomationProperties.SetName(voiceLow, "Nota mais grave que canto");
+        System.Windows.Automation.AutomationProperties.SetName(voiceHigh, "Nota mais aguda que canto");
+        row.Children.Add(new TextBlock { Text = "de", VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 0, 6, 0) }); row.Children.Add(voiceLow);
+        row.Children.Add(new TextBlock { Text = "até", VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 0, 6, 0) }); row.Children.Add(voiceHigh);
+        var suggest = DialogUi.Button("Sugerir tom", (_, _) => SuggestForVoice(melody)); suggest.Name = "SuggestVoiceButton"; row.Children.Add(suggest);
+        panel.Children.Add(row);
+        voiceResult = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new(0, 6, 0, 0) };
+        panel.Children.Add(voiceResult);
+    }
+
+    internal void SuggestForVoice((int Low, int High) melody)
+    {
+        if (VoiceHigh <= VoiceLow) { voiceResult!.Text = "A nota mais aguda precisa ficar acima da mais grave."; return; }
+        var s = VoiceRange.Suggest(melody.Low, melody.High, VoiceLow, VoiceHigh);
+        steps.SelectedValue = s.Semitones;
+        if (TargetKey is not null && originalKey is int original) TargetKey.SelectedValue = ((original + s.Semitones) % 12 + 12) % 12;
+        string octave = s.Octave switch { < 0 => $", cantando {(s.Octave == -1 ? "uma oitava" : "duas oitavas")} abaixo do escrito", > 0 => $", cantando {(s.Octave == 1 ? "uma oitava" : "duas oitavas")} acima do escrito", _ => "" };
+        voiceResult!.Text = (s.Semitones == 0 ? "O tom original já serve" : $"Sugestão: {s.Semitones:+0;-0} semitons") +
+            $": a melodia fica de {VoiceRange.NoteName(s.Low)} a {VoiceRange.NoteName(s.High)}{octave}." +
+            (s.Outside > 0 ? $" Ainda passa {s.Outside} semitom(ns) da sua extensão; nenhum tom cabe inteiro." : " Cabe inteira na sua voz.");
     }
 }

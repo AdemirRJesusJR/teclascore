@@ -119,6 +119,14 @@ internal static class NativeHarmonyEditing
         }
     }
     private static int PitchClass(int tpc) => ((tpc * 7 - 2) % 12 + 12) % 12;
+    /// <summary>Bass note of a slash chord (G/B → "B"), or null when the chord has none.</summary>
+    internal static string? BassName(XElement harmony)
+    {
+        var info = harmony.Element("harmonyInfo") ?? harmony;
+        string? value = (string?)info.Element("bass") ?? (string?)info.Element("base");
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int tpc) && TryRoot(tpc, out string bass) ? bass : null;
+    }
+
     private static bool TryRoot(int tpc, out string root)
     {
         if (tpc is < -1 or > 33) { root = ""; return false; }

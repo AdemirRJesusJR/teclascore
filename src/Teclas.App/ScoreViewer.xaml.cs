@@ -28,6 +28,8 @@ public partial class ScoreViewer : UserControl
     public int CurrentPage { get => (int)GetValue(CurrentPageProperty); set => SetValue(CurrentPageProperty, value); }
     public double Zoom { get => (double)GetValue(ZoomProperty); set => SetValue(ZoomProperty, value); }
     public int PageCount => (int)GetValue(PageCountProperty);
+    /// <summary>Image files of the pages, in order.</summary>
+    internal IReadOnlyList<string> PagePaths => pages.Select(page => page.Path).ToArray();
 
     private readonly ObservableCollection<ScoreViewerPage> pages = [];
     private CancellationTokenSource? loading;
@@ -382,6 +384,13 @@ public partial class ScoreViewer : UserControl
             else run.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, piece.State == KaraokeState.Sung ? "Muted" : "Ink");
             KaraokeText.Inlines.Add(run);
         }
+    }
+
+    /// <summary>The chord being played, its keyboard diagram and the next chord; null hides the box.</summary>
+    public void SetCurrentChord(string? name, ImageSource? diagram, string next)
+    {
+        ChordBar.Visibility = name is null ? Visibility.Collapsed : Visibility.Visible;
+        ChordName.Text = name ?? ""; ChordImage.Source = diagram; NextChord.Text = next;
     }
 
     public void SetPlaybackMap(ScorePlaybackMap? map)

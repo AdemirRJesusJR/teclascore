@@ -92,6 +92,9 @@ def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
         if triplet and (start+dur)%core.DIV==0:core.sub(nt,'tuplet',type='stop',number=1)
     if event is not None and start==event['start'] and event.get('lyric'):
         lyric=core.sub(n,'lyric',number='1');core.sub(lyric,'syllabic',event['lyric']['syllabic']);core.sub(lyric,'text',event['lyric']['text'])
+    if event is not None and start==event['start'] and event.get('lyric2'):
+        # Second verse of a repeated passage, under the first.
+        lyric=core.sub(n,'lyric',number='2');core.sub(lyric,'syllabic',event['lyric2']['syllabic']);core.sub(lyric,'text',event['lyric2']['text'])
 
 KINDS={'':'major','m':'minor','7':'dominant','maj7':'major-seventh','m7':'minor-seventh','mMaj7':'major-minor','dim':'diminished','dim7':'diminished-seventh','m7b5':'half-diminished','aug':'augmented','sus2':'suspended-second','sus4':'suspended-fourth','6':'major-sixth','m6':'minor-sixth','9':'dominant-ninth','maj9':'major-ninth','m9':'minor-ninth','7sus4':'dominant','add9':'major','madd9':'minor'}
 
