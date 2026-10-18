@@ -37,6 +37,13 @@ public sealed partial class PracticeWindow : Window
     private readonly Stopwatch watch = new();
     private readonly Stopwatch studied = new();
     private MidiKeyboardInput? input;
+    private IDisposableNoteSource? microphone;
+    private int midiDeviceCount;
+    internal const string MicrophoneChoice = "🎤 Microfone (piano ou teclado sem MIDI)", NoMidiChoice = "Nenhum teclado MIDI encontrado";
+    /// <summary>Microphone hooks; smoke tests replace them with a fake source.</summary>
+    internal static Func<bool> microphoneAvailable = () => MicrophoneNoteInput.Available;
+    internal Func<IDisposableNoteSource> microphoneFactory = () => new MicrophoneNoteInput();
+    public bool UsesMicrophone => devices.SelectedItem as string == MicrophoneChoice;
     private IMidiOutputTransport? click;
     private int lastBeat = int.MinValue;
     private int? lastPressed; private bool lastCorrect;
@@ -106,10 +113,16 @@ public sealed partial class PracticeWindow : Window
             ToolTip = "Conta como certa a mesma nota em outra oitava do teclado." };
         octave.Click += (_, _) => { session.AnyOctave = AnyOctave; if (timed is not null) timed.AnyOctave = AnyOctave; };
         options.Children.Add(octave);
-        options.Children.Add(Label("Teclado MIDI"));
-        var names = MidiKeyboardInput.Devices();
-        devices = new ComboBox { Width = 220, ItemsSource = names.Count > 0 ? names : ["Nenhum teclado MIDI encontrado"], SelectedIndex = 0, IsEnabled = names.Count > 0, Margin = new Thickness(0, 0, 0, 6) };
-        AutomationProperties.SetName(devices, "Teclado MIDI");
+        options.Children.Add(Label("Entrada"));
+        var names = MidiKeyboardInput.Devices().ToList();
+        midiDeviceCount = names.Count;
+        if (names.Count == 0) names.Add(NoMidiChoice);
+        // An acoustic piano or a keyboard without MIDI is heard through the microphone (one note at a time). It is
+        // never the default: the microphone opens only when chosen.
+        if (microphoneAvailable()) names.Add(MicrophoneChoice);
+        devices = new ComboBox { Width = 220, ItemsSource = names, SelectedIndex = 0, IsEnabled = names.Count > 1 || midiDeviceCount > 0, Margin = new Thickness(0, 0, 0, 6),
+            ToolTip = "Teclado MIDI ou o microfone do computador (piano acústico ou teclado sem MIDI, uma nota por vez; use fones se ligar o acompanhamento)" };
+        AutomationProperties.SetName(devices, "Entrada: teclado MIDI ou microfone");
         devices.SelectionChanged += (_, _) => OpenDevice();
         options.Children.Add(devices);
 
@@ -163,7 +176,7 @@ public sealed partial class PracticeWindow : Window
         clock.Tick += (_, _) => Tick();
         restart.Tick += (_, _) => RestartPassage();
         Loaded += (_, _) => { OpenDevice(); Reset(); studied.Start(); PrepareVisualFollow(); };
-        Closed += (_, _) => { restart.Stop(); preparing?.Cancel(); StopMusic(); StopClock(); RecordAttempt(); studied.Stop(); input?.Dispose(); click?.Dispose(); StopFollow(); followOutput?.Dispose(); };
+        Closed += (_, _) => { restart.Stop(); preparing?.Cancel(); StopMusic(); StopClock(); RecordAttempt(); studied.Stop(); input?.Dispose(); microphone?.Dispose(); click?.Dispose(); StopFollow(); followOutput?.Dispose(); };
     }
 
     private bool AnyOctave => octave.IsChecked == true;
@@ -183,8 +196,9 @@ public sealed partial class PracticeWindow : Window
 
     private void OpenDevice()
     {
-        input?.Dispose(); input = null;
-        if (!devices.IsEnabled || devices.SelectedIndex < 0) { feedback.Text = "Sem teclado MIDI: clique nas teclas da tela para praticar."; return; }
+        input?.Dispose(); input = null; microphone?.Dispose(); microphone = null; microphoneGeneration++;
+        if (!devices.IsEnabled || devices.SelectedIndex < 0 || devices.SelectedItem as string == NoMidiChoice) { feedback.Text = "Sem teclado MIDI: clique nas teclas da tela para praticar" + (microphoneAvailable() ? " ou escolha o microfone em Entrada." : "."); return; }
+        if (UsesMicrophone) { _ = OpenMicrophoneAsync(); return; }
         try
         {
             input = new MidiKeyboardInput(devices.SelectedIndex);
@@ -193,6 +207,37 @@ public sealed partial class PracticeWindow : Window
             feedback.Text = "Teclado conectado.";
         }
         catch (InvalidOperationException error) { feedback.Text = error.Message + " Você ainda pode clicar nas teclas da tela."; }
+    }
+
+    private int microphoneGeneration;
+    /// <summary>How long the Windows audio system may take to open the microphone before practice gives up on it.</summary>
+    internal TimeSpan microphoneTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Opens the microphone off the interface thread: some Windows audio setups never answer the open call, and the
+    /// practice must not freeze. A microphone that answers late (or after another choice) is closed at once.
+    /// </summary>
+    private async Task OpenMicrophoneAsync()
+    {
+        int generation = ++microphoneGeneration;
+        feedback.Text = "Abrindo o microfone…";
+        var opening = Task.Run(microphoneFactory);
+        if (await Task.WhenAny(opening, Task.Delay(microphoneTimeout)) != opening)
+        {
+            _ = opening.ContinueWith(t => { if (t.IsCompletedSuccessfully) t.Result.Dispose(); }, TaskScheduler.Default);
+            if (generation == microphoneGeneration) feedback.Text = "O microfone não respondeu. Confira em Configurações do Windows › Privacidade › Microfone se aplicativos da área de trabalho podem usá-lo, e se há um microfone padrão. Você ainda pode clicar nas teclas da tela.";
+            return;
+        }
+        try
+        {
+            var source = await opening;
+            if (generation != microphoneGeneration || !UsesMicrophone || !IsLoaded) { source.Dispose(); return; }
+            microphone = source;
+            microphone.NoteOn += pitch => Dispatcher.InvokeAsync(() => { Record(pitch, 90); Play(pitch); });
+            if (!AnyOctave) { octave.IsChecked = true; session.AnyOctave = true; if (timed is not null) timed.AnyOctave = true; }
+            feedback.Text = "Ouvindo pelo microfone: toque uma nota por vez, perto do computador. Qualquer oitava foi ligada, porque o microfone pode confundir oitavas.";
+        }
+        catch (InvalidOperationException error) { if (generation == microphoneGeneration) feedback.Text = error.Message + " Você ainda pode clicar nas teclas da tela."; }
     }
 
     /// <summary>Starts a new attempt with the chosen steps and mode; the previous one goes to the history.</summary>

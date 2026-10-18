@@ -1,3 +1,7 @@
+TECLASCORE 0.46.0
+
+Gravar ideia no teclado MIDI com o andamento descoberto pelo seu ritmo. Praticar pelo microfone. Estilos de mão esquerda e baixo dos acordes com barra no acompanhamento. Professor com respostas ao vivo, perguntas por compasso e exercícios. Acordes reconhecidos no áudio. Conferência da leitura do Audiveris.
+
 TECLASCORE 0.45.0
 
 Áudio para partitura no próprio computador. Marcador da pista que acompanha a letra. Professor com IA opcional (com a sua chave da Anthropic). Acompanhamento que segue você na prática. PDF ou foto para partitura com o Audiveris instalado à parte.

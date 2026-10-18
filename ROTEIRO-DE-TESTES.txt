@@ -1,3 +1,12 @@
+TECLASCORE 0.46.0 · IDEIAS, MICROFONE, ESTILOS, PROFESSOR E CONFERÊNCIA
+
+1. Na Biblioteca, Gravar ideia: toque uma melodia com acordes, acelerando um pouco no fim; transforme e confira andamento, compasso e cifras. Repita com uma valsa.
+2. Em Praticar, Entrada → Microfone: toque num piano acústico ou na caixa de som do teclado, uma nota por vez.
+3. Em Praticar, Acompanhamento me segue com Arpejo, Valsa e Balada; numa música com G/B, confira o Si no baixo; pare de tocar e veja o acompanhamento esperar.
+4. No Professor: faça uma pergunta e veja a resposta aparecer aos poucos; Explicar este compasso; Exercício → Arpejos e gere a partitura do exercício.
+5. Transcreva uma gravação de banda: confira os acordes no aviso e, se a melodia não estiver clara, a partitura só com cifras.
+6. Com o Audiveris instalado, leia um PDF e confira a lista de compassos para revisar.
+
 TECLASCORE 0.45.0 · ÁUDIO, LETRA, PROFESSOR, ACOMPANHAMENTO E PDF
 
 1. Na Biblioteca, Áudio para partitura: escolha um MP3 curto de uma melodia clara; confira a melodia na aba Melodia e gere.

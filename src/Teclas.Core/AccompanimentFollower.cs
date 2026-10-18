@@ -60,7 +60,10 @@ public sealed class AccompanimentFollower
         return off;
     }
 
-    /// <summary>The chord's diagram notes moved to start in the octave below middle C, plus the root in the bass.</summary>
+    /// <summary>
+    /// The chord's diagram notes moved to start in the octave below middle C, plus the bass: the written bass of a
+    /// slash chord (G/B → B), else the root. The bass is always the first (lowest) note.
+    /// </summary>
     public static IReadOnlyList<int> Voice(PracticeStep chord)
     {
         int lowest = chord.Pitches.Min();
@@ -68,7 +71,56 @@ public sealed class AccompanimentFollower
         if (lowest + shift >= ChordFloor + 12) shift -= 12;
         var notes = chord.Pitches.Select(pitch => pitch + shift).ToList();
         string root = chord.Label.Length > 1 && chord.Label[1] is '#' or 'b' ? chord.Label[..2] : chord.Label[..1];
-        if (KeyboardDiagramVoicing.TryRootPitchClass(root, out int pitchClass)) notes.Insert(0, BassFloor + pitchClass);
+        if (KeyboardDiagramVoicing.TryRootPitchClass(chord.Bass ?? root, out int pitchClass) ||
+            KeyboardDiagramVoicing.TryRootPitchClass(root, out pitchClass)) notes.Insert(0, BassFloor + pitchClass);
         return notes.Distinct().Order().ToArray();
+    }
+}
+
+/// <summary>How the left hand plays each chord while following the player.</summary>
+public enum AccompanimentStyle { Block, Arpeggio, Waltz, Ballad }
+
+/// <summary>One note switching on or off at a beat of the pattern bar.</summary>
+public sealed record PatternEvent(double Beat, int Pitch, bool On);
+
+/// <summary>
+/// Left-hand patterns over one bar, for a voicing whose first note is the bass. Block holds the chord; Arpeggio walks
+/// up and down in eighths over a held bass; Waltz plays bass then two chords (3 beats); Ballad strikes bass and chord on
+/// the first and middle beats (the bass moving to the fifth). Every note switched on is switched off inside the bar.
+/// </summary>
+public static class AccompanimentPattern
+{
+    public static int BeatsPerBar(AccompanimentStyle style, int meter) => style == AccompanimentStyle.Waltz ? 3 : Math.Clamp(meter, 2, 6);
+
+    public static IReadOnlyList<PatternEvent> Bar(AccompanimentStyle style, IReadOnlyList<int> voicing, int meter = 4)
+    {
+        if (voicing.Count == 0) return [];
+        int bass = voicing[0];
+        var chord = voicing.Skip(1).ToArray();
+        if (chord.Length == 0) chord = [bass + 12];
+        int beats = BeatsPerBar(style, meter);
+        var events = new List<PatternEvent>();
+        void Note(double at, double length, int pitch) { events.Add(new(at, pitch, true)); events.Add(new(Math.Min(beats - .02, at + length), pitch, false)); }
+        void Chord(double at, double length) { foreach (int pitch in chord) Note(at, length, pitch); }
+        switch (style)
+        {
+            case AccompanimentStyle.Arpeggio:
+                Note(0, beats - .05, bass);
+                var walk = chord.Concat(chord.Reverse().Skip(1).Take(Math.Max(0, chord.Length - 2))).ToArray();
+                for (int slot = 0; slot < beats * 2; slot++) Note(slot * .5, .45, walk[slot % walk.Length]);
+                break;
+            case AccompanimentStyle.Waltz:
+                Note(0, .9, bass); Chord(1, .45); Chord(2, .45);
+                break;
+            case AccompanimentStyle.Ballad:
+                double half = beats / 2.0;
+                Note(0, half - .05, bass); Chord(0, half - .05);
+                Note(half, half - .05, bass + (bass + 7 - 12 >= AccompanimentFollower.BassFloor ? 7 - 12 : 7)); Chord(half, half - .05);
+                break;
+            default:
+                Note(0, beats - .02, bass); Chord(0, beats - .02);
+                break;
+        }
+        return events.OrderBy(e => e.Beat).ThenBy(e => e.On).ToArray();
     }
 }

@@ -7,6 +7,8 @@ public sealed record PracticeStep(int Measure, double Quarter, IReadOnlyList<int
     public double Start { get; init; }
     /// <summary>Chord symbol for chord practice; empty for melody steps.</summary>
     public string Label { get; init; } = "";
+    /// <summary>Bass of a slash chord (G/B → "B"); null when the bass is the root.</summary>
+    public string? Bass { get; init; }
 }
 public enum PracticeResult { Ignored, Correct, StepComplete, Finished, Wrong }
 
@@ -86,7 +88,7 @@ public sealed class PracticeSession
             if (steps.Count > 0 && (steps[^1].Label == label || steps[^1].Measure == harmony.Measure && steps[^1].Quarter == quarter)) continue;
             int inversion = harmony.DiagramInversion is >= 0 and <= 2 ? harmony.DiagramInversion.Value : Math.Clamp(defaultInversion, 0, 2);
             steps.Add(new PracticeStep(harmony.Measure, quarter, KeyboardDiagramVoicing.Pitches(root, harmony.Quality, inversion))
-                { Start = starts.GetValueOrDefault(harmony.Measure) + quarter, Label = label });
+                { Start = starts.GetValueOrDefault(harmony.Measure) + quarter, Label = label, Bass = harmony.Bass });
         }
         return steps;
     }

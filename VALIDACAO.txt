@@ -1,3 +1,14 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.46.0
+18/10/2026
+
+- CI local completo: 65 etapas aprovadas, 0 falhas, 3 puladas; 226 testes do motor, incluindo Gravar ideia (tocador que desacelera de 88 para cerca de 76 bpm: melodia exata nos tempos, compassos nos acordes, C F G C; valsa reconhecida em 3/4 a 120 bpm), acordes pelo som (C F G C numa gravação sintética) e modelos de acorde.
+- Gravar ideia de ponta a ponta no MuseScore 4.7.5: notas tocadas com variação de andamento → worker → análise e geração; partitura limpa em semínimas, ♩ = 83, cifras e diagramas C F G C, repetição dobrada.
+- Os testes acharam e corrigiram: o ajuste de grade reta apagava uma desaceleração gradual (agora a grade reta só vale com andamento constante); notas repetidas eram contadas em dobro pelo microfone, e o início de uma nota lia a altura da anterior (o ataque agora é confirmado na janela seguinte); acordes eram trocados por um ataque falso de uma nota só.
+- Microfone neste computador: o Windows ora não responde à abertura do microfone (waveInOpen não retorna), ora a recusa com erro. O microfone deixou de ser a entrada padrão e passou a abrir em segundo plano com limite de 5 segundos; sem resposta, a prática avisa e continua com o teclado da tela, sem travar (verificado no teste).
+- Interface 0.46: 27 verificações (baixo dos acordes com barra; padrões de mão esquerda equilibrados; arpejo no andamento do aluno, espera quando ele para, recomeço; microfone reconhecendo Dó, Mi, Sol, Sol repetido e Dó agudo; acordes do áudio e só cifras; teclas e pedal gravados; ideia criada com andamento, 3/4 e cifras; resposta em streaming; pergunta pelo compasso; notas por compasso no contexto; exercício virando MIDI e música na biblioteca; compassos mal lidos listados).
+- Não testado com serviços e aparelhos reais: API da Anthropic (sem chave), Audiveris (não instalado), teclado MIDI físico, microfone (o deste computador não abre pelo Windows) e gravações reais.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.45.0
 18/10/2026
 

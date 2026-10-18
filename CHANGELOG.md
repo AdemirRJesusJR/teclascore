@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.46.0 — 18/10/2026
+
+- Gravar ideia (Biblioteca): toque livremente no teclado MIDI, sem metrônomo, com pedal se quiser. O TeclaScore descobre o andamento pela sua velocidade (acompanhando quando você acelera ou desacelera), o compasso (3/4 ou 4/4) e as figuras, separa a melodia do acompanhamento, lê as cifras e cria a música na biblioteca.
+- Praticar pelo microfone: em Entrada, escolha o microfone para praticar num piano acústico ou teclado sem MIDI; cada nota tocada é reconhecida, inclusive notas repetidas. Se o Windows não liberar o microfone, a prática avisa em vez de travar.
+- Acompanhamento me segue: acordes com barra tocam o baixo escrito (G/B com Si no baixo) e há estilos de mão esquerda (acordes, arpejo, valsa e balada), no andamento em que você está tocando; se você parar, o acompanhamento espera.
+- Professor: a resposta aparece enquanto é escrita, o texto pode ser selecionado e copiado, e "Explicar este compasso" pergunta sobre um compasso (o da reprodução já vem preenchido). O professor recebe as notas e acordes de cada compasso.
+- Exercícios do professor: escala, arpejos ou encadeamento montados a partir da música entram na biblioteca prontos para gerar a partitura e praticar.
+- Acordes direto do áudio: a transcrição reconhece os acordes pelo som e grava uma pista de acordes; quando a melodia da gravação não sai clara, a música entra como só cifras.
+- Conferir a leitura do Audiveris: depois de ler um PDF ou foto, o app lista os compassos com tempos faltando ou sobrando e notas fora da extensão, para conferir com o original.
+
 ## 0.45.0 — 18/10/2026
 
 - Áudio para partitura (Biblioteca): uma gravação (MP3, WAV, M4A, WMA ou FLAC) vira MIDI com melodia e acompanhamento, que entra na biblioteca com a melodia já escolhida. A transcrição usa o modelo Basic Pitch (Spotify, Apache 2.0) no próprio computador, sem internet; o andamento é detectado e as notas alinhadas à grade.

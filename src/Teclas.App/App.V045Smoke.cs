@@ -108,7 +108,7 @@ public partial class App
             var model = NativeMusicEditor.Open(score, CancellationToken.None);
             var follow = new AccompanimentFollower(PracticeSession.ChordsFromScore(model));
             var first = follow.Follow(0, 10); var same = follow.Follow(2, 11.5); var next = follow.Follow(4, 13);
-            Check(first is { Label: "G", Off.Count: 0 } && first.On.Contains(43) && first.On.Skip(1).All(p => p is >= 48 and < 72) && same is null && next is { Label: "C" } && next.Off.SequenceEqual(first.On) && next.On.Contains(36),
+            Check(first is { Label: "G", Off.Count: 0 } && first.On.Contains(47) && first.On.Skip(1).All(p => p is >= 48 and < 72) && same is null && next is { Label: "C" } && next.Off.SequenceEqual(first.On) && next.On.Contains(36),
                 "follower-changes-chords " + string.Join(",", first?.On ?? []));
             Check(follow.Bpm is >= 79 and <= 81, "follower-measures-the-pace " + follow.Bpm);
             var output = new RecordingMidiOutput();

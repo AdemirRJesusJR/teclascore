@@ -167,6 +167,9 @@ def steady_grid(beats, notes):
     if len(beats) < 8: return beats
     intervals = np.diff(beats)
     if intervals.std() / intervals.mean() > .04: return beats
+    # A gradual change (speeding up or slowing down) keeps the detected beats even when each step is small.
+    half = len(intervals) // 2
+    if abs(np.median(intervals[:half]) / np.median(intervals[half:]) - 1) > .03: return beats
     period = float(np.median(intervals))
     attacks = np.array([n[0] for n in notes])
     # Refine the period and phase so attacks fall as close as possible to sixteenths of the grid.
@@ -206,20 +209,119 @@ def to_ticks(seconds, beats, ppq):
     return int(round((i + (seconds - beats[i]) / (beats[i + 1] - beats[i])) * ppq))
 
 
-def downbeat_phase(notes, beats, ppq=480):
-    """Which of four beats starts the measure: the one where the accompaniment attacks most (weighted by length)."""
-    votes = [0.0] * 4
+def downbeat_phase(notes, beats, ppq=480, meter=4):
+    """Which beat of the measure starts it: the one where the accompaniment attacks most (weighted by length)."""
+    votes = [0.0] * meter
     for start, end, pitch, amplitude in notes:
         position = to_ticks(start, beats, ppq) / ppq
-        if abs(position - round(position)) < .2: votes[int(round(position)) % 4] += (end - start) * amplitude
+        if abs(position - round(position)) < .2: votes[int(round(position)) % meter] += (end - start) * amplitude
     return int(np.argmax(votes)) if any(votes) else 0
 
 
-def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0):
-    """Type 1 MIDI: tempo and 4/4, melody on track 1 (piano, channel 1), accompaniment on track 2 (channel 2). Beat
-    `phase` of the grid falls on a bar line."""
-    first = to_ticks(min([n[0] for n in melody + accompaniment] or [0]), beats, ppq) + (4 - phase) % 4 * ppq
-    shift = (4 - phase) % 4 * ppq - min(0, first // (4 * ppq) * (4 * ppq))  # never negative ticks; keep whole measures
+def meter_guess(notes, beats, ppq=480):
+    """3 or 4 beats per measure: the accents (long and low notes weigh more) gather on one beat of every three or of
+    every four. Four wins unless three is clearly stronger."""
+    accents = {}
+    for start, end, pitch, amplitude in notes:
+        position = to_ticks(start, beats, ppq) / ppq
+        if abs(position - round(position)) < .2:
+            beat = int(round(position)); accents[beat] = accents.get(beat, 0) + (end - start) * amplitude * (1.5 if pitch < 55 else 1)
+    total = sum(accents.values())
+    if total <= 0 or len(accents) < 6: return 4
+    def lift(meter):
+        shares = [sum(v for b, v in accents.items() if b % meter == phase) / total for phase in range(meter)]
+        return max(shares) * meter
+    return 3 if lift(3) > lift(4) * 1.15 else 4
+
+
+CHORD_TEMPLATES = {'': (0, 4, 7), 'm': (0, 3, 7), '7': (0, 4, 7, 10), 'm7': (0, 3, 7, 10)}
+NOTE_NAMES = ('C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B')
+
+
+def chord_of(chroma, bass):
+    """Best chord for a pitch-class profile (12 energies) and bass profile: cosine match with the chord templates,
+    a bonus when the bass is the root, and a small cost for the four-note chords. Returns (root, quality, score)."""
+    norm = float(np.linalg.norm(chroma))
+    if norm <= 0: return None
+    profile = chroma / norm
+    bass_total = float(bass.sum())
+    best = None
+    for root in range(12):
+        for quality, intervals in CHORD_TEMPLATES.items():
+            template = np.zeros(12)
+            for interval in intervals: template[(root + interval) % 12] = 1
+            score = float(profile @ template / np.linalg.norm(template))
+            if bass_total > 0: score += .15 * float(bass[root]) / bass_total
+            if len(intervals) == 4: score -= .04
+            if best is None or score > best[2]: best = (root, quality, score)
+    return best
+
+
+def audio_chords(melody, accompaniment, beats, phase=0, span=2, melody_weight=.25):
+    # (span is the number of beats per guess: 2 in 4/4, 3 in 3/4)
+    """Chords from what was heard, one guess per `span` beats starting on the bar phase. Each segment sums the notes
+    sounding in it by pitch class, weighted by overlap and loudness: the accompaniment counts fully, the melody little
+    (its passing notes are not the harmony). The lowest accompaniment note forms the bass profile. A segment keeps the
+    previous chord unless the new guess is clearly better; segments without a new accompaniment attack keep it too. Returns
+    (start, end, root, quality) in seconds."""
+    beats = np.asarray(beats, np.float64)
+    if len(beats) < span + 1: return []
+    result = []
+    def score_of(chroma, bass, root, quality):
+        template = np.zeros(12)
+        for interval in CHORD_TEMPLATES[quality]: template[(root + interval) % 12] = 1
+        value = float((chroma / np.linalg.norm(chroma)) @ template / np.linalg.norm(template))
+        if bass.sum() > 0: value += .15 * float(bass[root]) / float(bass.sum())
+        return value - (.04 if len(CHORD_TEMPLATES[quality]) == 4 else 0)
+    for index in range(phase % span, len(beats) - 1, span):
+        a, b = beats[index], beats[min(index + span, len(beats) - 1)]
+        chroma = np.zeros(12); bass = np.zeros(12)
+        sounding = [(max(s, a), min(e, b), p, amp) for s, e, p, amp in accompaniment if s < b and e > a]
+        for s, e, p, amp in sounding: chroma[p % 12] += (e - s) * amp
+        if sounding:
+            lowest = min(p for _, _, p, _ in sounding)
+            for s, e, p, amp in sounding:
+                if p <= lowest + 2: bass[p % 12] += (e - s) * amp
+        for s, e, p, amp in melody:
+            if s < b and e > a: chroma[p % 12] += (min(e, b) - max(s, a)) * amp * melody_weight
+        # Harmony changes with a new chord attack (two or more notes): a segment where the accompaniment only rings on,
+        # or where a single note is struck again, keeps the chord.
+        attacked = len({p % 12 for s, _, p, _ in accompaniment if a - .08 <= s < b - .08}) >= 2
+        if not sounding or chroma.sum() <= 0 or result and not attacked:
+            if result: result[-1] = (result[-1][0], float(b), result[-1][2], result[-1][3])
+            continue
+        root, quality, score = chord_of(chroma, bass)
+        if result:
+            previous = result[-1]
+            if (previous[2], previous[3]) == (root, quality) or score_of(chroma, bass, previous[2], previous[3]) >= score - .05:
+                result[-1] = (previous[0], float(b), previous[2], previous[3]); continue
+        result.append((float(a), float(b), root, quality))
+    return result
+
+
+def chord_notes(chords):
+    """Block chords for the MIDI: the root in the bass (C2–B2) and the triad or seventh above C3."""
+    notes = []
+    for start, end, root, quality in chords:
+        notes.append((start, end, 36 + root, .45))
+        for interval in CHORD_TEMPLATES[quality]: notes.append((start, end, 48 + (root + interval) % 12, .35))
+    return notes
+
+
+def melody_is_clear(melody, beats):
+    """A sung or played tune: enough notes per beat and a real range. Otherwise the score should be chords only."""
+    if len(beats) < 4 or len(melody) < 8: return False
+    pitches = [n[2] for n in melody]
+    return len(melody) / len(beats) >= .35 and max(pitches) - min(pitches) >= 5
+
+
+def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords=(), meter=4, names=('Melodia (audio)', 'Acompanhamento (audio)', 'Acordes (audio)')):
+    """Type 1 MIDI: tempo and 4/4, melody on track 1 (piano, channel 1), accompaniment on track 2 (channel 2) and, when
+    given, the chords heard in the audio as block chords on track 3 (channel 3). Beat `phase` of the grid falls on a
+    bar line."""
+    chords = list(chords)
+    first = to_ticks(min([n[0] for n in melody + accompaniment + chords] or [0]), beats, ppq) + (meter - phase) % meter * ppq
+    shift = (meter - phase) % meter * ppq - min(0, first // (meter * ppq) * (meter * ppq))  # never negative ticks; keep whole measures
     def vlq(value):
         out = [value & 127]; value >>= 7
         while value: out.insert(0, (value & 127) | 128); value >>= 7
@@ -238,9 +340,10 @@ def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0):
         body += b'\x00\xff\x2f\x00'
         return b'MTrk' + struct.pack('>I', len(body)) + body
     tempo = int(round(60_000_000 / max(30, min(240, round(bpm)))))
-    conductor = b'\x00\xff\x51\x03' + tempo.to_bytes(3, 'big') + b'\x00\xff\x58\x04\x04\x02\x18\x08\x00\xff\x2f\x00'
-    data = b'MThd' + struct.pack('>IHHH', 6, 1, 3, ppq) + b'MTrk' + struct.pack('>I', len(conductor)) + conductor
-    data += track(melody, 0, 'Melodia (audio)') + track(accompaniment, 1, 'Acompanhamento (audio)')
+    conductor = b'\x00\xff\x51\x03' + tempo.to_bytes(3, 'big') + b'\x00\xff\x58\x04' + bytes([meter]) + b'\x02\x18\x08\x00\xff\x2f\x00'
+    data = b'MThd' + struct.pack('>IHHH', 6, 1, 4 if chords else 3, ppq) + b'MTrk' + struct.pack('>I', len(conductor)) + conductor
+    data += track(melody, 0, names[0]) + track(accompaniment, 1, names[1])
+    if chords: data += track(chords, 2, names[2])
     Path(path).write_bytes(data)
 
 
@@ -265,8 +368,46 @@ def transcribe(wav_path, midi_path, progress=lambda message: None):
     if len(beats) >= 2: bpm = 60 / float(np.median(np.diff(beats)))
     melody, accompaniment = skyline(notes)
     phase = downbeat_phase(accompaniment or melody, beats)
-    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase)
+    progress('Reconhecendo os acordes pelo som…')
+    chords = audio_chords(melody, accompaniment, beats, phase)
+    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords))
     pitches = [n[2] for n in melody]
     return {'notes': len(notes), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),
+            'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
             'bpm': round(bpm, 1), 'beats': len(beats), 'downbeat_phase': phase, 'seconds': round(len(audio) / SAMPLE_RATE, 1),
             'melody_range': [min(pitches), max(pitches)] if pitches else None}
+
+
+def transcribe_notes(played, midi_path, progress=lambda message: None):
+    """Notes played on a MIDI keyboard → a clean MIDI, like the audio pipeline: the tempo is found from the player's
+    own attacks (the beat follows the player when they speed up or slow down), every note is placed on that beat grid
+    in sixteenths, the measure (3 or 4 beats) and its first beat come from the accents, the top line becomes the melody
+    and the rest the accompaniment, and the chords are read from the accompaniment. `played` holds dicts with start
+    and end in seconds, pitch and velocity (the sustain pedal is already applied to the ends)."""
+    notes = sorted((float(n['start']), max(float(n['end']), float(n['start']) + .05), int(n['pitch']), max(1, min(127, int(n.get('velocity', 80)))) / 127)
+                   for n in played if 0 <= int(n['pitch']) <= 127)
+    if len(notes) < 4: raise ValueError('Toque pelo menos algumas notas antes de transformar em partitura.')
+    origin = notes[0][0]
+    notes = [(s - origin, e - origin, p, v) for s, e, p, v in notes]
+    progress('Encontrando o andamento do seu jeito de tocar…')
+    length = int((max(e for _, e, _, _ in notes) + 1) * FRAMES_PER_SECOND) + 1
+    envelope = np.zeros(max(length, int(2.5 * FRAMES_PER_SECOND)))
+    for start, end, pitch, velocity in notes:
+        envelope[int(start * FRAMES_PER_SECOND)] += velocity * (1.5 if pitch < 55 else 1)
+    kernel = np.exp(-.5 * (np.arange(-4, 5) / 1.5) ** 2)
+    envelope = np.convolve(envelope, kernel, mode='same')
+    beats, bpm = beat_track(envelope)
+    beats = steady_grid(beats, notes)
+    if len(beats) >= 2: bpm = 60 / float(np.median(np.diff(beats)))
+    melody, accompaniment = skyline(notes)
+    meter = meter_guess(notes, beats)
+    phase = downbeat_phase(accompaniment or melody, beats, meter=meter)
+    progress('Lendo os acordes que você tocou…')
+    chords = audio_chords(melody, accompaniment, beats, phase, span=2 if meter == 4 else 3)
+    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords), meter=meter,
+               names=('Melodia (gravada)', 'Acompanhamento (gravado)', 'Acordes (gravados)'))
+    pitches = [n[2] for n in melody]
+    return {'notes': len(notes), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),
+            'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
+            'bpm': round(bpm, 1), 'meter': meter, 'beats': len(beats), 'downbeat_phase': phase,
+            'seconds': round(max(e for _, e, _, _ in notes), 1), 'melody_range': [min(pitches), max(pitches)] if pitches else None}

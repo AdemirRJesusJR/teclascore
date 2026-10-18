@@ -25,6 +25,10 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>The measure at the playback position (playing or paused), for the teacher's measure question; null when unknown.</summary>
+    internal int? CurrentPlaybackMeasure => scorePlaybackMap is { CanSynchronize: true } map && PlaybackPositionSeconds > 0
+        ? map.MeasureTimeline.FirstOrDefault(o => PlaybackPositionSeconds >= o.StartSeconds && PlaybackPositionSeconds < o.EndSeconds)?.Measure : null;
+
     /// <summary>Called with the playback position updates; reads the score's chords once per score.</summary>
     internal void UpdateCurrentChord(double? seconds = null)
     {

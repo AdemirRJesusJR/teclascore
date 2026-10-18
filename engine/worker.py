@@ -182,6 +182,15 @@ def main():
         report=audio_transcription.transcribe(req['inputAudio'],target,lambda message:send('progress',message=message))
         send('result',data=dict(report,midiPath=str(target)))
         return
+    if req['mode']=='transcribeNotes':
+        # Notes played on a MIDI keyboard (recorded by the app) become a MIDI on the player's own beat grid.
+        try:import audio_transcription
+        except ImportError as error:raise ValueError('Componentes de transcrição ausentes (numpy/onnxruntime). Reinstale o TeclaScore.') from error
+        played=json.loads(Path(req['inputNotes']).read_text(encoding='utf-8'))
+        target=Path(req['outputMidi']).resolve();target.parent.mkdir(parents=True,exist_ok=True)
+        report=audio_transcription.transcribe_notes(played,target,lambda message:send('progress',message=message))
+        send('result',data=dict(report,midiPath=str(target)))
+        return
     if req['mode']=='chordSheet':
         # A chord sheet pasted as text has no MIDI of its own.
         chord_sheet_score(req,workspace,engine,parse_midi,CHORD_INTERVALS)

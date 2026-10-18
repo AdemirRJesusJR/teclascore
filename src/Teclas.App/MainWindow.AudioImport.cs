@@ -32,7 +32,7 @@ public partial class MainWindow
     /// <summary>Transcribes each recording and imports the MIDIs; returns the MIDI paths created.</summary>
     internal async Task<IReadOnlyList<string>> TranscribeAudioAsync(IReadOnlyList<string> files)
     {
-        var created = new List<string>(); var reports = new List<string>();
+        var created = new List<string>(); var reports = new List<string>(); var unclear = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         await RunOperation(async () =>
         {
             if (audioTranscriber is null) ValidateSettings(false);
@@ -61,7 +61,11 @@ public partial class MainWindow
                     finally { try { Directory.Delete(job, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
                 }
                 created.Add(midi);
-                reports.Add($"{name}: {report["melody_notes"]?.GetValue<int>() ?? 0} notas na melodia, ♩ ≈ {report["bpm"]?.GetValue<double>() ?? 0:0}");
+                var chords = report["chords"] is JsonArray heard ? heard.Select(c => c?.GetValue<string>()).OfType<string>().ToList() : [];
+                bool clear = report["melody_clear"]?.GetValue<bool>() ?? true;
+                if (!clear) unclear.Add(midi);
+                string harmony = chords.Count == 0 ? "" : $", acordes {string.Join(" ", chords.Take(8))}{(chords.Count > 8 ? " …" : "")}";
+                reports.Add($"{name}: {report["melody_notes"]?.GetValue<int>() ?? 0} notas na melodia{(clear ? "" : " (pouco clara: só cifras)")}, ♩ ≈ {report["bpm"]?.GetValue<double>() ?? 0:0}{harmony}");
             }
         }, operationTitle: "Transcrevendo áudio");
         if (created.Count == 0) return created;
@@ -71,6 +75,8 @@ public partial class MainWindow
             // The transcription writes the melody on track 1 and the accompaniment on track 2.
             foreach (var track in row.Tracks) track.IsMelody = track.Source.Key.Track == 1;
             row.Collection = row.Collection.Length > 0 ? row.Collection : "Transcrições de áudio";
+            // A melody that did not come out clearly still gives the chords heard in the sound: a chords-only score.
+            if (unclear.Contains(row.FullPath)) row.ChordsOnly = true;
         }
         RefreshSelection(); PersistPreferences();
         Status = "Transcrição pronta (" + string.Join("; ", reports) + "). Ouça a melodia na aba Melodia, ajuste se preciso e gere a partitura.";
