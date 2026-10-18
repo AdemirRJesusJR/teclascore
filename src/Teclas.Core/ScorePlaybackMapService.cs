@@ -208,7 +208,17 @@ public sealed class ScorePlaybackMapService(string museScorePath, string cacheDi
         }
     }
 
+    /// <summary>Runs the export job; a MuseScore crash (access violation) is retried twice in a fresh process.</summary>
     private async Task ExportAsync(string request, CancellationToken token)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try { await ExportOnceAsync(request, token); return; }
+            catch (MuseScoreCrashException) when (attempt < 3 && !token.IsCancellationRequested) { await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), token); }
+        }
+    }
+
+    private async Task ExportOnceAsync(string request, CancellationToken token)
     {
         var start = new ProcessStartInfo(museScorePath) { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden,
             RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8,
@@ -229,7 +239,8 @@ public sealed class ScorePlaybackMapService(string museScorePath, string cacheDi
         }
         token.ThrowIfCancellationRequested();
         string details = (await output + "\n" + await error).Trim();
-        if (process.ExitCode != 0) throw new IOException("O MuseScore não exportou o acompanhamento. " + details[..Math.Min(800, details.Length)]);
+        if (process.ExitCode is -1073741819 or -1073740791) throw new MuseScoreCrashException($"O MuseScore fechou com erro ({process.ExitCode}) ao preparar o acompanhamento.");
+        if (process.ExitCode != 0) throw new IOException($"O MuseScore não exportou o acompanhamento (código {process.ExitCode}). " + details[..Math.Min(800, details.Length)]);
     }
     private static PositionFile ReadPositions(string path, CancellationToken token)
     {

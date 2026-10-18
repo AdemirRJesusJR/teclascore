@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 0.36.1 — 17/10/2026
+
+- O preparo do acompanhamento (destaque dos compassos) também tenta de novo quando o MuseScore fecha com erro, e a mensagem de falha passa a trazer o código do MuseScore.
+
 ## 0.36.0 — 17/10/2026
 
 - Ritornelo (aba Cifras): trechos de 2 a 8 compassos tocados duas vezes seguidas, exatamente iguais e sem letra, são escritos uma vez entre sinais de repetição; a reprodução continua tocando duas vezes. D.S. e coda não são inferidos.

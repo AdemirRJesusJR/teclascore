@@ -1,3 +1,7 @@
+TECLASCORE 0.36.1 · ACOMPANHAMENTO
+
+1. Na Prévia, clique em Preparar (Páginas) e reproduza: o destaque segue os compassos.
+
 TECLASCORE 0.36.0 · RITORNELO, APARÊNCIA E RELATÓRIO
 
 1. Numa música com refrão repetido igual, ligue Ritornelo (aba Cifras) e gere: o trecho aparece uma vez entre sinais de repetição; ouça e confira que toca duas vezes.
