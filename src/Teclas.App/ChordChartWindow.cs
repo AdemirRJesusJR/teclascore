@@ -11,7 +11,7 @@ using Teclas.Core;
 namespace Teclas.App;
 
 /// <summary>One tile per chord of the song, with its keyboard diagram in the chosen position and final key.</summary>
-public sealed record ChordChartEntry(string Symbol, string Root, string Quality, int Inversion, int Occurrences, string Notes);
+public sealed record ChordChartEntry(string Symbol, string Root, string Quality, int Inversion, int Occurrences, string Notes, string? Bass = null);
 
 /// <summary>Study sheet of every chord in the song. Built from the current chords, so it never drifts from the score.</summary>
 public sealed class ChordChartWindow : Window
@@ -25,19 +25,21 @@ public sealed class ChordChartWindow : Window
     {
         int fallback = row.EffectiveDiagramInversion, transpose = row.TransposeSemitones;
         return row.Chords
-            .Select(chord => row.SimplifiedChords ? new ChordRow { Root = chord.Root, Quality = ChordSimplifier.Simplify(chord.Quality), DiagramInversion = chord.DiagramInversion } : chord)
-            .Select(chord => (chord, Shape: DiagramPositionPropagation.Shape(chord.Root, chord.Quality, transpose), Inversion: chord.DiagramInversion ?? fallback))
+            .Select(chord => row.SimplifiedChords ? new ChordRow { Root = chord.Root, Quality = ChordSimplifier.Simplify(chord.Quality), DiagramInversion = chord.DiagramInversion, Bass = chord.Bass } : chord)
+            .Select(chord => (chord, Shape: DiagramPositionPropagation.Shape(chord.Root, chord.Quality, transpose), Inversion: chord.DiagramInversion ?? fallback,
+                Bass: chord.Bass is not null && KeyboardDiagramVoicing.TryRootPitchClass(chord.Bass, out int bass) ? ((bass + transpose) % 12 + 12) % 12 : -1))
             .Where(item => item.Shape is not null)
-            .GroupBy(item => (item.Shape!.Value, item.Inversion))
+            .GroupBy(item => (item.Shape!.Value, item.Inversion, item.Bass))
             .Select(group =>
             {
                 var first = group.First();
                 string root = Spell(first.chord.Root, first.Shape!.Value.PitchClass);
-                string description = KeyboardDiagramPreview.Describe(first.chord.Root, first.chord.Quality, first.Inversion, transpose);
+                string description = KeyboardDiagramPreview.Describe(first.chord.Root, first.chord.Quality, first.Inversion, transpose, first.chord.Bass);
                 // Keep only the keys, low to high: the symbol above is already in the printed key.
                 int keys = description.IndexOf("Grave", StringComparison.Ordinal), end = description.IndexOf(". Teclado", StringComparison.Ordinal);
                 string notes = keys >= 0 ? description[keys..(end > keys ? end : description.Length)] : description;
-                return new ChordChartEntry(root + first.Shape.Value.Quality, first.chord.Root, first.chord.Quality, first.Inversion, group.Count(), notes);
+                string symbol = root + first.Shape.Value.Quality + (first.Bass >= 0 ? "/" + Spell(first.chord.Bass!, first.Bass) : "");
+                return new ChordChartEntry(symbol, first.chord.Root, first.chord.Quality, first.Inversion, group.Count(), notes, first.chord.Bass);
             }).ToArray();
     }
 
@@ -70,7 +72,7 @@ public sealed class ChordChartWindow : Window
             tile.BorderBrush = Brushes.LightGray;
             var stack = new StackPanel(); tile.Child = stack;
             stack.Children.Add(new TextBlock { Text = entry.Symbol, FontSize = 20, FontWeight = FontWeights.SemiBold });
-            if (previews.GetImage(entry.Root, entry.Quality, entry.Inversion, row.TransposeSemitones) is { } image)
+            if (previews.GetImage(entry.Root, entry.Quality, entry.Inversion, row.TransposeSemitones, entry.Bass) is { } image)
                 stack.Children.Add(new Image { Source = image, Height = 58, Stretch = Stretch.Uniform, Margin = new Thickness(0, 6, 0, 6), HorizontalAlignment = HorizontalAlignment.Left });
             stack.Children.Add(new TextBlock { Text = ScoreMetadataDefaults.InversionLabel(entry.Inversion) + $" · {entry.Occurrences}×", FontSize = 11 });
             stack.Children.Add(new TextBlock { Text = entry.Notes, FontSize = 10, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) });

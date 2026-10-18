@@ -1,3 +1,15 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.40.0
+18/10/2026
+
+- CI local completo: 59 etapas aprovadas, 0 falhas, 3 puladas (coleção pessoal, partituras especiais e áudio real); 214 testes do motor, incluindo os que geram no MuseScore 4.7.5.
+- D.S. al Coda gerado no MuseScore real: segno, To Coda, coda e o salto viram sinais nativos; o MIDI tocado pelo próprio MuseScore repete as 52 notas na ordem original. D.S. al Fine, D.C. al Fine e os casos recusados (trecho curto, letra, mudança de andamento) conferidos em testes do motor.
+- Só cifras: 32 barras silenciosas, 8 cifras e 8 diagramas na partitura salva; só as cifras soam. Fluxo completo análise → geração pelo motor do app, com Repetições ligado e letra desligada.
+- Cifra em texto → partitura: 6 compassos, G/B com o baixo, letra sob os acordes e quebra de linha por linha da cifra, conferidos no MuseScore real e pelo motor do app.
+- Interface 0.40: 23 verificações (painel compacto, opções salvas e enviadas ao motor, partitura da cifra importada, baixo no quadro de acordes, QR code, estado do celular, letra por página e tela de letra acompanhando as viradas).
+- QR code conferido por um leitor independente (jsQR): 6 textos, versões 1 a 5, todos lidos corretamente.
+- Não testado com aparelhos reais: leitura do QR por um celular na rede Wi-Fi e a tela de letra num segundo monitor físico.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.39.0
 17/10/2026
 

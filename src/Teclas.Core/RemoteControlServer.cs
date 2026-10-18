@@ -7,17 +7,23 @@ using System.Text;
 namespace Teclas.Core;
 
 /// <summary>
-/// Turns a phone on the same Wi-Fi into a page-turning remote for the presentation. A tiny HTTP server answers only two
-/// paths, both guarded by a random six-digit code: the remote page and the commands next/prev/nextsong/prevsong.
-/// Anything else, or a wrong code, is refused. It runs only while the user keeps the option on.
+/// Turns a phone on the same Wi-Fi into a page-turning remote for the presentation. A tiny HTTP server answers only three
+/// paths, all guarded by a random six-digit code: the remote page, the commands next/prev/nextsong/prevsong and the
+/// current state (song and page, shown on the phone). Anything else, or a wrong code, is refused. It runs only while the
+/// user keeps the option on.
 /// </summary>
+public sealed record RemoteState(string Song, int Index, int Count, int Page, int Pages);
+
 public sealed class RemoteControlServer : IDisposable
 {
     public static readonly IReadOnlySet<string> Commands = new HashSet<string> { "next", "prev", "nextsong", "prevsong" };
     private readonly TcpListener listener;
     private readonly CancellationTokenSource stop = new();
     private readonly Action<string> onCommand;
+    private volatile RemoteState? state;
     public string Code { get; }
+    /// <summary>What the phone shows; set from the UI thread, read on the network thread.</summary>
+    public RemoteState? State { get => state; set => state = value; }
     public int Port { get; }
 
     public RemoteControlServer(Action<string> onCommand, int port = 0, string? code = null)
@@ -80,6 +86,12 @@ public sealed class RemoteControlServer : IDisposable
         if (!query.TryGetValue("k", out string? key) || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(key), Encoding.ASCII.GetBytes(Code)))
             return ("403 Forbidden", "text/plain", "Código inválido.");
         if (path == "/") return ("200 OK", "text/html", Page());
+        if (path == "/state")
+        {
+            var current = state;
+            return ("200 OK", "application/json", current is null ? "{}" : System.Text.Json.JsonSerializer.Serialize(new
+            { song = current.Song, index = current.Index, count = current.Count, page = current.Page, pages = current.Pages }));
+        }
         if (path == "/cmd" && query.TryGetValue("a", out string? action) && Commands.Contains(action))
         {
             onCommand(action);
@@ -92,13 +104,21 @@ public sealed class RemoteControlServer : IDisposable
         <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
         <title>TeclaScore · controle</title><style>
         body{font-family:system-ui,sans-serif;margin:0;background:#1d2228;color:#f2f4f7;display:flex;flex-direction:column;height:100vh}
-        h1{font-size:18px;margin:14px 16px}.grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px}
+        h1{font-size:18px;margin:14px 16px 4px}#now{margin:0 16px;font-size:15px;opacity:1}#song{font-weight:600;font-size:20px;margin:0 16px}
+        .grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px}
         button{font-size:28px;border:0;border-radius:18px;background:#2f3640;color:#f2f4f7}button.main{background:#f2bd62;color:#191c22;grid-column:span 2;font-size:40px}
-        p{margin:0 16px 14px;font-size:13px;opacity:.7}</style></head><body><h1>TeclaScore · apresentação</h1><div class="grid">
+        p{margin:0 16px 14px;font-size:13px;opacity:.7}</style></head><body><h1>TeclaScore · apresentação</h1>
+        <div id="song">…</div><p id="now"></p><div class="grid">
         <button class="main" onclick="send('next')">Página ›</button><button onclick="send('prev')">‹ Página</button>
         <button onclick="send('nextsong')">Música ›</button><button onclick="send('prevsong')">‹ Música</button></div>
         <p id="s">Toque para virar as páginas no computador.</p>
-        <script>function send(a){fetch('/cmd?a='+a+'&k={{Code}}').then(r=>document.getElementById('s').textContent=r.ok?'Enviado':'Recusado').catch(()=>document.getElementById('s').textContent='Sem conexão')}</script>
+        <script>
+        function show(){fetch('/state?k={{Code}}').then(r=>r.json()).then(s=>{if(!s.song)return;
+          document.getElementById('song').textContent=s.song;
+          document.getElementById('now').textContent='Música '+s.index+' de '+s.count+(s.pages>0?' · página '+s.page+' de '+s.pages:'');}).catch(()=>{})}
+        function send(a){fetch('/cmd?a='+a+'&k={{Code}}').then(r=>{document.getElementById('s').textContent=r.ok?'Enviado':'Recusado';setTimeout(show,250)}).catch(()=>document.getElementById('s').textContent='Sem conexão')}
+        show();setInterval(show,2000);
+        </script>
         </body></html>
         """;
 

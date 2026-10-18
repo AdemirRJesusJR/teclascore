@@ -21,6 +21,28 @@ public static class KaraokeLyrics
             .Select(e => new KaraokeSyllable(e.Measure, Math.Round(e.Quarter!.Value, 4), e.Lyric, e.LyricContinues)).ToArray();
     }
 
+    /// <summary>
+    /// The lyrics printed on each page, for a lyrics screen: syllables joined into words, one text line per system of the
+    /// score (measures at the same height on a page). Index 0 is page 1; a page without lyrics is an empty string.
+    /// </summary>
+    public static IReadOnlyList<string> PageTexts(IReadOnlyList<KaraokeSyllable> syllables, IReadOnlyList<ScoreMeasureRegion> measures)
+    {
+        var where = measures.GroupBy(m => m.Measure).ToDictionary(g => g.Key, g => g.First().Bounds);
+        int pages = measures.Count == 0 ? 0 : measures.Max(m => m.Bounds.Page);
+        var texts = Enumerable.Range(0, pages).Select(_ => new System.Text.StringBuilder()).ToArray();
+        ScorePageRegion? previous = null; bool joined = false;
+        foreach (var s in syllables)
+        {
+            if (!where.TryGetValue(s.Measure, out var bounds) || bounds.Page < 1 || bounds.Page > pages) continue;
+            var text = texts[bounds.Page - 1];
+            bool newLine = previous is not null && previous.Page == bounds.Page && Math.Abs(previous.Y - bounds.Y) > .01;
+            if (newLine) { text.Append(joined ? "-\n" : "\n"); joined = false; }
+            else if (text.Length > 0 && !joined) text.Append(' ');
+            text.Append(s.Text); joined = s.Continues; previous = bounds;
+        }
+        return texts.Select(t => t.ToString().Replace(" \n", "\n").Trim()).ToArray();
+    }
+
     /// <summary>Index of the syllable being sung at a position (the last one starting at or before it), or -1 before the first.</summary>
     public static int CurrentIndex(IReadOnlyList<KaraokeSyllable> syllables, int measure, double quarter)
     {

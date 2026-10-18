@@ -37,6 +37,12 @@ public sealed partial class MidiRow : Observable
     /// <summary>Generate with basic triads (Am7 → Am); the chord table keeps the analyzed symbols.</summary>
     private bool simplifiedChords;public bool SimplifiedChords{get=>simplifiedChords;set=>Set(ref simplifiedChords,value);}
     private bool foldRepeats;public bool FoldRepeats{get=>foldRepeats;set=>Set(ref foldRepeats,value);}
+    /// <summary>Chord chart without melody (slashes, chords and diagrams) for MIDIs without a complete melody.</summary>
+    private bool chordsOnly;public bool ChordsOnly{get=>chordsOnly;set=>Set(ref chordsOnly,value);}
+    /// <summary>Karaoke lyrics of the MIDI under the melody (on by default).</summary>
+    private bool includeLyrics=true;public bool IncludeLyrics{get=>includeLyrics;set=>Set(ref includeLyrics,value);}
+    /// <summary>A melody track is marked, or the song is a chord chart that needs none.</summary>
+    public bool HasMelodyChoice=>ChordsOnly||Tracks.Any(track=>track.IsMelody);
     public List<SavedScoreVersion> Versions{get;set;}=[];
     public List<ScoreReviewPoint> ReviewPoints{get;set;}=[];
     private string melodyMergeSummary="";
@@ -152,6 +158,8 @@ public sealed class ChordRow : Observable
     private double quarter;public double Quarter{get=>quarter;set{if(Set(ref quarter,value))ClearAdvice();}}
     private string root="C";public string Root{get=>root;set{if(Set(ref root,value))ClearAdvice();}}
     private string quality="";public string Quality{get=>quality;set{if(Set(ref quality,value))ClearAdvice();}}
+    /// <summary>Bass of a slash chord read from a chord sheet (G/B → B); null when the bass is the root.</summary>
+    public string? Bass{get;init;}
     public double Confidence{get;init;}
     private string recommendation="";
     public string Recommendation{get=>recommendation;set{if(Set(ref recommendation,value))Notify(nameof(Advice));}}

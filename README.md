@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.39.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.40.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Pasta de MIDIs (Ctrl+L):** em vez de importar tudo, escolha uma pasta e marque, dentro do app, os MIDIs que entram na biblioteca. A lista mostra subpasta, tamanho, data e se o arquivo já está na biblioteca; filtre por nome (sem diferenciar acentos) e use ▶ para ouvir antes. Nada é copiado: os cards apontam para os arquivos na própria pasta, e a pasta escolhida fica lembrada. É o botão principal do cabeçalho; para arquivos avulsos use Escolher arquivos… na mesma janela, arraste-os para o app ou Ctrl+O.
 
@@ -8,13 +8,15 @@ Versão 0.39.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artis
 
 **Instalador completo:** cada entrega gera `debug/TeclaScore-Completo.iss` com a versão atual e o compila em `debug/saida/TeclaScore-X-Completo-Setup-x64.exe`, que instala o aplicativo e, se faltar, o MuseScore Studio 4 do kit. O script é gerenciado e refeito a cada versão; para personalizar, copie-o com outro nome.
 
+**Repetições, só cifras e palco:** Repetições escreve ritornelo, casas 1 e 2 e também D.S. al Fine ou al Coda quando a música volta a um trecho anterior; Só cifras faz uma folha de acordes para MIDIs sem melodia; a letra do MIDI é opcional; a cifra em texto vira partitura (com G/B); na Apresentação, QR code para o celular e letra em outra tela.
+
 **Biblioteca, importação e palco:** etiquetas com busca por #etiqueta e listas inteligentes; importe MusicXML de outros editores; cole uma cifra em texto para ver os acordes com diagramas; use o celular como controle da apresentação.
 
-**Casas, revisão de cifras e segunda voz:** o Ritornelo também escreve casas 1 e 2; a revisão guiada passa só pelas cifras com dúvida, tocando o trecho e as alternativas; marque uma pista como 2ª voz para ganhar uma pauta abaixo da melodia.
+**Casas, revisão de cifras e segunda voz:** Repetições também escreve casas 1 e 2; a revisão guiada passa só pelas cifras com dúvida, tocando o trecho e as alternativas; marque uma pista como 2ª voz para ganhar uma pauta abaixo da melodia.
 
 **Karaokê e prática por compasso:** ligue Karaokê na Prévia para ver a letra acompanhando a música; na prática, veja quais compassos erraram, treine só eles e deixe o metrônomo acelerar a cada passagem limpa.
 
-**Ritornelo, aparência e suporte:** ligue Ritornelo para escrever repetições iguais uma vez só; escolha fonte e tamanho das partituras em Configurações; gere um relatório de problema para enviar quando algo der errado.
+**Repetições, aparência e suporte:** ligue Repetições para escrever trechos repetidos iguais uma vez só; escolha fonte e tamanho das partituras em Configurações; gere um relatório de problema para enviar quando algo der errado.
 
 **Buscar tocando, duas mãos, metas e gravação:** ache a música tocando um trecho da melodia; pratique melodia e acordes juntos; defina minutos por dia e andamento-alvo no histórico; grave a sua execução em MIDI e ouça de novo.
 

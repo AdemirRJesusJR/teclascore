@@ -18,7 +18,17 @@ public partial class MainWindow
         var choices = Files.Where(row => row.ScorePath is not null || row.IsNativeScore)
             .Select(row => new PresentationLibraryItem(row.FullPath, row.ScorePath ?? row.FullPath, row.ScoreTitle, row.PreviewPath)).ToArray();
         var catalog = persistenceEnabled ? new PresentationCatalog(Path.Combine(directory, "presentation.json")) : null;
-        new PresentationWindow(store, choices, PreparePresentationPages, catalog, ExportPresentationPdf) { Owner = this }.ShowDialog();
+        new PresentationWindow(store, choices, PreparePresentationPages, catalog, ExportPresentationPdf) { Owner = this, PageLyrics = PresentationPageLyrics }.ShowDialog();
+    }
+
+    /// <summary>Lyrics printed on each page of a song: the score's syllables placed by MuseScore's own page layout.</summary>
+    internal async Task<IReadOnlyList<string>> PresentationPageLyrics(PresentationEntry item, CancellationToken token)
+    {
+        var syllables = KaraokeLyrics.FromScore(NativeMusicEditor.Open(item.ScorePath, token));
+        if (syllables.Count == 0) return [];
+        var service = new ScorePlaybackMapService(MuseScorePath, Path.Combine(PlaybackCacheDirectory, "score-maps"));
+        var map = await scoreMapCache.GetOrPrepareAsync(item.ScorePath, MuseScorePath, 1, request => service.PrepareAsync(item.ScorePath, 1, null, request), null, token);
+        return KaraokeLyrics.PageTexts(syllables, map.Measures);
     }
 
     /// <summary>A saved repertoire as one PDF, in its order; songs no longer on disk are left out and reported.</summary>

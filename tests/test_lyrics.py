@@ -67,6 +67,15 @@ class LyricsTests(unittest.TestCase):
             self.assertEqual(texts[:4],['Ca','sa','ri','nho'])
             self.assertEqual(report['melody_analysis']['lyrics'],{'syllables':18,'attached':18})
 
+    def test_lyrics_can_be_left_out(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'letra.kar';karaoke_midi(path,KARAOKE);parsed=engine.parse_midi(path)
+            harmony=dict(key={'fifths':0,'minor':False},events=[dict(tick=0,root=0,quality='',confidence=1.,pitch_classes=[0,4,7])])
+            config=worker.manual_melody_config([dict(A,track=1)]);config['include_lyrics']=False
+            xml,report=engine.build_musicxml(parsed,config,harmony,Path(folder),'Sem letra')
+            self.assertEqual(list(engine.E.parse(xml).getroot().iter('lyric')),[])
+            self.assertEqual(report['melody_analysis']['lyrics'],0)
+
 
 @unittest.skipUnless(os.environ.get('TECLAS_TEST_NATIVE_LABELS')=='1','Set TECLAS_TEST_NATIVE_LABELS=1 to render in MuseScore')
 class NativeLyricsTests(unittest.TestCase):

@@ -72,6 +72,76 @@ class EndingTests(unittest.TestCase):
         self.assertEqual([n['pitch'] for n in notes if 3 * BAR <= n['start'] < 4 * BAR], [55, 57, 59, 60])
 
 
+X, A_, B_, C_, D_, E_, F_, G_, H_ = ([55, 57, 59, 60], [60, 62, 64, 65], [67, 65, 64, 62], [60, 64, 67, 72], [71, 67, 62, 59],
+                                    [72, 71, 69, 67], [65, 64, 62, 60], [64, 65, 67, 69], [72, 72, 72, 72])
+CHORD_OF = {tuple(X): (7, ''), tuple(A_): (0, ''), tuple(B_): (7, '7'), tuple(C_): (0, ''), tuple(D_): (7, ''), tuple(E_): (5, ''),
+            tuple(F_): (0, ''), tuple(G_): (9, 'm'), tuple(H_): (0, '')}
+
+
+def jump_material(sequence):
+    notes = [n for i, p in enumerate(sequence) for n in phrase(i, p)]
+    chords = [{'tick': i * BAR, 'root': CHORD_OF[tuple(p)][0], 'quality': CHORD_OF[tuple(p)][1]} for i, p in enumerate(sequence)]
+    return bars(len(sequence)), notes, chords, {beat: 4 for beat in range(4 * len(sequence))}
+
+
+class JumpTests(unittest.TestCase):
+    def test_return_to_the_end_becomes_ds_al_fine(self):
+        b, notes, chords, grids = jump_material([X, A_, B_, C_, D_, E_, F_, A_, B_, C_, D_])
+        jump = score_repeats.fold_jumps(b, notes, chords, grids, [], [], PPQ, 0, DIV)
+        self.assertEqual(jump, {'jump': 'D.S. al Fine', 'first_measure': 2, 'measures': 4, 'coda_measures': 0, 'removed_quarters': 16.0})
+        self.assertEqual(len(b), 7)
+        self.assertTrue(b[1]['segno'] and b[4]['fine'])
+        self.assertEqual(b[6]['jump'], 'D.S. al Fine')
+        self.assertEqual(len(notes), 28)
+        self.assertEqual(sorted(grids), list(range(28)))
+
+    def test_return_with_a_new_ending_becomes_ds_al_coda(self):
+        b, notes, chords, grids = jump_material([X, A_, B_, C_, D_, E_, F_, A_, B_, C_, D_, G_, H_])
+        jump = score_repeats.fold_jumps(b, notes, chords, grids, [], [], PPQ, 0, DIV)
+        self.assertEqual((jump['jump'], jump['coda_measures']), ('D.S. al Coda', 2))
+        self.assertEqual(len(b), 9)
+        self.assertTrue(b[1]['segno'] and b[4]['to_coda'] and b[7]['coda'])
+        self.assertEqual(b[6]['jump'], 'D.S. al Coda')
+        self.assertEqual([n['pitch'] for n in notes if 7 * BAR <= n['start'] < 8 * BAR], G_)
+        self.assertEqual([c['root'] for c in chords if c['tick'] == 7 * BAR], [9])
+
+    def test_from_the_beginning_is_da_capo(self):
+        b, notes, chords, grids = jump_material([A_, B_, C_, D_, E_, F_, A_, B_, C_, D_])
+        self.assertEqual(score_repeats.fold_jumps(b, notes, chords, grids, [], [], PPQ, 0, DIV)['jump'], 'D.C. al Fine')
+        self.assertNotIn('segno', b[0])
+
+    def test_short_lyric_or_tempo_returns_stay_written(self):
+        b, notes, chords, grids = jump_material([X, A_, B_, C_, E_, F_, A_, B_, C_])
+        self.assertIsNone(score_repeats.fold_jumps(b, notes, chords, grids, [], [], PPQ, 0, DIV))
+        b, notes, chords, grids = jump_material([X, A_, B_, C_, D_, E_, F_, A_, B_, C_, D_])
+        notes[30]['lyric'] = {'text': 'la', 'syllabic': 'single'}
+        self.assertIsNone(score_repeats.fold_jumps(b, notes, chords, grids, [], [], PPQ, 0, DIV))
+        b, notes, chords, grids = jump_material([X, A_, B_, C_, D_, E_, F_, A_, B_, C_, D_])
+        self.assertIsNone(score_repeats.fold_jumps(b, notes, chords, grids, [{'tick': 0}, {'tick': 6 * BAR * PPQ / DIV}], [], PPQ, 0, DIV))
+
+    def test_ritornello_is_not_written_inside_a_jump(self):
+        # A passage repeated literally inside the returning block stays written out after the jump.
+        b, notes, chords, grids = jump_material([X, A_, B_, A_, B_, E_, F_, A_, B_, A_, B_])
+        self.assertEqual(score_repeats.fold_jumps(b, notes, chords, grids, [], [], PPQ, 0, DIV)['jump'], 'D.S. al Fine')
+        score_repeats.fold_repeats(b, notes, chords, grids, [], [], PPQ, 0, DIV)
+        self.assertFalse(any(bar.get('repeat_start') for bar in b[1:5]))
+
+
+def jump_midi(path, sequence):
+    def vlq(value):
+        data = [value & 127]; value >>= 7
+        while value: data.insert(0, (value & 127) | 128); value >>= 7
+        return bytes(data)
+    pitches = [p for bar in sequence for p in bar]
+    body = b''; previous = 0
+    for index, pitch in enumerate(pitches):
+        for tick, message in ((index * PPQ, bytes([0x90, pitch, 90])), (index * PPQ + PPQ - 1, bytes([0x80, pitch, 0]))):
+            body += vlq(tick - previous) + message; previous = tick
+    body += b'\x00\xff\x2f\x00'
+    conductor = b'\x00\xff\x58\x04\x04\x02\x18\x08\x00\xff\x2f\x00'
+    path.write_bytes(b'MThd' + struct.pack('>IHHH', 6, 1, 2, PPQ) + b'MTrk' + struct.pack('>I', len(conductor)) + conductor + b'MTrk' + struct.pack('>I', len(body)) + body)
+
+
 def ending_midi(path):
     """A B C, A B D, E: the same two bars twice with different third bars (quarter notes, 4/4)."""
     def vlq(value):
@@ -142,6 +212,36 @@ class NativeEndingTests(unittest.TestCase):
                 native = engine.E.fromstring(archive.read(next(n for n in archive.namelist() if n.endswith('.mscx'))))
             self.assertEqual(len(native.findall('.//Staff/Measure')), 5)
             self.assertEqual(len([s for s in native.iter('Spanner') if s.get('type') == 'Volta' and s.find('Volta') is not None]), 2)
+
+
+
+@unittest.skipUnless(os.environ.get('TECLAS_TEST_NATIVE_LABELS') == '1', 'Set TECLAS_TEST_NATIVE_LABELS=1 to render in MuseScore')
+class NativeJumpTests(unittest.TestCase):
+    def test_ds_al_coda_survives_musescore(self):
+        sequence = [X, A_, B_, C_, D_, E_, F_, A_, B_, C_, D_, G_, H_]
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder); out = base / 'coda'; out.mkdir()
+            path = out / 'coda.mid'; jump_midi(path, sequence); parsed = engine.parse_midi(path)
+            _, _, chords, _ = jump_material(sequence)
+            harmony = dict(key={'fifths': 0, 'minor': False}, events=[dict(tick=c['tick'] * PPQ // DIV, root=c['root'], quality=c['quality'], confidence=1., pitch_classes=[c['root']]) for c in chords])
+            config = worker.manual_melody_config([dict(A, track=1)]); config['fold_repeats'] = True
+            with patch.object(engine, 'BATCH', base), redirect_stdout(io.StringIO()):
+                xml, report = engine.build_musicxml(parsed, config, harmony, out, 'Coda')
+                final = engine.convert_score(xml, report, out, 'Coda')
+            self.assertEqual(report['melody_analysis']['repeat_jump']['jump'], 'D.S. al Coda')
+            with zipfile.ZipFile(final) as archive:
+                native = engine.E.fromstring(archive.read(next(n for n in archive.namelist() if n.endswith('.mscx'))))
+            self.assertEqual(len(native.findall('.//Staff/Measure')), 9)
+            markers = sorted(m.findtext('label') or '' for m in native.iter('Marker'))
+            self.assertEqual(markers, ['coda', 'codab', 'segno'], [engine.E.tostring(m) for m in native.iter('Marker')])
+            jumps = list(native.iter('Jump'))
+            self.assertEqual(len(jumps), 1)
+            self.assertEqual((jumps[0].findtext('jumpTo'), jumps[0].findtext('playUntil'), jumps[0].findtext('continueAt')), ('segno', 'coda', 'codab'), engine.E.tostring(jumps[0]))
+            # MuseScore's own playback follows the jump: every one of the 52 notes of the MIDI sounds, in order.
+            midi = out / 'tocada.mid'; engine.call_musescore(['-o', str(midi), str(final)], out / 'midi.log')
+            sounded = engine.parse_midi(midi)['notes']; melody = min(n['channel'] for n in sounded)  # chord symbols play on their own channel
+            played = [n['pitch'] for n in sorted(sounded, key=lambda n: n['start']) if n['channel'] == melody]
+            self.assertEqual(played, [p for bar in sequence for p in bar])
 
 
 if __name__ == '__main__': unittest.main()

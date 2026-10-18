@@ -2,9 +2,15 @@
 repeat barlines; when only its last one or two measures differ the second time, they become first and second endings
 (casas 1 e 2). Only exact repetitions are folded (same notes, durations, chords and diagram positions, same meter),
 and never when the block carries lyrics, a tempo or key change, or a note tied across its edges. Playback in MuseScore
-still plays the block twice. D.S./coda jumps are not inferred."""
+still plays the block twice.
+
+Longer returns become jumps (fold_jumps): when the music goes back to an earlier passage of 4 or more measures
+(not right after it) and either ends with it or then plays a new ending, the second time is replaced by D.S. al Fine
+or D.S. al Coda (D.C. when the passage is the beginning), with segno, Fine, To Coda and coda signs."""
 
 MIN_BARS, MAX_BARS = 2, 8
+JUMP_MIN_BARS = 4
+JUMP_FLAGS = ('segno', 'fine', 'to_coda', 'jump', 'coda', 'in_jump')
 
 
 def _bar_signature(bar, notes, chords):
@@ -47,6 +53,7 @@ def fold_repeats(bars, notes, chords, grids, tempos, key_changes, ppq, origin, d
             if _has_lyrics(notes, first, after): continue
             if any(second < tick < after for tick in tempo_ticks()) or any(first < tick < second for tick in tempo_ticks()): continue
             if any(bar.get('repeat_start') or bar.get('repeat_end') for bar in bars[k:k + 2 * length]): continue
+            if _touches_jump(bars, k, 2 * length): continue
             found = (length, first, second, after); break
         if found is None:
             k += 1; continue
@@ -96,6 +103,7 @@ def _ending(signatures, bars, notes, k, length, tempo_ticks):
         if any(_crosses(notes, tick) for tick in (first, bars[k + common]['start'], second, repeat_end, after)): continue
         if _has_lyrics(notes, first, after): continue
         if any(first < tick < after for tick in tempo_ticks): continue
+        if _touches_jump(bars, k, 2 * length): continue
         return ending
     return 0
 
@@ -128,3 +136,127 @@ def _fold_with_endings(bars, notes, chords, grids, tempos, key_changes, ppq, ori
         tick = round(change['tick'] / ppq * div) - origin
         if tick >= resume: change['tick'] = (tick - removed + origin) * ppq / div
     return {'first_measure': k + 1, 'measures': length, 'endings': ending, 'removed_quarters': removed / div}
+
+
+def _touches_jump(bars, k, count):
+    # A passage played again by a D.S./D.C. must keep its measures written out: MuseScore does not repeat inside a jump.
+    return any(bar.get(flag) for bar in bars[k:k + count] for flag in JUMP_FLAGS)
+
+
+def _active_chord(chords, tick):
+    prior = [c for c in chords if c['tick'] <= tick]
+    if not prior: return None
+    chord = max(prior, key=lambda c: c['tick'])
+    return chord
+
+
+def _chord_key(chord):
+    return None if chord is None else (chord.get('root'), chord.get('quality'), chord.get('diagram_inversion'))
+
+
+def fold_jumps(bars, notes, chords, grids, tempos, key_changes, ppq, origin, div):
+    """Replaces a later return to an earlier passage by a D.S./D.C. jump, in place. Returns what was folded, or None.
+
+    The returning passage must be equal measure by measure (notes, durations, chords, diagram positions, meter), at least
+    JUMP_MIN_BARS long, separated from the original by at least one measure, without lyrics, tempo or key changes, repeat
+    signs or ties across its edges, and start under the same chord. After it, the piece either ends (al Fine) or plays
+    measures of its own (al Coda)."""
+    count = len(bars)
+    if count < 2 * JUMP_MIN_BARS + 1: return None
+    ids = {}
+    signatures = [ids.setdefault(_bar_signature(bar, notes, chords), len(ids)) for bar in bars]
+    changes = [round(t['tick'] / ppq * div) - origin for t in tempos if t['tick'] > 0] + [round(k['tick'] / ppq * div) - origin for k in key_changes]
+    flagged = [bool(bar.get('repeat_start') or bar.get('repeat_end') or bar.get('ending_start') or bar.get('ending_stop')) for bar in bars]
+    best = None
+    for t in range(JUMP_MIN_BARS + 1, count - JUMP_MIN_BARS + 1):
+        for s in range(0, t - JUMP_MIN_BARS):
+            length = 0
+            while t + length < count and s + length < t - 1 and signatures[s + length] == signatures[t + length]: length += 1
+            if length < JUMP_MIN_BARS or (best and length <= best[2]): continue
+            if any(flagged[s:s + length]) or any(flagged[t:count]): continue
+            start, block_end, tail, tail_end = bars[s]['start'], bars[s + length - 1]['end'], bars[t]['start'], bars[t + length - 1]['end']
+            if (tail_end - tail) % div: continue
+            if any(_crosses(notes, tick) for tick in (start, block_end, tail, tail_end)): continue
+            if _has_lyrics(notes, tail, tail_end): continue
+            if any(start < tick < tail_end for tick in changes): continue
+            if _chord_key(_active_chord(chords, start)) != _chord_key(_active_chord(chords, tail)): continue
+            best = (s, t, length)
+    if best is None: return None
+    s, t, length = best
+    coda = count - (t + length)
+    tail, tail_end = bars[t]['start'], bars[t + length - 1]['end']
+    removed = tail_end - tail
+    resume_chord = _active_chord(chords, tail_end) if coda else None
+    notes[:] = [n for n in notes if not tail <= n['start'] < tail_end]
+    chords[:] = [c for c in chords if not tail <= c['tick'] < tail_end]
+    for n in notes:
+        if n['start'] >= tail_end: n['start'] -= removed; n['end'] -= removed
+    for c in chords:
+        if c['tick'] >= tail_end: c['tick'] -= removed
+    if resume_chord is not None and not any(c['tick'] == tail for c in chords):
+        # After the jump the coda keeps sounding the chord of the To Coda measure; restate it where the coda begins.
+        chords.append(dict(resume_chord, tick=tail, reminder=True)); chords.sort(key=lambda c: c['tick'])
+    del bars[t:t + length]
+    for bar in bars[t:]: bar['start'] -= removed; bar['end'] -= removed
+    shifted = {}
+    for beat, grid in grids.items():
+        tick = beat * div
+        if tail <= tick < tail_end: continue
+        shifted[beat - removed // div if tick >= tail_end else beat] = grid
+    grids.clear(); grids.update(shifted)
+    for change in list(tempos) + list(key_changes):
+        tick = round(change['tick'] / ppq * div) - origin
+        if tick >= tail_end: change['tick'] = (tick - removed + origin) * ppq / div
+    sign = 'D.C.' if s == 0 else 'D.S.'
+    kind = sign + (' al Coda' if coda else ' al Fine')
+    if s: bars[s]['segno'] = True
+    for bar in bars[s:s + length]: bar['in_jump'] = True
+    bars[s + length - 1]['to_coda' if coda else 'fine'] = True
+    bars[t - 1]['jump'] = kind
+    if coda: bars[t]['coda'] = True
+    return {'jump': kind, 'first_measure': s + 1, 'measures': length, 'coda_measures': coda, 'removed_quarters': removed / div}
+
+
+# MuseScore imports the MusicXML signs as plain staff text; these become its real markers and jumps, which playback follows.
+MARKER_LABELS = {'segno': 'segno', 'coda': 'codab', 'Fine': 'fine', 'To Coda': 'coda'}
+JUMPS = {'D.S. al Fine': ('segno', 'fine', ''), 'D.S. al Coda': ('segno', 'coda', 'codab'),
+         'D.C. al Fine': ('start', 'fine', ''), 'D.C. al Coda': ('start', 'coda', 'codab')}
+
+
+def native_jumps(root, E):
+    """Replaces the imported staff texts of the jump signs on the top staff by MuseScore Marker and Jump elements.
+
+    Returns how many were replaced."""
+    replaced = 0
+    staves = root.findall('Score/Staff')
+    if not staves: return 0
+    for measure in staves[0].findall('Measure'):
+      for voice in measure.findall('voice'):
+        for text in list(voice.findall('StaffText')):
+            content = text.find('text')
+            if content is None: continue
+            symbol = content.find('sym')
+            plain = ''.join(content.itertext()).strip()
+            key = symbol.text if symbol is not None and symbol.text in ('segno', 'coda') else plain
+            if key in MARKER_LABELS:
+                element = E.Element('Marker')
+                E.SubElement(element, 'style').text = 'repeat_left' if key in ('segno', 'coda') else 'repeat_right'
+                body = E.SubElement(element, 'text')
+                if key in ('segno', 'coda'): E.SubElement(body, 'sym').text = key
+                else: body.text = key
+                E.SubElement(element, 'label').text = MARKER_LABELS[key]
+                # Without the explicit type MuseScore draws segno and coda at the end of the measure instead of its start.
+                E.SubElement(element, 'markerType').text = MARKER_LABELS[key]
+            elif key in JUMPS:
+                jump_to, play_until, continue_at = JUMPS[key]
+                element = E.Element('Jump')
+                E.SubElement(element, 'text').text = key
+                E.SubElement(element, 'jumpTo').text = jump_to
+                E.SubElement(element, 'playUntil').text = play_until
+                E.SubElement(element, 'continueAt').text = continue_at
+            else: continue
+            # Above the chord names and keyboard diagrams (7.5 spaces over the default marker height), never through them.
+            E.SubElement(element, 'offset', x='0', y='-7.5')
+            # Markers and jumps belong to the measure itself (like layout breaks), before its voices.
+            voice.remove(text); measure.insert(list(measure).index(measure.find('voice')), element); replaced += 1
+    return replaced

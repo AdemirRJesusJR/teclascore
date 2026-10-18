@@ -15,6 +15,9 @@ public sealed class ChordSheetWindow : Window
     private readonly int defaultInversion;
     public ChordSheet Sheet { get; private set; } = new([], [], []);
     internal Func<ChordChartWindow, bool?> chartDialog = window => window.ShowDialog();
+    private readonly Button score;
+    /// <summary>Creates the MuseScore score from the measures and title (set by the main window; null hides the button).</summary>
+    internal Func<IReadOnlyList<SheetMeasure>, string, Task<bool>>? createScore;
 
     public ChordSheetWindow(int defaultInversion, Func<string, string, int?> rememberedInversion)
     {
@@ -29,6 +32,9 @@ public sealed class ChordSheetWindow : Window
         title = new TextBox { Text = "Cifra" }; AutomationProperties.SetName(title, "Nome da música"); titleRow.Children.Add(title);
         var footer = new DockPanel { Margin = new Thickness(0, 10, 0, 0) }; DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal }; DockPanel.SetDock(buttons, Dock.Right); footer.Children.Add(buttons);
+        score = DialogUi.Button("Criar partitura", async (_, _) => await CreateScoreAsync()); score.IsEnabled = false; score.Name = "ChordSheetScoreButton";
+        score.ToolTip = "Gera uma partitura MuseScore: um compasso por acorde, com o diagrama e a letra de cada trecho embaixo, uma linha por linha da cifra.";
+        buttons.Children.Add(score);
         chart = DialogUi.Button("Ver acordes com diagramas", (_, _) => ShowChart(), true); chart.IsEnabled = false; buttons.Children.Add(chart);
         var close = DialogUi.Button("Fechar", (_, _) => Close()); close.IsCancel = true; buttons.Children.Add(close);
         summary = new TextBlock { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center }; footer.Children.Add(summary);
@@ -46,9 +52,28 @@ public sealed class ChordSheetWindow : Window
     {
         Sheet = ChordSheetParser.Parse(text.Text);
         chart.IsEnabled = Sheet.Distinct.Count > 0;
+        if (score is not null) score.IsEnabled = Sheet.Distinct.Count > 0 && createScore is not null;
         summary.Text = Sheet.Sequence.Count == 0 ? "Nenhum acorde encontrado ainda."
-            : $"{Sheet.Sequence.Count} acordes, {Sheet.Distinct.Count} diferentes: {string.Join("  ", Sheet.Distinct.Select(c => c.Root + c.Quality))}" +
+            : $"{Sheet.Sequence.Count} acordes, {Sheet.Distinct.Count} diferentes: {string.Join("  ", Sheet.Distinct.Select(c => c.Symbol))}" +
               (Sheet.Unknown.Count > 0 ? $" · não reconhecidos: {string.Join(", ", Sheet.Unknown)}" : "");
+    }
+
+    internal void RefreshActions() => Analyze();
+
+    /// <summary>The chords in order, one measure each, with the remembered diagram positions.</summary>
+    internal IReadOnlyList<SheetMeasure> ScoreMeasures() => ChordSheetParser.Measures(text.Text);
+
+    private async Task CreateScoreAsync()
+    {
+        var measures = ScoreMeasures();
+        if (measures.Count == 0 || createScore is null) return;
+        score.IsEnabled = false; summary.Text = "Criando a partitura no MuseScore…";
+        try
+        {
+            if (await createScore(measures, title.Text.Trim().Length > 0 ? title.Text.Trim() : "Cifra")) Close();
+            else Analyze();
+        }
+        finally { if (IsLoaded) score.IsEnabled = Sheet.Distinct.Count > 0; }
     }
 
     /// <summary>The distinct chords as a card, so the existing chord chart draws, saves and prints them.</summary>
@@ -57,7 +82,7 @@ public sealed class ChordSheetWindow : Window
         var row = new MidiRow { FullPath = "cifra-em-texto", DefaultDiagramInversion = defaultInversion, ScoreTitle = title.Text.Trim() };
         double quarter = 0;
         foreach (var chord in Sheet.Distinct)
-            row.Chords.Add(new ChordRow { Quarter = quarter++, Root = chord.Root, Quality = chord.Quality, DiagramInversion = remembered(chord.Root, chord.Quality) });
+            row.Chords.Add(new ChordRow { Quarter = quarter++, Root = chord.Root, Quality = chord.Quality, Bass = chord.Bass, DiagramInversion = remembered(chord.Root, chord.Quality) });
         return row;
     }
 

@@ -51,6 +51,20 @@ def pieces(start,end,grids):
         if not candidates:raise core.NeedsReview(f'Duração irregular de {limit-t} unidades.')
         d=max(candidates);yield t,d,False;t+=d
 
+SLASH_PITCH=71  # B4, the middle line of the treble staff
+
+def chord_slashes(bars,chords):
+    """One slash per beat (dotted quarter in 6/8, 9/8 and 12/8), also split where a chord changes inside a beat."""
+    slashes=[]
+    for bar in bars:
+        numerator,denominator=bar['meter']
+        beat=core.DIV*3//2 if denominator==8 and numerator%3==0 else core.DIV*4//denominator
+        bounds={tick for tick in range(bar['start'],bar['end'],beat)}|{c['tick'] for c in chords if bar['start']<c['tick']<bar['end']}
+        bounds=sorted(bounds|{bar['end']})
+        for start,stop in zip(bounds,bounds[1:]):
+            slashes.append({'start':start,'end':stop,'pitch':SLASH_PITCH,'slash':True})
+    return slashes
+
 def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
     if event is not None and start==event['start']:
         for pitch in event.get('graces',[]):
@@ -69,6 +83,7 @@ def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
         for _ in range(dots):core.sub(n,'dot')
     if triplet:
         tm=core.sub(n,'time-modification');core.sub(tm,'actual-notes',3);core.sub(tm,'normal-notes',2);core.sub(tm,'normal-type','eighth')
+    if event is not None and event.get('slash'):core.sub(n,'stem','none');core.sub(n,'notehead','slash')
     if tiein or tieout or triplet:
         nt=core.sub(n,'notations')
         if tiein:core.sub(nt,'tied',type='stop')
@@ -87,6 +102,11 @@ def emit_harmony(measure,event,barstart,ps):
     core.sub(rt,'root-step',step)
     if alt:core.sub(rt,'root-alter',alt)
     q=event['quality'];core.sub(h,'kind',core.KINDS[q],text=q)
+    if event.get('bass_spelling'):
+        # Slash chord (G/B): the bass note is written after the symbol; the diagram keeps the chord itself.
+        spelling=event['bass_spelling'];b=core.sub(h,'bass');core.sub(b,'bass-step',spelling[0])
+        alter=spelling.count('#')-spelling.count('b')
+        if alter:core.sub(b,'bass-alter',alter)
     if q in ('add9','madd9'):
         d=core.sub(h,'degree');core.sub(d,'degree-value',9);core.sub(d,'degree-alter',0);core.sub(d,'degree-type','add')
     if q=='7sus4':
@@ -94,6 +114,19 @@ def emit_harmony(measure,event,barstart,ps):
         d=core.sub(h,'degree');core.sub(d,'degree-value',4);core.sub(d,'degree-alter',0);core.sub(d,'degree-type','add')
     offset=event['tick']-barstart
     if offset:core.sub(h,'offset',offset)
+
+def emit_marker(measure,kind,text=None):
+    """Segno and coda signs at the start of a measure; Fine, To Coda and D.S./D.C. at its end (score_repeats.fold_jumps)."""
+    at_end=kind in ('fine','to_coda','jump')
+    d=core.sub(measure,'direction',placement='above');dt=core.sub(d,'direction-type')
+    if kind=='segno':core.sub(dt,'segno');core.sub(d,'sound',segno='segno')
+    elif kind=='coda':core.sub(dt,'coda');core.sub(d,'sound',coda='coda')
+    elif kind=='fine':core.sub(dt,'words','Fine',justify='right',font_style='italic');core.sub(d,'sound',fine='yes')
+    elif kind=='to_coda':core.sub(dt,'words','To Coda',justify='right',font_style='italic');core.sub(d,'sound',tocoda='coda')
+    else:
+        core.sub(dt,'words',text,justify='right',font_style='italic')
+        core.sub(d,'sound',**({'dacapo':'yes'} if text.startswith('D.C.') else {'dalsegno':'segno'}))
+    return at_end
 
 def layout_bars(bars,notes,chords,max_chords=3,first_page_capacity=7):
     lines=[];current=[];notecount=chordcount=quarters=0
@@ -153,10 +186,15 @@ def build_musicxml(parsed,config,harmony,out,title):
     metadata=core.score_metadata(config,title)
     title=metadata['title'];header=core._header_layout(metadata)
     summary,meters,tempos=core.meta(parsed);origin,end,bars=core.make_bars(parsed,meters)
-    try:notes,grids,note_report=core.melody_events(parsed,config,origin,end)
-    except core.NeedsReview as error:
-        error.review_points=core.rhythm_failure_points(error,parsed,config,origin,bars)
-        raise
+    chords_only=bool(config.get('chords_only'))
+    if chords_only:
+        # Chord chart for a MIDI without a complete melody: rhythm slashes carry the chords; no note is invented.
+        notes,grids,note_report=[],{},{'chords_only':True,'grace_notes_preserved':0,'quantized_attack_collisions':0}
+    else:
+        try:notes,grids,note_report=core.melody_events(parsed,config,origin,end)
+        except core.NeedsReview as error:
+            error.review_points=core.rhythm_failure_points(error,parsed,config,origin,bars)
+            raise
     transpose=config.get('melody_transpose_semitones',0)
     assert transpose%12==0,'Only octave placement may change without changing the key'
     if transpose:
@@ -166,7 +204,7 @@ def build_musicxml(parsed,config,harmony,out,title):
         note_report['octave_transposition_semitones']=transpose
         assert all(0<=n['pitch']<=127 for n in notes)
     output_transpose=core.transpose_semitones(config.get('transpose_semitones'))
-    if output_transpose:
+    if output_transpose and not chords_only:
         for note in notes:
             note['pitch']+=output_transpose
             if 'graces' in note:note['graces']=[pitch+output_transpose for pitch in note['graces']]
@@ -174,9 +212,10 @@ def build_musicxml(parsed,config,harmony,out,title):
             raise core.NeedsReview('A transposição ultrapassa as alturas permitidas pelo MIDI. Escolha um intervalo menor.',kind='transpose_range')
         harmony=core.transpose_harmony(harmony,output_transpose)
         note_report['output_transposition_semitones']=output_transpose
-    note_report['lyrics']=core.attach_lyrics(parsed,notes,origin)
+    # MIDI lyrics (karaoke files) go under the melody unless the user turned them off.
+    note_report['lyrics']=core.attach_lyrics(parsed,notes,origin) if not chords_only and config.get('include_lyrics',True) else 0
     second=[]
-    if config.get('second_voice_sources'):
+    if config.get('second_voice_sources') and not chords_only:
         # Optional second voice (counter-melody or duet) on its own staff, with the same time grid and transposition.
         second_config={key:value for key,value in config.items() if key not in ('melody_sources','merge_mode','melody_sections','solo_sources','second_voice_sources','melody_source_priority')}
         second_config.update(melody_sources=config['second_voice_sources'],solo_sources=[],reserve_high_melody=False)
@@ -206,15 +245,31 @@ def build_musicxml(parsed,config,harmony,out,title):
     chords=sorted(unique_chords.values(),key=lambda c:c['tick'])
     if not chords:raise core.NeedsReview('Nenhuma cifra suficientemente apoiada pelas notas do acompanhamento.')
     if len(chords)>len(bars)*3:raise core.NeedsReview('Harmonia excessivamente densa; revisar detecção de acordes.')
+    if chords_only:
+        notes[:]=chord_slashes(bars,chords)
+        note_report['chord_slashes']=len(notes)
+        # Chord sheet pasted as text: the words under each chord go on the first slash of its measure.
+        words={int(index):text for index,text in (config.get('sheet_lyrics') or {}).items() if str(text).strip()}
+        for index,text in words.items():
+            first=next((n for n in notes if n['start']==bars[index]['start']),None) if index<len(bars) else None
+            if first is not None:first['lyric']={'text':str(text).strip(),'syllabic':'single'}
+        if words:note_report['lyrics']={'syllables':len(words),'attached':sum('lyric' in n for n in notes)}
     if config.get('fold_repeats') and not second:
         # Optional: literal repetitions are written once between repeat barlines (score_repeats.py).
         import score_repeats
+        jump=score_repeats.fold_jumps(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV)
+        if jump:note_report['repeat_jump']=jump
         note_report['repeat_folds']=score_repeats.fold_repeats(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV)
     core.progress('Distribuindo notas e cifras pelos compassos e páginas…')
     # A large custom heading consumes first-page space. Rebalance page breaks,
     # retaining the same systems and events, instead of compressing the music.
     first_capacity=max(3,7-max(0,math.ceil((header['height']-16)/16)))
     starts,lines=core.layout_bars(bars,notes,chords,config.get('max_chords_per_system',3),first_capacity)
+    if config.get('line_starts'):
+        # A chord sheet keeps its own lines: each one starts a system (MuseScore adds page breaks as needed).
+        first_bars=sorted({int(index) for index in config['line_starts'] if 0<int(index)<len(bars)})
+        starts={index:'line' for index in first_bars}
+        edges=[0]+first_bars+[len(bars)];lines=[list(range(a,b)) for a,b in zip(edges,edges[1:]) if b>a]
     # Re-state the active chord at each new system, as in the approved pilot.
     for index in starts:
         tick=bars[index]['start'];prior=[c for c in chords if c['tick']<=tick]
@@ -307,6 +362,8 @@ def build_musicxml(parsed,config,harmony,out,title):
                 if b.get('repeat_start'):core.sub(bl,'bar-style','heavy-light')
                 if b.get('ending_start'):core.sub(bl,'ending',f"{b['ending_start']}.",number=str(b['ending_start']),type='start')
                 if b.get('repeat_start'):core.sub(bl,'repeat',direction='forward')
+            if primary and b.get('segno'):emit_marker(measure,'segno')
+            if primary and b.get('coda'):emit_marker(measure,'coda')
             active_tempo=max([t for t in tempos if round(t['tick']/parsed['ppq']*core.DIV)<=origin+b['start']] or [tempos[0]],key=lambda t:t['tick'])
             ts=[dict(active_tempo,tick=origin+b['start'])] if i==0 else []
             ts.extend(t for t in tempos if origin+b['start']<=round(t['tick']/parsed['ppq']*core.DIV)<origin+b['end'] and not (i==0 and round(t['tick']/parsed['ppq']*core.DIV)==origin))
@@ -345,12 +402,17 @@ def build_musicxml(parsed,config,harmony,out,title):
                 # separate groups after a very wide measure is respaced by MuseScore.
                 for tuplet in measure.findall('.//tuplet'):
                     if tuplet.get('type')=='start':tuplet.set('bracket','yes');tuplet.set('placement','above')
+            if primary:
+                if b.get('fine'):emit_marker(measure,'fine')
+                if b.get('to_coda'):emit_marker(measure,'to_coda')
+                if b.get('jump'):emit_marker(measure,'jump',b['jump'])
             if b.get('repeat_end') or b.get('ending_stop'):
                 bl=core.sub(measure,'barline',location='right')
                 core.sub(bl,'bar-style','light-heavy' if b.get('repeat_end') or i==len(bars)-1 else 'regular')
                 if b.get('ending_stop'):core.sub(bl,'ending',number=str(b['ending_stop']),type='stop' if b.get('repeat_end') else 'discontinue')
                 if b.get('repeat_end'):core.sub(bl,'repeat',direction='backward')
-            elif i==len(bars)-1:bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-heavy')
+            elif i==len(bars)-1 or b.get('fine'):bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-heavy')
+            elif b.get('jump') and i+1<len(bars) and bars[i+1].get('coda'):bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-light')
     E.indent(root);xml=out/'melodia.musicxml';E.ElementTree(root).write(xml,encoding='utf-8',xml_declaration=True)
     report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/core.DIV,'measures':len(bars),'systems':len(lines),'pages_planned':1+sum(kind=='page' for kind in starts.values()),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
     report.update(score_metadata=metadata,diagram_inversion=inversion,custom_diagram_inversions=custom_diagrams,transpose_semitones=output_transpose)

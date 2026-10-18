@@ -105,8 +105,12 @@ public sealed class ScorePlaybackMapService(string museScorePath, string cacheDi
         var native = NativeScoreArchive.Read(source); var model = NativeMusicEditor.Open(source, token);
         var limitations = new List<string>();
         var style = native.ReadStyle();
-        double width = Number(style.Element("pageWidth")?.Value, native.Metadata.PageWidthMm / 25.4) * ExportDpi * 12;
-        double height = Number(style.Element("pageHeight")?.Value, native.Metadata.PageHeightMm / 25.4) * ExportDpi * 12;
+        // A score without its own page size uses the paper of the computer's locale (A4 here, Letter in the US); the first
+        // page MuseScore rendered in this same export (at ExportDpi) then tells the real size.
+        var firstPage = previewPages.Count > 0 && File.Exists(previewPages[0]) ? PngSize(previewPages[0]) : (Width: 0, Height: 0);
+        bool ownSize = style.Element("pageWidth") is not null && style.Element("pageHeight") is not null;
+        double width = ownSize || firstPage.Width == 0 ? Number(style.Element("pageWidth")?.Value, native.Metadata.PageWidthMm / 25.4) * ExportDpi * 12 : firstPage.Width * 12.0;
+        double height = ownSize || firstPage.Height == 0 ? Number(style.Element("pageHeight")?.Value, native.Metadata.PageHeightMm / 25.4) * ExportDpi * 12 : firstPage.Height * 12.0;
         var rawMeasures = ReadPositions(measurePositionsPath, token);
         var rawSegments = ReadPositions(segmentPositionsPath, token);
         var measures = rawMeasures.Elements.Select(e => new ScoreMeasureRegion(e.Id + 1, Region(e))).ToArray();

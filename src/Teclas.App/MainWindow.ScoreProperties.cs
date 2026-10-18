@@ -59,7 +59,7 @@ public partial class MainWindow
             Status = "Propriedades salvas. Reconecte o MIDI original para atualizar a partitura.";
             return;
         }
-        if (row.AnalysisPath is null && !row.UseReviewedProfile && !row.Tracks.Any(track => track.IsMelody))
+        if (row.AnalysisPath is null && !row.UseReviewedProfile && !row.HasMelodyChoice)
         {
             Status = "Propriedades salvas. Escolha a pista de melodia para gerar a partitura.";
             return;

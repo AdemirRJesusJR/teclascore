@@ -2,6 +2,9 @@ using System.IO;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using Teclas.Core;
 
@@ -14,9 +17,17 @@ public sealed partial class PresentationWindow
     /// <summary>(songs, title, target file, tablet) → status text.</summary>
     private readonly Func<IReadOnlyList<PresentationEntry>, string, string, bool, Task<string>>? exportPdf;
     private ComboBox? repertoires;
-    private CheckBox? halfPage, midiPedal, tabletPdf, phoneRemote;
+    private CheckBox? halfPage, midiPedal, tabletPdf, phoneRemote, lyricsScreen;
     private RemoteControlServer? remote;
     private TextBlock? remoteInfo;
+    private Image? remoteQr;
+    private FrameworkElement? remotePanel;
+    private LyricsScreenWindow? lyricsWindow;
+    private CancellationTokenSource? lyricsLoading;
+    private readonly Dictionary<Guid, IReadOnlyList<string>> lyricsByEntry = [];
+    /// <summary>Lyrics of each page of a song (MuseScore page layout), for the lyrics screen; set by the main window.</summary>
+    internal Func<PresentationEntry, CancellationToken, Task<IReadOnlyList<string>>>? PageLyrics { get; init; }
+    internal LyricsScreenWindow? LyricsWindow => lyricsWindow;
     internal RemoteControlServer? Remote => remote;
     private MidiKeyboardInput? pedalInput;
     private readonly Dictionary<int, int> pedalValues = [];
@@ -60,30 +71,105 @@ public sealed partial class PresentationWindow
             ToolTip = "Abre um endereço para o celular na mesma rede Wi-Fi virar as páginas. Protegido por um código de seis dígitos; desligue para encerrar. O Windows pode pedir para permitir o TeclaScore na rede privada." };
         phoneRemote.Click += (_, _) => SetPhoneRemote(phoneRemote.IsChecked == true);
         row.Children.Add(phoneRemote);
-        remoteInfo = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new(0, 2, 0, 0), Visibility = Visibility.Collapsed };
-        heading.Children.Add(remoteInfo);
-        Closed += (_, _) => SetPhoneRemote(false);
+        lyricsScreen = new CheckBox { Name = "PresentationLyricsScreen", Content = "Letra em outra tela", VerticalAlignment = VerticalAlignment.Center, Margin = new(16, 0, 0, 6),
+            ToolTip = "Abre uma janela com a letra da página atual em letras grandes, para um segundo monitor ou projetor (vai sozinha para a segunda tela, se houver). Acompanha as viradas de página." };
+        lyricsScreen.Click += async (_, _) => await SetLyricsScreen(lyricsScreen.IsChecked == true);
+        row.Children.Add(lyricsScreen);
+        var remoteRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new(0, 6, 0, 0), Visibility = Visibility.Collapsed }; remotePanel = remoteRow;
+        remoteQr = new Image { Width = 112, Height = 112, Margin = new(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Top };
+        RenderOptions.SetBitmapScalingMode(remoteQr, BitmapScalingMode.NearestNeighbor);
+        AutomationProperties.SetName(remoteQr, "Código QR do controle pelo celular");
+        remoteRow.Children.Add(remoteQr);
+        remoteInfo = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 520, VerticalAlignment = VerticalAlignment.Center };
+        remoteRow.Children.Add(remoteInfo);
+        heading.Children.Add(remoteRow);
+        Closed += (_, _) => { SetPhoneRemote(false); lyricsLoading?.Cancel(); lyricsWindow?.Close(); };
     }
 
     /// <summary>Starts or stops the phone remote; commands arrive on the network thread and run here.</summary>
     internal void SetPhoneRemote(bool enabled)
     {
         remote?.Dispose(); remote = null;
-        if (remoteInfo is not null) remoteInfo.Visibility = Visibility.Collapsed;
+        if (remotePanel is not null) remotePanel.Visibility = Visibility.Collapsed;
         if (!enabled) return;
         try
         {
             remote = new RemoteControlServer(action => Dispatcher.InvokeAsync(() => RemoteCommand(action)));
             var addresses = remote.Addresses();
             remoteInfo!.Text = addresses.Count == 0 ? "Sem rede ativa: conecte o computador ao Wi-Fi para usar o celular."
-                : "No celular (mesma rede Wi-Fi), abra: " + string.Join("  ou  ", addresses.Take(2));
-            remoteInfo.Visibility = Visibility.Visible;
+                : "Aponte a câmera do celular (mesma rede Wi-Fi) para o código, ou abra: " + string.Join("  ou  ", addresses.Take(2)) +
+                  "\nO celular mostra a música e a página atuais.";
+            remoteQr!.Source = addresses.Count == 0 ? null : QrImage(QrCode.Encode(addresses[0]));
+            remoteQr.Visibility = addresses.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+            remotePanel!.Visibility = Visibility.Visible;
+            PublishState();
         }
         catch (System.Net.Sockets.SocketException error)
         {
             if (phoneRemote is not null) phoneRemote.IsChecked = false;
             saveStatus.Text = "Não foi possível abrir o controle pelo celular: " + error.Message;
         }
+    }
+
+    /// <summary>A QR code as a crisp image: 4 pixels per module and the standard quiet zone of 4 modules.</summary>
+    internal static BitmapSource QrImage(bool[,] modules)
+    {
+        int n = modules.GetLength(0), scale = 4, quiet = 4, size = (n + 2 * quiet) * scale;
+        var pixels = new byte[size * size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                int my = y / scale - quiet, mx = x / scale - quiet;
+                pixels[y * size + x] = (byte)(my >= 0 && my < n && mx >= 0 && mx < n && modules[my, mx] ? 0 : 255);
+            }
+        var image = BitmapSource.Create(size, size, 96, 96, PixelFormats.Gray8, null, pixels, size); image.Freeze();
+        return image;
+    }
+
+    /// <summary>Song and page for the phone and the lyrics screen; called whenever either changes.</summary>
+    private void PublishState()
+    {
+        int index = Current is { } current ? entries.IndexOf(current) : -1;
+        if (remote is not null)
+            remote.State = index < 0 ? null : new RemoteState(entries[index].Title, index + 1, entries.Count, Math.Max(1, viewer.CurrentPage), viewer.PageCount);
+        UpdateLyricsScreen();
+    }
+
+    private async Task SetLyricsScreen(bool enabled)
+    {
+        if (!enabled) { lyricsLoading?.Cancel(); lyricsWindow?.Close(); lyricsWindow = null; return; }
+        if (lyricsWindow is null)
+        {
+            lyricsWindow = new LyricsScreenWindow();
+            lyricsWindow.Closed += (_, _) => { lyricsWindow = null; if (lyricsScreen is not null) lyricsScreen.IsChecked = false; };
+            lyricsWindow.Show(); Activate();
+        }
+        await LoadLyrics();
+    }
+
+    private async Task LoadLyrics()
+    {
+        if (lyricsWindow is null || Current is not { } item) { UpdateLyricsScreen(); return; }
+        if (lyricsByEntry.ContainsKey(item.Id) || PageLyrics is null) { UpdateLyricsScreen(); return; }
+        lyricsLoading?.Cancel();
+        using var loading = new CancellationTokenSource(); lyricsLoading = loading;
+        lyricsWindow.Show(item.Title, "Preparando a letra das páginas…");
+        try { lyricsByEntry[item.Id] = await PageLyrics(item, loading.Token); }
+        catch (OperationCanceledException) { return; }
+        catch (Exception error) when (IsStorageFailure(error) || error is InvalidOperationException or InvalidDataException or TimeoutException or System.Xml.XmlException)
+        { lyricsByEntry[item.Id] = []; pageStatus.Text = "Não foi possível preparar a letra desta música: " + error.Message; }
+        finally { if (ReferenceEquals(lyricsLoading, loading)) lyricsLoading = null; }
+        UpdateLyricsScreen();
+    }
+
+    private void UpdateLyricsScreen()
+    {
+        if (lyricsWindow is null) return;
+        if (Current is not { } item) { lyricsWindow.Show("", ""); return; }
+        if (!lyricsByEntry.TryGetValue(item.Id, out var pages)) { _ = LoadLyrics(); return; }
+        int page = Math.Max(1, viewer.CurrentPage);
+        string text = page <= pages.Count ? pages[page - 1] : "";
+        lyricsWindow.Show(item.Title, pages.All(p => p.Length == 0) ? "Esta partitura não tem letra." : text);
     }
 
     internal void RemoteCommand(string action)
@@ -210,4 +296,39 @@ public sealed class TextPromptWindow : Window
         var ok = DialogUi.Button("Criar", (_, _) => { if (Value.Length > 0) DialogResult = true; }, true); ok.IsDefault = true; buttons.Children.Add(ok);
         Loaded += (_, _) => { box.Focus(); box.SelectAll(); };
     }
+}
+
+/// <summary>Lyrics of the current page in large type, for a second monitor or a projector. Double-click: full screen.</summary>
+public sealed class LyricsScreenWindow : Window
+{
+    private readonly TextBlock song, lyrics;
+    public string Lyrics => lyrics.Text;
+
+    public LyricsScreenWindow()
+    {
+        Title = "Letra · TeclaScore"; Width = 900; Height = 560; Background = Brushes.Black; ShowInTaskbar = true;
+        var root = new DockPanel { Margin = new(40, 28, 40, 28) }; Content = root;
+        song = new TextBlock { Foreground = new SolidColorBrush(Color.FromRgb(160, 168, 180)), FontSize = 22, TextWrapping = TextWrapping.Wrap, Margin = new(0, 0, 0, 18) };
+        DockPanel.SetDock(song, Dock.Top); root.Children.Add(song);
+        lyrics = new TextBlock { Name = "LyricsScreenText", Foreground = Brushes.White, FontSize = 46, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center, LineHeight = 62 };
+        root.Children.Add(new Viewbox { Child = new Border { Width = 1100, Child = lyrics }, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly });
+        // With a second monitor, open on it (to the right or left of the main one) in full screen.
+        if (SystemParameters.VirtualScreenWidth > SystemParameters.PrimaryScreenWidth + 100)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Left = SystemParameters.VirtualScreenLeft < 0 ? SystemParameters.VirtualScreenLeft + 40 : SystemParameters.PrimaryScreenWidth + 40; Top = 40;
+            Loaded += (_, _) => FullScreen(true);
+        }
+        MouseDoubleClick += (_, _) => FullScreen(WindowStyle != WindowStyle.None);
+        KeyDown += (_, e) => { if (e.Key == Key.Escape && WindowStyle == WindowStyle.None) FullScreen(false); };
+    }
+
+    private void FullScreen(bool enabled)
+    {
+        WindowState = WindowState.Normal; WindowStyle = enabled ? WindowStyle.None : WindowStyle.SingleBorderWindow;
+        WindowState = enabled ? WindowState.Maximized : WindowState.Normal;
+    }
+
+    public void Show(string title, string text) { song.Text = title; lyrics.Text = text; }
 }

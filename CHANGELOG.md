@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 0.40.0 — 18/10/2026
+
+- D.S., Coda e Fine: com Repetições ligado (antes "Ritornelo"), quando a música volta a um trecho anterior de 4 ou mais compassos e termina com ele, a volta vira D.S. al Fine (D.C. quando é o começo); se depois vem um final novo, vira D.S. al Coda. Segno, Coda, Fine e To Coda são sinais de verdade do MuseScore: a reprodução segue os saltos, e eles ficam acima das cifras e dos diagramas.
+- Só cifras (aba Melodia): para os MIDIs sem melodia completa, uma folha de acordes com barras nos tempos, cifras e diagramas, sem inventar notas. Os acordes vêm de todas as pistas; as barras não tocam, só as cifras.
+- Letra do MIDI (aba Cifras): escolha por música se a letra dos MIDIs de karaokê entra na partitura.
+- Cifra em texto → partitura: o botão Criar partitura gera um .mscz com um compasso por acorde, o diagrama e a letra de cada trecho embaixo, uma linha por linha da cifra; a partitura entra na biblioteca.
+- Acordes com baixo (G/B, C/E): a cifra em texto guarda o baixo, a partitura escreve G/B e o diagrama marca a nota do baixo em azul. "7/9" e "7/4" continuam sendo tipos de acorde.
+- Celular como controle: QR code para abrir o controle com a câmera, e o celular mostra a música e a página atuais.
+- Letra em outra tela (Apresentação): a letra da página atual em letras grandes numa janela para o segundo monitor ou projetor, acompanhando as viradas.
+- Biblioteca: painel de ações mais compacto, com ícones, e Limpar biblioteca como ícone no cabeçalho.
+- Acompanhamento: partituras sem tamanho de página próprio usam o tamanho que o MuseScore realmente desenhou (A4 ou Carta, conforme o Windows); o teste volta a rodar no servidor do GitHub.
+
 ## 0.39.0 — 17/10/2026
 
 - Etiquetas livres (Organizar música) e busca por #etiqueta; listas inteligentes na Biblioteca: ainda não estudadas, estudadas nos últimos 7 dias, tom menor, tom maior, com cifras para revisar e favoritas sem partitura.

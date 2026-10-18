@@ -105,6 +105,65 @@ def report_error(error,request_path=None):
     send('error',message=message,reviewPoints=getattr(error,'review_points',[]),diagnosticPath=diagnostic_path)
     print(details,file=sys.stderr,end='')
 
+NATURALS={'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}
+
+def pitch_class(spelling):
+    if not isinstance(spelling,str) or not re.fullmatch('[A-G](#{1,2}|b{1,2})?',spelling):raise ValueError('Nota inválida na cifra: '+str(spelling))
+    return (NATURALS[spelling[0]]+spelling.count('#')-spelling.count('b'))%12
+
+def chord_sheet_score(req,workspace,engine,parse_midi,intervals):
+    """Chord sheet pasted as text → MuseScore chord chart: one measure per chord, its words under the slashes,
+    one system per line of the sheet, with the keyboard diagrams. A plain MIDI is synthesized only to carry the measures."""
+    import struct,copy
+    measures=req.get('measures')
+    if not isinstance(measures,list) or not measures:raise ValueError('A cifra não tem acordes.')
+    if len(measures)>400:raise ValueError('Cifra longa demais para uma partitura (mais de 400 acordes).')
+    beats=int(req.get('beats',4))
+    if beats not in (2,3,4,6):raise ValueError('Compasso inválido.')
+    ppq=480;length=ppq*beats;events=[];harmony_events=[];lyrics={};line_starts=[]
+    for index,item in enumerate(measures):
+        root=item.get('root','');quality=item.get('quality','')
+        if quality not in intervals:raise ValueError('Tipo de acorde não suportado: '+str(quality))
+        pc=pitch_class(root)
+        chord={'tick':index*length,'root':pc,'quality':quality,'root_spelling':root,'confidence':1.,'pitch_classes':sorted((pc+x)%12 for x in intervals[quality]),
+               'evidence':{'method':'chord_sheet_text'}}
+        if item.get('bass'):chord['bass']=pitch_class(item['bass']);chord['bass_spelling']=item['bass']
+        if item.get('diagramInversion') is not None:chord['diagram_inversion']=engine.diagram_inversion(item['diagramInversion'])
+        harmony_events.append(chord)
+        for interval in intervals[quality]:
+            pitch=48+pc+interval;events+=[(index*length,bytes([0x90,pitch,70])),(index*length+length-10,bytes([0x80,pitch,0]))]
+        if str(item.get('words','')).strip():lyrics[str(index)]=str(item['words'])[:120]
+        if item.get('lineStart') and index:line_starts.append(index)
+    def vlq(value):
+        data=[value&127];value>>=7
+        while value:data.insert(0,(value&127)|128);value>>=7
+        return bytes(data)
+    body=b'';previous=0
+    for tick,message in sorted(events,key=lambda e:e[0]):body+=vlq(tick-previous)+message;previous=tick
+    body+=b'\x00\xff\x2f\x00'
+    conductor=b'\x00\xff\x51\x03\x07\xa1\x20\x00\xff\x58\x04'+bytes([beats,2])+b'\x18\x08\x00\xff\x2f\x00'
+    title=str(req.get('scoreTitle') or 'Cifra').strip() or 'Cifra'
+    source=workspace/'cifra.mid'
+    source.write_bytes(b'MThd'+struct.pack('>IHHH',6,1,2,ppq)+b'MTrk'+struct.pack('>I',len(conductor))+conductor+b'MTrk'+struct.pack('>I',len(body))+body)
+    harmony={'key':{'fifths':0,'minor':False},'key_changes':[],'events':harmony_events,'warnings':[]}
+    config={'index':0,'status':'ready','melody_sources':[],'solo_sources':[],'reserve_high_melody':False,'chords_only':True,
+            'filename':title+'.mid','source_path':str(source),'scoreTitle':title,'scoreSubtitle':'Cifra com diagramas de teclado',
+            'diagram_inversion':engine.diagram_inversion(req.get('diagramInversion')),'sheet_lyrics':lyrics,'line_starts':line_starts}
+    if req.get('scoreArtist'):config['scoreArtist']=str(req['scoreArtist'])
+    exe=Path(req['musescorePath'])
+    if not exe.is_file():raise ValueError('Localize o executável do MuseScore nas configurações.')
+    engine.EXE=str(exe);engine.analyze_harmony=lambda parsed,sources:copy.deepcopy(harmony)
+    send('progress',message='Montando a partitura da cifra com os diagramas…')
+    result=engine.prepare(config)
+    final=Path(result['path']);targetdir=Path(req['outputDirectory']).resolve();targetdir.mkdir(parents=True,exist_ok=True)
+    dest=score_output_path(targetdir,config.get('scoreArtist',''),title,source)
+    report_dir=targetdir/(dest.stem+' - revisao');report_dir.mkdir(exist_ok=False)
+    with dest.open('xb') as out:out.write(final.read_bytes())
+    for pattern in ('pagina-*.png','previa-geral.png','validacao.json'):
+        for p in final.parent.glob(pattern):shutil.copy2(p,report_dir/p.name)
+    first=sorted(report_dir.glob('pagina-*.png'),key=lambda p:int(p.stem.rsplit('-',1)[-1]))[0]
+    send('result',data={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'measures':result['measures']})
+
 def main():
     req=json.loads(Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
     send('progress',message='Lendo o mapa de compassos…' if req['mode']=='measureMap' else 'Preparando a análise musical…' if req['mode']=='analyze' else 'Preparando a geração da partitura…')
@@ -114,6 +173,10 @@ def main():
     import batch_score as engine
     from inspect_midi import parse_midi
     from batch_harmony import analyze_harmony,CHORD_INTERVALS,chord_label
+    if req['mode']=='chordSheet':
+        # A chord sheet pasted as text has no MIDI of its own.
+        chord_sheet_score(req,workspace,engine,parse_midi,CHORD_INTERVALS)
+        return
     source=Path(req['inputMidi']).resolve()
     if not source.is_file():raise ValueError('O MIDI original não foi encontrado.')
     mode=req['mode']
@@ -132,6 +195,10 @@ def main():
         profile=profiles.get(parsed['sha256']);reviewed=bool(req.get('useReviewedProfile') and profile and profile['config']['status']=='ready')
         if reviewed:
             config=copy.deepcopy(profile['config']);override=profile['harmony']
+        elif req.get('chordsOnly'):
+            # MIDI without a complete melody: a chord chart (slashes, chords and diagrams) from every pitched track.
+            config={'index':0,'status':'ready','melody_sources':[],'solo_sources':[],'reserve_high_melody':False,'chords_only':True}
+            override=None
         else:
             config=manual_melody_config(req.get('melodySources',[]))
             sections=normalize_sections(req.get('melodySections'),parsed,engine)
@@ -165,7 +232,8 @@ def main():
             collapsed.append(c)
         harmony['events']=collapsed
         send('progress',message='Conferindo a melodia, o ritmo e os trechos que precisam de revisão…')
-        points,rhythm_ready,rhythm_message,melody_report=engine.review_points(parsed,config,harmony,include_melody_report=True)
+        if config.get('chords_only'):points,rhythm_ready,rhythm_message,melody_report=[],True,'',{}
+        else:points,rhythm_ready,rhythm_message,melody_report=engine.review_points(parsed,config,harmony,include_melody_report=True)
         document={'source':str(source),'sha256':parsed['sha256'],'config':config,'harmony':harmony,'reviewedProfile':reviewed,'ppq':parsed['ppq'],'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
         if 'melody_merge' in melody_report:document['melodyMerge']=melody_report['melody_merge']
         analysis=workspace/'analysis.json'
@@ -202,6 +270,7 @@ def main():
     config['diagram_inversion']=engine.diagram_inversion(req.get('diagramInversion'))
     config['transpose_semitones']=engine.transpose_semitones(req.get('transposeSemitones'))
     config['fold_repeats']=bool(req.get('foldRepeats'))
+    config['include_lyrics']=req.get('includeLyrics') is not False
     if req.get('secondVoiceSources'):config['second_voice_sources']=manual_melody_config(req['secondVoiceSources'])['melody_sources']
     if isinstance(req.get('scoreStyle'),dict):config['score_style']={'music_font':str(req['scoreStyle'].get('musicFont','')),'size':str(req['scoreStyle'].get('size',''))}
     metadata=engine.score_metadata(config,engine.default_score_title(config['filename']))

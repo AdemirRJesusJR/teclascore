@@ -1,3 +1,11 @@
+TECLASCORE 0.40.0 · D.S./CODA, SÓ CIFRAS, CIFRA EM TEXTO E PALCO
+
+1. Numa música que volta ao refrão no fim, ligue Repetições e gere: aparecem segno e D.S. al Fine (ou al Coda); ouça para conferir que a reprodução segue o salto.
+2. Num MIDI sem melodia, ligue Só cifras na aba Melodia, analise e gere: barras nos tempos, cifras e diagramas.
+3. Num MIDI de karaokê, desligue Letra do MIDI na aba Cifras e gere: a letra some da partitura.
+4. Em Cifra em texto, cole uma cifra com G/B e clique em Criar partitura: a partitura entra na biblioteca com a letra sob os acordes.
+5. Na Apresentação, ligue Celular como controle e leia o QR code com a câmera; confira a música e a página no celular. Ligue Letra em outra tela com um segundo monitor.
+
 TECLASCORE 0.39.0 · BIBLIOTECA, IMPORTAÇÃO E CELULAR
 
 1. Em Organizar música, escreva etiquetas (lentas, missa) e busque #lentas; teste as listas inteligentes.

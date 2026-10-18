@@ -1,3 +1,7 @@
+TECLASCORE 0.40.0
+
+D.S., Coda e Fine nas repetições. Partitura só de cifras para MIDIs sem melodia. Letra do MIDI opcional. Cifra em texto vira partitura, com acordes de baixo (G/B). QR code e estado no celular. Letra em outra tela na apresentação. Painel da biblioteca mais compacto.
+
 TECLASCORE 0.39.0
 
 Etiquetas e listas inteligentes. Importar MusicXML. Cifra em texto com diagramas. Celular como controle da apresentação. Registro de erros.

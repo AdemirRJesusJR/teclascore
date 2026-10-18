@@ -35,9 +35,9 @@ public partial class App
             for (int i = 0; i < 24; i++) { WriteCrashLog(crashes, "teste", new Exception("x" + i)); await Task.Delay(2); }
             Check(Directory.GetFiles(crashes, "falha-*.txt").Length == KeptCrashLogs && SupportReport.FindDiagnostics([crashes]).Count == SupportReport.MaximumDiagnostics, "crash-logs-are-trimmed-and-reported");
 
-            // Chord sheet text: chord lines found, lyrics ignored, Brazilian spellings read, slash basses dropped.
+            // Chord sheet text: chord lines found, lyrics ignored, Brazilian spellings read, slash basses kept apart (v0.40).
             var sheet = ChordSheetParser.Parse("Intro: C  G/B  Am7  F7M\n\nC              G\nAsa branca que voa no sertão\nAm7          D7(9)    F°   Bb4\nFoi embora Xyz9");
-            Check(sheet.Distinct.Select(c => c.Root + c.Quality).SequenceEqual(new[] { "C", "G", "Am7", "Fmaj7", "D9", "Fdim", "Bbsus4" }), "chord-sheet-reads-chords " + string.Join(",", sheet.Distinct.Select(c => c.Root + c.Quality)));
+            Check(sheet.Distinct.Select(c => c.Symbol).SequenceEqual(new[] { "C", "G/B", "Am7", "Fmaj7", "G", "D9", "Fdim", "Bbsus4" }), "chord-sheet-reads-chords " + string.Join(",", sheet.Distinct.Select(c => c.Symbol)));
             Check(sheet.Sequence.Count == 10, "chord-sheet-keeps-the-sequence");
 
             // Phone remote: only the code-protected page and commands answer.

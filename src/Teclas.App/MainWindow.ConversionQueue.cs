@@ -28,6 +28,7 @@ public partial class MainWindow
                 data["reviewedProfile"]?.GetValue<bool>() != row.UseReviewedProfile) return false;
             if (row.UseReviewedProfile) return true;
             var config = data["config"];
+            if ((config?["chords_only"]?.GetValue<bool>() ?? false) != row.ChordsOnly) return false;
             return JsonNode.DeepEquals(config?["melody_sources"], Sources(row)) &&
                 JsonNode.DeepEquals(config?["melody_sections"] ?? new JsonArray(), MelodySections(row)) &&
                 (GetOrderedMelodySources(row).Count < 2 || config?["merge_mode"]?.GetValue<string>() == "priority");
@@ -60,8 +61,16 @@ public partial class MainWindow
             }).ToArray());
         if (row.SimplifiedChords && row.Chords.Count == 0) options["simplifyChords"] = true;
         if (row.FoldRepeats) options["foldRepeats"] = true;
-        if (SecondVoiceSources(row) is { Count: > 0 } secondVoice) options["secondVoiceSources"] = secondVoice;
+        if (!row.IncludeLyrics) options["includeLyrics"] = false;
+        if (SecondVoiceSources(row) is { Count: > 0 } secondVoice && !row.ChordsOnly) options["secondVoiceSources"] = secondVoice;
         if (ScoreStyleRequest() is { } scoreStyle) options["scoreStyle"] = scoreStyle;
+        return options;
+    }
+
+    private JsonObject AnalyzeOptions(MidiRow row)
+    {
+        var options = new JsonObject { ["useReviewedProfile"] = row.UseReviewedProfile, ["melodySources"] = Sources(row), ["melodySections"] = MelodySections(row) };
+        if (row.ChordsOnly && !row.UseReviewedProfile) { options["chordsOnly"] = true; options["melodySections"] = new JsonArray(); }
         return options;
     }
 
@@ -76,7 +85,7 @@ public partial class MainWindow
     private async Task EnqueueConversion(MidiRow row, CancellationToken token)
     {
         RequireMidiWorkflow(row); ValidateSettings(true);
-        if (row.Document is null || (!row.UseReviewedProfile && !row.Tracks.Any(track => track.IsMelody)))
+        if (row.Document is null || (!row.UseReviewedProfile && !row.HasMelodyChoice))
             throw new InvalidOperationException("Escolha as pistas de melodia antes de adicionar à fila.");
         string outputDirectory = await PrepareOutputDirectoryAsync(token);
         var options = QueueGenerationOptions(row);
@@ -87,7 +96,7 @@ public partial class MainWindow
         options["librarySnapshot"] = snapshotJson;
         options["libraryRevision"] = QueueRevision(row);
         var recipe = new ConversionQueueRecipe(row.FullPath, PythonPath, engineDirectory, MuseScorePath, outputDirectory,
-            new JsonObject { ["useReviewedProfile"] = row.UseReviewedProfile, ["melodySources"] = Sources(row), ["melodySections"] = MelodySections(row) }, options,
+            AnalyzeOptions(row), options,
             HasCurrentMelodyAnalysis(row) && !row.ReviewPoints.Any(point => point.Blocking) ? row.AnalysisPath : null)
         { SourceSha256 = row.SourceSha256, DisplayName = row.ScoreTitle };
         await GetConversionQueue().EnqueueAsync(recipe, token);

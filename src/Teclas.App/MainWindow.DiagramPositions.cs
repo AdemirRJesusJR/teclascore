@@ -97,5 +97,5 @@ public partial class MainWindow
     private static ChordPositionEntry[] Entries(MidiRow row)=>
         row.Chords.Select(chord=>new ChordPositionEntry(chord.Root,chord.Quality,chord.DiagramInversion)).ToArray();
     private static bool CanRegenerate(MidiRow row)=>
-        row.Document is not null && (row.AnalysisPath is not null || row.UseReviewedProfile || row.Tracks.Any(t=>t.IsMelody));
+        row.Document is not null && (row.AnalysisPath is not null || row.UseReviewedProfile || row.HasMelodyChoice);
 }

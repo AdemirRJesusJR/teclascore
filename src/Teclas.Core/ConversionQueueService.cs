@@ -331,6 +331,7 @@ public sealed class ConversionQueueService : IDisposable
         bool reviewed = analysis["reviewedProfile"]?.GetValue<bool>() ?? false;
         if ((recipe.AnalyzeOptions["useReviewedProfile"]?.GetValue<bool>() ?? false) != reviewed) return false;
         if (recipe.AnalyzeOptions["melodySources"] is not JsonArray selected || config["melody_sources"] is not JsonArray actual) return false;
+        if ((recipe.AnalyzeOptions["chordsOnly"]?.GetValue<bool>() ?? false) != (config["chords_only"]?.GetValue<bool>() ?? false)) return false;
         static string[] Keys(JsonArray array) => array.Select(node => node!.AsObject()).Select(node => $"{node["track"]?.GetValue<int>()}/{node["channel"]?.GetValue<int>()}/{node["program"]?.GetValue<int>()}").ToArray();
         if (reviewed) return Keys(selected).Order(StringComparer.Ordinal).SequenceEqual(Keys(actual).Order(StringComparer.Ordinal), StringComparer.Ordinal);
         if (!JsonNode.DeepEquals(config["melody_sections"] ?? new JsonArray(), recipe.AnalyzeOptions["melodySections"] ?? new JsonArray())) return false;

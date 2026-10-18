@@ -35,7 +35,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public bool CanEditMidi=>IsIdle && selectedFile is { UsesNativeScoreWorkflow:false, Document:not null };
     public bool CanSelectTracks=>CanEditMidi && !UseReviewedProfile;
     public bool CanGenerate=>IsIdle && (selectedFile is { UsesNativeScoreWorkflow:true, ScorePath:{} score } && File.Exists(score)
-        || selectedFile is { UsesNativeScoreWorkflow:false, Document:not null } row && (row.UseReviewedProfile || row.Tracks.Any(track=>track.IsMelody)));
+        || selectedFile is { UsesNativeScoreWorkflow:false, Document:not null } row && (row.UseReviewedProfile || row.HasMelodyChoice));
     public string? PreviewSourcePath=>selectedFile?.PreviewPath;
     public bool UseReviewedProfile
     {
@@ -57,7 +57,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public string Status{get=>status;private set{status=value;RememberMessage(value);Notify();}}
     public ImageSource? Preview{get=>preview;private set{preview=value;Notify();}}
     public string PreviewMessage=>selectedFile?.HasPendingScoreProperties == true?selectedFile.UsesNativeScoreWorkflow?"Alterações pendentes · atualize a partitura pelo Editor musical ou pelas Propriedades.":"Alterações pendentes · gere novamente para atualizar esta prévia.":selectedFile?.ScorePath is null?"A prévia aparecerá depois da geração.":"Todas as páginas · use as miniaturas, o zoom ou a tela cheia para estudar.";
-    public string GenerationHint=>selectedFile is { HasMusicalEdits:true, IsNativeScore:false }?"Continue as alterações no Editor musical. Para gerar a partir do MIDI, restaure uma versão anterior às edições no Histórico.":selectedFile?.IsNativeScore==true?"Melhore a apresentação em uma nova cópia e compare as versões no Histórico.":selectedFile?.AnalysisPath is null?selectedFile is { Document:not null } row && (row.UseReviewedProfile || row.Tracks.Any(track=>track.IsMelody))?"Ao gerar, os acordes serão analisados para a melodia selecionada. Confira as cifras sugeridas.":"Escolha a pista de melodia para gerar a partitura.":UseReviewedProfile?"Perfil revisado carregado. Ajustes feitos na tabela de cifras serão aplicados.":"Confira a fonte de melodia e as cifras: uma análise automática precisa de revisão musical.";
+    public string GenerationHint=>selectedFile is { HasMusicalEdits:true, IsNativeScore:false }?"Continue as alterações no Editor musical. Para gerar a partir do MIDI, restaure uma versão anterior às edições no Histórico.":selectedFile?.IsNativeScore==true?"Melhore a apresentação em uma nova cópia e compare as versões no Histórico.":selectedFile?.AnalysisPath is null?selectedFile is { Document:not null } row && (row.UseReviewedProfile || row.HasMelodyChoice)?row.ChordsOnly?"Ao gerar, os acordes serão analisados em todas as pistas, para uma partitura só de cifras.":"Ao gerar, os acordes serão analisados para a melodia selecionada. Confira as cifras sugeridas.":"Escolha a pista de melodia para gerar a partitura.":UseReviewedProfile?"Perfil revisado carregado. Ajustes feitos na tabela de cifras serão aplicados.":"Confira a fonte de melodia e as cifras: uma análise automática precisa de revisão musical.";
     public MainWindow(bool smoke=false,string? settingsPath=null,Func<IMidiOutputTransport>? midiOutputFactory=null)
     {
         settings=Settings.Load(settingsPath);
@@ -109,7 +109,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore)); Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
-        foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText)})Notify(name);
+        foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText),nameof(FoldRepeats),nameof(SimplifiedChords),nameof(ChordsOnly),nameof(IncludeLyrics)})Notify(name);
         RefreshDashboard();
         Preview=null;
         if(selectedFile?.PreviewPath is { } path && File.Exists(path))
@@ -286,7 +286,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         PersistPreferences();
         if(changed.IsSecondVoice)Status=$"Segunda voz: {changed.Instrument}. Gere de novo para ver a pauta extra abaixo da melodia.";
     }
-    private JsonArray Sources(MidiRow row)=>new(GetOrderedMelodySources(row).Select(key=>(JsonNode)new JsonObject{["track"]=key.Track,["channel"]=key.Channel,["program"]=key.Program}).ToArray());
+    private JsonArray Sources(MidiRow row)=>row.ChordsOnly&&!row.UseReviewedProfile?new JsonArray():new(GetOrderedMelodySources(row).Select(key=>(JsonNode)new JsonObject{["track"]=key.Track,["channel"]=key.Channel,["program"]=key.Program}).ToArray());
     private static void RequireMidiWorkflow(MidiRow row)
     {
         if(row.UsesNativeScoreWorkflow)throw new InvalidOperationException(row.HasMusicalEdits && !row.IsNativeScore
@@ -299,9 +299,10 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         ValidateSettings(false);
         string beforeAnalysis=ScoreDraftMusicalFingerprint(row);
         if(row.Document is null)throw new InvalidOperationException("Este arquivo não pôde ser lido como MIDI.");
-        if(!row.UseReviewedProfile && !row.Tracks.Any(t=>t.IsMelody))throw new InvalidOperationException("Marque uma pista de melodia ou use o perfil revisado.");
+        if(!row.UseReviewedProfile && !row.HasMelodyChoice)throw new InvalidOperationException("Marque uma pista de melodia, use o perfil revisado ou ligue Só cifras.");
         row.Workspace=Path.Combine(persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!,"jobs",Guid.NewGuid().ToString("N"));
         var request=new JsonObject{["mode"]="analyze",["workspace"]=row.Workspace,["inputMidi"]=row.FullPath,["useReviewedProfile"]=row.UseReviewedProfile,["melodySources"]=Sources(row),["melodySections"]=MelodySections(row),["expectedSourceSha256"]=row.SourceSha256};
+        if(row.ChordsOnly && !row.UseReviewedProfile){request["chordsOnly"]=true;request["melodySources"]=new JsonArray();request["melodySections"]=new JsonArray();}
         row.Status="Analisando acordes…";
         var client=new EngineClient(PythonPath,engineDirectory);
         var result=await client.RunAsync(request,row.Workspace,CreateOperationProgress(),cancellation!.Token);
@@ -348,7 +349,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         row.Status="Gerando e conferindo no MuseScore…";
         request["transposeSemitones"]=row.TransposeSemitones;
         if(row.FoldRepeats)request["foldRepeats"]=true;
-        if(SecondVoiceSources(row) is {Count:>0} secondVoice)request["secondVoiceSources"]=secondVoice;
+        if(!row.IncludeLyrics)request["includeLyrics"]=false;
+        if(SecondVoiceSources(row) is {Count:>0} secondVoice && !row.ChordsOnly)request["secondVoiceSources"]=secondVoice;
         if(ScoreStyleRequest() is {} scoreStyle)request["scoreStyle"]=scoreStyle;
         request["scoreArtist"]=row.ScoreArtist;
         var result=await new EngineClient(PythonPath,engineDirectory).RunAsync(request,row.Workspace!,CreateOperationProgress(),cancellation!.Token);

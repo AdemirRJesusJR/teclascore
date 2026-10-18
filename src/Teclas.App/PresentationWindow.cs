@@ -175,7 +175,7 @@ public sealed partial class PresentationWindow : Window
     private void ViewerPageChanged(object? sender, EventArgs e)
     {
         if (loading || preparation is not null || viewer.PageCount == 0 || Current is not { } current) return;
-        UpdateEntry(current with { LastPage = Math.Clamp(viewer.CurrentPage, 1, 100000) }); Changed();
+        UpdateEntry(current with { LastPage = Math.Clamp(viewer.CurrentPage, 1, 100000) }); Changed(); PublishState();
     }
     private void Changed()
     {
@@ -234,6 +234,7 @@ public sealed partial class PresentationWindow : Window
         int index = Current is { } current ? entries.IndexOf(current) : -1;
         currentTitle.Text = index < 0 ? "Seu repertório" : $"{index + 1} / {entries.Count} · {entries[index].Title}";
         nextTitle.Text = index >= 0 && index + 1 < entries.Count ? "Próxima: " + entries[index + 1].Title : index >= 0 ? "Última música do repertório" : "Nenhuma música selecionada";
+        PublishState();
         upButton.IsEnabled = !persistenceBlocked && index > 0; downButton.IsEnabled = !persistenceBlocked && index >= 0 && index + 1 < entries.Count;
         addButton.IsEnabled = !persistenceBlocked && library.Items.Count > 0; removeButton.IsEnabled = !persistenceBlocked && index >= 0;
         notes.IsEnabled = !persistenceBlocked && index >= 0; repertoireTitle.IsEnabled = !persistenceBlocked;

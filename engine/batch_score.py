@@ -733,6 +733,17 @@ def convert_score(xml,report,out,filename):
     progress('Inserindo os diagramas de teclado junto às cifras…')
     with zipfile.ZipFile(initial) as z:contents={n:z.read(n) for n in z.namelist()}
     name=next(n for n in contents if n.endswith('.mscx'));root=E.fromstring(contents[name]);harmonies=root.findall('.//Harmony')
+    if report.get('melody_analysis',{}).get('chords_only'):
+        # Rhythm slashes only show the beats: they never sound (the chord symbols play the harmony).
+        for note in root.iter('Note'):
+            play=note.find('play')
+            if play is None:play=sub(note,'play')
+            play.text='0'
+    jump=report.get('melody_analysis',{}).get('repeat_jump')
+    if jump:
+        import score_repeats
+        expected=2+('D.S.' in jump['jump'])+(jump['coda_measures']>0)
+        if score_repeats.native_jumps(root,E)!=expected:raise NeedsReview('Não foi possível preservar os sinais de D.S./Coda. Gere novamente sem repetições.',kind='repeat_jump')
     if labels:
         texts=root.findall('Score/Staff/Measure/voice/StaffText')
         if [''.join(text.find('text').itertext()) for text in texts]!=[label['text'] for label in labels]:
