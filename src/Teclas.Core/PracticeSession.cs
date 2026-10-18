@@ -89,6 +89,27 @@ public sealed class PracticeSession
         return steps;
     }
 
+    /// <summary>
+    /// Both hands: the chord of the cipher joins the melody step that starts with it (a chord without a melody attack
+    /// becomes its own step). Later melody steps under the same chord are played by the right hand alone.
+    /// </summary>
+    public static IReadOnlyList<PracticeStep> Combine(IReadOnlyList<PracticeStep> melody, IReadOnlyList<PracticeStep> chords)
+    {
+        var byStart = melody.GroupBy(step => Math.Round(step.Start, 3)).ToDictionary(group => group.Key, group => group.First());
+        var result = new List<PracticeStep>(melody);
+        foreach (var chord in chords)
+        {
+            double at = Math.Round(chord.Start, 3);
+            if (byStart.TryGetValue(at, out var step))
+            {
+                var merged = step with { Pitches = step.Pitches.Concat(chord.Pitches).Distinct().Order().ToArray(), Label = chord.Label };
+                result[result.IndexOf(step)] = merged; byStart[at] = merged;
+            }
+            else result.Add(chord);
+        }
+        return result.OrderBy(step => step.Start).ToArray();
+    }
+
     /// <summary>Start of each measure in quarters: the longest staff content of the earlier measures (4 when empty).</summary>
     public static IReadOnlyDictionary<int, double> MeasureStarts(NativeMusicModel model)
     {

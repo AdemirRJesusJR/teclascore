@@ -1,3 +1,10 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.35.0
+17/10/2026
+
+- Busca, duas mãos, metas e gravação: 15 verificações (voz superior, busca em outro tom, meio tom pela metade, classificação, janela buscando enquanto se toca; passos das duas mãos unidos pelo tempo e usados na prática, registro da tentativa; meta diária celebrada; metas salvas e mostradas no histórico e normalizadas nas preferências; gravação salva em MIDI e lida de volta, reprodução na ordem e no tempo).
+- Teclado MIDI físico não foi usado; as teclas foram simuladas.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.34.0
 17/10/2026
 

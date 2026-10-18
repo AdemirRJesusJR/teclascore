@@ -31,7 +31,12 @@ public partial class MainWindow
         using var audio = File.Exists(MuseScorePath) && practiceAccompaniment is null
             ? new EditorScorePlayback(MuseScorePath, Path.Combine(PlaybackCacheDirectory, "pratica")) : null;
         IPracticeAccompaniment? accompaniment = practiceAccompaniment ?? (audio is null ? null : new ScorePracticeAccompaniment(scorePath, audio));
-        var window = new PracticeWindow(title, steps, chords, settings.PracticeAnyOctave, settings.PracticeBpm, preview, accompaniment, starts) { Owner = this };
+        string songKey = selectedFile?.FullPath ?? scorePath;
+        var window = new PracticeWindow(title, steps, chords, settings.PracticeAnyOctave, settings.PracticeBpm, preview, accompaniment, starts)
+        {
+            Owner = this, DailyGoalMinutes = settings.DailyGoalMinutes, MinutesBeforeToday = StudyHistoryWindow.TodayMinutes(settings.StudyHistory),
+            TempoGoal = settings.TempoGoals.TryGetValue(songKey, out int goal) ? goal : null
+        };
         practiceDialog(window);
         bool changed = settings.PracticeAnyOctave != window.Session.AnyOctave || settings.PracticeBpm != (int)window.Bpm;
         settings.PracticeAnyOctave = window.Session.AnyOctave; settings.PracticeBpm = (int)window.Bpm;
@@ -45,7 +50,13 @@ public partial class MainWindow
 
     private void StudyHistoryClick(object sender, RoutedEventArgs e)
     {
-        var window = new StudyHistoryWindow(settings.StudyHistory, () => { settings.StudyHistory.Clear(); PersistPreferences(); Status = "Histórico de estudo apagado."; }) { Owner = this };
+        var window = new StudyHistoryWindow(settings.StudyHistory, () => { settings.StudyHistory.Clear(); PersistPreferences(); Status = "Histórico de estudo apagado."; },
+            settings.DailyGoalMinutes, settings.TempoGoals, (daily, tempos) =>
+            {
+                settings.DailyGoalMinutes = daily;
+                settings.TempoGoals = new Dictionary<string, int>(tempos, StringComparer.OrdinalIgnoreCase);
+                PersistPreferences();
+            }) { Owner = this };
         studyHistoryDialog(window);
     }
 }

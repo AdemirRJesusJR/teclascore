@@ -33,6 +33,9 @@ public sealed class Settings
     public bool AutoCheckUpdates { get; set; } = true;
     /// <summary>Height of the controls above the score in the preview tab; null keeps it automatic.</summary>
     public double? PreviewControlsHeight { get; set; }
+    /// <summary>Study goals: minutes per day (0 = off) and a target tempo per song (key: MIDI path or title).</summary>
+    public int DailyGoalMinutes { get; set; }
+    public Dictionary<string, int> TempoGoals { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public const double MinimumPreviewControlsHeight = 40;
     public DateTime? LastUpdateCheck { get; set; }
     /// <summary>Newer release found by the last check: tag, installer name and its SHA-256 (empty when none).</summary>
@@ -137,6 +140,8 @@ public sealed class Settings
         PracticeBpm = Math.Clamp(PracticeBpm, 30, 200);
         LibrarySyncFolder ??= ""; LibrarySyncSentHash ??= ""; LibrarySyncRestoreRoot ??= "";
         KnownUpdateTag ??= ""; KnownUpdateSetup ??= ""; KnownUpdateSha256 ??= "";
+        DailyGoalMinutes = Math.Clamp(DailyGoalMinutes, 0, 600);
+        TempoGoals = new Dictionary<string, int>((TempoGoals ?? []).Where(goal => goal.Key is { Length: > 0 } && goal.Value is >= 30 and <= 300), StringComparer.OrdinalIgnoreCase);
         if (PreviewControlsHeight is { } controls && (!double.IsFinite(controls) || controls < MinimumPreviewControlsHeight || controls > 1200)) PreviewControlsHeight = null;
         StudyHistory = NormalizeStudyHistory(StudyHistory);
         DefaultDiagramInversion = NormalizeDiagramInversion(DefaultDiagramInversion);

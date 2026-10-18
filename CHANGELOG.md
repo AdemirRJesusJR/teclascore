@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.35.0 — 17/10/2026
+
+- Buscar tocando (Biblioteca): toque um trecho da melodia no teclado MIDI ou na tela, em qualquer tom, e o app lista as músicas com essa melodia (comparação pelos intervalos; meio tom de diferença conta pela metade).
+- Praticar com as duas mãos: o acorde da cifra entra no mesmo passo da nota da melodia que começa com ele.
+- Metas de estudo (📈 Histórico): minutos por dia e andamento-alvo por música. A prática mostra o progresso do dia e avisa quando a meta é cumprida ou o andamento é alcançado com 80 pontos.
+- Gravar a execução (Praticar): grava o que você toca, salva em MIDI em Documentos\TeclaScore\Gravações e toca de novo na própria janela.
+
 ## 0.34.0 — 17/10/2026
 
 - Prévia com barra flutuante dentro da própria partitura: miniaturas, páginas, zoom, largura, página inteira e tela cheia em ícones compactos, no lugar da fileira de botões acima.

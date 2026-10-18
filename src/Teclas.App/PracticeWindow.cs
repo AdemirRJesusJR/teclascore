@@ -9,7 +9,7 @@ using Teclas.Core;
 
 namespace Teclas.App;
 
-public enum PracticeMode { Notes, Chords }
+public enum PracticeMode { Notes, Chords, Both }
 
 /// <summary>
 /// Practice with a MIDI keyboard or the on-screen keys. Two kinds of steps (score notes, or chord symbols voiced like
@@ -44,10 +44,30 @@ public sealed partial class PracticeWindow : Window
     internal Func<IMidiOutputTransport?> clickOutput = () => new WinMmMidiOutputTransport();
     public PracticeSession Session => session;
     public TimedPracticeSession? Timed => timed;
-    public PracticeMode Mode => mode.SelectedIndex == 1 ? PracticeMode.Chords : PracticeMode.Notes;
+    public PracticeMode Mode => mode.SelectedIndex switch { 1 => PracticeMode.Chords, 2 => PracticeMode.Both, _ => PracticeMode.Notes };
     public bool InTime => inTime.IsChecked == true;
     public double Bpm => Math.Round(tempo.Value);
     public TimeSpan StudyTime => studied.Elapsed;
+    /// <summary>Goals shown while practicing: minutes per day (with the minutes already studied today) and the song's target tempo.</summary>
+    public int DailyGoalMinutes { get; init; }
+    public double MinutesBeforeToday { get; init; }
+    public int? TempoGoal { get; init; }
+    internal bool DailyGoalCelebrated { get; private set; }
+    private string GoalText
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (DailyGoalMinutes > 0)
+            {
+                double today = MinutesBeforeToday + studied.Elapsed.TotalMinutes;
+                if (today >= DailyGoalMinutes && !DailyGoalCelebrated) { DailyGoalCelebrated = true; feedback.Text += " Meta do dia cumprida!"; }
+                parts.Add($"hoje {Math.Floor(today):0} de {DailyGoalMinutes} min{(today >= DailyGoalMinutes ? " ✓" : "")}");
+            }
+            if (TempoGoal is { } goal) parts.Add($"meta ♩ = {goal}");
+            return parts.Count == 0 ? "" : " · " + string.Join(" · ", parts);
+        }
+    }
     /// <summary>Every attempt in this window, for the study history.</summary>
     public List<StudyRecord> Attempts { get; } = [];
 
@@ -67,10 +87,10 @@ public sealed partial class PracticeWindow : Window
 
         var options = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) }; top.Children.Add(options);
         options.Children.Add(Label("Praticar"));
-        mode = new ComboBox { Width = 210, ItemsSource = new[] { "Notas da partitura", "Acordes da cifra (mão esquerda)" }, SelectedIndex = 0, Margin = new Thickness(0, 0, 16, 6) };
+        mode = new ComboBox { Width = 210, ItemsSource = new[] { "Notas da partitura", "Acordes da cifra (mão esquerda)", "Duas mãos (melodia e acordes)" }, SelectedIndex = 0, Margin = new Thickness(0, 0, 16, 6) };
         AutomationProperties.SetName(mode, "O que praticar");
         if (chords.Count == 0) mode.ToolTip = "Esta partitura não tem cifras para praticar acordes.";
-        mode.SelectionChanged += (_, _) => { if (Mode == PracticeMode.Chords && chordSteps.Count == 0) { mode.SelectedIndex = 0; feedback!.Text = "Esta partitura não tem cifras para praticar acordes."; return; } Reset(); };
+        mode.SelectionChanged += (_, _) => { if (Mode != PracticeMode.Notes && chordSteps.Count == 0) { mode.SelectedIndex = 0; feedback!.Text = "Esta partitura não tem cifras para praticar acordes."; return; } Reset(); };
         options.Children.Add(mode);
         inTime = new CheckBox { Content = "No tempo", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 6),
             ToolTip = "Corre a partitura no andamento escolhido, com metrônomo e um compasso de contagem, e dá pontos por tecla: no tempo, adiantada ou atrasada." };
@@ -120,6 +140,7 @@ public sealed partial class PracticeWindow : Window
         footer.Children.Add(start); footer.Children.Add(back); footer.Children.Add(skip);
         footer.Children.Add(DialogUi.Button("Recomeçar", (_, _) => Reset()));
         var close = DialogUi.Button("Fechar", (_, _) => Close()); close.IsCancel = true; footer.Children.Add(close);
+        BuildRecording(footer);
 
         var middle = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
         if (previewPath is not null)
@@ -144,7 +165,13 @@ public sealed partial class PracticeWindow : Window
     }
 
     private bool AnyOctave => octave.IsChecked == true;
-    private IReadOnlyList<PracticeStep> CurrentSteps => Mode == PracticeMode.Chords ? chordSteps : noteSteps;
+    private IReadOnlyList<PracticeStep> CurrentSteps => Mode switch
+    {
+        PracticeMode.Chords => chordSteps,
+        PracticeMode.Both => bothSteps ??= PracticeSession.Combine(noteSteps, chordSteps),
+        _ => noteSteps
+    };
+    private IReadOnlyList<PracticeStep>? bothSteps;
     /// <summary>Clock position in quarters: from the music when it plays, else the metronome (negative during the count-in).</summary>
     internal double Position => musicRunning && timeline is not null && accompaniment is not null ? timeline.ToQuarters(accompaniment.PositionSeconds)
         : watch.Elapsed.TotalSeconds * Bpm / 60 - CountInBeats + firstBeat;
@@ -159,7 +186,8 @@ public sealed partial class PracticeWindow : Window
         try
         {
             input = new MidiKeyboardInput(devices.SelectedIndex);
-            input.NoteOn += (pitch, _) => Dispatcher.InvokeAsync(() => Play(pitch));
+            input.NoteOn += (pitch, velocity) => Dispatcher.InvokeAsync(() => { Record(pitch, velocity); Play(pitch); });
+            input.NoteOff += pitch => Dispatcher.InvokeAsync(() => Record(pitch, 0));
             feedback.Text = "Teclado conectado.";
         }
         catch (InvalidOperationException error) { feedback.Text = error.Message + " Você ainda pode clicar nas teclas da tela."; }
@@ -226,6 +254,7 @@ public sealed partial class PracticeWindow : Window
         {
             StopMusic(); StopClock(); start.Content = "▶ Começar";
             feedback.Text = $"Fim! {timed.Score:0} pontos · {timed.OnTime} no tempo · {timed.OffTime} fora do tempo · {timed.Missed} perdidas · {timed.Wrong} erradas.";
+            if (TempoGoal is { } goal && timed.Bpm >= goal && timed.Score >= 80) feedback.Text += $" Meta de andamento ♩ = {goal} atingida!";
             RecordAttempt(); PassageFinished();
         }
         Refresh(position);
@@ -277,7 +306,7 @@ public sealed partial class PracticeWindow : Window
         Attempts.Add(new StudyRecord
         {
             Date = attemptStarted, Seconds = Math.Max(1, (int)(DateTime.Now - attemptStarted).TotalSeconds),
-            Mode = (attemptMode == PracticeMode.Chords ? "acordes" : "notas") + (timed is null ? "" : " no tempo"),
+            Mode = attemptMode switch { PracticeMode.Chords => "acordes", PracticeMode.Both => "duas mãos", _ => "notas" } + (timed is null ? "" : " no tempo"),
             Bpm = timed is null ? null : (int)timed.Bpm, Hits = hits, Misses = misses, Steps = total, StepsDone = Math.Min(done, total),
             Score = timed?.Score ?? Math.Round(100.0 * session.Accuracy, 1),
             Completed = timed?.IsFinished ?? session.IsFinished
@@ -305,7 +334,11 @@ public sealed partial class PracticeWindow : Window
             Canvas.SetLeft(key, x); keyboard.Children.Add(key); keys[pitch] = key;
         }
         keyboard.Width = whiteIndex * white;
-        foreach (var key in keys.Values) key.MouseLeftButtonDown += (sender, _) => Play((int)((Rectangle)sender).Tag);
+        foreach (var key in keys.Values)
+        {
+            key.MouseLeftButtonDown += (sender, _) => { int pitch = (int)((Rectangle)sender).Tag; Record(pitch, 90); Play(pitch); };
+            key.MouseLeftButtonUp += (sender, _) => Record((int)((Rectangle)sender).Tag, 0);
+        }
     }
 
     private static string Describe(PracticeStep step) =>
@@ -332,14 +365,14 @@ public sealed partial class PracticeWindow : Window
             double position = at ?? (clock.IsEnabled ? Position : run.Position);
             if (clock.IsEnabled && position < firstBeat) expected.Text = $"Contagem… {(int)Math.Ceiling(firstBeat - position)}";
             else expected.Text = run.Current is { } next ? Describe(next) : run.Steps.Count == 0 ? "Nada para praticar nesta escolha." : "Fim da música!";
-            progress.Text = $"{(run.Current is { } step ? $"Compasso {step.Measure} · " : "")}♩ = {run.Bpm:0}{(musicRunning ? $" · música em {MusicSpeed:P0}" : "")} · {run.Score:0} pontos · {run.OnTime} no tempo · {run.OffTime} fora · {run.Missed} perdidas · {run.Wrong} erradas{AttemptText}";
+            progress.Text = $"{(run.Current is { } step ? $"Compasso {step.Measure} · " : "")}♩ = {run.Bpm:0}{(musicRunning ? $" · música em {MusicSpeed:P0}" : "")} · {run.Score:0} pontos · {run.OnTime} no tempo · {run.OffTime} fora · {run.Missed} perdidas · {run.Wrong} erradas{AttemptText}{GoalText}";
             FollowScore(position);
             return;
         }
         if (session.Current is { } current)
         {
             expected.Text = Describe(current);
-            progress.Text = $"Compasso {current.Measure} · passo {session.Index + 1} de {session.Steps.Count} · {session.Hits} acertos · {session.Misses} erros{AttemptText}";
+            progress.Text = $"Compasso {current.Measure} · passo {session.Index + 1} de {session.Steps.Count} · {session.Hits} acertos · {session.Misses} erros{AttemptText}{GoalText}";
             FollowScore(current.Start);
         }
         else

@@ -1,3 +1,10 @@
+TECLASCORE 0.35.0 · BUSCA TOCANDO, DUAS MÃOS, METAS E GRAVAÇÃO
+
+1. Na Biblioteca, Buscar tocando: toque 5 a 8 notas do começo de uma música (em outro tom também) e confira se ela aparece no topo.
+2. Em Praticar, escolha Duas mãos: os passos pedem a nota da melodia junto com o acorde.
+3. No 📈 Histórico, defina meta diária e meta de andamento de uma música; pratique e veja o progresso e o aviso de meta.
+4. Em Praticar, clique em Gravar, toque um trecho, pare e ouça a gravação; confira o arquivo em Documentos\TeclaScore\Gravações.
+
 TECLASCORE 0.34.0 · PRÉVIA, FILA E DESFAZER
 
 1. Abra a Prévia: a barra de ícones aparece dentro da partitura, embaixo. Teste páginas, zoom, largura, página inteira, miniaturas e tela cheia.

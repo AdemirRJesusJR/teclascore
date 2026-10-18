@@ -45,8 +45,23 @@ public sealed class StudyHistoryWindow : Window
 {
     public IReadOnlyList<StudySongSummary> Songs { get; }
 
-    public StudyHistoryWindow(IReadOnlyList<StudyRecord> records, Action? clear = null)
+    private readonly Dictionary<string, int> tempoGoals;
+    private readonly Action<int, IReadOnlyDictionary<string, int>>? saveGoals;
+    private TextBox? dailyGoal, tempoGoal;
+    private TextBlock? goalStatus;
+    private StudySongSummary? selected;
+    internal TextBox? DailyGoalBox => dailyGoal;
+    internal TextBox? TempoGoalBox => tempoGoal;
+    internal TextBlock? GoalStatus => goalStatus;
+
+    /// <summary>Minutes studied today, from the saved attempts.</summary>
+    public static double TodayMinutes(IEnumerable<StudyRecord> records) => records.Where(r => r.Date.Date == DateTime.Today).Sum(r => r.Seconds) / 60.0;
+
+    public StudyHistoryWindow(IReadOnlyList<StudyRecord> records, Action? clear = null, int dailyGoalMinutes = 0,
+        IReadOnlyDictionary<string, int>? tempoGoals = null, Action<int, IReadOnlyDictionary<string, int>>? saveGoals = null)
     {
+        this.tempoGoals = new Dictionary<string, int>(tempoGoals ?? new Dictionary<string, int>(), StringComparer.OrdinalIgnoreCase);
+        this.saveGoals = saveGoals;
         Title = "Histórico de estudo"; Width = 940; Height = 720; MinWidth = 700; MinHeight = 420; DialogUi.Theme(this);
         Songs = StudyHistory.Summaries(records);
         var root = new DockPanel { Margin = new Thickness(20) }; Content = root;
@@ -56,6 +71,20 @@ public sealed class StudyHistoryWindow : Window
         top.Children.Add(new TextBlock { Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap,
             Text = records.Count == 0 ? "Ainda não há práticas registradas. Use 🎹 Praticar na prévia da partitura."
                 : $"{records.Count} práticas em {Songs.Count} músicas · {(total.TotalHours >= 1 ? $"{(int)total.TotalHours} h {total.Minutes:00} min" : $"{(int)Math.Round(total.TotalMinutes)} min")} no total. Pontos de 0 a 100: na espera, a precisão; no tempo, a precisão com o ritmo." });
+        if (saveGoals is not null)
+        {
+            var goals = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) }; top.Children.Add(goals);
+            goals.Children.Add(new TextBlock { Text = "Meta diária (min)", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 4) });
+            dailyGoal = new TextBox { Width = 56, Text = dailyGoalMinutes > 0 ? dailyGoalMinutes.ToString() : "", Margin = new Thickness(0, 0, 16, 4), ToolTip = "Vazio ou 0: sem meta diária" };
+            AutomationProperties.SetName(dailyGoal, "Meta diária em minutos");
+            goals.Children.Add(dailyGoal);
+            goals.Children.Add(new TextBlock { Text = "Meta de andamento desta música (♩)", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 4) });
+            tempoGoal = new TextBox { Width = 56, Margin = new Thickness(0, 0, 8, 4), ToolTip = "Andamento que você quer alcançar no tempo, concluindo a música com 80 pontos ou mais" };
+            AutomationProperties.SetName(tempoGoal, "Meta de andamento da música selecionada");
+            goals.Children.Add(tempoGoal);
+            goalStatus = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 4) }; goals.Children.Add(goalStatus);
+            dailyGoal.LostFocus += (_, _) => SaveGoals(); tempoGoal.LostFocus += (_, _) => SaveGoals();
+        }
         var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
         DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
         if (clear is not null && records.Count > 0)
@@ -84,7 +113,7 @@ public sealed class StudyHistoryWindow : Window
         ChartTitle = new TextBlock { FontWeight = FontWeights.SemiBold, Text = "Escolha uma música para ver a evolução." }; chartPanel.Children.Add(ChartTitle);
         Chart = new Canvas { Height = 150, Margin = new Thickness(0, 6, 0, 0), ClipToBounds = true }; chartPanel.Children.Add(Chart);
         AutomationProperties.SetName(Chart, "Evolução da pontuação por prática");
-        grid.SelectionChanged += (_, _) => DrawChart(grid.SelectedItem as StudySongSummary);
+        grid.SelectionChanged += (_, _) => { SaveGoals(); DrawChart(grid.SelectedItem as StudySongSummary); ShowGoals(grid.SelectedItem as StudySongSummary); };
         Chart.SizeChanged += (_, _) => DrawChart(grid.SelectedItem as StudySongSummary);
         this.records = records;
         root.Children.Add(grid);
@@ -95,6 +124,35 @@ public sealed class StudyHistoryWindow : Window
     internal TextBlock ChartTitle { get; }
     internal Canvas Chart { get; }
     internal int ChartPoints { get; private set; }
+
+    /// <summary>Shows the selected song's tempo goal and how far the fastest completed tempo is from it.</summary>
+    private void ShowGoals(StudySongSummary? song)
+    {
+        selected = song;
+        if (tempoGoal is null || goalStatus is null) return;
+        int? goal = song is not null && tempoGoals.TryGetValue(song.Key, out int value) ? value : null;
+        tempoGoal.Text = goal?.ToString() ?? "";
+        double today = TodayMinutes(records);
+        string daily = int.TryParse(dailyGoal?.Text, out int minutes) && minutes > 0 ? $"Hoje: {today:0} de {minutes} min{(today >= minutes ? " ✓" : "")}" : $"Hoje: {today:0} min";
+        string tempo = goal is { } target && song is not null
+            ? StudyHistory.Attempts(records, song.Key).Any(r => r.Completed && r.Bpm >= target && r.Score >= 80) ? $" · meta de ♩ = {target} atingida ✓"
+                : $" · meta ♩ = {target}, melhor concluído {(song.FastestBpm is { } best ? "♩ = " + best : "—")}" : "";
+        goalStatus.Text = daily + tempo;
+    }
+
+    /// <summary>Saves both goals (invalid numbers clear them).</summary>
+    internal void SaveGoals()
+    {
+        if (saveGoals is null) return;
+        int daily = int.TryParse(dailyGoal?.Text, out int minutes) ? Math.Clamp(minutes, 0, 600) : 0;
+        if (selected is not null)
+        {
+            if (int.TryParse(tempoGoal?.Text, out int bpm) && bpm is >= 30 and <= 300) tempoGoals[selected.Key] = bpm;
+            else tempoGoals.Remove(selected.Key);
+        }
+        saveGoals(daily, tempoGoals);
+        ShowGoals(selected);
+    }
 
     private void DrawChart(StudySongSummary? song)
     {

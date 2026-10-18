@@ -17,6 +17,8 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-v035-ui")
+        { VerifyV035Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v034-ui")
         { VerifyV034Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v033-ui")

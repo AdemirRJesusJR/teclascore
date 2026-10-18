@@ -1,3 +1,7 @@
+TECLASCORE 0.35.0
+
+Buscar música tocando a melodia. Praticar com as duas mãos. Metas de estudo. Gravar e ouvir a sua execução.
+
 TECLASCORE 0.34.0
 
 Barra flutuante na prévia e área da partitura redimensionável. Resumo da fila. Cifra editada com o botão direito na partitura. Ctrl+Z / Ctrl+Y.
