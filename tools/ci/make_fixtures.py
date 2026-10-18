@@ -36,6 +36,9 @@ def create(destination):
                         '<duration>4</duration><type>whole</type></note></measure>')
     score = ('<?xml version="1.0" encoding="utf-8"?><score-partwise version="4.0">'
              '<work><work-title>Estudo sintético de integração</work-title></work>'
+             # A4 declared explicitly: without it MuseScore picks the paper of the system locale (Letter on US servers).
+             '<defaults><scaling><millimeters>7</millimeters><tenths>40</tenths></scaling>'
+             '<page-layout><page-height>1697</page-height><page-width>1200</page-width></page-layout></defaults>'
              '<part-list><score-part id="P1"><part-name>Piano</part-name>'
              '<score-instrument id="I1"><instrument-name>Piano</instrument-name></score-instrument>'
              '<midi-instrument id="I1"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument>'
