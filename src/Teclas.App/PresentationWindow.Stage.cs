@@ -28,6 +28,46 @@ public sealed partial class PresentationWindow
     /// <summary>Lyrics of each page of a song (MuseScore page layout), for the lyrics screen; set by the main window.</summary>
     internal Func<PresentationEntry, CancellationToken, Task<IReadOnlyList<string>>>? PageLyrics { get; init; }
     internal LyricsScreenWindow? LyricsWindow => lyricsWindow;
+    /// <summary>(songs, title, target file) → status text: the text chord sheets of the list as one PDF.</summary>
+    internal Func<IReadOnlyList<PresentationEntry>, string, string, Task<string>>? ExportSongbook { get; init; }
+    /// <summary>Opening tempo of a song (null when unknown) and the MIDI output for the count-in; set by the main window and tests.</summary>
+    internal Func<PresentationEntry, ScoreTempo?>? TempoOf { get; init; }
+    internal Func<IMidiOutputTransport?> countInOutput = () => new WinMmMidiOutputTransport();
+    private readonly Dictionary<Guid, ScoreTempo?> tempos = [];
+    private CancellationTokenSource? counting;
+    internal int CountIns { get; private set; }
+
+    /// <summary>Tempo and meter of the current song, read once per song.</summary>
+    internal ScoreTempo? CurrentTempo()
+    {
+        if (Current is not { } item || TempoOf is null) return null;
+        if (!tempos.TryGetValue(item.Id, out var tempo))
+        {
+            try { tempo = TempoOf(item); }
+            catch (Exception error) when (IsStorageFailure(error) || error is InvalidDataException or System.Xml.XmlException or InvalidOperationException) { tempo = null; }
+            tempos[item.Id] = tempo;
+        }
+        return tempo;
+    }
+
+    /// <summary>One measure of clicks at the song's tempo (C, the Contagem button, or the phone).</summary>
+    internal async Task CountIn()
+    {
+        if (CurrentTempo() is not { } tempo) { pageStatus.Text = "Andamento desta música indisponível para a contagem."; return; }
+        counting?.Cancel();
+        using var operation = new CancellationTokenSource(); counting = operation;
+        IMidiOutputTransport? output = null;
+        try
+        {
+            output = countInOutput();
+            if (output is null) { pageStatus.Text = "Nenhuma saída de som MIDI disponível para a contagem."; return; }
+            CountIns++; pageStatus.Text = $"Contagem: {tempo.Beats} tempos a {tempo.Label}";
+            await StageCountIn.PlayAsync(output, tempo, operation.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch (InvalidOperationException error) { pageStatus.Text = "Contagem indisponível: " + error.Message; }
+        finally { output?.Dispose(); if (ReferenceEquals(counting, operation)) counting = null; }
+    }
     internal RemoteControlServer? Remote => remote;
     private MidiKeyboardInput? pedalInput;
     private readonly Dictionary<int, int> pedalValues = [];
@@ -58,6 +98,8 @@ public sealed partial class PresentationWindow
         if (exportPdf is not null)
         {
             row.Children.Add(Button("PDF do repertório", "PresentationPdf", async (_, _) => await ExportPdf()));
+            var songbook = Button("Cifras do repertório", "PresentationSongbook", async (_, _) => await ExportSongbookPdf());
+            songbook.ToolTip = "Um PDF com a cifra em texto de cada música da lista, na ordem do repertório"; row.Children.Add(songbook);
             tabletPdf = new CheckBox { Content = "formato tablet", VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 0, 16, 6), ToolTip = "Margens estreitas e página 3:4; o layout das partituras não muda." };
             row.Children.Add(tabletPdf);
         }
@@ -83,7 +125,7 @@ public sealed partial class PresentationWindow
         remoteInfo = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 520, VerticalAlignment = VerticalAlignment.Center };
         remoteRow.Children.Add(remoteInfo);
         heading.Children.Add(remoteRow);
-        Closed += (_, _) => { SetPhoneRemote(false); lyricsLoading?.Cancel(); lyricsWindow?.Close(); };
+        Closed += (_, _) => { SetPhoneRemote(false); lyricsLoading?.Cancel(); lyricsWindow?.Close(); counting?.Cancel(); };
     }
 
     /// <summary>Starts or stops the phone remote; commands arrive on the network thread and run here.</summary>
@@ -184,6 +226,7 @@ public sealed partial class PresentationWindow
             case "prev": ChangePage(-1); break;
             case "nextsong": ChangeSong(1); break;
             case "prevsong": ChangeSong(-1); break;
+            case "count": _ = CountIn(); break;
         }
     }
 
@@ -253,6 +296,23 @@ public sealed partial class PresentationWindow
         saveStatus.Visibility = Visibility.Visible;
         saveStatus.Text = "Montando o PDF do repertório…";
         saveStatus.Text = await exportPdf(entries.ToArray(), repertoireTitle.Text, target, tabletPdf?.IsChecked == true);
+    }
+
+    internal async Task ExportSongbookPdf()
+    {
+        if (ExportSongbook is null) return;
+        if (entries.Count == 0) { saveStatus.Text = "Adicione músicas ao repertório antes de montar o caderno de cifras."; return; }
+        SaveChanges();
+        string? target = pdfTarget is { } choose ? choose(repertoireTitle.Text + " - cifras") : null;
+        if (pdfTarget is null)
+        {
+            var dialog = new SaveFileDialog { Title = "Salvar as cifras do repertório", Filter = "PDF|*.pdf", DefaultExt = ".pdf", AddExtension = true,
+                FileName = ScoreFileName.Stem(null, repertoireTitle.Text) + " - cifras.pdf" };
+            target = dialog.ShowDialog(this) == true ? dialog.FileName : null;
+        }
+        if (target is null) return;
+        saveStatus.Visibility = Visibility.Visible; saveStatus.Text = "Montando as cifras do repertório…";
+        saveStatus.Text = await ExportSongbook(entries.ToArray(), repertoireTitle.Text, target);
     }
 
     /// <summary>While presenting, the sustain pedal (64) turns forward and the soft pedal (67) back, on the press only.</summary>

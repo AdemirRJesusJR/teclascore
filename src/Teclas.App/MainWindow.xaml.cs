@@ -78,6 +78,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeLibrarySync();
         InitializeChordAlternatives();
         InitializeAutoUpdate(smoke);
+        InitializeAutoBackup(smoke);
         InitializePreviewSplit();
         InitializePreviewChords();
         InitializeUndo();
@@ -109,7 +110,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore)); Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
-        foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText),nameof(FoldRepeats),nameof(SimplifiedChords),nameof(ChordsOnly),nameof(IncludeLyrics),nameof(CanShowChordSheetText)})Notify(name);
+        foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText),nameof(FoldRepeats),nameof(SimplifiedChords),nameof(ChordsOnly),nameof(IncludeLyrics),nameof(CanShowChordSheetText),nameof(CanShowSimilarSongs)})Notify(name);
         RefreshDashboard();
         Preview=null;
         if(selectedFile?.PreviewPath is { } path && File.Exists(path))

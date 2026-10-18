@@ -90,12 +90,14 @@ public sealed partial class PresentationWindow : Window
         pageStatus = new TextBlock { Name = "PresentationPageStatus", TextWrapping = TextWrapping.Wrap }; footer.Children.Add(pageStatus);
         saveStatus = new TextBlock { Name = "PresentationSaveStatus", TextWrapping = TextWrapping.Wrap, Margin = new(0, 4, 0, 5) }; footer.Children.Add(saveStatus);
         performanceBar = new StackPanel { Visibility = Visibility.Collapsed }; footer.Children.Add(performanceBar);
-        performanceBar.Children.Add(new TextBlock { Text = "Página: ← / →, ↑ / ↓, Page Up / Page Down ou Espaço · Música: Ctrl + ← / → · Esc: voltar · Pedal USB deve enviar essas teclas", TextWrapping = TextWrapping.Wrap });
+        performanceBar.Children.Add(new TextBlock { Text = "Página: ← / →, ↑ / ↓, Page Up / Page Down ou Espaço · Música: Ctrl + ← / → · Contagem: C · Esc: voltar · Pedal USB deve enviar essas teclas", TextWrapping = TextWrapping.Wrap });
         var navigation = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center }; performanceBar.Children.Add(navigation);
         navigation.Children.Add(Button("‹ Música", "PresentationPreviousSong", (_, _) => ChangeSong(-1)));
         navigation.Children.Add(Button("‹ Página", "PresentationPreviousPage", (_, _) => ChangePage(-1)));
         navigation.Children.Add(Button("Página ›", "PresentationNextPage", (_, _) => ChangePage(1)));
         navigation.Children.Add(Button("Música ›", "PresentationNextSong", (_, _) => ChangeSong(1)));
+        var count = Button("Contagem (C)", "PresentationCountIn", async (_, _) => await CountIn()); count.ToolTip = "Um compasso de cliques no andamento da música antes de começar";
+        navigation.Children.Add(count);
         navigation.Children.Add(Button("Voltar (Esc)", "PresentationExitPerformance", (_, _) => SetPresentation(false)));
         var actions = actionsPanel = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right }; footer.Children.Add(actions);
         rebuildButton = Button("Atualizar páginas", "PresentationRebuild", async (_, _) => await LoadSelectedPages(true)); actions.Children.Add(rebuildButton);
@@ -232,7 +234,7 @@ public sealed partial class PresentationWindow : Window
     private void Refresh()
     {
         int index = Current is { } current ? entries.IndexOf(current) : -1;
-        currentTitle.Text = index < 0 ? "Seu repertório" : $"{index + 1} / {entries.Count} · {entries[index].Title}";
+        currentTitle.Text = index < 0 ? "Seu repertório" : $"{index + 1} / {entries.Count} · {entries[index].Title}" + (CurrentTempo() is { } tempo ? "  ·  " + tempo.Label : "");
         nextTitle.Text = index >= 0 && index + 1 < entries.Count ? "Próxima: " + entries[index + 1].Title : index >= 0 ? "Última música do repertório" : "Nenhuma música selecionada";
         PublishState();
         upButton.IsEnabled = !persistenceBlocked && index > 0; downButton.IsEnabled = !persistenceBlocked && index >= 0 && index + 1 < entries.Count;
@@ -280,7 +282,9 @@ public sealed partial class PresentationWindow : Window
         if (!presenting) return;
         if (e.IsRepeat && e.Key is Key.Right or Key.Left or Key.Up or Key.Down or Key.PageDown or Key.PageUp or Key.Space)
         { e.Handled = true; return; }
-        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key is Key.Right or Key.Left)
+        if (Keyboard.Modifiers == ModifierKeys.None && e.Key == Key.C)
+        { _ = CountIn(); e.Handled = true; }
+        else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key is Key.Right or Key.Left)
         { ChangeSong(e.Key == Key.Right ? 1 : -1); e.Handled = true; }
         else if (Keyboard.Modifiers == ModifierKeys.None && e.Key is Key.Right or Key.Down or Key.PageDown or Key.Space)
         { ChangePage(1); e.Handled = true; }

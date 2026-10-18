@@ -43,6 +43,10 @@ public sealed class Settings
     public string ScoreSize { get; set; } = "normal";
     public bool Karaoke { get; set; }
     public bool CurrentChord { get; set; }
+    /// <summary>Weekly copy of the library into AutoBackupFolder (the newest four are kept).</summary>
+    public bool AutoBackup { get; set; }
+    public string AutoBackupFolder { get; set; } = "";
+    public DateTimeOffset? LastAutoBackup { get; set; }
     public string SmartList { get; set; } = "";
     public Dictionary<string, int> TempoGoals { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public const double MinimumPreviewControlsHeight = 40;

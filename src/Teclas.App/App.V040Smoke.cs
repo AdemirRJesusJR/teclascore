@@ -57,7 +57,7 @@ public partial class App
             Check(window.FindName("ClearLibraryButton") is Button { Width: 30 } clear && clear.ToolTip?.ToString()?.StartsWith("Limpar biblioteca") == true, "clear-library-is-an-icon-with-tooltip");
             var panel = (FrameworkElement)((FrameworkElement)window.FindName("LibrarySplitPanel")).Parent;
             double actions = ((Button)window.FindName("ConversionQueueButton")).TranslatePoint(new Point(0, 30), panel).Y;
-            Check(actions < 300, $"actions-fit-in-the-top-of-the-panel ({actions:0} px)");
+            Check(actions < 360, $"actions-fit-in-the-top-of-the-panel ({actions:0} px)");
             CaptureElement(panel, Path.Combine(reports, "library-panel.png"));
 
             // Chords only and lyrics: saved per song, sent to the engine, no melody track needed.

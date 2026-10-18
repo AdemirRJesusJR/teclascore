@@ -18,7 +18,21 @@ public partial class MainWindow
         var choices = Files.Where(row => row.ScorePath is not null || row.IsNativeScore)
             .Select(row => new PresentationLibraryItem(row.FullPath, row.ScorePath ?? row.FullPath, row.ScoreTitle, row.PreviewPath)).ToArray();
         var catalog = persistenceEnabled ? new PresentationCatalog(Path.Combine(directory, "presentation.json")) : null;
-        new PresentationWindow(store, choices, PreparePresentationPages, catalog, ExportPresentationPdf) { Owner = this, PageLyrics = PresentationPageLyrics }.ShowDialog();
+        new PresentationWindow(store, choices, PreparePresentationPages, catalog, ExportPresentationPdf) { Owner = this, PageLyrics = PresentationPageLyrics, ExportSongbook = ExportPresentationSongbook,
+            TempoOf = item => File.Exists(item.ScorePath) ? ScoreTempo.Read(item.ScorePath) : null }.ShowDialog();
+    }
+
+    /// <summary>The text chord sheets of a saved repertoire as one PDF, in its order.</summary>
+    internal async Task<string> ExportPresentationSongbook(IReadOnlyList<PresentationEntry> songs, string title, string target)
+    {
+        var items = songs.Where(song => File.Exists(song.ScorePath)).Select(song =>
+        {
+            var row = Files.FirstOrDefault(file => string.Equals(file.FullPath, song.SourcePath, StringComparison.OrdinalIgnoreCase));
+            return new RepertoireItem(song.ScorePath, song.Title, row?.ScoreArtist ?? "", row);
+        }).ToArray();
+        if (items.Length == 0) return "Nenhuma partitura deste repertório foi encontrada no computador.";
+        await BuildSongbookPdf(items, string.IsNullOrWhiteSpace(title) ? "Repertório" : title.Trim(), true, target);
+        return File.Exists(target) ? $"Cifras salvas com {items.Length} música(s): {target}" : Status;
     }
 
     /// <summary>Lyrics printed on each page of a song: the score's syllables placed by MuseScore's own page layout.</summary>

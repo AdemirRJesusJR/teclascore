@@ -1,3 +1,13 @@
+TECLASCORE 0.42.0 · CADERNO DE CIFRAS, ESTUDO DE ACORDES, CONTAGEM E CÓPIA AUTOMÁTICA
+
+1. Na Biblioteca, Caderno de cifras: marque algumas músicas e salve o PDF; confira o índice e o alinhamento dos acordes.
+2. Na Prévia, Cifra → ChordPro (.cho): abra o arquivo num app de cifras.
+3. Em Cifra em texto, cole uma cifra e use ½ ↓, ½ ↑ e Simplificar.
+4. Em Acordes para aprender, clique em Treinar num acorde novo e toque-o no teclado.
+5. Na Prévia, Parecidas: abra uma das músicas sugeridas.
+6. Na Apresentação, confira o andamento no título e aperte C (ou Contagem no celular) antes de tocar.
+7. Em Configurações, ligue Cópia automática toda semana e escolha uma pasta (pen drive ou nuvem).
+
 TECLASCORE 0.41.0 · ESTROFES, CIFRA EM TEXTO, VOZ, ACORDE ATUAL E TABLET
 
 1. Num MIDI de karaokê cujo refrão repete com outra letra, ligue Repetições e gere: o trecho aparece uma vez, com as duas estrofes; no karaokê, a 2ª estrofe aparece na segunda passagem.

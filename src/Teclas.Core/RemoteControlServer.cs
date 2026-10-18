@@ -16,7 +16,7 @@ public sealed record RemoteState(string Song, int Index, int Count, int Page, in
 
 public sealed class RemoteControlServer : IDisposable
 {
-    public static readonly IReadOnlySet<string> Commands = new HashSet<string> { "next", "prev", "nextsong", "prevsong" };
+    public static readonly IReadOnlySet<string> Commands = new HashSet<string> { "next", "prev", "nextsong", "prevsong", "count" };
     private readonly TcpListener listener;
     private readonly CancellationTokenSource stop = new();
     private readonly Action<string> onCommand;
@@ -133,7 +133,8 @@ public sealed class RemoteControlServer : IDisposable
         <div id="song">…</div><p id="now"></p><button id="view" onclick="toggle()">Ver a partitura aqui</button>
         <div id="score" onclick="tap(event)"><img id="pg" alt="Página atual"></div><div class="grid">
         <button class="main" onclick="send('next')">Página ›</button><button class="wide" onclick="send('prev')">‹ Página</button>
-        <button onclick="send('prevsong')">‹ Música</button><button onclick="send('nextsong')">Música ›</button></div>
+        <button onclick="send('prevsong')">‹ Música</button><button onclick="send('nextsong')">Música ›</button>
+        <button class="wide" onclick="send('count')">Contagem</button></div>
         <p id="s">Toque para virar as páginas no computador.</p>
         <script>
         var last='';

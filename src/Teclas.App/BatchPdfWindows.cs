@@ -35,15 +35,17 @@ public sealed class BatchPdfSelectionWindow : Window
     public BatchPdfSelectionWindow(IReadOnlyList<BatchPdfSource> sources) : this(sources, 0) { }
 
     /// <param name="hiddenWithoutScore">Library cards left out because they have no generated score yet.</param>
-    public BatchPdfSelectionWindow(IReadOnlyList<BatchPdfSource> sources, int hiddenWithoutScore, bool repertoire = false)
+    public BatchPdfSelectionWindow(IReadOnlyList<BatchPdfSource> sources, int hiddenWithoutScore, bool repertoire = false, bool songbook = false)
     {
-        Title = repertoire ? "Repertório em PDF" : "Exportar partituras em PDF"; Width = 960; Height = 630; MinWidth = 740; MinHeight = 480;
+        Title = songbook ? "Caderno de cifras" : repertoire ? "Repertório em PDF" : "Exportar partituras em PDF"; Width = 960; Height = 630; MinWidth = 740; MinHeight = 480;
         ShowInTaskbar = false; UseLayoutRounding = true; DialogUi.Theme(this); NameScope.SetNameScope(this, new NameScope());
         Rows = sources.Select(source => new BatchPdfSelectionRow(source)).ToArray();
         var root = BatchPdfUi.Root(this);
         var top = new StackPanel { Margin = new Thickness(0, 0, 0, 14) }; root.Children.Add(top);
-        top.Children.Add(BatchPdfUi.Heading(repertoire ? "Monte o repertório" : "Escolha as partituras"));
-        top.Children.Add(BatchPdfUi.Text(repertoire
+        top.Children.Add(BatchPdfUi.Heading(songbook ? "Monte o caderno de cifras" : repertoire ? "Monte o repertório" : "Escolha as partituras"));
+        top.Children.Add(BatchPdfUi.Text(songbook
+            ? "As músicas marcadas viram um PDF com a cifra em texto de cada uma (acordes sobre a letra), uma música por página, com índice e marcadores. Mais leve que as partituras para imprimir e levar ao ensaio."
+            : repertoire
             ? "As músicas marcadas viram um único PDF: índice com links, marcadores para pular de música no leitor do tablet e, se quiser, os acordes de cada música logo depois da partitura."
             : "Cada música será salva em um PDF separado, com todas as páginas, direto na pasta que você escolher na próxima etapa. Arquivos que já estão na pasta nunca são substituídos.", 8));
         if (repertoire)
@@ -61,6 +63,7 @@ public sealed class BatchPdfSelectionWindow : Window
             repertoireChords = Option("Acordes de cada música", false, "Acrescenta, depois de cada partitura, a página com os diagramas dos acordes usados.", "RepertoireChordsCheckBox");
             repertoireTablet = Option("Formato tablet", false, "Margens estreitas e página 3:4 que ocupa a tela do tablet; a distribuição dos compassos não muda.", "RepertoireTabletCheckBox");
             repertoireAlphabetical = Option("Ordem alfabética", false, "Desmarcado, segue a ordem da biblioteca.", "RepertoireAlphabeticalCheckBox");
+            if (songbook) { repertoireTitle.Text = "Caderno de cifras"; repertoireChords.Visibility = repertoireTablet.Visibility = Visibility.Collapsed; repertoireChords.IsChecked = repertoireTablet.IsChecked = false; }
         }
         if (hiddenWithoutScore > 0)
             top.Children.Add(BatchPdfUi.Text(hiddenWithoutScore == 1 ? "1 música ainda sem partitura gerada não aparece na lista."

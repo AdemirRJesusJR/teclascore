@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Teclas.Core;
@@ -71,6 +72,48 @@ public static partial class ChordSheetParser
         string words = lyric[from..end].Trim();
         if (words.Length > 0 && end < lyric.Length && !char.IsWhiteSpace(lyric[end]) && !char.IsWhiteSpace(lyric[end - 1])) words += "-";
         return words;
+    }
+
+    private static readonly string[] Sharps = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    private static readonly string[] Flats = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+
+    /// <summary>
+    /// Rewrites the chord lines of a sheet: transposed by semitones and, if asked, simplified to triads. Each chord keeps
+    /// its column over the words (a longer name pushes the next one, never overlapping); lyrics stay untouched. Flats stay
+    /// flats; the Brazilian spelling of the chord type is kept unless simplified.
+    /// </summary>
+    public static string Transform(string text, int semitones, bool simplify)
+    {
+        var lines = (text ?? "").Replace("\r", "").Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string source = lines[i].Replace("\t", "    ");
+            if (ChordColumns(source) is null) continue;
+            var line = new StringBuilder();
+            foreach (Match token in Regex.Matches(source, @"\S+"))
+            {
+                // Labels such as "(2x)" stay as they are; chords are renamed inside their brackets or bars.
+                string core = token.Value.Trim('|', '[', ']', ',', ';');
+                string piece = core.Length > 0 && TryParse(core) is { } chord ? token.Value.Replace(core, Rename(chord, semitones, simplify)) : token.Value;
+                int at = Math.Max(token.Index, line.Length == 0 ? 0 : line.Length + 1);
+                line.Append(' ', at - line.Length).Append(piece);
+            }
+            lines[i] = line.ToString();
+        }
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string Rename(SheetChord chord, int semitones, bool simplify)
+    {
+        string Move(string note) => KeyboardDiagramVoicing.TryRootPitchClass(note, out int pc)
+            ? (note.Contains('b') || !note.Contains('#') && semitones < 0 ? Flats : Sharps)[((pc + semitones) % 12 + 12) % 12] : note;
+        string written = chord.Written.Replace('♯', '#').Replace('♭', 'b');
+        int slash = chord.Bass is null ? -1 : written.LastIndexOf('/');
+        string body = slash > 0 ? written[..slash] : written;
+        string suffix = body[Symbol().Match(body).Groups[1].Length..];
+        if (suffix.Length > 0 && (suffix[0] is '#' or 'b')) suffix = suffix[1..];
+        string quality = simplify ? ChordSimplifier.Simplify(chord.Quality) : suffix;
+        return Move(chord.Root) + quality + (chord.Bass is { } bass ? "/" + Move(bass) : "");
     }
 
     /// <summary>Chords of a chord line with their text columns; null when the line is lyrics (or empty).</summary>

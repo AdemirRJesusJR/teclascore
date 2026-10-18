@@ -17,8 +17,9 @@ public partial class MainWindow
         if(!CanShowChordSheetText || selectedFile is not {} row || CurrentScorePath is not {} score)return;
         try
         {
-            string sheet=await Task.Run(()=>ChordSheetWriter.FromScore(NativeMusicEditor.Open(score,CancellationToken.None),row.ScoreTitle));
-            chordSheetTextDialog(new ChordSheetTextWindow(sheet,string.IsNullOrWhiteSpace(row.ScoreTitle)?row.Name:row.ScoreTitle){Owner=this});
+            var (sheet,pro)=await Task.Run(()=>{var model=NativeMusicEditor.Open(score,CancellationToken.None);
+                return (ChordSheetWriter.FromScore(model,row.ScoreTitle),ChordSheetWriter.ToChordPro(model,row.ScoreTitle,row.ScoreArtist??""));});
+            chordSheetTextDialog(new ChordSheetTextWindow(sheet,string.IsNullOrWhiteSpace(row.ScoreTitle)?row.Name:row.ScoreTitle,pro){Owner=this});
         }
         catch(Exception error) when (error is IOException or InvalidDataException or InvalidOperationException or System.Xml.XmlException)
         { Status="Não foi possível montar a cifra em texto: "+error.Message; }

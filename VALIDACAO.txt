@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.42.0
+18/10/2026
+
+- CI local completo: 61 etapas aprovadas, 0 falhas, 3 puladas; 216 testes do motor, incluindo os que geram no MuseScore 4.7.5.
+- Interface 0.42: 26 verificações (ChordPro com acordes antes das sílabas e 2ª estrofe, arquivo .cho salvo; cifra colada transposta e simplificada sem desalinhar e com bemóis ao descer; páginas A4 do caderno e continuação em várias páginas; PDF do caderno com índice; acordes para aprender ordenados pelo que destravam, acorde treinado contando como conhecido, músicas parecidas também em outro tom, treino de um acorde abrindo a prática; andamento e compasso composto, contagem com acento pela tecla, botão e celular; cópia automática esperando 7 dias e guardando as 4 mais recentes, com a biblioteca dentro).
+- Não testado com aparelhos reais: contagem tocando no sintetizador do Windows e a importação do .cho num app de cifras.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.41.0
 18/10/2026
 

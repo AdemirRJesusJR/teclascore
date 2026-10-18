@@ -16,6 +16,8 @@ public sealed class ChordSheetWindow : Window
     public ChordSheet Sheet { get; private set; } = new([], [], []);
     internal Func<ChordChartWindow, bool?> chartDialog = window => window.ShowDialog();
     private readonly Button score;
+    private readonly TextBlock keyLabel;
+    private int shifted;
     /// <summary>Creates the MuseScore score from the measures and title (set by the main window; null hides the button).</summary>
     internal Func<IReadOnlyList<SheetMeasure>, string, Task<bool>>? createScore;
 
@@ -29,6 +31,17 @@ public sealed class ChordSheetWindow : Window
         top.Children.Add(new TextBlock { Text = "Cole a cifra (acordes sobre a letra, como nos sites de cifras). O app encontra os acordes e mostra cada um com o diagrama de teclado, nas posições que você já escolheu.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 10) });
         var titleRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) }; top.Children.Add(titleRow);
         titleRow.Children.Add(new TextBlock { Text = "Música", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+        var tools = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 0, 0, 0) }; DockPanel.SetDock(tools, Dock.Right); titleRow.Children.Add(tools);
+        keyLabel = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), MinWidth = 70 };
+        tools.Children.Add(keyLabel);
+        Button Tool(string text, string tip, string name, Action action)
+        {
+            var button = DialogUi.Button(text, (_, _) => action()); button.ToolTip = tip; button.Name = name; button.Padding = new Thickness(10, 4, 10, 4); button.MinHeight = 30;
+            tools.Children.Add(button); return button;
+        }
+        Tool("½ ↓", "Descer meio tom: reescreve os acordes sobre a letra", "SheetDownButton", () => Shift(-1));
+        Tool("½ ↑", "Subir meio tom: reescreve os acordes sobre a letra", "SheetUpButton", () => Shift(1));
+        Tool("Simplificar", "Troca os acordes por tríades (Am7 → Am, G7 → G), para iniciantes", "SheetSimplifyButton", Simplify);
         title = new TextBox { Text = "Cifra" }; AutomationProperties.SetName(title, "Nome da música"); titleRow.Children.Add(title);
         var footer = new DockPanel { Margin = new Thickness(0, 10, 0, 0) }; DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal }; DockPanel.SetDock(buttons, Dock.Right); footer.Children.Add(buttons);
@@ -47,6 +60,22 @@ public sealed class ChordSheetWindow : Window
     }
 
     internal void SetText(string value) => text.Text = value;
+    internal string Text => text.Text;
+
+    /// <summary>Transposes the pasted sheet by semitones, keeping each chord over its words.</summary>
+    internal void Shift(int semitones)
+    {
+        if (Sheet.Distinct.Count == 0) return;
+        text.Text = ChordSheetParser.Transform(text.Text, semitones, false);
+        shifted += semitones;
+        keyLabel.Text = shifted == 0 ? "" : $"{shifted:+0;-0} semitons";
+    }
+
+    internal void Simplify()
+    {
+        if (Sheet.Distinct.Count == 0) return;
+        text.Text = ChordSheetParser.Transform(text.Text, 0, true);
+    }
 
     private void Analyze()
     {

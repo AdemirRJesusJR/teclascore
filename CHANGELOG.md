@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.42.0 — 18/10/2026
+
+- Caderno de cifras (Biblioteca, e Cifras do repertório na Apresentação): a cifra em texto das músicas escolhidas num PDF com índice e marcadores, uma música por página.
+- ChordPro: a janela Cifra salva também o arquivo .cho, que apps como OnSong e SongBook importam com os acordes no lugar.
+- Cifra em texto colada: botões ½ ↓, ½ ↑ e Simplificar reescrevem os acordes sobre a letra sem desalinhar; descendo, usa bemóis.
+- Acordes para aprender (Biblioteca): os acordes do seu repertório, quantas músicas cada um destrava e quais você ainda não praticou; Treinar abre a prática com aquele acorde.
+- Parecidas (Prévia → Estudo): músicas da biblioteca com os mesmos acordes, também em outro tom.
+- Palco: o andamento e o compasso de cada música aparecem no título; Contagem (tecla C, botão ou celular) toca um compasso de cliques no andamento da música.
+- Cópia automática (Configurações): o backup completo da biblioteca roda sozinho a cada 7 dias numa pasta à sua escolha, guardando as 4 cópias mais recentes.
+
 ## 0.41.0 — 18/10/2026
 
 - Repetições com letra: quando um trecho repetido volta com outra letra, ele é escrito uma vez só, com a 1ª e a 2ª estrofe empilhadas sob a mesma melodia (como nos hinários). Nas casas 1 e 2, cada casa mantém a letra cantada nela. O karaokê mostra a 2ª estrofe na segunda passagem, e a Letra em outra tela mostra as duas.

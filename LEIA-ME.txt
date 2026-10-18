@@ -1,3 +1,7 @@
+TECLASCORE 0.42.0
+
+Caderno de cifras em PDF. ChordPro. Transpor e simplificar a cifra colada. Acordes para aprender e músicas parecidas. Andamento e contagem no palco. Cópia automática semanal da biblioteca.
+
 TECLASCORE 0.41.0
 
 Estrofes 1 e 2 nas repetições. Partitura vira cifra em texto. Tom sugerido para a sua voz. Acorde atual grande durante a reprodução. Partitura no tablet pela rede. Fila gerando duas partituras ao mesmo tempo.
