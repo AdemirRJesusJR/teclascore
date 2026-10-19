@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.49.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.49.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Pasta de MIDIs (Ctrl+L):** em vez de importar tudo, escolha uma pasta e marque, dentro do app, os MIDIs que entram na biblioteca. A lista mostra subpasta, tamanho, data e se o arquivo já está na biblioteca; filtre por nome (sem diferenciar acentos) e use ▶ para ouvir antes. Nada é copiado: os cards apontam para os arquivos na própria pasta, e a pasta escolhida fica lembrada. É o botão principal do cabeçalho; para arquivos avulsos use Escolher arquivos… na mesma janela, arraste-os para o app ou Ctrl+O.
 

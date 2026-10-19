@@ -15,6 +15,21 @@ public partial class MainWindow
     /// <summary>Test hook: replaces decoding + engine (audio path, MIDI target) → report.</summary>
     internal Func<string, string, CancellationToken, Task<JsonObject>>? audioTranscriber = null;
     internal Func<string[]?>? audioFilesPicker = null;
+    /// <summary>Shows a failure that must not go unnoticed (the status line alone is easy to miss).</summary>
+    internal Action<string, string> showFailure = (title, message) => MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
+
+    /// <summary>
+    /// Transcription needs numpy and onnxruntime, which come with the TeclaScore's own Python. A Python chosen in
+    /// Settings for MuseScore work may not have them, so the private one is used whenever it is installed.
+    /// </summary>
+    internal string TranscriptionPython
+    {
+        get
+        {
+            string bundled = Path.Combine(AppContext.BaseDirectory, "runtime", "python.exe");
+            return File.Exists(bundled) ? bundled : PythonPath;
+        }
+    }
 
     private async void AudioToScoreClick(object sender, RoutedEventArgs e)
     {
@@ -54,7 +69,7 @@ public partial class MainWindow
                     {
                         string wav = Path.Combine(job, "audio.wav");
                         await Task.Run(() => AudioDecoder.ToWav(files[i], wav, token), token);
-                        report = await new EngineClient(PythonPath, engineDirectory).RunAsync(
+                        report = await new EngineClient(TranscriptionPython, engineDirectory).RunAsync(
                             new JsonObject { ["mode"] = "transcribeAudio", ["workspace"] = job, ["inputMidi"] = "", ["inputAudio"] = wav, ["outputMidi"] = midi },
                             job, CreateOperationProgress(), token);
                     }
@@ -68,7 +83,11 @@ public partial class MainWindow
                 reports.Add($"{name}: {report["melody_notes"]?.GetValue<int>() ?? 0} notas na melodia{(clear ? "" : " (pouco clara: só cifras)")}, ♩ ≈ {report["bpm"]?.GetValue<double>() ?? 0:0}{harmony}");
             }
         }, operationTitle: "Transcrevendo áudio");
-        if (created.Count == 0) return created;
+        if (created.Count == 0)
+        {
+            showFailure("Áudio para partitura", "Não foi possível transcrever o áudio.\n\n" + Status);
+            return created;
+        }
         await ImportAndOpenLibraryAsync(created);
         foreach (var row in Files.Where(row => created.Contains(row.FullPath, StringComparer.OrdinalIgnoreCase)))
         {

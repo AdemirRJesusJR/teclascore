@@ -71,7 +71,9 @@ def resample(audio, rate, target=SAMPLE_RATE, taps=32):
 
 def posteriors(audio, session=None):
     """Note, onset and contour activations per frame (86 per second) for 22050 Hz mono audio."""
-    import onnxruntime
+    try: import onnxruntime
+    except ImportError as error:
+        raise ValueError('Este Python não tem o componente de reconhecimento de notas (onnxruntime). Use o Python que acompanha o TeclaScore.') from error
     session = session or onnxruntime.InferenceSession(str(MODEL), providers=['CPUExecutionProvider'])
     original = len(audio)
     audio = np.concatenate([np.zeros(OVERLAP // 2, np.float32), audio])

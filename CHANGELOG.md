@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.49.1 — 18/10/2026
+
+- Áudio para partitura e Gravar ideia funcionam mesmo quando o Python escolhido em Configurações é outro: a transcrição usa sempre o Python que acompanha o TeclaScore (com os componentes de reconhecimento de notas). Antes, com outro Python, o MP3 era lido e a transcrição falhava sem aviso visível.
+- Falhas da transcrição aparecem numa janela, com o motivo, e não só na linha de status.
+- Ícones da Biblioteca: Áudio com a nota musical e Buscar com a lupa; Comandos (Ctrl+K) ganhou ícone próprio.
+
 ## 0.49.0 — 18/10/2026
 
 - Digitar a cifra (aba Cifras): a cifra inteira em texto, um compasso entre barras (| C | G/B | Am F | % |), aplicada compasso a compasso; a partitura é gerada de novo e a versão anterior fica no histórico. Acordes com barra mantêm o baixo, também ao reabrir o app.

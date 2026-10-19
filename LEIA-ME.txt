@@ -1,3 +1,7 @@
+TECLASCORE 0.49.1
+
+Correção: Áudio para partitura usa o Python do TeclaScore e mostra qualquer falha numa janela. Ícones de Áudio e Buscar trocados.
+
 TECLASCORE 0.49.0
 
 Cifra digitada por compasso. Escrita das cifras à sua escolha (7M, ø, °, bemóis). Melodia montada por trechos. Planilha de títulos e artistas. Exportação para OpenLP e Holyrics. Falhas repetidas com ajuste automático.

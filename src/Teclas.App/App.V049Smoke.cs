@@ -146,6 +146,15 @@ public partial class App
                 "failures-are-retried-with-adjustments " + string.Join(" ", attempts) + " | " + window.Status);
             Check(window.Status.Contains("2 de 3") && window.Status.Contains("Continuam falhando"), "retry-reports-what-changed");
 
+            // 0.49.1: a failed transcription is shown in a window (not only on the status line); the private Python is used.
+            string? shown = null; window.showFailure = (title, message) => shown = title + ": " + message;
+            string mp3 = Path.Combine(work, "falha.mp3"); File.WriteAllBytes(mp3, [0]);
+            window.audioTranscriber = (_, _, _) => throw new InvalidOperationException("Este Python não tem o componente de reconhecimento de notas (onnxruntime).");
+            var none = await window.TranscribeAudioAsync([mp3]); Flush();
+            Check(none.Count == 0 && shown is not null && shown.Contains("Áudio para partitura") && shown.Contains("onnxruntime"), "failed-transcription-is-shown " + shown);
+            Check(window.TranscriptionPython.EndsWith("python.exe", StringComparison.OrdinalIgnoreCase), "transcription-has-a-python");
+            window.audioTranscriber = null;
+
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, enginesRun = 0 }, new JsonSerializerOptions { WriteIndented = true }));
             ChordNotation.Current = previousNotation;
             window.Close(); window = null; Shutdown(0);

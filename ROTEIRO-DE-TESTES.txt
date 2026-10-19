@@ -1,3 +1,8 @@
+TECLASCORE 0.49.1 · ÁUDIO PARA PARTITURA
+
+1. Na Biblioteca, Áudio (ícone de nota musical): escolha um MP3; a música entra na biblioteca. Se algo falhar, uma janela explica o motivo.
+2. Confira os ícones: Áudio com nota musical, Buscar com lupa.
+
 TECLASCORE 0.49.0 · CIFRA DIGITADA, ESCRITA DAS CIFRAS, TRECHOS, PLANILHA E PROJEÇÃO
 
 1. Aba Cifras › Digitar a cifra: corrija uma música inteira e confira a partitura e os diagramas.

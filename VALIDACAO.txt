@@ -1,3 +1,11 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.49.1
+18/10/2026
+
+- Problema relatado: "clico em Áudio, abro o MP3 e não acontece nada". Causa: as Configurações deste computador apontam para um Python de outro programa, sem o onnxruntime; o MP3 era decodificado e a transcrição falhava em cerca de 13 s, com o erro só na linha de status.
+- Teste real: MP3 gerado pelo MuseScore, decodificado pelo mesmo código do app (22,8 s) e transcrito com o Python do TeclaScore: C F G C, ♩ = 100, uma tercina e anacruse de 1 tempo. Com o Python das Configurações, o motor agora responde com a mensagem clara e o app mostra a janela de falha.
+- Interface: verificação nova no teste 0.49 (falha mostrada em janela; transcrição com Python próprio); teste do painel compacto aprovado com os ícones novos.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.49.0
 18/10/2026
 

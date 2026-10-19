@@ -44,7 +44,7 @@ public partial class MainWindow
                 {
                     string input = Path.Combine(job, "notas.json");
                     await File.WriteAllTextAsync(input, JsonSerializer.Serialize(notes.Select(n => new { start = n.Start, end = n.End, pitch = n.Pitch, velocity = n.Velocity })), token);
-                    report = await new EngineClient(PythonPath, engineDirectory).RunAsync(
+                    report = await new EngineClient(TranscriptionPython, engineDirectory).RunAsync(
                         new JsonObject { ["mode"] = "transcribeNotes", ["workspace"] = job, ["inputMidi"] = "", ["inputNotes"] = input, ["outputMidi"] = target },
                         job, CreateOperationProgress(), token);
                 }
@@ -52,7 +52,7 @@ public partial class MainWindow
             }
             midi = target;
         }, operationTitle: "Transformando a ideia em partitura");
-        if (midi is null || report is null) return null;
+        if (midi is null || report is null) { showFailure("Gravar ideia", "Não foi possível transformar a ideia em partitura.\n\n" + Status); return null; }
         await ImportAndOpenLibraryAsync([midi]);
         bool clear = report["melody_clear"]?.GetValue<bool>() ?? true;
         foreach (var row in Files.Where(r => string.Equals(r.FullPath, midi, StringComparison.OrdinalIgnoreCase)))
