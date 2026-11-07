@@ -41,7 +41,7 @@ public sealed partial class MidiRow : Observable
     public System.Windows.Visibility ConfidenceVisibility=>ConfidenceBadge.Length==0?System.Windows.Visibility.Collapsed:System.Windows.Visibility.Visible;
     /// <summary>Sort key for "review first": unapproved scores by rating, then approved ones, then songs without a score.</summary>
     public int ReviewOrder=>ScorePath is null?300:Approved?200+(Confidence?.Score??0)/2:Confidence?.Score??0;
-    private void NotifyConfidence(){Notify(nameof(ConfidenceBadge));Notify(nameof(ConfidenceToolTip));Notify(nameof(ConfidenceVisibility));Notify(nameof(ReviewOrder));}
+    private void NotifyConfidence(){NotifyStatus();Notify(nameof(ConfidenceBadge));Notify(nameof(ConfidenceToolTip));Notify(nameof(ConfidenceVisibility));Notify(nameof(ReviewOrder));}
     private string tags="";
     /// <summary>Free labels typed by the user, separated by commas ("lentas, missa").</summary>
     public string Tags{get=>tags;set=>Set(ref tags,value??"");}
@@ -69,13 +69,13 @@ public sealed partial class MidiRow : Observable
         : "Use Diagnóstico da partitura para conferir estrutura, ritmo e apresentação do arquivo salvo.";
     public string Name=>Path.GetFileName(FullPath);
     private string? scoreTitle;
-    public string ScoreTitle{get=>scoreTitle??ScoreMetadataDefaults.Title(FullPath);set=>Set(ref scoreTitle,value);}
+    public string ScoreTitle{get=>scoreTitle??ScoreMetadataDefaults.Title(FullPath);set{if(Set(ref scoreTitle,value))NotifyDisplay();}}
     private string? scoreSubtitle;
     public string? ScoreSubtitle{get=>scoreSubtitle;set=>Set(ref scoreSubtitle,value);}
     private string scoreComposer="";
     public string ScoreComposer{get=>scoreComposer;set=>Set(ref scoreComposer,value??"");}
     private string scoreArtist="";
-    public string ScoreArtist{get=>scoreArtist;set=>Set(ref scoreArtist,value??"");}
+    public string ScoreArtist{get=>scoreArtist;set{if(Set(ref scoreArtist,value??""))NotifyDisplay();}}
     public string MetadataOrganizationNotice{get;set;}="";
     private int defaultDiagramInversion=2;public int DefaultDiagramInversion{get=>defaultDiagramInversion;set{if(Set(ref defaultDiagramInversion,value))Notify(nameof(EffectiveDiagramInversion));}}
     private int? diagramInversion;
@@ -140,7 +140,7 @@ public sealed partial class MidiRow : Observable
     public void RefreshTheme()=>Notify(nameof(CategoryColor));
     public string PageCountText=>PageCount==1?"1 página":$"{PageCount} páginas";
     public string GeneratedAtText=>GeneratedAt?.ToLocalTime().ToString("dd/MM · HH:mm")??"Nesta sessão";
-    private void NotifyCategory(){Notify(nameof(Category));Notify(nameof(CategoryCode));Notify(nameof(CategoryLabel));Notify(nameof(CategoryColor));}
+    private void NotifyCategory(){NotifyStatus();Notify(nameof(Category));Notify(nameof(CategoryCode));Notify(nameof(CategoryLabel));Notify(nameof(CategoryColor));}
     private int keyFifths;public int KeyFifths{get=>keyFifths;set=>Set(ref keyFifths,value);}
     private bool keyMinor;public bool KeyMinor{get=>keyMinor;set=>Set(ref keyMinor,value);}
     public string Summary=>IsNativeScore?"MuseScore · "+PageCountText:Document is null?"Não foi possível ler o arquivo":$"{Document.Notes.Count:N0} notas · {Document.Sources.Count} fontes · MIDI {Document.Format}";

@@ -67,6 +67,7 @@ public partial class App
             }
 
             Check(window.GuidedFlow && tabs.SelectedIndex == 0 && window.FlowCurrentStep == ScoreFlowStep.Melody, "new-midi-starts-on-melodia");
+            Check(window.SuggestedTrack is not null && window.ProgressItems.Count == 4, "melodia-suggests-a-track");
             Check(window.FlowSteps.Skip(1).All(s => s.IsLocked) && !window.CanGenerateNow && !window.CanEnqueueNow && !window.CanFlowNext, "later-steps-and-generation-are-locked");
             Check(Pending("melody-none") && window.GenerationButtonsVisibility == Visibility.Collapsed, "no-melody-blocks-and-generate-is-hidden");
             tabs.SelectedIndex = 2; Flush();
@@ -100,19 +101,33 @@ public partial class App
             foreach (var (q, root, quality, confidence) in new[] { (0.0, "D", "", .95), (4.0, "A", "", .92), (4.0, "A", "7", .9), (8.0, "G", "", .6), (12.0, "D", "", .97) })
                 row.Chords.Add(new ChordRow { Quarter = q, Root = root, Quality = quality, Confidence = confidence });
             Call("NotifyFlow"); Flush();
-            Check(Pending("melody-listen") == false && window.FlowAllowedTab == 1, "analysis-unlocks-the-cifras-tab");
+            Check(Pending("melody-listen") == false && window.FlowAllowedTab == 3 && window.FlowAllowedStep == ScoreFlowStep.Analysis, "analysis-unlocks-the-ritmo-tab");
             tabs.SelectedIndex = 1; Flush();
-            Check(tabs.SelectedIndex == 1 && window.FlowCurrentStep == ScoreFlowStep.Analysis && Pending("analysis-review"), "review-points-come-first");
-            Check(window.FlowCheckList.Any(c => c.Id == "chords-duplicate" && c.Level == ScoreFlowLevel.Block) && Pending("chords-doubtful") && Pending("chords-key"), "chord-locks-are-listed");
-            Snapshot("score-flow-3-cifras");
-            Call("ConfirmFlow", row, "analysis-review"); Flush();
-            Check(window.FlowCurrentStep == ScoreFlowStep.Chords && !window.CanFlowNext, "chords-step-still-locked");
-            row.Chords.Remove(row.Chords.Single(c => c.Quality == "7")); Flush();
-            Call("ConfirmFlow", row, "chords-doubtful"); Call("ConfirmFlow", row, "chords-key"); Flush();
-            Check(window.CanFlowNext && window.CanGenerateNow, "everything-confirmed-unlocks-generation");
+            Check(tabs.SelectedIndex != 1, "cifras-waits-for-the-ritmo-step");
+            tabs.SelectedIndex = 3; Flush();
+            Check(tabs.SelectedIndex == 3 && window.FlowCurrentStep == ScoreFlowStep.Analysis && Pending("analysis-review"), "review-points-come-first");
+            Check(window.RhythmPoints.Count == 1 && window.RhythmMarkers.Count == 1 && window.RhythmDensities.Count > 0 && !window.CanFlowNext, "ritmo-lists-the-point-on-the-timeline");
+            Snapshot("score-flow-3-ritmo");
+            Call("RhythmOkClick", new Button { Tag = window.RhythmPoints[0] }, new RoutedEventArgs()); Flush();
+            Check(!Pending("analysis-review") && window.RhythmPoints[0].IsChecked && window.CanFlowNext && window.FlowNextLabel == "Continuar para cifras", "esta-certo-confirms-the-point");
             Click("FlowNextClick"); Flush();
-            Check(tabs.SelectedIndex == 2 && window.FlowSteps[3].IsCurrent && window.FlowNextLabel == "Gerar partitura" && window.CanFlowNext && window.FlowEnqueueVisibility == Visibility.Visible, "next-opens-gerar-e-conferir-with-generate-in-the-footer");
-            Snapshot("score-flow-4-gerar");
+            Check(tabs.SelectedIndex == 1 && window.FlowCurrentStep == ScoreFlowStep.Chords && !window.CanFlowNext, "chords-step-still-locked");
+            Check(window.FlowCheckList.Any(c => c.Id == "chords-duplicate" && c.Level == ScoreFlowLevel.Block) && Pending("chords-doubtful") && Pending("chords-key"), "chord-locks-are-listed");
+            Check(window.ChordTiles.Count == 5 && window.ChordTiles.Any(c => c.IsDoubtful) && window.KeyConfirmVisibility == Visibility.Visible && window.KeyTitle.Contains("Ré maior", StringComparison.Ordinal), "cifras-shows-key-and-tiles");
+            Snapshot("score-flow-4-cifras");
+            row.Chords.Remove(row.Chords.Single(c => c.Quality == "7")); Flush();
+            Call("ConfirmFlow", row, "chords-doubtful"); Click("KeyConfirmClick"); Flush();
+            Check(window.CanFlowNext && window.CanGenerateNow && window.KeyConfirmedVisibility == Visibility.Visible, "everything-confirmed-unlocks-generation");
+            Click("FlowNextClick"); Flush();
+            Check(tabs.SelectedIndex == 2 && window.FlowSteps[3].IsCurrent && window.FlowNextLabel == "Gerar partitura" && window.CanFlowNext && window.FlowEnqueueVisibility == Visibility.Visible && window.GenerateSummaryVisibility == Visibility.Visible, "next-opens-gerar-e-conferir-with-generate-in-the-footer");
+            Snapshot("score-flow-5-gerar");
+            Check(window.ProgressPanelVisibility == Visibility.Collapsed && window.FooterChecksVisibility == Visibility.Visible, "narrow-window-shows-checks-above-the-footer");
+            window.Width = 1600; Flush();
+            Check(window.ProgressPanelVisibility == Visibility.Visible && window.FooterChecksVisibility == Visibility.Collapsed && window.NavLabelVisibility == Visibility.Visible && window.ProgressItems.Count(i => i.IsDone) == 3, "wide-window-shows-the-progress-panel");
+            var folderButton = (FrameworkElement)window.FindName("MidiFolderButton");
+            Check(folderButton.TransformToAncestor(window).Transform(new Point(folderButton.ActualWidth, 0)).X <= ((FrameworkElement)window.Content).ActualWidth + 0.5, "top-bar-fits-with-labels");
+            Snapshot("score-flow-6-largo");
+            window.Width = 1360; Flush();
 
             piano.IsMelody = false; window.Files.Single().Tracks[1].IsMelody = true; Flush();
             Check(tabs.SelectedIndex == 0 && !window.CanGenerateNow && Pending("melody-listen"), "changing-the-melody-sends-the-user-back");

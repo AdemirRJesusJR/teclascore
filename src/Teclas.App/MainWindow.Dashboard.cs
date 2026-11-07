@@ -93,7 +93,13 @@ public partial class MainWindow
     private void InitDashboard()
     {
         if (dashboardInitialized) return;
-        LibraryView = CollectionViewSource.GetDefaultView(Files);
+        // Grouped by status (Em preparo, Para conferir, Prontas, Com falha), each group in library order.
+        var view = new ListCollectionView(Files) { CustomSort = new LibraryOrder(this), IsLiveGrouping = true, IsLiveSorting = true };
+        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(MidiRow.StatusGroup)));
+        view.LiveGroupingProperties.Add(nameof(MidiRow.StatusGroup));
+        view.LiveSortingProperties.Add(nameof(MidiRow.StatusGroupOrder));
+        view.LiveSortingProperties.Add(nameof(MidiRow.ReviewOrder));
+        LibraryView = view;
         LibraryView.Filter = item => item is MidiRow row && MatchesLibraryFilter(row);
         dashboardInitialized = true;
         Files.CollectionChanged += DashboardFilesChanged;

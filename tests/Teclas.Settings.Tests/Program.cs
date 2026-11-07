@@ -126,7 +126,7 @@ try
     """);
     var normalized = Settings.Load(invalid);
     Check(normalized.ThemeId == "classic" && normalized.CurrentPage == "dashboard" && normalized.CurrentFilter == "all", "Unknown UI enums normalized");
-    Check(normalized.SearchText == "" && normalized.EditorTab == 2 && normalized.WindowWidth is null, "Null and invalid UI values safe");
+    Check(normalized.SearchText == "" && normalized.EditorTab == 3 && normalized.WindowWidth is null, "Null and invalid UI values safe");
     Check(normalized.Library.Count == 1 && normalized.Library[0].Chords.Count == 0 && normalized.Library[0].MelodySources.Count == 0, "Null lists and duplicate paths normalized");
     File.WriteAllText(invalid, "null");
     Check(Settings.Load(invalid).LoadWarning.Length > 0, "JSON null warned instead of crashing");

@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.50.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.51.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Pasta de MIDIs (Ctrl+L):** em vez de importar tudo, escolha uma pasta e marque, dentro do app, os MIDIs que entram na biblioteca. A lista mostra subpasta, tamanho, data e se o arquivo já está na biblioteca; filtre por nome (sem diferenciar acentos) e use ▶ para ouvir antes. Nada é copiado: os cards apontam para os arquivos na própria pasta, e a pasta escolhida fica lembrada. É o botão principal do cabeçalho; para arquivos avulsos use Escolher arquivos… na mesma janela, arraste-os para o app ou Ctrl+O.
 
@@ -74,7 +74,9 @@ Versão 0.50.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artis
 
 **Mover a janela:** arraste o título da página ou os espaços vazios do cabeçalho, além da barra de título do Windows. Os botões de PDF e importação continuam clicáveis.
 
-**Barra de ações da biblioteca:** Adicionar, Gerar, Exportar e Estudar ficam em menus numa barra no topo da Biblioteca, com Comandos (Ctrl+K) e ⋯ (títulos e artistas, músicas repetidas, limpar biblioteca) à direita. A coluna da esquerda tem só a busca, favoritos, o botão de filtro (coleção e lista inteligente) e os filtros com contagem, e os cards usam o resto da altura. Salvar PDF usa o tamanho padrão e fica ao lado de Importar MuseScore.
+**Visual novo (0.51.0):** o menu fica no topo da janela. As músicas aparecem agrupadas por situação (Em preparo, Para conferir, Prontas e Com falha). A música aberta tem um cabeçalho com título, artista e dados do MIDI. O passo a passo tem quatro telas: Melodia, Ritmo, Cifras e Gerar. Em janelas largas, um painel à direita mostra o progresso da partitura e o seu teclado.
+
+**Barra de ações da biblioteca:** Adicionar, Gerar, Exportar e Estudar ficam em menus numa barra embaixo da lista de músicas, com Comandos (Ctrl+K) e ⋯ (títulos e artistas, músicas repetidas, limpar biblioteca) à direita. A coluna da esquerda tem só a busca, favoritos, o botão de filtro (coleção e lista inteligente) e os filtros com contagem, e os cards usam o resto da altura. Salvar PDF usa o tamanho padrão e fica ao lado de Importar MuseScore.
 
 **Acesso rápido:** Salvar PDF fica no cabeçalho fixo da Biblioteca, inclusive com controles compactos. Limpar biblioteca remove todos os cards, inclusive os filtrados, com confirmação e Desfazer durante a sessão; os arquivos são preservados. Subir oitava e Descer oitava atualizam todas as notas da partitura atual e sua reprodução, mantendo as cifras no mesmo tom e a versão anterior no Histórico. Valem também para MuseScore importado; estruturas não suportadas ou notas fora do intervalo válido são informadas sem alterar o original. Após essa edição, continue pelo Editor musical.
 
@@ -192,9 +194,9 @@ Veja [ROTEIRO-DE-TESTES.txt](ROTEIRO-DE-TESTES.txt) para conferir as fases entre
 2. Confira os caminhos em Configurações e escolha a pasta de saída.
 3. Importe arquivos .mid, .midi, .kar ou .mscz pelo botão ou arrastando-os para o app. A Biblioteca abre automaticamente com o primeiro MIDI novo selecionado, sem a busca ou os filtros anteriores. Um arquivo já importado é selecionado sem duplicação.
 4. Nos 18 MIDIs com perfil revisado, mantenha a revisão aprovada marcada. Use “Gerar lote revisado” para processar os que ainda não foram gerados.
-5. Um MIDI novo segue quatro etapas, mostradas acima do editor: Melodia, Ritmo e acordes, Cifras e Gerar e conferir. Na Melodia, use ▶ na coluna Ouvir para escutar cada fonte, marque a melodia e resolva o que aparece em “Para continuar” (bloqueios e confirmações); “Próximo” analisa o ritmo e os acordes. Confira os pontos da análise e as cifras, e só então “Gerar partitura” aparece, na última etapa. Com a revisão aprovada habilitada, é possível ouvir; desmarque essa opção para mudar a seleção manualmente.
+5. Um MIDI novo segue quatro etapas, mostradas acima do editor: Melodia, Ritmo, Cifras e Gerar. Na Melodia, use ▶ na coluna Ouvir para escutar cada fonte, marque a melodia e resolva o que aparece em “Para continuar” (bloqueios e confirmações); “Continuar para ritmo” analisa o ritmo e os acordes. Confira os trechos marcados em Ritmo e as cifras, e só então “Gerar partitura” aparece, na última etapa. Com a revisão aprovada habilitada, é possível ouvir; desmarque essa opção para mudar a seleção manualmente.
 6. Na aba Prévia, clique em “Reproduzir” para ouvir, “Pausar” para continuar depois e “Parar” para voltar ao início. A barra de posição permite avançar ou voltar. “Salvar PDF” exporta todas as páginas. “Gerar partitura” já salva o arquivo .mscz automaticamente; use “Pasta de saída” para acessá-lo.
-7. Use o botão na parte inferior da barra lateral para alternar entre menus completos e somente ícones. Passe o mouse sobre um ícone para ver o nome do menu.
+7. O menu fica no topo. Em janelas estreitas, ou com Configurações › Mostrar o menu superior só com ícones, ele mostra só os ícones; passe o mouse sobre um ícone para ver o nome.
 8. Escolha seu tema em Configurações. Ao fechar e reabrir, o app restaura suas preferências e sua biblioteca.
 9. Para retirar um item da lista, use o ícone vermelho de lixeira no próprio card da Biblioteca. A última remoção pode ser desfeita enquanto o app estiver aberto. Seus arquivos MIDI e .mscz permanecem nas suas pastas.
 
@@ -246,7 +248,7 @@ Os indicadores refletem a biblioteca restaurada. As saídas permanecem na pasta 
 
 ## Preferências e trabalho salvo
 
-Ao fechar o aplicativo, são salvos o tema, o modo da barra lateral, os caminhos configurados, o tamanho e a posição da janela, a tela aberta, a busca, o filtro, a aba do editor e o arquivo selecionado. A biblioteca também mantém a escolha das pistas, o uso de perfis revisados, as cifras editadas, a tonalidade, as propriedades do cabeçalho e dos diagramas e os vínculos com análises e partituras geradas.
+Ao fechar o aplicativo, são salvos o tema, o modo do menu, os caminhos configurados, o tamanho e a posição da janela, a tela aberta, a busca, o filtro, a aba do editor e o arquivo selecionado. A biblioteca também mantém a escolha das pistas, o uso de perfis revisados, as cifras editadas, a tonalidade, as propriedades do cabeçalho e dos diagramas e os vínculos com análises e partituras geradas.
 
 Os dados ficam em `%LOCALAPPDATA%/TeclasPartituras/settings.json`, com gravação atômica e cópia de recuperação. Se o salvamento falhar, a janela permanece aberta e mostra o motivo. Os arquivos MIDI e .mscz continuam nos locais originais; o app salva suas referências. Um MIDI alterado precisa de nova análise para impedir a reutilização de resultados de outro conteúdo. Mantenha os arquivos e pastas de trabalho para continuar de onde parou.
 

@@ -30,13 +30,28 @@ public partial class MainWindow
     internal void RefreshAllConfidence() { foreach (var row in Files) RefreshConfidence(row); }
 
     /// <summary>"Revisar primeiro" sorts the cards by rating (lowest first); every other list keeps the library order.</summary>
+    private bool reviewSortActive;
+
     private void ApplyReviewSort()
     {
         if (LibraryView is null) return;
         bool review = settings.SmartList == "revisar-primeiro";
-        bool sorted = LibraryView.SortDescriptions.Any(s => s.PropertyName == nameof(MidiRow.ReviewOrder));
-        if (review == sorted) return;
-        LibraryView.SortDescriptions.Clear();
-        if (review) { RefreshAllConfidence(); LibraryView.SortDescriptions.Add(new SortDescription(nameof(MidiRow.ReviewOrder), ListSortDirection.Ascending)); }
+        if (review == reviewSortActive) return;
+        reviewSortActive = review;
+        if (review) RefreshAllConfidence();
+        LibraryView.Refresh();
+    }
+
+    /// <summary>Status groups in order; inside a group, the library order (or the rating, lowest first, for "Revisar primeiro").</summary>
+    private sealed class LibraryOrder(MainWindow window) : System.Collections.IComparer
+    {
+        public int Compare(object? x, object? y)
+        {
+            if (x is not MidiRow a || y is not MidiRow b) return 0;
+            int order = a.StatusGroupOrder.CompareTo(b.StatusGroupOrder);
+            if (order != 0) return order;
+            if (window.reviewSortActive && a.ReviewOrder != b.ReviewOrder) return a.ReviewOrder.CompareTo(b.ReviewOrder);
+            return window.Files.IndexOf(a).CompareTo(window.Files.IndexOf(b));
+        }
     }
 }

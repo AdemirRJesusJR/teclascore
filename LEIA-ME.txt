@@ -1,3 +1,7 @@
+TECLASCORE 0.51.0
+
+Visual novo: menu no topo, músicas agrupadas por situação, passo a passo em quatro telas (Melodia, Ritmo, Cifras e Gerar) e painel de progresso com o seu teclado. Ícone novo.
+
 TECLASCORE 0.50.0
 
 Regras revistas: falhas não viram só cifras; acordes com dúvida aparecem na revisão em vez de sumir; MIDIs sem melodia completa recebem aviso e não passam pelo Piloto automático; regras por coleção e posições da biblioteca preservam escolhas já feitas; alterações pendentes retiram a aprovação.
@@ -159,7 +163,7 @@ Você também pode arrastar a janela pelo título da página e espaços vazios d
 
 PDF, ZIP e PDFs em lote lembram a pasta da última exportação concluída, mesmo depois de fechar o aplicativo. Salvar novo padrão em Configurações redefine esse destino.
 
-As ações da biblioteca ficam numa barra no topo, em menus: Adicionar, Gerar, Exportar e Estudar; Comandos (Ctrl+K) e ⋯ ficam à direita. A coluna da esquerda tem a busca, os favoritos, o botão de filtro (coleção e lista inteligente) e os filtros com contagem. Salvar PDF fica ao lado de Importar MuseScore, com tamanho padrão.
+As ações da biblioteca ficam numa barra embaixo da lista de músicas, em menus: Adicionar, Gerar, Exportar e Estudar; Comandos (Ctrl+K) e ⋯ ficam à direita. A coluna da esquerda tem a busca, os favoritos, o botão de filtro (coleção e lista inteligente) e os filtros com contagem. Salvar PDF fica ao lado de Importar MuseScore, com tamanho padrão.
 
 TECLASCORE 0.20.5
 
@@ -214,10 +218,10 @@ O painel mostra o andamento por arquivo. Uma falha permite continuar com os dema
 Partituras MIDI com trocas de instrumento recebem um ajuste de espaçamento entre sistemas. Notas, diagramas e nomes completos mantêm o tamanho; a redução só é aceita após conferência do conteúdo musical e das sobreposições. Gere novamente para aplicar; a versão anterior permanece no Histórico.
 
 NOVO NA VERSÃO 0.16.0
-O Editor musical protege rascunhos automaticamente neste computador. Após uma interrupção, abra Rascunhos na barra lateral; a recuperação usa uma cópia preservada, mesmo se o arquivo original tiver sido movido. Ao fechar o editor, escolha manter ou descartar. Rascunhos locais e repertórios de apresentação não fazem parte do backup portátil da biblioteca.
+O Editor musical protege rascunhos automaticamente neste computador. Após uma interrupção, abra Rascunhos no menu superior; a recuperação usa uma cópia preservada, mesmo se o arquivo original tiver sido movido. Ao fechar o editor, escolha manter ou descartar. Rascunhos locais e repertórios de apresentação não fazem parte do backup portátil da biblioteca.
 No editor, insira notas em pausas, transforme eventos em pausas, exclua notas e copie uma voz para um compasso compatível. O total rítmico deve permanecer correto; elementos complexos mostram sua limitação. Atualize a prévia e ouça antes de salvar a nova versão.
 Em Posições dos diagramas, use as sugestões de posições confortáveis, escolha o alcance e confira antes/depois. As escolhas individuais permanecem protegidas. No editor de MuseScore, as sugestões ficam na aba Cifras e exigem liberar explicitamente os diagramas que podem mudar. A sugestão altera o desenho do acorde, sem modificar a melodia ou o áudio.
-Na barra lateral, Apresentação permite montar e ordenar um repertório e guardar anotações. Na apresentação, use setas, Page Up/Page Down ou Espaço para virar páginas; Ctrl+setas muda a música e Esc volta à organização. Pedais USB que emulam essas teclas são compatíveis; entrada MIDI de pedal não está incluída.
+No menu superior, Apresentação permite montar e ordenar um repertório e guardar anotações. Na apresentação, use setas, Page Up/Page Down ou Espaço para virar páginas; Ctrl+setas muda a música e Esc volta à organização. Pedais USB que emulam essas teclas são compatíveis; entrada MIDI de pedal não está incluída.
 Nomes de instrumentos muito próximos recebem faixas de texto e maior espaço entre sistemas. A quantidade de páginas pode aumentar para preservar os nomes completos e a legibilidade.
 
 
@@ -309,7 +313,7 @@ Abra Teclas.Partituras.exe mantendo os demais arquivos e a pasta engine ao lado.
 1. Em Configurações, confira MuseScore, Python com Pillow e pasta de saída.
 2. Importe os MIDIs. A Biblioteca abre automaticamente com o MIDI selecionado na aba Melodia.
 3. Para os 18 arquivos com perfil revisado, use “Gerar lote revisado”.
-4. Para um arquivo novo, siga as etapas Melodia → Ritmo e acordes → Cifras → Gerar e conferir: ouça as pistas no botão ▶, marque a melodia, resolva o que aparece em "Para continuar" e use Próximo. Gerar partitura só aparece na última etapa.
+4. Para um arquivo novo, siga as etapas Melodia → Ritmo → Cifras → Gerar: ouça as pistas no botão ▶, marque a melodia, resolva o que aparece em "Para continuar" e use o botão Continuar. Gerar partitura só aparece na última etapa.
 5. Gere a partitura e confira a prévia / abra no MuseScore.
 6. Em Produção, use “Exportar ZIP” para reunir as partituras disponíveis na biblioteca.
 

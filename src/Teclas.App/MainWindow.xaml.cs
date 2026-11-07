@@ -403,7 +403,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     }
     private void SelectedChordsChanged(object? sender,System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {NotifyFlow();SynchronizeDraftChordObservers();MarkManualScoreDraftChanged();Notify(nameof(CanCustomizeDiagrams));Notify(nameof(ScorePropertiesSummary));}
-    private async void AnalyzeClick(object sender,RoutedEventArgs e){if(FlowBlocksAnalysis(out var flowMessage)){Status=flowMessage;return;}if(CanEditMidi && selectedFile is { } row)await RunOperation(async()=>{await Analyze(row);EditorTabs.SelectedIndex=1;},row,"Analisando notas e acordes");}
+    private async void AnalyzeClick(object sender,RoutedEventArgs e){if(FlowBlocksAnalysis(out var flowMessage)){Status=flowMessage;return;}if(CanEditMidi && selectedFile is { } row)await RunOperation(async()=>{await Analyze(row);EditorTabs.SelectedIndex=row.ReviewPoints.Count>0?3:1;},row,"Analisando notas e acordes");}
     private async void GenerateClick(object sender,RoutedEventArgs e)
     {
         if(!CanGenerate)return;

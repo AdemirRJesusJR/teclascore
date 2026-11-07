@@ -48,9 +48,9 @@ public partial class MainWindow
     // Room for the track grid plus wrapped tool buttons at the minimum window width (expanded sidebar).
     // The preview tab fits the window: its controls scroll on their own and the split gives the score more room.
     // The Melodia tab no longer carries the player (it is docked below the scroll area), so it needs less room.
-    public double ScoreEditorMinimumHeight => EditorTabs?.SelectedIndex == 0 ? 600 : 760;
+    public double ScoreEditorMinimumHeight => EditorTabs?.SelectedIndex is 0 or 3 ? 560 : 700;
     /// <summary>The track player is docked at the bottom of the editor card, outside its scroll area, while the Melodia tab is open.</summary>
-    public Visibility TrackPlayerDockVisibility => CanEditMidi && EditorTabs?.SelectedIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility TrackPlayerDockVisibility => CanEditMidi && EditorTabs?.SelectedIndex is 0 or 3 ? Visibility.Visible : Visibility.Collapsed;
     public string TrackAuditionTitle => auditionTracks.Count switch
     {
         0 => "Nenhuma pista tocando",
@@ -102,7 +102,7 @@ public partial class MainWindow
         {
             Notify(nameof(ScoreEditorMinimumHeight));
             Notify(nameof(TrackPlayerDockVisibility));
-            if (ReferenceEquals(e.Source, EditorTabs) && EditorTabs.SelectedIndex != 0) StopTrackAudition();
+            if (ReferenceEquals(e.Source, EditorTabs) && EditorTabs.SelectedIndex is not (0 or 3)) StopTrackAudition();
         };
         Closed += (_, _) =>
         {

@@ -173,7 +173,7 @@ public sealed class Settings
         CurrentFilter = CurrentFilter is "ready" or "review" or "generated" or "error" ? CurrentFilter : "all";
         SearchText ??= "";
         PythonPath ??= ""; MuseScorePath ??= ""; OutputDirectory ??= "";
-        EditorTab = Math.Clamp(EditorTab, 0, 2);
+        EditorTab = Math.Clamp(EditorTab, 0, 3);
         WindowLeft = Finite(WindowLeft); WindowTop = Finite(WindowTop);
         WindowWidth = Positive(WindowWidth); WindowHeight = Positive(WindowHeight);
         Library ??= [];

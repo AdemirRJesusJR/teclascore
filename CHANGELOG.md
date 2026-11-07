@@ -1,5 +1,31 @@
 # Histórico de versões
 
+## 0.51.0 — 07/11/2026
+
+Visual novo: menu no topo, músicas agrupadas por situação, passo a passo em quatro telas e painel de progresso. Ícone novo.
+
+- O menu sai da lateral e vai para o topo. Início, Biblioteca, Produção e Apresentação aparecem com nome e ícone; Rascunhos, Configurações, Sobre e Painéis aparecem como ícones com dica. Também ficam no topo a caixa Buscar ou executar um comando (Ctrl+K) e, à direita, Salvar PDF, Importar MuseScore e Pasta de MIDIs. Em janelas mais estreitas o menu mostra só os ícones, com o nome na dica. Para deixar assim sempre, use Configurações › Mostrar o menu superior só com ícones.
+- A lista das músicas fica agrupada por situação: Em preparo, Para conferir, Prontas e Com falha.
+  - Cada card mostra as iniciais, o título, o artista e uma etiqueta: Novo, Em preparo, a nota de confiança, Aprovada ou Falhou.
+  - Quando o título traz artista e música separados por hífen, os dois aparecem em linhas separadas.
+  - Cada card mantém ▶ ⏸ ■ Ouvir MIDI completo e a lixeira.
+  - As ações da biblioteca ficam numa barra embaixo da lista, com os mesmos menus da 0.50.2: Adicionar, Gerar, Exportar, Estudar e ⋯.
+- A música aberta ganha um cabeçalho com as iniciais, o título, o artista e etiquetas: pistas, compasso, BPM, duração, número de compassos e tom.
+  - Ouvir MIDI toca a música.
+  - Exportar reúne PDF, MusicXML ou imagens, MP3, livreto, cifra em texto e Abrir no MuseScore.
+  - ⋯ reúne propriedades, histórico, pasta de saída e remover.
+- O passo a passo agora tem quatro telas ligadas por uma linha de progresso: Melodia, Ritmo, Cifras e Gerar.
+  - Melodia: a pista sugerida aparece em destaque, com ▶ e Usar como melodia. Cada pista mostra a extensão sobre o piano, com o seu teclado em tracejado. Se houver mais de seis pistas, a percussão e as pistas com poucas notas ficam recolhidas em "Mostrar mais".
+  - Ritmo (nova): mostra a música inteira em compassos, com os trechos para conferir marcados. Clique num compasso para ouvi-lo. Cada trecho tem Ouvir trecho, Corrigir (abre a Revisão guiada) e Está certo.
+  - Cifras: um cartão mostra o tom, com Ouvir, Mudar tom e Está certo. As cifras aparecem em blocos por compasso, e as duvidosas ficam em destaque; clique num bloco para editar a cifra na tabela. As opções viram chaves.
+  - Gerar: mostra um resumo das etapas e das opções antes de gerar.
+- O rodapé fica fixo com o player das pistas, ← Voltar e o botão Continuar para a próxima etapa.
+- Em janelas a partir de 1560 px de largura, como numa tela Full HD maximizada, um painel aparece à direita:
+  - Progresso da partitura mostra um anel com a porcentagem, as etapas e o que falta.
+  - Seu teclado mostra as teclas que a melodia usa e diz se ela cabe.
+  - Em janelas menores, o que falta aparece logo acima do rodapé.
+- Ícone novo: uma nota musical branca em fundo azul.
+
 ## 0.50.2 — 07/11/2026
 
 Biblioteca organizada: as ações saem da coluna das músicas e ficam numa barra no topo.

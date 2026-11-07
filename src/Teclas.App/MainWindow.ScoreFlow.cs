@@ -7,7 +7,11 @@ using Teclas.Core;
 namespace Teclas.App;
 
 /// <summary>One chip of the step bar above the editor.</summary>
-public sealed record FlowStepView(int Step, int Tab, string Number, string Title, string Subtitle, bool IsEnabled, bool IsCurrent, bool IsDone, bool IsLocked);
+public sealed record FlowStepView(int Step, int Tab, string Number, string Title, string Subtitle, bool IsEnabled, bool IsCurrent, bool IsDone, bool IsLocked)
+{
+    /// <summary>The line after the chip (none after the last step) turns green once the step is done.</summary>
+    public bool HasConnector => Step < 3;
+}
 
 /// <summary>One line of "Para continuar", with the command that resolves it and, for doubts, a confirmation.</summary>
 public sealed record FlowCheckView(ScoreFlowCheck Check)
@@ -23,7 +27,7 @@ public sealed record FlowCheckView(ScoreFlowCheck Check)
 }
 
 /// <summary>
-/// Step-by-step generation of a new MIDI: Melodia → Ritmo e acordes → Cifras → Gerar e conferir.
+/// Step-by-step generation of a new MIDI: Melodia → Ritmo → Cifras → Gerar (tabs 0, 3, 1 and 2 of the editor).
 /// A step opens only when the previous one has no block and no unconfirmed doubt; Gerar partitura exists only in the last step.
 /// Songs that already have a score, use the approved review, or continue in the music editor keep the free tabs.
 /// </summary>
@@ -39,7 +43,12 @@ public partial class MainWindow
     private IReadOnlyList<ScoreFlowCheck> flowChecks = [];
     private bool flowTabGuard;
 
-    private static readonly string[] FlowTitles = ["Melodia", "Ritmo e acordes", "Cifras", "Gerar e conferir"];
+    private static readonly string[] FlowTitles = ["Melodia", "Ritmo", "Cifras", "Gerar"];
+    private static readonly string[] FlowHints = ["Escolha a pista", "Confira trechos", "Acordes e tom", "Revisar e salvar"];
+
+    /// <summary>Editor tab of each step: Melodia 0, Ritmo 3, Cifras 1, Gerar (prévia) 2; the old indexes stay for saved sessions.</summary>
+    internal static int TabOfStep(ScoreFlowStep step) => step switch { ScoreFlowStep.Melody => 0, ScoreFlowStep.Analysis => 3, ScoreFlowStep.Chords => 1, _ => 2 };
+    internal static ScoreFlowStep StepOfTab(int tab) => tab switch { 0 => ScoreFlowStep.Melody, 3 => ScoreFlowStep.Analysis, 1 => ScoreFlowStep.Chords, _ => ScoreFlowStep.Generate };
 
     internal static bool IsGuidedFlow(MidiRow? row) =>
         row is { UsesNativeScoreWorkflow: false, Document: not null, UseReviewedProfile: false, ScorePath: null };
@@ -49,62 +58,57 @@ public partial class MainWindow
     public ScoreFlowStep FlowReachable => ScoreFlowRules.Reachable(flowChecks);
     private bool FlowHasAnalysis(MidiRow row) => row.AnalysisPath is not null;
 
-    /// <summary>The furthest tab a guided song may open. Steps 2 and 3 share the Cifras tab.</summary>
-    public int FlowAllowedTab => !GuidedFlow || selectedFile is not { } row ? 2 : FlowReachable switch
+    /// <summary>The furthest step a guided song may open: Ritmo needs the analysis.</summary>
+    public ScoreFlowStep FlowAllowedStep => !GuidedFlow || selectedFile is not { } row ? ScoreFlowStep.Generate : FlowReachable switch
     {
-        ScoreFlowStep.Melody => 0,
-        ScoreFlowStep.Analysis => FlowHasAnalysis(row) ? 1 : 0,
-        ScoreFlowStep.Chords => 1,
-        _ => 2
+        ScoreFlowStep.Melody => ScoreFlowStep.Melody,
+        ScoreFlowStep.Analysis => FlowHasAnalysis(row) ? ScoreFlowStep.Analysis : ScoreFlowStep.Melody,
+        var step => step
     };
+
+    /// <summary>The editor tab of <see cref="FlowAllowedStep"/>.</summary>
+    public int FlowAllowedTab => TabOfStep(FlowAllowedStep);
 
     private int CurrentEditorTab => EditorTabs?.SelectedIndex is int index and >= 0 ? index : 0;
 
-    /// <summary>The step the user is on: the tab, and on the Cifras tab the analysis step while it still has something to check.</summary>
-    public ScoreFlowStep FlowCurrentStep => CurrentEditorTab switch
-    {
-        0 => ScoreFlowStep.Melody,
-        1 => flowChecks.Any(c => c.Step == ScoreFlowStep.Analysis && c.Pending) ? ScoreFlowStep.Analysis : ScoreFlowStep.Chords,
-        _ => ScoreFlowStep.Generate
-    };
+    /// <summary>The step the user is on (the step of the open tab).</summary>
+    public ScoreFlowStep FlowCurrentStep => StepOfTab(CurrentEditorTab);
 
     public IReadOnlyList<FlowStepView> FlowSteps
     {
         get
         {
             var reachable = FlowReachable; var current = FlowCurrentStep; bool guided = GuidedFlow;
-            int allowed = FlowAllowedTab;
+            var allowed = FlowAllowedStep;
             return Enumerable.Range(0, 4).Select(i =>
             {
-                var step = (ScoreFlowStep)i; int tab = i switch { 0 => 0, 3 => 2, _ => 1 };
-                bool enabled = CanEditMidi || tab == 2 ? !guided || tab <= allowed : false;
-                bool done = guided ? step < reachable && step != current : false;
+                var step = (ScoreFlowStep)i; int tab = TabOfStep(step);
+                bool enabled = CanEditMidi || step == ScoreFlowStep.Generate ? !guided || step <= allowed : false;
+                bool done = guided ? step < reachable && step != current : selectedFile?.ScorePath is not null && step != ScoreFlowStep.Generate && step != current;
                 bool locked = guided && !enabled;
                 int pending = flowChecks.Count(c => c.Step == step && c.Pending);
-                string subtitle = !guided ? i switch { 0 => "pistas", 1 => "análise", 2 => "tabela", _ => "prévia" }
-                    : locked ? "após a etapa anterior" : done ? "concluída"
-                    : step == ScoreFlowStep.Generate ? "pronta para gerar"
-                    : pending == 0 ? "tudo certo" : pending == 1 ? "1 pendência" : $"{pending} pendências";
-                return new FlowStepView(i, tab, done ? "" : (i + 1).ToString(), FlowTitles[i], subtitle, enabled, step == current, done, locked);
+                string subtitle = !guided || locked || done ? FlowHints[i]
+                    : step == ScoreFlowStep.Generate ? "Pronta para gerar"
+                    : pending == 0 ? FlowHints[i] : pending == 1 ? "1 pendência" : $"{pending} pendências";
+                return new FlowStepView(i, tab, done ? "\uE73E" : (i + 1).ToString(), FlowTitles[i], subtitle, enabled, step == current, done, locked);
             }).ToArray();
         }
     }
 
-    private IEnumerable<ScoreFlowCheck> ChecksOfCurrentTab() => CurrentEditorTab switch
+    private IEnumerable<ScoreFlowCheck> ChecksOfCurrentStep()
     {
-        0 => flowChecks.Where(c => c.Step == ScoreFlowStep.Melody),
-        1 => flowChecks.Where(c => c.Step is ScoreFlowStep.Analysis or ScoreFlowStep.Chords),
-        _ => []
-    };
+        var step = FlowCurrentStep;
+        return step == ScoreFlowStep.Generate ? [] : flowChecks.Where(c => c.Step == step);
+    }
 
     public IReadOnlyList<FlowCheckView> FlowPanelChecks =>
-        ChecksOfCurrentTab().Where(c => c.Id != "analysis-missing" || CurrentEditorTab != 0)
+        ChecksOfCurrentStep()
             .OrderBy(c => c.Pending ? c.Level == ScoreFlowLevel.Block ? 0 : 1 : 2).Select(c => new FlowCheckView(c)).ToArray();
 
     public Visibility FlowPanelVisibility => GuidedFlow ? Visibility.Visible : Visibility.Collapsed;
     /// <summary>Guided songs generate from the fixed footer; the old generation row and Analisar acordes stay for the free workflow.</summary>
     public Visibility GenerationButtonsVisibility => GuidedFlow ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility FlowEnqueueVisibility => GuidedFlow && CurrentEditorTab == 2 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility FlowEnqueueVisibility => GuidedFlow && FlowCurrentStep == ScoreFlowStep.Generate ? Visibility.Visible : Visibility.Collapsed;
     public Visibility FlowChecksVisibility => FlowPanelChecks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SelectionMessageVisibility => GuidedFlow ? Visibility.Collapsed : Visibility.Visible;
 
@@ -112,10 +116,16 @@ public partial class MainWindow
     {
         get
         {
-            var pending = ChecksOfCurrentTab().Where(c => c.Pending && !(CurrentEditorTab == 0 && c.Id == "analysis-missing")).ToArray();
+            var step = FlowCurrentStep;
+            var pending = ChecksOfCurrentStep().Where(c => c.Pending).ToArray();
             int blocks = pending.Count(c => c.Level == ScoreFlowLevel.Block), confirms = pending.Length - blocks;
-            if (CurrentEditorTab == 2) return CanGenerateNow ? "Tudo conferido. Gere a partitura para ver as páginas." : "Aguarde a operação em andamento.";
-            if (pending.Length == 0) return CurrentEditorTab == 0 ? "Melodia conferida. Siga para analisar o ritmo e os acordes." : "Cifras conferidas. Siga para gerar a partitura.";
+            if (step == ScoreFlowStep.Generate) return CanGenerateNow ? "Tudo conferido. Gere a partitura para ver as páginas." : "Aguarde a operação em andamento.";
+            if (pending.Length == 0) return step switch
+            {
+                ScoreFlowStep.Melody => "Melodia conferida. Siga para conferir o ritmo.",
+                ScoreFlowStep.Analysis => "Ritmo conferido. Siga para as cifras.",
+                _ => "Cifras conferidas. Siga para gerar a partitura."
+            };
             string Part(int n, string one, string many) => n == 1 ? "1 " + one : $"{n} {many}";
             var parts = new List<string>();
             if (blocks > 0) parts.Add(Part(blocks, "bloqueio", "bloqueios"));
@@ -124,10 +134,21 @@ public partial class MainWindow
         }
     }
 
-    public string FlowNextLabel => CurrentEditorTab switch { 0 => "Próximo: analisar ritmo e acordes", 1 => "Próximo: gerar e conferir", _ => "Gerar partitura" };
+    public string FlowNextLabel => FlowCurrentStep switch
+    {
+        ScoreFlowStep.Melody => "Continuar para ritmo",
+        ScoreFlowStep.Analysis => "Continuar para cifras",
+        ScoreFlowStep.Chords => "Continuar para gerar",
+        _ => selectedFile?.UsesNativeScoreWorkflow == true ? "Melhorar apresentação" : selectedFile?.ScorePath is not null && !GuidedFlow ? "Gerar de novo" : "Gerar partitura"
+    };
 
-    public bool CanFlowNext => CurrentEditorTab == 2 ? GuidedFlow && CanGenerateNow : IsIdle && GuidedFlow && CanEditMidi
-        && !ChecksOfCurrentTab().Any(c => c.Pending && !(CurrentEditorTab == 0 && c.Id == "analysis-missing"));
+    /// <summary>Guided: the current step has nothing pending. Free songs (score already generated, approved review) move freely between the tabs.</summary>
+    public bool CanFlowNext => FlowCurrentStep == ScoreFlowStep.Generate
+        ? GuidedFlow ? CanGenerateNow : selectedFile is not null && CanGenerateNow
+        : IsIdle && selectedFile is not null && CanEditMidi && (!GuidedFlow || !ChecksOfCurrentStep().Any(c => c.Pending));
+
+    public bool CanFlowBack => IsIdle && selectedFile is not null && FlowCurrentStep > ScoreFlowStep.Melody && CanEditMidi;
+    public Visibility FlowFooterVisibility => selectedFile is null ? Visibility.Collapsed : Visibility.Visible;
 
     /// <summary>Generation from the buttons: guided songs only after every step is clear.</summary>
     public bool CanGenerateNow => CanGenerate && (!GuidedFlow || ScoreFlowRules.CanGenerate(flowChecks));
@@ -199,23 +220,25 @@ public partial class MainWindow
         flowChecks = selectedFile is { } row && IsGuidedFlow(row) ? ScoreFlowRules.Evaluate(FlowInput(row)) : [];
         foreach (var name in new[] { nameof(GuidedFlow), nameof(FlowCheckList), nameof(FlowReachable), nameof(FlowAllowedTab), nameof(FlowCurrentStep), nameof(FlowSteps),
             nameof(FlowPanelChecks), nameof(FlowPanelVisibility), nameof(GenerationButtonsVisibility), nameof(SelectionMessageVisibility), nameof(FlowSummary),
-            nameof(FlowNextLabel), nameof(CanFlowNext), nameof(FlowEnqueueVisibility), nameof(FlowChecksVisibility), nameof(GenerateButtonLabel), nameof(CanGenerateNow), nameof(CanEnqueueNow) }) Notify(name);
+            nameof(FlowNextLabel), nameof(CanFlowNext), nameof(FlowEnqueueVisibility), nameof(FlowChecksVisibility), nameof(GenerateButtonLabel), nameof(CanGenerateNow), nameof(CanEnqueueNow),
+            nameof(FlowAllowedStep), nameof(CanFlowBack), nameof(FlowFooterVisibility) }) Notify(name);
+        NotifyFlowScreens();
         GuardFlowTab();
     }
 
     /// <summary>Keeps a guided song on a step it has unlocked (also after restoring the last tab or when an earlier step changes).</summary>
     private void GuardFlowTab()
     {
-        if (EditorTabs is null || flowTabGuard || !GuidedFlow || CurrentEditorTab <= FlowAllowedTab) return;
+        if (EditorTabs is null || flowTabGuard || !GuidedFlow || FlowCurrentStep <= FlowAllowedStep) return;
         flowTabGuard = true;
         Dispatcher.BeginInvoke(() =>
         {
             try
             {
-                if (GuidedFlow && CurrentEditorTab > FlowAllowedTab)
+                if (GuidedFlow && FlowCurrentStep > FlowAllowedStep)
                 {
                     EditorTabs.SelectedIndex = FlowAllowedTab;
-                    Status = "Conclua a etapa " + FlowTitles[(int)FlowReachable] + " antes de seguir. Veja o que falta em Para continuar.";
+                    Status = "Conclua a etapa " + FlowTitles[(int)FlowReachable] + " antes de seguir. Veja o que falta em Progresso da partitura.";
                 }
             }
             finally { flowTabGuard = false; NotifyFlow(); }
@@ -227,13 +250,8 @@ public partial class MainWindow
         EditorTabs.SelectionChanged += (_, e) => { if (ReferenceEquals(e.Source, EditorTabs)) NotifyFlow(); };
         ChordGrid.CellEditEnding += (_, _) => Dispatcher.BeginInvoke(NotifyFlow, DispatcherPriority.Background);
         ChordGrid.RowEditEnding += (_, _) => Dispatcher.BeginInvoke(NotifyFlow, DispatcherPriority.Background);
-        // Wide editor: the next-step button sits beside the checks (one row less in the fixed footer); narrow: below them, so messages keep their width.
-        FlowPanel.SizeChanged += (_, e) =>
-        {
-            bool wide = e.NewSize.Width >= 680;
-            DockPanel.SetDock(FlowActions, wide ? Dock.Right : Dock.Bottom);
-            FlowActions.Margin = wide ? new Thickness(12, 0, 0, 0) : new Thickness(0, 6, 0, 0);
-        };
+        ChordGrid.SelectionChanged += (_, _) => Notify(nameof(ChordTiles));
+        InitializeResponsiveLayout();
     }
 
     /// <summary>The marked tracks were heard together (or the single marked track alone).</summary>
@@ -302,16 +320,25 @@ public partial class MainWindow
     private async void FlowNextClick(object sender, RoutedEventArgs e)
     {
         if (!CanFlowNext || selectedFile is not { } row) return;
-        if (CurrentEditorTab == 2) { GenerateClick(sender, e); return; }
-        if (CurrentEditorTab == 0)
+        var step = FlowCurrentStep;
+        if (step == ScoreFlowStep.Generate) { GenerateClick(sender, e); return; }
+        if (step == ScoreFlowStep.Melody)
         {
-            if (FlowHasAnalysis(row) && HasCurrentMelodyAnalysis(row)) { EditorTabs.SelectedIndex = 1; return; }
-            await RunOperation(async () => { await Analyze(row); NotifyFlow(); EditorTabs.SelectedIndex = 1; }, row, "Analisando notas e acordes");
+            if (FlowHasAnalysis(row) && HasCurrentMelodyAnalysis(row)) { EditorTabs.SelectedIndex = TabOfStep(ScoreFlowStep.Analysis); return; }
+            await RunOperation(async () => { await Analyze(row); NotifyFlow(); EditorTabs.SelectedIndex = TabOfStep(ScoreFlowStep.Analysis); }, row, "Analisando notas e acordes");
             return;
         }
+        if (step == ScoreFlowStep.Analysis) { EditorTabs.SelectedIndex = TabOfStep(ScoreFlowStep.Chords); return; }
         if (!CommitEdits()) return;
         NotifyFlow();
-        if (ScoreFlowRules.CanGenerate(flowChecks)) EditorTabs.SelectedIndex = 2;
+        if (!GuidedFlow || ScoreFlowRules.CanGenerate(flowChecks)) EditorTabs.SelectedIndex = TabOfStep(ScoreFlowStep.Generate);
+    }
+
+    private void FlowBackClick(object sender, RoutedEventArgs e)
+    {
+        if (!CanFlowBack) return;
+        if (FlowCurrentStep == ScoreFlowStep.Chords && !CommitEdits()) return;
+        EditorTabs.SelectedIndex = TabOfStep(FlowCurrentStep - 1);
     }
 
     private void FlowActionClick(object sender, RoutedEventArgs e)

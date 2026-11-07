@@ -1,3 +1,13 @@
+TECLASCORE 0.51.0 · VISUAL NOVO E PASSO A PASSO EM QUATRO TELAS
+
+1. Abra o app: o menu fica no topo, e o ícone novo (nota branca em fundo azul) aparece na barra de tarefas e no atalho. Diminua a largura da janela: os nomes do menu somem e aparecem na dica de cada ícone.
+2. Na Biblioteca, as músicas aparecem em grupos (Em preparo, Para conferir, Prontas e Com falha), cada uma com iniciais e etiqueta. Toque ▶ ⏸ ■ num card. Abra Adicionar, Gerar, Exportar, Estudar e ⋯ na barra embaixo da lista.
+3. Importe um MIDI novo. Na tela Melodia aparece a pista sugerida: ouça e clique em Usar como melodia. Confira as barras de extensão: o tracejado é o seu teclado.
+4. Clique em Continuar para ritmo. A linha dos compassos marca os trechos para conferir. Clique num compasso para ouvi-lo e use Está certo em cada trecho.
+5. Clique em Continuar para cifras. Confirme o tom, clique numa cifra em destaque e corrija-a na tabela.
+6. Clique em Continuar para gerar, confira o resumo e gere a partitura. ← Voltar retorna à etapa anterior.
+7. Maximize a janela numa tela Full HD: o painel Progresso da partitura e o cartão Seu teclado aparecem à direita.
+
 TECLASCORE 0.50.2 · BARRA DE AÇÕES DA BIBLIOTECA
 
 1. Abra a Biblioteca: Adicionar, Gerar, Exportar e Estudar ficam numa barra no topo; Comandos (Ctrl+K) e ⋯ à direita. A coluna da esquerda começa pela busca.
