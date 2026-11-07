@@ -50,6 +50,7 @@ public partial class MainWindow
             if (row is null) { row = LoadNativeScore(result.Path); Files.Add(row); }
             Library.SelectedItem = row;
             ApplyMusicalEditorResult(row, result);
+            RememberChordPreferences(dialog.DiagramChoices);
             if (SaveCurrentSession()) dialog.AcknowledgeRecoveryPublication();
         }
         settings.ComfortableDiagramMaximumSpan = dialog.ComfortableDiagramMaximumSpan;

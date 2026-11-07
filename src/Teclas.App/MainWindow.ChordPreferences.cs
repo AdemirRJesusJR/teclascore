@@ -52,6 +52,20 @@ public partial class MainWindow
         SaveChordPreferences();
     }
 
+    /// <summary>Positions chosen in the musical editor (printed chords, no transposition) are remembered too.</summary>
+    private void RememberChordPreferences(IReadOnlyList<(string Root, string Quality, int Inversion)> choices)
+    {
+        bool any = false;
+        foreach (var (root, quality, inversion) in choices)
+            if (inversion is >= 0 and <= 2 && DiagramPositionPropagation.Shape(root, quality, 0) is { } shape)
+            { chordPreferences[shape] = inversion; any = true; }
+        if (any) SaveChordPreferences();
+    }
+
+    /// <summary>The position the app has saved for this chord, if any.</summary>
+    internal int? SavedChordPosition(string root, string quality, int transpose) =>
+        DiagramPositionPropagation.Shape(root, quality, transpose) is { } shape && chordPreferences.TryGetValue(shape, out int inversion) ? inversion : null;
+
     private void SaveChordPreferences()
     {
         settings.ChordPositionPreferences = chordPreferences.OrderBy(item => item.Key.PitchClass).ThenBy(item => item.Key.Quality, StringComparer.Ordinal)

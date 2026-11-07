@@ -78,6 +78,6 @@ def selected_notes(parsed,config,engine,origin,end):
         clipped=min(note['end'],round(stop*ppq))
         if clipped<=note['start']:continue
         selected.append(dict(note,end=clipped,duration=clipped-note['start'],
-                             _section_start=round(begin*engine.DIV),_section_end=round(stop*engine.DIV)))
+                             _source_end=note['end'],_section_start=round(begin*engine.DIV),_section_end=round(stop*engine.DIV)))
     selected.sort(key=lambda note:(note['start'],note['pitch']))
     return selected,sources,sections

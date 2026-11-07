@@ -50,6 +50,8 @@ public sealed partial class MusicEditorWindow : Window
     private readonly Dictionary<string, string> mappedEventIds = new(StringComparer.Ordinal);
     private bool selectingFromScore;
     public NativeScoreResult? Result { get; private set; }
+    /// <summary>Diagram positions changed in this session, so the library remembers them for the same chords elsewhere.</summary>
+    public IReadOnlyList<(string Root, string Quality, int Inversion)> DiagramChoices { get; private set; } = [];
     public bool HasChanges => current.Notes.Count + current.Rhythms.Count + current.Harmonies.Count + current.EventReplacements.Length + current.VoiceCopies.Length > 0;
 
     public MusicEditorWindow(NativeMusicModel model, string? initialPreview,
@@ -289,6 +291,8 @@ public sealed partial class MusicEditorWindow : Window
     {
         if(!HasChanges||prepared is null||preparedRevision!=revision)throw new InvalidOperationException("Atualize a prévia antes de salvar.");
         playback.Stop();Result=await publish(prepared,Progress(),token);
+        DiagramChoices=harmonies.Where(h=>h.CanEditDiagram&&current.Harmonies.ContainsKey(h.Harmony.Id)&&h.Inversion!=h.Harmony.DiagramInversion)
+            .Select(h=>(h.Root,h.Quality,h.Inversion)).ToArray();
         CompleteRecovery();discardConfirmed=true;DialogResult=true;
     });
     private async Task Run(string title,Func<CancellationToken,Task> action)

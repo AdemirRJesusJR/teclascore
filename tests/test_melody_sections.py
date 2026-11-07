@@ -118,10 +118,19 @@ class MelodySectionsTests(unittest.TestCase):
         document['notes'].append(note(7.999,75,B,.1))
         events,_,_=rendered(document,config([section(2,2,B)]))
         self.assertTrue(all(n['start']<8*engine.DIV and n['end']<=8*engine.DIV for n in events if n['pitch']==75))
-        # Without a following attack to refine the grid, fail visibly rather than crossing the boundary.
+        # Without a following attack to refine the grid, the note stays where it sounds and is reported.
         document['notes']=[n for n in document['notes'] if not(n['start']==8*PPQ and n['track']==A['track'])]
-        with self.assertRaisesRegex(engine.NeedsReview,'troca de trecho'):
-            rendered(document,config([section(2,2,B)]))
+        events,_,report=rendered(document,config([section(2,2,B)]))
+        self.assertEqual([(n['start'],n['end']) for n in events if n['pitch']==75],[(8*engine.DIV,round(8.25*engine.DIV))])
+        self.assertEqual([item['action'] for item in report['section_boundary_adjustments']],['kept'])
+
+    def test_crossing_attack_is_dropped_when_the_next_section_already_plays_there(self):
+        document=basic();document['notes'].append(note(7.999,75,B,.1))
+        # Without grid refinement the late attack snaps onto the incoming section's own attack at beat 8.
+        with patch.object(engine,'_refine_boundary_grids',return_value=[]),             patch.object(engine,'_separate_quantized_attacks',return_value=({},[],[])):
+            events,_,report=rendered(document,config([section(2,2,B)]))
+        self.assertEqual([n['pitch'] for n in events if 7.5*engine.DIV<=n['start']<=8.5*engine.DIV],[62])
+        self.assertEqual([item['action'] for item in report['section_boundary_adjustments']],['dropped'])
 
     def test_build_musicxml_keeps_single_staff_correct_instrument_names_and_source_content(self):
         options=config([section(2,2,B),section(4,4,B)])

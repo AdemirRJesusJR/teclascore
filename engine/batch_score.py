@@ -139,6 +139,10 @@ def review_points(parsed,config,harmony,*,include_melody_report=False):
         for item in report.get('boundary_grid_refinements',[]):
             add(item['beat_original'],'rhythm_refined',
                 'Ritmo refinado automaticamente para separar ataques próximos. Confira o trecho com velocidade reduzida.')
+        for item in report.get('section_boundary_adjustments',[]):
+            add(item['original_quarter'],'rhythm_refined',
+                'Ataque na troca de trecho ajustado automaticamente: '+('omitido, porque o trecho seguinte já toca a nota nesse tempo.'
+                if item['action']=='dropped' else 'mantido no tempo em que soa.')+' Ouça o compasso para confirmar.')
         for item in report.get('attack_position_adjustments',[]):
             point=locate_review_point(item['original_quarter'],origin,bars,'rhythm_refined',
                 'Ataque preservado com ajuste local de ritmo. Confira o trecho com velocidade reduzida.')
@@ -500,11 +504,20 @@ def melody_events(parsed,config,origin,end):
             attack_positions,_,attack_adjustments=_separate_quantized_attacks(bybeat,grids,grid_choices,origin,end)
             boundary_refinements=[{'beat_original':beat,'from':initial_grids[beat],'to':div}
                 for beat,div in sorted(grids.items()) if div!=initial_grids[beat]]
-    onsetmap={};collision=0;collision_quarters=[]
-    for n in top:
-        s=attack_positions.get(n['start']/ppq,snap(n['start']))-origin
-        if sections and not n['_section_start']<=s+origin<n['_section_end']:
-            raise NeedsReview('Um ataque próximo à troca de trecho ultrapassa o limite após quantização; confira este compasso antes de gerar.',[n['start']/ppq])
+    onsetmap={};collision=0;collision_quarters=[];section_adjustments=[]
+    positions=[(n,attack_positions.get(n['start']/ppq,snap(n['start']))) for n in top]
+    # An attack played a hair before a section change snaps onto the next section.
+    # The incoming section owns that position: a duplicate attack there is dropped,
+    # otherwise the note stays where it is heard, with its real length.
+    owned={p for n,p in positions if sections and n['_section_start']<=p<n['_section_end']}
+    for n,position in positions:
+        s=position-origin
+        if sections and not n['_section_start']<=position<n['_section_end']:
+            dropped=position in owned
+            section_adjustments.append({'original_quarter':n['start']/ppq,'quantized_quarter':position/DIV,
+                                        'action':'dropped' if dropped else 'kept'})
+            if dropped:continue
+            n=dict(n,_crossing=True)
         if not 0<=s<end-origin:continue
         if s in onsetmap:
             collision+=1
@@ -514,11 +527,13 @@ def melody_events(parsed,config,origin,end):
     events=[];errors=[];onsets=sorted(onsetmap)
     for i,s in enumerate(onsets):
         n=onsetmap[s];next_s=onsets[i+1] if i+1<len(onsets) else end-origin
-        stop=snap(n['end'])-origin
-        if i+1<len(onsets) and onsetmap[next_s]['start']-n['end']<=ppq*.28:stop=next_s
+        # A note moved across a section change was clipped at the old section's end; use its MIDI length.
+        note_end=n.get('_source_end',n['end']) if n.get('_crossing') else n['end']
+        stop=snap(note_end)-origin
+        if i+1<len(onsets) and onsetmap[next_s]['start']-note_end<=ppq*.28:stop=next_s
         beat=int((s+origin)//DIV);minimum=DIV//grids.get(beat,4)
         stop=min(next_s,end-origin,max(s+minimum,stop))
-        if sections:stop=min(stop,n['_section_end']-origin)
+        if sections and not n.get('_crossing'):stop=min(stop,n['_section_end']-origin)
         if stop>s:
             event={'start':s,'end':stop,'pitch':n['pitch']}
             gs=[g['pitch'] for g in grace_notes if abs(n['start']/ppq-g['target_quarter'])<.001]
@@ -536,6 +551,7 @@ def melody_events(parsed,config,origin,end):
     report={'raw_notes':len(selected),'principal_source_notes':main_count,'grace_notes_preserved':len(grace_notes),'solo_notes_added':solo_count,'simultaneous_notes_reduced':len(selected)-len(top),'melody_attacks':len(events),'quantized_attack_collisions':collision,'triplet_beats_original':triplet_beats,'onset_adjustment_max_quarters':max(errors),'onset_adjustment_mean_quarters':sum(errors)/len(errors)}
     if boundary_refinements:report['boundary_grid_refinements']=boundary_refinements
     if attack_adjustments:report['attack_position_adjustments']=attack_adjustments
+    if section_adjustments:report['section_boundary_adjustments']=section_adjustments
     if collision_quarters:report['collision_original_quarters']=sorted(set(collision_quarters))
     if merge_report is not None:
         merge_report['quantizedAttacks']=len(events)

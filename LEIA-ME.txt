@@ -1,3 +1,7 @@
+TECLASCORE 0.51.2
+
+A troca de trecho da melodia é corrigida automaticamente, sem bloquear a geração. A janela de posições dos acordes foi modernizada, e as posições ficam sempre salvas no app, inclusive as escolhidas no Editor musical.
+
 TECLASCORE 0.51.1
 
 Ícones maiores e mais claros no menu do topo, com o nome sob cada ícone em janelas médias. Janela Comandos (Ctrl+K) modernizada, com resultados separados em Ações e Músicas.

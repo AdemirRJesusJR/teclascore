@@ -158,7 +158,10 @@ public sealed class TrackRow : Observable
     public bool IsSecondVoice{get=>secondVoice;set{if(Set(ref secondVoice,value)){if(value)IsMelody=false;SecondVoiceChanged?.Invoke(this);}}}
     public Action<TrackRow>? SecondVoiceChanged{get;set;}
     /// <summary>"🎤 95%" on the part that follows the sung lyrics of a karaoke MIDI; empty on the others.</summary>
-    private string lyricsBadge="";public string LyricsBadge{get=>lyricsBadge;set{if(Set(ref lyricsBadge,value))Notify(nameof(LyricsToolTip));}}
+    private string lyricsBadge="";public string LyricsBadge{get=>lyricsBadge;set{if(Set(ref lyricsBadge,value)){Notify(nameof(LyricsToolTip));Notify(nameof(LyricsShareText));Notify(nameof(LyricsChipVisibility));}}}
+    /// <summary>Share of the lyric syllables on this track ("96%"), shown in the Canto chip next to a microphone icon.</summary>
+    public string LyricsShareText=>LyricsBadge.Replace("🎤 ","");
+    public System.Windows.Visibility LyricsChipVisibility=>LyricsBadge.Length==0?System.Windows.Visibility.Collapsed:System.Windows.Visibility.Visible;
     public string LyricsToolTip=>LyricsBadge.Length==0?"":$"Esta pista acompanha o canto: {LyricsBadge.Replace("🎤 ","")} das sílabas da letra caem nas notas dela. Escolha-a como melodia para a letra entrar na partitura.";
     public Action? Changed{get;set;}
     public required MidiSource Source{get;init;}

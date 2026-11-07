@@ -1,5 +1,20 @@
 # Histórico de versões
 
+## 0.51.2 — 07/11/2026
+
+A troca de trecho da melodia passa a ser corrigida automaticamente, e a janela de posições dos acordes foi modernizada.
+
+- Troca de trecho da melodia:
+  - Um ataque tocado um pouco antes da troca de trecho, e que a quantização empurrava para o trecho seguinte, não bloqueia mais a geração com "Precisa de revisão".
+  - Se o trecho seguinte já toca uma nota nesse tempo, o ataque duplicado é omitido. Senão, a nota fica no tempo em que soa, com a duração real do MIDI.
+  - Cada ajuste aparece como um ponto informativo no compasso, para você ouvir e confirmar.
+- Posições dos acordes:
+  - A janela foi redesenhada. Cada cifra fica num cartão com o número de ocorrências, o teclado em destaque e a escolha da posição. O exemplo em C aparece em etiquetas.
+  - Um aviso fixo explica que as posições ficam salvas no app. Cada cifra mostra se a posição já está salva no app, se será salva ao aplicar ou se usa o padrão da música.
+  - As posições escolhidas no Editor musical também ficam salvas no app e passam a valer para as mesmas cifras nas próximas músicas.
+- Biblioteca: no cartão da música, os botões ▶ ⏸ ⏹ e a lixeira ficam alinhados à esquerda, sob o título.
+- A coluna Canto mostra a porcentagem inteira (por exemplo, 96%) num selo com o ícone de microfone, sem cortar o número.
+
 ## 0.51.1 — 07/11/2026
 
 Ícones maiores e mais claros no menu do topo e janela Comandos (Ctrl+K) modernizada.

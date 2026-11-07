@@ -34,7 +34,8 @@ public partial class MainWindow
         if(!CanCustomizeDiagrams || selectedFile is not {} row || !CommitEdits())return;
         int others=Files.Count(other=>IsPropagationTarget(other,row) &&
             DiagramPositionPropagation.SharesAnyShape(Entries(row),row.TransposeSemitones,Entries(other),other.TransposeSemitones));
-        var dialog=new DiagramPositionsWindow(row,settings.ComfortableDiagramMaximumSpan,others,settings.PropagateDiagramPositions,PreferredInversions(row)){Owner=this};
+        var dialog=new DiagramPositionsWindow(row,settings.ComfortableDiagramMaximumSpan,others,settings.PropagateDiagramPositions,PreferredInversions(row),
+            (root,quality)=>SavedChordPosition(root,quality,row.TransposeSemitones)){Owner=this};
         if(diagramPositionsDialog(dialog)!=true)return;
         settings.ComfortableDiagramMaximumSpan=dialog.ComfortableMaximumSpan;
         if(others>0)settings.PropagateDiagramPositions=dialog.ApplyToLibrary;
