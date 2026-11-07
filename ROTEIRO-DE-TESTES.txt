@@ -1,3 +1,12 @@
+TECLASCORE 0.53.0 · PLAYER FIXO NA ETAPA GERAR
+
+1. Abra uma música gerada na etapa Gerar. O player fica acima da partitura em duas linhas: ▶ Reproduzir, Ⅱ, ■, posição, velocidade, A, B, repetir e ⓘ na primeira; Estudo, metrônomo, contagem, acorde atual, Acompanhar, karaokê e os menus na segunda. A partitura ocupa o restante do cartão.
+2. Toque, pause, pare, arraste a posição e mude a velocidade. Marque A e B e ative a repetição. Passe o mouse no ⓘ: aparecem a sincronização e o diagnóstico.
+3. Abra Editar, Revisar e Arquivo: Editor musical, Arranjo, Transpor, oitavas, Diagramas, Cifras e Texto das cifras; Revisão guiada, Revisão visual e Diagnóstico; Propriedades, Histórico, Organizar, MuseScore, Exportar, Áudio MP3, Livreto e Pasta. Esc fecha o menu.
+4. Clique em Foco: a lista de músicas e o painel de progresso somem e a partitura usa a largura toda. Clique de novo para trazê-los de volta.
+5. No rodapé aparecem a dica, Adicionar à fila, Voltar e Gerar de novo, sem repetir botões no cartão.
+6. Reduza a janela para 1100 × 740: o player continua inteiro e a partitura continua visível. Teste nos temas claro e escuro.
+
 TECLASCORE 0.52.0 · SELEÇÃO DE VÁRIAS MÚSICAS
 
 1. Na biblioteca, clique com o botão direito numa música. O menu deve aparecer sem abrir a música. Escolha Selecionar: as caixas aparecem, a música vem marcada e a barra flutuante mostra "1 selecionada".
@@ -374,7 +383,7 @@ TESTES DO INSTALADOR 0.20.4
 3. Com uma biblioteca existente, confira músicas, histórico, tema e caminhos depois de instalar. O instalador não deve fechar à força o app nem reiniciar o computador.
 4. Se testar a desinstalação, faça-a pelos Aplicativos instalados. As partituras nas pastas e a biblioteca devem permanecer. Instalar novamente deve recuperar as preferências salvas.
 5. O ZIP permanece compatível com a instalação pelo aplicativo. SHA256SUMS contém uma entrada para o ZIP e outra para o EXE.
-6. Na Prévia, clique em Compactar controles e confira o espaço adicional para a partitura. Use reproduzir/pausar/parar e arraste a posição; expanda para ajustar velocidade, repetição e ferramentas. Feche e reabra o app para conferir a preferência. Teste nos temas claro e escuro.
+6. Na Prévia, confira o player fixo acima da partitura. Use reproduzir/pausar/parar, arraste a posição e ajuste velocidade e repetição; as ferramentas ficam nos menus Editar, Revisar e Arquivo. Teste nos temas claro e escuro.
 
 TESTES DA VERSÃO 0.19.0
 

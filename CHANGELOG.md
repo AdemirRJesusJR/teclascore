@@ -1,5 +1,22 @@
 # Histórico de versões
 
+## 0.53.0 — 07/11/2026
+
+Player fixo e compacto na etapa Gerar, com mais espaço para a partitura.
+
+- O player fica acima da partitura, em duas linhas curtas, e não sai mais da tela ao rolar:
+  - Primeira linha: ▶ Reproduzir, pausar, parar, posição, velocidade, trecho A–B, repetir e um ⓘ com a sincronização, o diagnóstico e as mensagens da prévia.
+  - Segunda linha: Estudo (prática, histórico, notas caindo, professor, músicas parecidas), metrônomo, contagem, acorde atual, Acompanhar, karaokê e Preparar (acompanhamento).
+  - A situação da reprodução aparece numa linha logo abaixo, com o texto completo na dica.
+- As ferramentas saíram das fileiras de botões e foram para três menus:
+  - Editar: Editor musical, Arranjo, Transpor, oitava abaixo e acima, Diagramas, Cifras e Texto das cifras.
+  - Revisar: Revisão guiada, Revisão visual e Diagnóstico.
+  - Arquivo: Propriedades, Histórico, Organizar, Abrir no MuseScore, Exportar, Áudio MP3, Livreto e Pasta.
+- Novo botão Foco: esconde a lista de músicas e o painel de progresso para a partitura ocupar a largura toda. Clique de novo para trazê-los de volta.
+- Adicionar à fila, Voltar e Gerar de novo ficam só no rodapé, junto com a dica da etapa, sem repetir botões no cartão.
+- O divisor arrastável e Compactar controles foram retirados, porque o player já fica compacto. Preferências antigas continuam sendo lidas.
+- Em janelas baixas, a tela se ajusta sozinha para o player ficar no topo e a partitura continuar visível.
+
 ## 0.52.0 — 07/11/2026
 
 Seleção de várias músicas na biblioteca, com menu do botão direito e barra de ações em massa.

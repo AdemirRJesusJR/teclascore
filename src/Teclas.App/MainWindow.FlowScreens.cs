@@ -34,9 +34,9 @@ public partial class MainWindow
     // ---- Responsive layout -------------------------------------------------------------------------------------------
 
     /// <summary>Wide windows show the progress panel on the right; narrower ones keep the checks above the footer.</summary>
-    public Visibility ProgressPanelVisibility => wideLayout ? Visibility.Visible : Visibility.Collapsed;
-    public GridLength ProgressPanelColumnWidth => wideLayout ? new GridLength(276) : new GridLength(0);
-    public GridLength ProgressPanelGapWidth => wideLayout ? new GridLength(16) : new GridLength(0);
+    public Visibility ProgressPanelVisibility => wideLayout && !IsScoreFocusMode ? Visibility.Visible : Visibility.Collapsed;
+    public GridLength ProgressPanelColumnWidth => wideLayout && !IsScoreFocusMode ? new GridLength(276) : new GridLength(0);
+    public GridLength ProgressPanelGapWidth => wideLayout && !IsScoreFocusMode ? new GridLength(16) : new GridLength(0);
     public Visibility FooterChecksVisibility => GuidedFlow && !wideLayout ? Visibility.Visible : Visibility.Collapsed;
     /// <summary>Navigation labels in the top bar: hidden by the "só ícones" preference or when the window is narrow.</summary>
     public Visibility NavLabelVisibility => topBarWide && !IsSidebarCollapsed ? Visibility.Visible : Visibility.Collapsed;

@@ -107,8 +107,8 @@ public partial class MainWindow
 
     public Visibility FlowPanelVisibility => GuidedFlow ? Visibility.Visible : Visibility.Collapsed;
     /// <summary>Guided songs generate from the fixed footer; the old generation row and Analisar acordes stay for the free workflow.</summary>
-    public Visibility GenerationButtonsVisibility => GuidedFlow ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility FlowEnqueueVisibility => GuidedFlow && FlowCurrentStep == ScoreFlowStep.Generate ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility GenerationButtonsVisibility => GuidedFlow || (selectedFile is not null && FlowCurrentStep == ScoreFlowStep.Generate) ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility FlowEnqueueVisibility => selectedFile is not null && FlowCurrentStep == ScoreFlowStep.Generate ? Visibility.Visible : Visibility.Collapsed;
     public Visibility FlowChecksVisibility => FlowPanelChecks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SelectionMessageVisibility => GuidedFlow ? Visibility.Collapsed : Visibility.Visible;
 

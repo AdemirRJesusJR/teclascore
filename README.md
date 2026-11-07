@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 0.52.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 0.53.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Selecionar várias músicas:** clique com o botão direito num card e escolha **Selecionar** (ou use Ctrl+clique). Cada card ganha uma caixa de marcação; Shift+clique marca um intervalo, a caixa da seção marca a seção inteira e Ctrl+A marca todas. A barra flutuante embaixo da lista age sobre todas as marcadas: **PDFs**, **Repertório**, **Gerar**, **Cifras**, **Coleção**, **Favoritar**, **Títulos** e **Remover** (com Desfazer). Esc sai da seleção.
 
@@ -42,7 +42,7 @@ Versão 0.52.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artis
 
 **Buscar tocando, duas mãos, metas e gravação:** ache a música tocando um trecho da melodia; pratique melodia e acordes juntos; defina minutos por dia e andamento-alvo no histórico; grave a sua execução em MIDI e ouça de novo.
 
-**Prévia mais limpa:** os comandos da prévia ficam numa barra flutuante sobre a partitura, e o divisor arrastável dá mais espaço à música. Clique com o botão direito num compasso para trocar as cifras; Ctrl+Z e Ctrl+Y desfazem e refazem. A fila termina com um resumo do que saiu pronto.
+**Prévia mais limpa:** o player da prévia fica fixo e compacto acima da partitura, com as ferramentas nos menus Editar, Revisar e Arquivo, e o botão Foco dá a largura toda à música. Clique com o botão direito num compasso para trocar as cifras; Ctrl+Z e Ctrl+Y desfazem e refazem. A fila termina com um resumo do que saiu pronto.
 
 **Atualização com um clique:** quando sair uma versão nova, o botão Atualizar aparece no topo; o app baixa o instalador oficial do GitHub, confere o SHA-256 e instala. A consulta diária pode ser desligada em Configurações.
 
@@ -94,7 +94,7 @@ O aplicativo sempre inicia em **Visão geral**, mantendo biblioteca e demais pre
 
 Em **Posições dos diagramas**, cada cifra aparece apenas uma vez, com a quantidade de ocorrências. A posição selecionada vale para todas as repetições e a imagem muda imediatamente. Passe o mouse para conferir as notas do grave ao agudo. Variações antigas permanecem salvas até você escolher uma posição comum; **Cancelar** descarta as alterações da janela.
 
-Na **Prévia**, use **Compactar controles** para reduzir o player e recolher as opções avançadas e os botões de ferramentas. Reproduzir, pausar, parar e a posição continuam acessíveis. **Expandir controles** recupera as opções; a preferência fica salva ao fechar o app.
+Na **Prévia**, o player fica fixo acima da partitura em duas linhas curtas: **Reproduzir**, pausar, parar, posição, velocidade e trecho **A–B** na primeira; estudo, metrônomo, contagem, acorde atual, karaokê e os menus **Editar**, **Revisar** e **Arquivo** na segunda. A situação da reprodução aparece logo abaixo, e o ⓘ mostra a sincronização e o diagnóstico. **Foco** esconde a lista de músicas e o painel de progresso para a partitura ocupar a largura toda.
 
 A versão **0.19.0** permite transpor partituras MuseScore importadas e versões editadas: em **Prévia → Transpor**, escolha o intervalo em relação à versão aberta, prepare a prévia, compare **Original / Proposta transposta**, ouça e use **Salvar nova versão**. O original e as versões anteriores ficam preservados no Histórico. Abrir novamente Transpor inicia outro intervalo relativo à cópia então selecionada; não reutiliza o deslocamento do MIDI original.
 

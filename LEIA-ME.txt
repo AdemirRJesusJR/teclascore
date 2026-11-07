@@ -1,3 +1,7 @@
+TECLASCORE 0.53.0
+
+Na etapa Gerar, o player fica fixo e compacto acima da partitura, em duas linhas: reproduzir, posição, velocidade e trecho A–B na primeira; estudo, metrônomo e karaokê na segunda, com os menus Editar, Revisar e Arquivo. O botão Foco esconde a lista de músicas e o painel de progresso para a partitura ocupar a largura toda. Adicionar à fila, Voltar e Gerar de novo ficam só no rodapé.
+
 TECLASCORE 0.52.0
 
 Clique com o botão direito numa música e escolha Selecionar (ou use Ctrl+clique) para marcar várias músicas. Uma barra flutuante salva os PDFs, monta o repertório ou o caderno de cifras, gera, põe numa coleção, favorita, edita os títulos ou remove todas as marcadas de uma vez.
@@ -206,7 +210,7 @@ Posições dos diagramas: a imagem do teclado aparece ao lado da cifra e muda im
 Ao abrir o app, a primeira tela é sempre Visão geral. As demais preferências e a biblioteca continuam salvas.
 
 NOVO NA VERSÃO 0.19.1
-Na Prévia, Compactar controles reduz o player e recolhe as ferramentas, liberando espaço para a partitura. Reproduzir, pausar, parar e posição permanecem acessíveis; Expandir controles traz as opções de volta. A escolha fica salva.
+Na Prévia, o player fica fixo e compacto acima da partitura (desde a versão 0.53.0, sem Compactar controles). As ferramentas de edição, revisão e arquivo ficam nos menus Editar, Revisar e Arquivo; Foco dá a largura toda à partitura.
 Execute o instalador indicado no início deste documento e siga o assistente em português. A instalação é por usuário, com pasta própria, atalhos e desinstalador disponível nos Aplicativos instalados do Windows.
 O .NET Desktop Runtime 10 está incluído no EXE e no ZIP: não é preciso instalá-lo separadamente. Python/Pillow e MuseScore continuam necessários; use Configurações > Preparar este computador.
 A desinstalação preserva sua biblioteca, configurações, partituras e versões anteriores instaladas pelo ZIP. Abra o TeclaScore pelo atalho após concluir.

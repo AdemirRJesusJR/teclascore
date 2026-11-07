@@ -85,19 +85,14 @@ public partial class App
             Check(Math.Abs(thumbs.Width.Value - 180) < 1, "thumbnails-come-back-at-their-width");
             CaptureFolderWindow(window, Path.Combine(reports, "preview-bar.png"));
 
-            // Resizable score area: a splitter between the controls and the score; remembered; double click resets.
-            viewer.UpdateLayout(); double automatic = viewer.ActualHeight;
-            Check(window.FindName("PreviewSplitter") is GridSplitter, "preview-has-a-splitter");
-            window.PreviewControlsHeight = 60; Flush(); window.UpdateLayout(); Flush();
-            Check(viewer.ActualHeight > automatic + 40, $"smaller-controls-give-the-score-room ({automatic:0} → {viewer.ActualHeight:0})");
+            // Docked player (v0.53): no splitter; the controls keep their compact natural height, also with an old saved split.
+            viewer.UpdateLayout();
+            Check(window.FindName("PreviewSplitter") is null, "preview-has-no-splitter");
+            var player = (FrameworkElement)window.FindName("PreviewPlayerPanel");
+            Check(player.ActualHeight > 0 && player.ActualHeight <= 150, $"docked-player-is-compact ({player.ActualHeight:0})");
             var barTop = bar.TranslatePoint(new Point(0, bar.ActualHeight), window).Y;
             Check(barTop < window.ActualHeight - 60, $"bar-stays-on-screen ({barTop:0} of {window.ActualHeight:0})");
-            typeof(MainWindow).GetMethod("PreviewSplitterDragged", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [window, new DragCompletedEventArgs(0, 0, false)]);
-            Check(Settings.Load(settingsPath).PreviewControlsHeight == 60, "split-is-remembered");
             CaptureFolderWindow(window, Path.Combine(reports, "preview-split.png"));
-            typeof(MainWindow).GetMethod("PreviewSplitterReset", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [window, null]);
-            Flush();
-            Check(window.PreviewControlsHeight is null && Settings.Load(settingsPath).PreviewControlsHeight is null, "double-click-resets-the-split");
 
             // Queue summary: ready, to check (doubtful chords / review points) and failed.
             string analysisOk = Path.Combine(work, "ok.json"), analysisDoubt = Path.Combine(work, "duvida.json");
