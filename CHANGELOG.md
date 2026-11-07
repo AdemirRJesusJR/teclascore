@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 1.2.1 — 07/11/2026
+
+O modo Foco da partitura fica ligado entre as etapas.
+
+- Se você ligar o Foco na etapa Gerar, ele continua ligado ao ir para outra etapa ou outra tela. Fora da etapa Gerar, a lista de músicas e o painel de progresso aparecem normalmente; ao voltar para Gerar, eles somem de novo e a partitura volta a ocupar a largura toda.
+- Para desligar o Foco, clique de novo no botão na etapa Gerar. A escolha vale até fechar o app.
+
 ## 1.2.0 — 07/11/2026
 
 Modo claro, escuro ou do sistema para todas as paletas.

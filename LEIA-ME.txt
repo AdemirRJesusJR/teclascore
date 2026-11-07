@@ -1,3 +1,7 @@
+TECLASCORE 1.2.1
+
+O Foco da partitura, ligado na etapa Gerar, continua ligado ao passar por outras etapas. Ele só esconde a lista de músicas e o painel de progresso na etapa Gerar.
+
 TECLASCORE 1.2.0
 
 Em Configurações, a aparência ganhou o Modo: Claro, Escuro ou Sistema. Toda paleta tem versão clara e escura (o Alto contraste tem uma só). Em Sistema, o app acompanha o modo do Windows e troca sozinho quando ele muda.

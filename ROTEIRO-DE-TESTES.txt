@@ -1,3 +1,11 @@
+TECLASCORE 1.2.1 · FOCO MANTIDO ENTRE AS ETAPAS
+
+1. Em Sobre, confira que a versão é 1.2.1.
+2. Na etapa Gerar, ligue o Foco: a lista de músicas e o painel de progresso somem.
+3. Vá para Melodia, Ritmo ou Cifras (ou para outra tela do menu): as colunas laterais aparecem.
+4. Volte para a etapa Gerar: o botão Foco continua ligado e as colunas laterais somem de novo.
+5. Clique no Foco para desligá-lo: as colunas voltam e continuam visíveis ao trocar de etapa.
+
 TECLASCORE 1.2.0 · MODO CLARO, ESCURO E DO SISTEMA
 
 1. Em Sobre, confira que a versão é 1.2.0. A aparência deve estar igual à de antes da atualização.

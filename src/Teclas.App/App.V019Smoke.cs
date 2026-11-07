@@ -266,10 +266,10 @@ public partial class App
             var focusTabs = Find<TabControl>(main, "EditorTabs");
             main.IsScoreFocusMode = true; Flush();
             focusTabs.SelectedIndex = 1; Flush(); main.UpdateLayout();
-            Check(!main.IsScoreFocusMode && main.LibraryColumnWidth.Value > 0, "score-focus-ends-when-leaving-generate-step");
-            main.IsScoreFocusMode = true; Flush();
-            Check(!main.IsScoreFocusMode, "score-focus-only-turns-on-in-generate-step");
+            Check(main.IsScoreFocusMode && !main.IsScoreFocusApplied && main.LibraryColumnWidth.Value > 0, "score-focus-shows-side-columns-outside-generate-step");
             focusTabs.SelectedIndex = 2; Flush(); main.UpdateLayout();
+            Check(main.IsScoreFocusMode && main.LibraryColumnWidth.Value == 0, "score-focus-stays-on-when-returning-to-generate-step");
+            main.IsScoreFocusMode = false; Flush(); main.UpdateLayout();
             main.SetThemeForSmoke("graphite");
             Check(main.CanTransposeScore, "native-score-transposition-is-enabled");
             native.HasPendingScoreProperties = true; Check(!main.CanTransposeScore, "native-transposition-blocks-pending-properties"); native.HasPendingScoreProperties = false;

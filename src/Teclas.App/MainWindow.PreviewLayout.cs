@@ -20,21 +20,25 @@ public partial class MainWindow
         MainScoreViewer.TwoPagesChanged += (_, enabled) => { settings.ScoreTwoPages = enabled; PersistPreferences(); };
         Loaded += (_, _) => QueuePreviewAlignment();
         ScoreEditorScrollViewer.SizeChanged += (_, _) => QueuePreviewAlignment();
-        EditorTabs.SelectionChanged += (_, e) => { if (ReferenceEquals(e.Source, EditorTabs)) { LeaveScoreFocusOutsideGenerate(); QueuePreviewAlignment(); } };
+        EditorTabs.SelectionChanged += (_, e) => { if (ReferenceEquals(e.Source, EditorTabs)) { NotifyScoreFocusLayout(); QueuePreviewAlignment(); } };
         PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is not (nameof(CurrentPage) or nameof(SelectedFile))) return;
-            LeaveScoreFocusOutsideGenerate();
+            NotifyScoreFocusLayout();
             QueuePreviewAlignment();
         };
     }
 
     private bool IsOnGenerateStep => CurrentPage == "library" && EditorTabs.SelectedIndex == TabOfStep(ScoreFlowStep.Generate);
 
-    /// <summary>Score focus belongs to the Gerar step only: leaving it (another step or another page) brings the side columns back.</summary>
-    private void LeaveScoreFocusOutsideGenerate()
+    /// <summary>Score focus applies to the Gerar step only. The user's choice is kept: other steps and pages show the side
+    /// columns, and coming back to Gerar hides them again while the toggle stays on.</summary>
+    public bool IsScoreFocusApplied => scoreFocusMode && IsOnGenerateStep;
+
+    private void NotifyScoreFocusLayout()
     {
-        if (scoreFocusMode && !IsOnGenerateStep) IsScoreFocusMode = false;
+        foreach (var name in new[] { nameof(IsScoreFocusApplied), nameof(LibraryColumnWidth), nameof(LibraryGapWidth), nameof(ProgressPanelVisibility),
+            nameof(ProgressPanelColumnWidth), nameof(ProgressPanelGapWidth) }) Notify(name);
     }
 
     /// <summary>Short windows only: when the editor cannot show everything, scroll its outer viewport so the docked player
@@ -75,20 +79,20 @@ public partial class MainWindow
     // The page's own reading viewport keeps a minimum; the controls around it stay compact.
     public double PreviewScoreMinimumHeight => 240;
 
-    /// <summary>Score focus: hides the song list and the progress panel so the page gets the whole width. Not persisted.</summary>
+    /// <summary>Score focus chosen by the user (the toggle in the Gerar step). It hides the song list and the progress panel
+    /// only while the Gerar step is shown; see <see cref="IsScoreFocusApplied"/>. Kept for the session, not persisted.</summary>
     public bool IsScoreFocusMode
     {
         get => scoreFocusMode;
         set
         {
-            if (value && !IsOnGenerateStep) value = false;
             if (scoreFocusMode == value) return;
             scoreFocusMode = value;
-            foreach (var name in new[] { nameof(IsScoreFocusMode), nameof(LibraryColumnWidth), nameof(LibraryGapWidth), nameof(ProgressPanelVisibility),
-                nameof(ProgressPanelColumnWidth), nameof(ProgressPanelGapWidth) }) Notify(name);
+            Notify(nameof(IsScoreFocusMode));
+            NotifyScoreFocusLayout();
         }
     }
 
-    public GridLength LibraryColumnWidth => scoreFocusMode ? new GridLength(0) : new GridLength(292);
-    public GridLength LibraryGapWidth => scoreFocusMode ? new GridLength(0) : new GridLength(16);
+    public GridLength LibraryColumnWidth => IsScoreFocusApplied ? new GridLength(0) : new GridLength(292);
+    public GridLength LibraryGapWidth => IsScoreFocusApplied ? new GridLength(0) : new GridLength(16);
 }
