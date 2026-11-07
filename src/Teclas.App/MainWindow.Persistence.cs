@@ -123,6 +123,7 @@ public partial class MainWindow
         row.Workspace = saved.Workspace;
         row.AnalysisPath = File.Exists(saved.AnalysisPath) && Directory.Exists(saved.Workspace) ? saved.AnalysisPath : null;
         RestoreReviewPoints(row);
+        RestoreFlow(row, saved);
         row.ScorePath = saved.ScorePath; row.PreviewPath = saved.PreviewPath;
         row.PageCount = saved.PageCount; row.GeneratedAt = saved.GeneratedAt;
         row.HasOperationError = saved.HasOperationError;
@@ -227,7 +228,8 @@ public partial class MainWindow
                 { Quarter = chord.Quarter, Bass = chord.Bass, Root = chord.Root, Quality = chord.Quality, Confidence = chord.Confidence, DiagramInversion = chord.DiagramInversion, Recommendation = chord.Recommendation, Alternatives = chord.Alternatives }).ToList(),
             KeyFifths = row.KeyFifths, KeyMinor = row.KeyMinor, AnalysisPath = row.AnalysisPath, Workspace = row.Workspace,
             ScorePath = row.ScorePath, PreviewPath = row.PreviewPath, PageCount = row.PageCount, GeneratedAt = row.GeneratedAt,
-            HasOperationError = row.HasOperationError, Status = row.Status
+            HasOperationError = row.HasOperationError, Status = row.Status,
+            FlowConfirmations = [.. StateOf(row).Confirmed], FlowHeard = StateOf(row).HeardSignature
         };
     }
 

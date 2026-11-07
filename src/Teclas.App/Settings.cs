@@ -331,6 +331,9 @@ public sealed class SavedMidi
     public DateTimeOffset? GeneratedAt { get; set; }
     public bool HasOperationError { get; set; }
     public string Status { get; set; } = "";
+    /// <summary>Guided-step confirmations (id@step#context) and the melody last heard, so reopening keeps the unlocked steps.</summary>
+    public List<string> FlowConfirmations { get; set; } = [];
+    public string? FlowHeard { get; set; }
 }
 
 public sealed class SavedScoreVersion

@@ -34,6 +34,7 @@ public partial class MainWindow
         var dialog = new ChordReviewWindow(doubtful, quarter => PlayPassage(row, quarter), (root, quality, inversion) => PreviewChord(root, quality, inversion), UseChordAlternative) { Owner = this };
         chordReviewDialog(dialog);
         StopPassage();
+        if (IsGuidedFlow(row)) ConfirmFlow(row, "chords-doubtful");
         Notify(nameof(DoubtfulChordCount)); Notify(nameof(ChordReviewLabel));
         if (dialog.Changed > 0) Status = $"Revisão de cifras: {dialog.Changed} trocada(s). Gere de novo para atualizar a partitura.";
     }

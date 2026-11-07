@@ -1,3 +1,13 @@
+TECLASCORE 0.50.1 · PASSO A PASSO COM TRAVAS E PLAYER FIXO
+
+1. Importe um MIDI novo: o editor mostra as etapas Melodia, Ritmo e acordes, Cifras e Gerar e conferir; só Melodia está aberta e não há botão Gerar.
+2. Marque uma pista de baixo e uma muito aguda (como no MIDI dos Barões): Para continuar mostra o bloqueio das notas fora do piano e Próximo fica desligado. Tente clicar em Gerar e conferir: não abre.
+3. Desmarque a pista aguda, confirme a pista de baixo (É melodia) e ouça as marcadas: Próximo analisa e abre Ritmo e acordes.
+4. Confira os pontos da análise na Revisão guiada, revise as cifras com dúvida e confirme o tom: Próximo abre Gerar e conferir com Gerar partitura e Adicionar à fila no rodapé.
+5. Troque a melodia: o editor volta para Melodia e as confirmações somem.
+6. Com a janela baixa, role a aba Melodia: o player fica parado no rodapé; com nada tocando, o botão grande toca as pistas marcadas.
+7. Feche e reabra o TeclaScore no meio das etapas: a música continua na etapa em que estava, com as confirmações feitas.
+
 TECLASCORE 0.50.0 · REGRAS QUE PROTEGEM A PARTITURA
 
 1. Escolha à mão uma pista de um MIDI marcado "Sem melodia completa" e analise: a Revisão guiada mostra o aviso no compasso 1; depois de gerar, o card fica em "Revisar".

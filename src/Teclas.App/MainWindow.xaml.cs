@@ -70,6 +70,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeShortcuts();
         Closed+=(_,_)=>DisposePlayback();
         InitializeTrackAudition(midiOutputFactory);
+        InitializeScoreFlow();
         profiles=JsonNode.Parse(File.ReadAllText(Path.Combine(engineDirectory,"profiles.json")))!.AsObject();
         instruments=LoadInstrumentNames(engineDirectory);
         InitDashboard();
@@ -113,6 +114,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore)); Notify(nameof(CanEditScoreProperties)); Notify(nameof(ScorePropertiesSummary));
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
+        NotifyFlow();
         foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText),nameof(FoldRepeats),nameof(SimplifiedChords),nameof(ChordsOnly),nameof(IncludeLyrics),nameof(CanShowChordSheetText),nameof(CanAskTeacher),nameof(CanShowSimilarSongs),nameof(CanExportStudyAudio),nameof(KeyboardFitMessage),nameof(KeyboardFitVisibility),nameof(ChordStaff),nameof(CanExportBooklet),nameof(LyricsTrackHint),nameof(LyricsTrackVisibility),nameof(CollectionRuleHint),nameof(CollectionRuleVisibility)})Notify(name);
         RefreshDashboard();
         Preview=null;
@@ -126,7 +128,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
         }
     }
-    private void SetBusy(bool value){busy=value;Notify(nameof(CanExportBatchPdf));Notify(nameof(CanRecoverDrafts));Notify(nameof(CanOpenPresentation));Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShiftOctave));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));Notify(nameof(CanSyncLibrary));}
+    private void SetBusy(bool value){busy=value;NotifyFlow();Notify(nameof(CanExportBatchPdf));Notify(nameof(CanRecoverDrafts));Notify(nameof(CanOpenPresentation));Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShiftOctave));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));Notify(nameof(CanSyncLibrary));}
     private void InvalidateAnalysis(MidiRow row)
     {
         if(row.UsesNativeScoreWorkflow)return;
@@ -134,7 +136,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(row.ScorePath is not null)row.HasPendingScoreProperties=true;
         if(row==selectedFile){ResetPlayback();NotifyPlaybackState();}
         if(row.Document is not null)row.Status=row.UseReviewedProfile?"Perfil revisado · pronto para gerar":"Seleção alterada · gere para atualizar a partitura";
-        NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanGenerate));Notify(nameof(GenerationHint));Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));Notify(nameof(CanPlayMarkedTracks));
+        NotifyFlow();
+        NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanGenerate));Notify(nameof(GenerationHint));Notify(nameof(PreviewMessage));Notify(nameof(ScorePropertiesSummary));Notify(nameof(CanPlayMarkedTracks));Notify(nameof(CanUseTrackMainButton));Notify(nameof(TrackMainButtonToolTip));
     }
     private Dictionary<string,(MidiDocument Document,Dictionary<SourceKey,MelodySourceSuggestion> Suggestions)>? prefetchedMidis;
 
@@ -399,11 +402,12 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         RefreshSelection();loading=false;
     }
     private void SelectedChordsChanged(object? sender,System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-    {SynchronizeDraftChordObservers();MarkManualScoreDraftChanged();Notify(nameof(CanCustomizeDiagrams));Notify(nameof(ScorePropertiesSummary));}
-    private async void AnalyzeClick(object sender,RoutedEventArgs e){if(CanEditMidi && selectedFile is { } row)await RunOperation(async()=>{await Analyze(row);EditorTabs.SelectedIndex=1;},row,"Analisando notas e acordes");}
+    {NotifyFlow();SynchronizeDraftChordObservers();MarkManualScoreDraftChanged();Notify(nameof(CanCustomizeDiagrams));Notify(nameof(ScorePropertiesSummary));}
+    private async void AnalyzeClick(object sender,RoutedEventArgs e){if(FlowBlocksAnalysis(out var flowMessage)){Status=flowMessage;return;}if(CanEditMidi && selectedFile is { } row)await RunOperation(async()=>{await Analyze(row);EditorTabs.SelectedIndex=1;},row,"Analisando notas e acordes");}
     private async void GenerateClick(object sender,RoutedEventArgs e)
     {
         if(!CanGenerate)return;
+        if(!CanGenerateNow){Status="Conclua as etapas antes de gerar: veja o que falta em Para continuar.";NotifyFlow();return;}
         if(selectedFile?.UsesNativeScoreWorkflow==true){ImproveNativeScoreClick(sender,e);return;}
         if(!CommitEdits())return;
         if(selectedFile is { } row)await RunOperation(async()=>{await Generate(row);EditorTabs.SelectedIndex=2;},row,"Gerando partitura");

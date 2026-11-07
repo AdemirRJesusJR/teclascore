@@ -69,6 +69,12 @@ public partial class App
             row.KeyFifths = -2; row.KeyMinor = true;
             row.Chords.Add(new() { Quarter = 0, Root = "D", Quality = "m7", Confidence = 0.91 });
             row.Chords.Add(new() { Quarter = 4, Root = "G", Quality = "7", Confidence = 0.84 });
+            // A new MIDI follows the guided steps: an analysed song whose steps were confirmed keeps Cifras open after reopening.
+            string analysisWork = Path.Combine(directory, "analise");
+            Directory.CreateDirectory(analysisWork);
+            row.Workspace = analysisWork; row.AnalysisPath = Path.Combine(analysisWork, "analysis.json");
+            File.WriteAllText(row.AnalysisPath, "{}");
+            first.CompleteFlowForSmoke(row);
             first.PythonPath = Environment.ProcessPath!;
             first.MuseScorePath = Environment.ProcessPath!;
             first.OutputDirectory = chosenOutput;

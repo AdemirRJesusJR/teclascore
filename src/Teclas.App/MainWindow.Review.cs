@@ -75,6 +75,7 @@ public partial class MainWindow
         try
         {
             window.ShowDialog();
+            if (IsGuidedFlow(row)) ConfirmFlow(row, "analysis-review");
             if (window.ChordToEdit is { } point)
             {
                 var chord = row.Chords.Where(item => item.Quarter <= point.Quarter + .00001).OrderBy(item => item.Quarter).LastOrDefault()

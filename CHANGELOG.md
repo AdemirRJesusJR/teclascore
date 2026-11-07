@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.50.1 — 07/11/2026
+
+Passo a passo com travas para gerar a partitura de um MIDI novo, e escuta das pistas com o player sempre à vista.
+
+- Um MIDI novo segue quatro etapas: Melodia → Ritmo e acordes → Cifras → Gerar e conferir. Cada etapa só abre quando a anterior não tem bloqueio nem dúvida sem confirmação, e Gerar partitura e Adicionar à fila existem só na última. Músicas com partitura gerada, com a revisão aprovada ou no Editor musical continuam com as abas livres.
+- Para continuar (rodapé fixo) mostra o que falta em cada etapa, com o botão que resolve. Bloqueiam: nenhuma melodia marcada, percussão ou pista sem notas como melodia, notas fora do piano de 88 teclas e duas cifras na mesma posição. Pedem confirmação: pista com cara de baixo, acompanhamento ou poucas notas, melodia que não cabe no seu teclado nem mudando de oitava, letra numa pista não marcada, pistas marcadas ainda não ouvidas juntas, pontos da análise, trocas de acorde a menos de um tempo, cifras com dúvida e o tom detectado. Trocar a melodia desfaz as confirmações e volta à etapa Melodia. As confirmações ficam salvas com a sessão: ao reabrir o TeclaScore, a música continua na etapa em que estava. Em janelas largas o botão da próxima etapa fica ao lado das pendências, para sobrar mais espaço para a lista de pistas.
+- Uma melodia que juntava uma pista de baixo e uma pista muito aguda (de Fá#2 a Fá8) passava sem trava e fazia a geração falhar com "Não foi possível ajustar o espaço entre alguns diagramas": as notas agudíssimas empurravam as cifras para o sistema de cima. Agora essa escolha é barrada na etapa Melodia, com a explicação.
+- Aba Melodia modernizada: o player da escuta fica fixo no rodapé, fora da rolagem, mesmo sem nada tocando (o botão grande toca as pistas marcadas). Botões ▶ redondos, linha da pista tocando destacada, pista e canal sob o instrumento, indícios coloridos (Boa candidata em verde, Conferir em âmbar), avisos em faixas, resumo em etiquetas e botões com ícones e nomes curtos (o nome completo fica na dica).
+- Aba Cifras: as opções (Revisar cifras, Digitar a cifra, Posições dos diagramas e as caixas de seleção) quebram em linhas e não ficam mais espremidas em janelas médias.
+
 ## 0.50.0 — 07/11/2026
 
 Regras de negócio revistas para não produzir partituras erradas sem aviso.

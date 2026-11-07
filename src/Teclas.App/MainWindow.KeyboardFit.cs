@@ -14,7 +14,7 @@ public partial class MainWindow
         set
         {
             if (settings.KeyboardKeys == value || !KeyboardRange.Sizes.Contains(value)) return;
-            settings.KeyboardKeys = value; PersistPreferences(); Notify(); Notify(nameof(KeyboardFitMessage)); Notify(nameof(KeyboardFitVisibility));
+            settings.KeyboardKeys = value; PersistPreferences(); Notify(); Notify(nameof(KeyboardFitMessage)); Notify(nameof(KeyboardFitVisibility)); NotifyFlow();
             RefreshLibraryFilters();
         }
     }

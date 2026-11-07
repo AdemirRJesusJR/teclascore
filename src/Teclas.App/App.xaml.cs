@@ -67,6 +67,8 @@ public partial class App : Application
         { VerifyBulkPdfUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-track-mix-ui")
         { VerifyTrackMixUi(e.Args[1]); return; }
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-score-flow-ui")
+        { VerifyScoreFlowUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-diagram-propagation-ui")
         { VerifyDiagramPropagationUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-midi-folder-ui")

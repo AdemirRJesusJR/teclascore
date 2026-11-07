@@ -109,7 +109,7 @@ public partial class MainWindow
 
     private async void EnqueueConversionClick(object sender, RoutedEventArgs e)
     {
-        if (!CanEnqueueConversion || selectedFile is not { } row || !CommitEdits()) return;
+        if (!CanEnqueueNow || selectedFile is not { } row || !CommitEdits()) return;
         bool added = false;
         await RunOperation(async () =>
         {

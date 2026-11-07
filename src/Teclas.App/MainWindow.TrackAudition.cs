@@ -47,10 +47,13 @@ public partial class MainWindow
     public Visibility TrackAuditionVisible => auditionTrack is null ? Visibility.Collapsed : Visibility.Visible;
     // Room for the track grid plus wrapped tool buttons at the minimum window width (expanded sidebar).
     // The preview tab fits the window: its controls scroll on their own and the split gives the score more room.
-    public double ScoreEditorMinimumHeight => EditorTabs?.SelectedIndex == 2 ? 760 : auditionTrack is null ? 760 : 900;
+    // The Melodia tab no longer carries the player (it is docked below the scroll area), so it needs less room.
+    public double ScoreEditorMinimumHeight => EditorTabs?.SelectedIndex == 0 ? 600 : 760;
+    /// <summary>The track player is docked at the bottom of the editor card, outside its scroll area, while the Melodia tab is open.</summary>
+    public Visibility TrackPlayerDockVisibility => CanEditMidi && EditorTabs?.SelectedIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
     public string TrackAuditionTitle => auditionTracks.Count switch
     {
-        0 => "",
+        0 => "Nenhuma pista tocando",
         1 => $"Pista {auditionTracks[0].Track} · Canal {auditionTracks[0].Channel} · {auditionTracks[0].Instrument}",
         _ => $"{auditionTracks.Count} pistas juntas · " + string.Join(" + ", auditionTracks.Select(track => track.Instrument))
     };
@@ -60,6 +63,10 @@ public partial class MainWindow
         ? "Ouça cada pista no botão ▶. Para escolher outra melodia, desmarque a revisão aprovada e marque a pista desejada."
         : "Ouça no botão ▶ e marque uma ou mais pistas de introdução, solo e melodia. Ajuste a prioridade para os trechos sobrepostos; acompanhamento e baixo precisam de conferência.";
     public string TrackPauseLabel => trackPlayer?.IsPaused == true ? "▶  Continuar" : "Ⅱ  Pausar";
+    /// <summary>The fixed player's main button: pause/resume while a track plays; when idle it plays the tracks marked as melody.</summary>
+    public string TrackPauseGlyph => trackPlayer is { IsPlaying: true } ? "" : "";
+    public bool CanUseTrackMainButton => CanPauseTrackAudition || auditionTrack is null && CanPlayMarkedTracks;
+    public string TrackMainButtonToolTip => CanPauseTrackAudition ? (trackPlayer?.IsPaused == true ? "Continuar" : "Pausar") : CanPlayMarkedTracks ? "Ouvir as pistas marcadas como melodia" : "Use ▶ ao lado de uma pista para ouvi-la";
     public string TrackAuditionStatus { get => trackAuditionStatus; private set { trackAuditionStatus = value; Notify(); } }
     public double TrackAuditionDurationSeconds => trackPlayer?.Duration.TotalSeconds ?? 0;
     public string TrackAuditionDurationText => FormatTime(TrackAuditionDurationSeconds);
@@ -94,6 +101,7 @@ public partial class MainWindow
         EditorTabs.SelectionChanged += (_, e) =>
         {
             Notify(nameof(ScoreEditorMinimumHeight));
+            Notify(nameof(TrackPlayerDockVisibility));
             if (ReferenceEquals(e.Source, EditorTabs) && EditorTabs.SelectedIndex != 0) StopTrackAudition();
         };
         Closed += (_, _) =>
@@ -122,7 +130,7 @@ public partial class MainWindow
     private void NotifyTrackAudition()
     {
         foreach (string name in new[] { nameof(CanAuditionTracks), nameof(CanPlayMarkedTracks), nameof(CanPauseTrackAudition), nameof(CanStopTrackAudition),
-            nameof(CanSeekTrackAudition), nameof(TrackAuditionVisible), nameof(ScoreEditorMinimumHeight), nameof(TrackAuditionTitle), nameof(TrackSelectionHint), nameof(TrackPauseLabel),
+            nameof(CanSeekTrackAudition), nameof(TrackAuditionVisible), nameof(TrackPlayerDockVisibility), nameof(ScoreEditorMinimumHeight), nameof(TrackAuditionTitle), nameof(TrackSelectionHint), nameof(TrackPauseLabel), nameof(TrackPauseGlyph), nameof(CanUseTrackMainButton), nameof(TrackMainButtonToolTip),
             nameof(TrackAuditionPositionSeconds), nameof(TrackAuditionPositionText), nameof(TrackAuditionDurationSeconds), nameof(TrackAuditionDurationText),
             nameof(LyricsTrackHint), nameof(LyricsTrackVisibility), nameof(CollectionRuleHint), nameof(CollectionRuleVisibility) }) Notify(name);
     }
@@ -187,6 +195,7 @@ public partial class MainWindow
                 var start = moment - sequence.LeadingSilenceTrimmed;
                 trackPlayer!.Play(sequence, start < TimeSpan.Zero || start >= sequence.Duration ? TimeSpan.Zero : start);
                 if (keepPaused) trackPlayer.Pause();
+                MarkFlowHeard(row, tracks);
                 TrackAuditionStatus = (tracks.Count == 1 ? "Ouvindo somente esta pista, a partir da primeira nota."
                         : $"Ouvindo {tracks.Count} pistas juntas. ▶ em outra pista soma; ■ em uma delas tira só ela.")
                     + (sequence.Warnings.Count == 0 ? "" : " " + string.Join(" ", sequence.Warnings));
@@ -210,7 +219,11 @@ public partial class MainWindow
 
     private void PauseTrackAuditionClick(object sender, RoutedEventArgs e)
     {
-        if (!CanPauseTrackAudition) return;
+        if (!CanPauseTrackAudition)
+        {
+            if (auditionTrack is null && CanPlayMarkedTracks) PlayMarkedTracksClick(sender, e);
+            return;
+        }
         try
         {
             if (trackPlayer!.IsPaused)

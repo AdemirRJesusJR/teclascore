@@ -181,11 +181,16 @@ public partial class App
                 if (scrollToBottom) editorScroll.ScrollToBottom(); else editorScroll.ScrollToTop();
                 Flush(); content.UpdateLayout();
                 var panel = (FrameworkElement)window.FindName("TrackAuditionPanel");
-                var gridBounds = grid.TransformToAncestor(content).TransformBounds(new Rect(grid.RenderSize));
+                // The player is docked below the editor's scroll area, so only the visible (clipped) part of the grid can touch it.
+                var scrollBounds = editorScroll.TransformToAncestor(content).TransformBounds(new Rect(editorScroll.RenderSize));
+                var gridBounds = Rect.Intersect(grid.TransformToAncestor(content).TransformBounds(new Rect(grid.RenderSize)), scrollBounds);
+                // Short windows keep the player and the step checks fixed, so the grid must be reachable by scrolling; a normal window shows it at once.
+                bool mustShowGrid = scrollToBottom || height >= 900;
+                string visibility = !mustShowGrid || !gridBounds.IsEmpty && gridBounds.Height >= 40 ? "" : $"The track grid is not visible enough in {name}: {gridBounds}.";
                 var panelBounds = panel.TransformToAncestor(content).TransformBounds(new Rect(panel.RenderSize));
                 Require(gridBounds.Bottom <= panelBounds.Top + 0.5,
                     $"Track grid overlaps audition controls in {name}: grid bottom {gridBounds.Bottom:0.##}, panel top {panelBounds.Top:0.##}.");
-                layoutBounds[name] = new { gridBottom = gridBounds.Bottom, panelTop = panelBounds.Top,
+                layoutBounds[name] = new { gridBottom = gridBounds.IsEmpty ? (double?)null : gridBounds.Bottom, panelTop = panelBounds.Top,
                     panelBottom = panelBounds.Bottom, editorOffset = editorScroll.VerticalOffset };
                 // A VisualBrush uses content coordinates and avoids including the
                 // invisible native window's current client offset in this capture.
@@ -195,7 +200,8 @@ public partial class App
                         Viewbox = new Rect(0, 0, width, height), Stretch = Stretch.Fill }, null, new Rect(0, 0, width, height));
                 var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(drawing);
                 var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                using var stream = File.Create(Path.Combine(output, name + ".png")); encoder.Save(stream);
+                using (var stream = File.Create(Path.Combine(output, name + ".png"))) encoder.Save(stream);
+                Require(visibility.Length == 0, visibility);
             }
 
             Require(window.CanAuditionTracks && window.CanSelectTracks == synthetic && grid.IsEnabled && ListenButton(firstTrack).IsEnabled,
