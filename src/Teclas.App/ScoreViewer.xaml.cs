@@ -54,6 +54,36 @@ public partial class ScoreViewer : UserControl
         return night;
     }
 
+    private bool twoPages;
+    /// <summary>Shows the current page and the next one side by side; the arrows then turn two pages at a time.</summary>
+    public bool TwoPages
+    {
+        get => twoPages;
+        set
+        {
+            if (twoPages == value) return;
+            twoPages = value;
+            RefreshTwoPagesButton();
+            TwoPagesChanged?.Invoke(this, value);
+            if (pages.Count > 0) _ = ShowPageAsync(); else RefreshControls();
+        }
+    }
+    public event EventHandler<bool>? TwoPagesChanged;
+    private bool TwoPagesActive => twoPages && PageCount > 1;
+    /// <summary>The page shown on the right in two-page mode, or 0 when there is none.</summary>
+    private int SecondPage => TwoPagesActive && CurrentPage < PageCount ? CurrentPage + 1 : 0;
+    private int PageStep => TwoPagesActive ? 2 : 1;
+    private bool IsVisiblePage(int page) => page == CurrentPage || (page > 0 && page == SecondPage);
+
+    private void RefreshTwoPagesButton()
+    {
+        if (twoPages) TwoPagesButton.SetResourceReference(BackgroundProperty, "Selection");
+        else TwoPagesButton.Background = Brushes.Transparent;
+        TwoPagesButton.ToolTip = twoPages ? "Voltar a uma página por vez" : "Duas páginas lado a lado";
+    }
+
+    private void TwoPagesClick(object sender, RoutedEventArgs e) => TwoPages = !TwoPages;
+
     /// <summary>Image files of the pages, in order.</summary>
     internal IReadOnlyList<string> PagePaths => pages.Select(page => page.Path).ToArray();
 
@@ -65,7 +95,7 @@ public partial class ScoreViewer : UserControl
     private bool loadedOnce;
     private bool thumbnailsVisible = true;
     private string fitMode = "width";
-    private BitmapSource? pageBitmap;
+    private BitmapSource? pageBitmap, secondBitmap;
     private Window? fullScreen;
     private Window? fullScreenHost;
     private ScorePlaybackMap? playbackMap;
@@ -129,9 +159,10 @@ public partial class ScoreViewer : UserControl
         var cancellation = loading = new CancellationTokenSource();
         var token = cancellation.Token;
         imageRequest++;
-        pageBitmap = null;
-        PageImage.Source = null;
-        PositionOverlay.Children.Clear();
+        pageBitmap = secondBitmap = null;
+        PageImage.Source = SecondPageImage.Source = null;
+        SecondPageSurface.Visibility = Visibility.Collapsed;
+        PositionOverlay.Children.Clear(); SecondPositionOverlay.Children.Clear();
         pages.Clear();
         SetValue(PageCountPropertyKey, 0);
         RefreshControls();
@@ -185,17 +216,29 @@ public partial class ScoreViewer : UserControl
         ThumbnailList.SelectedIndex = index;
         ThumbnailList.ScrollIntoView(page);
         selecting = false;
-        pageBitmap = null;
-        PageImage.Source = null;
+        pageBitmap = secondBitmap = null;
+        PageImage.Source = SecondPageImage.Source = null;
         SetMessage($"Carregando página {index + 1}…");
         RefreshControls();
         try
         {
             bool night = nightMode;
-            var bitmap = await Task.Run(() => night ? Night(ReadBitmap(page.Path)) : (BitmapSource)ReadBitmap(page.Path));
+            BitmapSource Read(string path) => night ? Night(ReadBitmap(path)) : ReadBitmap(path);
+            var bitmap = await Task.Run(() => Read(page.Path));
             if (request != imageRequest) return;
+            // A missing right-hand page never blocks the left one.
+            BitmapSource? second = null;
+            if (SecondPage is > 0 and var secondPage)
+            {
+                try { second = await Task.Run(() => Read(pages[secondPage - 1].Path)); }
+                catch (Exception exception) when (IsImageFailure(exception)) { second = null; }
+                if (request != imageRequest) return;
+            }
             pageBitmap = bitmap;
             PageImage.Source = bitmap;
+            secondBitmap = second;
+            SecondPageImage.Source = second;
+            SecondPageSurface.Visibility = second is null ? Visibility.Collapsed : Visibility.Visible;
             ViewerMessagePanel.Visibility = Visibility.Collapsed;
             PageScroll.ScrollToTop();
             PageScroll.ScrollToLeftEnd();
@@ -239,9 +282,10 @@ public partial class ScoreViewer : UserControl
     private void RefreshControls()
     {
         if (PageCounter is null) return;
-        PageCounter.Text = PageCount == 0 ? "0 / 0" : $"{CurrentPage} / {PageCount}";
+        PageCounter.Text = PageCount == 0 ? "0 / 0" : SecondPage > 0 ? $"{CurrentPage}–{SecondPage} / {PageCount}" : $"{CurrentPage} / {PageCount}";
         PreviousPageButton.IsEnabled = PageCount > 0 && CurrentPage > 1;
-        NextPageButton.IsEnabled = PageCount > 0 && CurrentPage < PageCount;
+        NextPageButton.IsEnabled = PageCount > 0 && CurrentPage + PageStep - 1 < PageCount;
+        TwoPagesButton.IsEnabled = PageCount > 1;
         ZoomOutButton.IsEnabled = PageCount > 0 && Zoom > 25;
         ZoomInButton.IsEnabled = PageCount > 0 && Zoom < 300;
         ZoomCombo.IsEnabled = FitWidthButton.IsEnabled = FitPageButton.IsEnabled = FullscreenButton.IsEnabled = PageCount > 0;
@@ -274,6 +318,12 @@ public partial class ScoreViewer : UserControl
         PageImage.Width = pageBitmap.Width * Zoom / 100;
         PageImage.Height = pageBitmap.Height * Zoom / 100;
         PageSurface.Width = PageImage.Width; PageSurface.Height = PageImage.Height;
+        if (secondBitmap is not null)
+        {
+            SecondPageImage.Width = secondBitmap.Width * Zoom / 100;
+            SecondPageImage.Height = secondBitmap.Height * Zoom / 100;
+            SecondPageSurface.Width = SecondPageImage.Width; SecondPageSurface.Height = SecondPageImage.Height;
+        }
         DrawPositions();
     }
 
@@ -287,7 +337,8 @@ public partial class ScoreViewer : UserControl
             var width = Math.Max(1, PageScroll.ActualWidth - 38);
             var height = Math.Max(1, PageScroll.ActualHeight - 90); // room for the floating bar under the page
             if (width <= 1 || height <= 1) return;
-            var zoom = width / pageBitmap.Width * 100;
+            // Two pages share the width (with the gap between them), also on a last page shown alone, so the zoom stays steady.
+            var zoom = TwoPagesActive ? Math.Max(1, width - 24) / (pageBitmap.Width * 2) * 100 : width / pageBitmap.Width * 100;
             if (fitMode == "page") zoom = Math.Min(zoom, height / pageBitmap.Height * 100);
             settingZoom = true;
             try { SetCurrentValue(ZoomProperty, zoom); }
@@ -297,8 +348,8 @@ public partial class ScoreViewer : UserControl
         RefreshControls();
     }
 
-    private void PreviousPageClick(object sender, RoutedEventArgs e) => CurrentPage = Math.Max(1, CurrentPage - 1);
-    private void NextPageClick(object sender, RoutedEventArgs e) => CurrentPage = Math.Min(PageCount, CurrentPage + 1);
+    private void PreviousPageClick(object sender, RoutedEventArgs e) => CurrentPage = Math.Max(1, CurrentPage - PageStep);
+    private void NextPageClick(object sender, RoutedEventArgs e) => CurrentPage = Math.Min(PageCount, CurrentPage + PageStep);
     private void ZoomOutClick(object sender, RoutedEventArgs e) => Zoom = Math.Max(25, Zoom - 25);
     private void ZoomInClick(object sender, RoutedEventArgs e) => Zoom = Math.Min(300, Zoom + 25);
     private void ZoomSelected(object sender, SelectionChangedEventArgs e)
@@ -338,8 +389,8 @@ public partial class ScoreViewer : UserControl
     {
         if (e.Key == Key.Escape && fullScreenHost is not null) { fullScreenHost.Close(); e.Handled = true; }
         else if (e.Key == Key.F11) { OpenFullscreen(); e.Handled = true; }
-        else if (e.Key == Key.PageDown && CurrentPage < PageCount) { CurrentPage++; e.Handled = true; }
-        else if (e.Key == Key.PageUp && CurrentPage > 1) { CurrentPage--; e.Handled = true; }
+        else if (e.Key == Key.PageDown && CurrentPage + PageStep - 1 < PageCount) { CurrentPage = Math.Min(PageCount, CurrentPage + PageStep); e.Handled = true; }
+        else if (e.Key == Key.PageUp && CurrentPage > 1) { CurrentPage = Math.Max(1, CurrentPage - PageStep); e.Handled = true; }
     }
     private void FullscreenClick(object sender, RoutedEventArgs e) => OpenFullscreen();
 
@@ -355,7 +406,8 @@ public partial class ScoreViewer : UserControl
 
     private Window CreateFullscreenWindow()
     {
-        var viewer = new ScoreViewer { FirstPagePath = FirstPagePath, CurrentPage = CurrentPage, Margin = new Thickness(20), fitMode = "page" };
+        var viewer = new ScoreViewer { FirstPagePath = FirstPagePath, CurrentPage = CurrentPage, Margin = new Thickness(20), fitMode = "page", twoPages = twoPages };
+        viewer.RefreshTwoPagesButton();
         var window = new Window
         {
             Title = "TeclaScore · partitura", Content = viewer, Owner = Window.GetWindow(this),
@@ -377,6 +429,7 @@ public partial class ScoreViewer : UserControl
         window.Closed += (_, _) =>
         {
             fullScreen = null;
+            TwoPages = viewer.TwoPages;
             if (viewer.CurrentPage >= 1 && viewer.CurrentPage <= PageCount) CurrentPage = viewer.CurrentPage;
             Focus();
         };
@@ -438,7 +491,7 @@ public partial class ScoreViewer : UserControl
         followPlayback = follow;
         if (fullScreen?.Content is ScoreViewer child) child.UpdatePlaybackPosition(seconds, follow);
         if (follow && playbackPosition is { } position && playbackMap?.Measures.FirstOrDefault(m => m.Measure == position.Measure) is { } measure &&
-            measure.Bounds.Page != CurrentPage && measure.Bounds.Page <= PageCount)
+            !IsVisiblePage(measure.Bounds.Page) && measure.Bounds.Page <= PageCount)
             SetCurrentValue(CurrentPageProperty, measure.Bounds.Page);
         DrawPositions();
         if (follow) FollowPosition();
@@ -449,16 +502,25 @@ public partial class ScoreViewer : UserControl
         var segment = playbackMap?.Segments.FirstOrDefault(s => s.EventIds.Contains(eventId, StringComparer.Ordinal));
         if (segment is null) return;
         selectedPosition = playbackMap!.FindOccurrence(segment.Measure, segment.Id);
-        if (segment.Bounds.Page != CurrentPage && segment.Bounds.Page <= PageCount) SetCurrentValue(CurrentPageProperty, segment.Bounds.Page);
+        if (!IsVisiblePage(segment.Bounds.Page) && segment.Bounds.Page <= PageCount) SetCurrentValue(CurrentPageProperty, segment.Bounds.Page);
         DrawPositions();
+    }
+
+    /// <summary>The clicked page surface and its page number (the right-hand one in two-page mode).</summary>
+    private (FrameworkElement Surface, int Page)? ClickedPage(object sender)
+    {
+        bool right = ReferenceEquals(sender, SecondPageSurface);
+        FrameworkElement surface = right ? SecondPageSurface : PageSurface;
+        int page = right ? SecondPage : CurrentPage;
+        var bitmap = right ? secondBitmap : pageBitmap;
+        return bitmap is null || page <= 0 || surface.ActualWidth <= 0 || surface.ActualHeight <= 0 ? null : (surface, page);
     }
 
     private void PageSelected(object sender, MouseButtonEventArgs e)
     {
-        if (playbackMap?.CanSynchronize != true || pageBitmap is null || PageSurface.ActualWidth <= 0 || PageSurface.ActualHeight <= 0) return;
-        var point = e.GetPosition(PageSurface);
-        double x = point.X / PageSurface.ActualWidth, y = point.Y / PageSurface.ActualHeight;
-        e.Handled = TrySelectPosition(x, y);
+        if (playbackMap?.CanSynchronize != true || ClickedPage(sender) is not { } clicked) return;
+        var point = e.GetPosition(clicked.Surface);
+        e.Handled = TrySelectPosition(point.X / clicked.Surface.ActualWidth, point.Y / clicked.Surface.ActualHeight, clicked.Page);
     }
 
     /// <summary>Right click on a measure (or on its chord symbols above the staff); 0 means the measure map is not prepared yet.</summary>
@@ -466,28 +528,28 @@ public partial class ScoreViewer : UserControl
 
     private void PageContextRequested(object sender, MouseButtonEventArgs e)
     {
-        if (pageBitmap is null || PageSurface.ActualWidth <= 0 || PageSurface.ActualHeight <= 0) return;
+        if (ClickedPage(sender) is not { } clicked) return;
         if (playbackMap?.CanSynchronize != true) { MeasureContextRequested?.Invoke(this, 0); e.Handled = true; return; }
-        var point = e.GetPosition(PageSurface);
-        if (MeasureAt(point.X / PageSurface.ActualWidth, point.Y / PageSurface.ActualHeight) is { } measure)
+        var point = e.GetPosition(clicked.Surface);
+        if (MeasureAt(point.X / clicked.Surface.ActualWidth, point.Y / clicked.Surface.ActualHeight, clicked.Page) is { } measure)
         { MeasureContextRequested?.Invoke(this, measure); e.Handled = true; }
     }
 
     /// <summary>Measure under a page point; chord names and diagrams sit above the staff, so the band reaches higher.</summary>
-    internal int? MeasureAt(double x, double y) => playbackMap?.Measures
-        .Where(m => m.Bounds.Page == CurrentPage && x >= m.Bounds.X && x <= m.Bounds.X + m.Bounds.Width && y >= m.Bounds.Y - .075 && y <= m.Bounds.Y + m.Bounds.Height + .014)
+    internal int? MeasureAt(double x, double y, int page = 0) => playbackMap?.Measures
+        .Where(m => m.Bounds.Page == (page > 0 ? page : CurrentPage) && x >= m.Bounds.X && x <= m.Bounds.X + m.Bounds.Width && y >= m.Bounds.Y - .075 && y <= m.Bounds.Y + m.Bounds.Height + .014)
         .OrderBy(m => Math.Abs(y - (m.Bounds.Y + m.Bounds.Height / 2))).Select(m => (int?)m.Measure).FirstOrDefault();
 
-    private bool TrySelectPosition(double x, double y)
+    private bool TrySelectPosition(double x, double y, int page)
     {
         if (playbackMap?.CanSynchronize != true || !double.IsFinite(x) || !double.IsFinite(y)) return false;
         // Native mpos spans all staves of a system. Vertical tolerance permits ledger notes,
         // but clicks outside a real measure never invent a time position.
-        var measure = playbackMap.Measures.Where(m => m.Bounds.Page == CurrentPage && x >= m.Bounds.X && x <= m.Bounds.X + m.Bounds.Width &&
+        var measure = playbackMap.Measures.Where(m => m.Bounds.Page == page && x >= m.Bounds.X && x <= m.Bounds.X + m.Bounds.Width &&
             y >= m.Bounds.Y - .014 && y <= m.Bounds.Y + m.Bounds.Height + .014)
             .OrderBy(m => Math.Abs(y - (m.Bounds.Y + m.Bounds.Height / 2))).FirstOrDefault();
         if (measure is null) return false;
-        var segments = playbackMap.Segments.Where(s => s.Measure == measure.Measure && s.Bounds.Page == CurrentPage).ToArray();
+        var segments = playbackMap.Segments.Where(s => s.Measure == measure.Measure && s.Bounds.Page == page).ToArray();
         var segment = segments.Where(s => x >= s.Bounds.X - .004 && x <= s.Bounds.X + Math.Max(.006, s.Bounds.Width) + .004)
             .OrderBy(s => Math.Abs(x - (s.Bounds.X + s.Bounds.Width / 2))).FirstOrDefault();
         var occurrence = playbackMap.FindOccurrence(measure.Measure, segment?.Id, followPlayback ? playbackSeconds : null);
@@ -504,16 +566,19 @@ public partial class ScoreViewer : UserControl
 
     private void DrawPositions()
     {
-        PositionOverlay.Children.Clear();
+        PositionOverlay.Children.Clear(); SecondPositionOverlay.Children.Clear();
         if (playbackMap is null || pageBitmap is null || !double.IsFinite(PageImage.Width) || !double.IsFinite(PageImage.Height)) return;
         void Draw(ScorePageRegion box, Color color, double opacity, double thickness)
         {
-            if (box.Page != CurrentPage) return;
-            var rectangle = new Rectangle { Width = Math.Max(2, box.Width * PageImage.Width), Height = Math.Max(3, box.Height * PageImage.Height),
+            bool right = box.Page != CurrentPage;
+            if (right && (box.Page != SecondPage || secondBitmap is null || !double.IsFinite(SecondPageImage.Width))) return;
+            var image = right ? SecondPageImage : PageImage;
+            var overlay = right ? SecondPositionOverlay : PositionOverlay;
+            var rectangle = new Rectangle { Width = Math.Max(2, box.Width * image.Width), Height = Math.Max(3, box.Height * image.Height),
                 Fill = new SolidColorBrush(Color.FromArgb((byte)(opacity * 255), color.R, color.G, color.B)),
                 Stroke = new SolidColorBrush(color), StrokeThickness = thickness, RadiusX = 3, RadiusY = 3 };
-            Canvas.SetLeft(rectangle, box.X * PageImage.Width); Canvas.SetTop(rectangle, box.Y * PageImage.Height);
-            PositionOverlay.Children.Add(rectangle);
+            Canvas.SetLeft(rectangle, box.X * image.Width); Canvas.SetTop(rectangle, box.Y * image.Height);
+            overlay.Children.Add(rectangle);
         }
         if (playbackPosition is { } playing)
         {
@@ -534,8 +599,9 @@ public partial class ScoreViewer : UserControl
     {
         if (!followPlayback || playbackPosition is null || playbackMap is null || pageBitmap is null) return;
         var measure = playbackMap.Measures.FirstOrDefault(m => m.Measure == playbackPosition.Measure);
-        if (measure is null || measure.Bounds.Page != CurrentPage) return;
-        double top = measure.Bounds.Y * PageImage.Height + 12, bottom = top + measure.Bounds.Height * PageImage.Height;
+        if (measure is null || !IsVisiblePage(measure.Bounds.Page)) return;
+        double height = measure.Bounds.Page == CurrentPage ? PageImage.Height : SecondPageImage.Height;
+        double top = measure.Bounds.Y * height + 12, bottom = top + measure.Bounds.Height * height;
         if (top < PageScroll.VerticalOffset + 20 || bottom > PageScroll.VerticalOffset + PageScroll.ViewportHeight - 30)
             PageScroll.ScrollToVerticalOffset(Math.Max(0, top - Math.Min(90, PageScroll.ViewportHeight / 4)));
     }

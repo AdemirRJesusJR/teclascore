@@ -1,3 +1,7 @@
+TECLASCORE 1.1.0
+
+Na prévia da partitura, o botão de duas páginas (na barra sobre a página) mostra a página atual e a seguinte lado a lado; as setas passam de duas em duas. A escolha fica salva. A caixa de velocidade saiu do player: a prévia toca sempre na velocidade normal. Para estudar mais devagar, use Praticar ou Arquivo > Áudio MP3.
+
 TECLASCORE 1.0.1
 
 O modo Foco da partitura vale só na etapa Gerar. Ao sair dela, a lista de músicas e o painel de progresso voltam a aparecer.
@@ -8,7 +12,7 @@ Primeira versão estável. A interface nova e o fluxo completo do MIDI à partit
 
 TECLASCORE 0.53.0
 
-Na etapa Gerar, o player fica fixo e compacto acima da partitura, em duas linhas: reproduzir, posição, velocidade e trecho A–B na primeira; estudo, metrônomo e karaokê na segunda, com os menus Editar, Revisar e Arquivo. O botão Foco esconde a lista de músicas e o painel de progresso para a partitura ocupar a largura toda. Adicionar à fila, Voltar e Gerar de novo ficam só no rodapé.
+Na etapa Gerar, o player fica fixo e compacto acima da partitura, em duas linhas: reproduzir, posição e trecho A–B na primeira; estudo, metrônomo e karaokê na segunda, com os menus Editar, Revisar e Arquivo. O botão Foco esconde a lista de músicas e o painel de progresso para a partitura ocupar a largura toda. Adicionar à fila, Voltar e Gerar de novo ficam só no rodapé.
 
 TECLASCORE 0.52.0
 

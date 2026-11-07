@@ -1,3 +1,12 @@
+TECLASCORE 1.1.0 · DUAS PÁGINAS LADO A LADO E PLAYER SEM VELOCIDADE
+
+1. Em Sobre, confira que a versão é 1.1.0.
+2. Na etapa Gerar, confira que o player não tem mais a caixa de velocidade (como "50%"). Toque a partitura: ela soa na velocidade normal, mesmo que antes estivesse em 50%.
+3. Abra uma partitura com várias páginas. Na barra sobre a página, clique no botão de duas páginas: a página seguinte aparece à direita, as duas cabem na largura e o contador mostra "1–2 / N".
+4. Use a seta para a direita (ou Page Down): as páginas passam de duas em duas. Numa última página ímpar, ela aparece sozinha.
+5. Com Acompanhar ligado, toque a partitura: o destaque segue nas duas páginas e a troca acontece só ao sair delas. Clique num compasso da página da direita: a reprodução começa ali.
+6. Feche e reabra o app: o modo de duas páginas continua ligado. Clique de novo no botão para voltar a uma página.
+
 TECLASCORE 1.0.1 · FOCO SÓ NA ETAPA GERAR
 
 1. Em Sobre, confira que a versão é 1.0.1.

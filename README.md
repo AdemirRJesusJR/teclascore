@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 1.0.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 1.1.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Selecionar várias músicas:** clique com o botão direito num card e escolha **Selecionar** (ou use Ctrl+clique). Cada card ganha uma caixa de marcação; Shift+clique marca um intervalo, a caixa da seção marca a seção inteira e Ctrl+A marca todas. A barra flutuante embaixo da lista age sobre todas as marcadas: **PDFs**, **Repertório**, **Gerar**, **Cifras**, **Coleção**, **Favoritar**, **Títulos** e **Remover** (com Desfazer). Esc sai da seleção.
 
@@ -94,7 +94,7 @@ O aplicativo sempre inicia em **Visão geral**, mantendo biblioteca e demais pre
 
 Em **Posições dos diagramas**, cada cifra aparece apenas uma vez, com a quantidade de ocorrências. A posição selecionada vale para todas as repetições e a imagem muda imediatamente. Passe o mouse para conferir as notas do grave ao agudo. Variações antigas permanecem salvas até você escolher uma posição comum; **Cancelar** descarta as alterações da janela.
 
-Na **Prévia**, o player fica fixo acima da partitura em duas linhas curtas: **Reproduzir**, pausar, parar, posição, velocidade e trecho **A–B** na primeira; estudo, metrônomo, contagem, acorde atual, karaokê e os menus **Editar**, **Revisar** e **Arquivo** na segunda. A situação da reprodução aparece logo abaixo, e o ⓘ mostra a sincronização e o diagnóstico. **Foco** esconde a lista de músicas e o painel de progresso para a partitura ocupar a largura toda.
+Na **Prévia**, o player fica fixo acima da partitura em duas linhas curtas: **Reproduzir**, pausar, parar, posição e trecho **A–B** na primeira; estudo, metrônomo, contagem, acorde atual, karaokê e os menus **Editar**, **Revisar** e **Arquivo** na segunda. A situação da reprodução aparece logo abaixo, e o ⓘ mostra a sincronização e o diagnóstico. **Foco** esconde a lista de músicas e o painel de progresso para a partitura ocupar a largura toda. Na barra sobre a página, o botão de **duas páginas** mostra a página atual e a seguinte lado a lado, e as setas passam de duas em duas; a escolha fica salva.
 
 A versão **0.19.0** permite transpor partituras MuseScore importadas e versões editadas: em **Prévia → Transpor**, escolha o intervalo em relação à versão aberta, prepare a prévia, compare **Original / Proposta transposta**, ouça e use **Salvar nova versão**. O original e as versões anteriores ficam preservados no Histórico. Abrir novamente Transpor inicia outro intervalo relativo à cópia então selecionada; não reutiliza o deslocamento do MIDI original.
 
@@ -262,7 +262,7 @@ Em **Organizar**, marque favoritos e defina coleção/repertório e gênero. A b
 
 **Histórico** compara a versão escolhida com a atual e permite restaurá-la. Restaurar preserva as outras cópias e recupera metadados, transposição, pistas e cifras daquela geração. Uma análise temporária ausente pode precisar ser refeita. O histórico passa a registrar a versão disponível na biblioteca ao abrir esta versão do app; arquivos antigos fora desse registro não são descobertos automaticamente. Mantenha as pastas de saída para acessar todas as cópias.
 
-No modo de estudo, marque **A** na posição inicial e **B** na final para repetir um trecho. Limpar A–B remove os marcadores. A velocidade de 25% a 150% é independente da escuta de pistas e permanece salva. O MuseScore prepara uma cópia de áudio por velocidade, preservando afinação, repetições e mudanças de andamento; a primeira reprodução pode levar alguns instantes. A posição usa o tempo do andamento original. Trocar de partitura limpa os marcadores.
+No modo de estudo, marque **A** na posição inicial e **B** na final para repetir um trecho. Limpar A–B remove os marcadores. Desde a versão 1.1.0 a prévia toca sempre na velocidade normal; para estudar mais devagar, use **Praticar** ou **Arquivo → Áudio MP3**, que tem velocidades de 50% a 125%. A posição usa o tempo do andamento original. Trocar de partitura limpa os marcadores.
 
 ## Revisão guiada e transposição
 

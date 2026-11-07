@@ -23,6 +23,7 @@ public sealed class Settings
     public double TrackAuditionSpeed { get; set; } = 1.0;
     public bool TrackAuditionCombine { get; set; } = true;
     public double ScorePlaybackSpeed { get; set; } = 1.0;
+    public bool ScoreTwoPages { get; set; }
     public bool ScoreMetronome { get; set; }
     public bool ScoreCountIn { get; set; }
     public int CountInLeadMilliseconds { get; set; } = 40;

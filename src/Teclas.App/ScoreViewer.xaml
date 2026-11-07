@@ -37,10 +37,16 @@
    <Border x:Name="PreviewSurface" Grid.Column="2" BorderBrush="{DynamicResource Line}" BorderThickness="1" Background="{DynamicResource Background}" CornerRadius="6" ClipToBounds="True" MouseEnter="PreviewHover" MouseLeave="PreviewHover">
     <Grid>
      <ScrollViewer x:Name="PageScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="PageViewportChanged" PreviewMouseWheel="PageMouseWheel">
-      <Grid x:Name="PageSurface" Margin="12,12,12,64" HorizontalAlignment="Center" VerticalAlignment="Top" Background="Transparent" MouseLeftButtonDown="PageSelected" MouseRightButtonUp="PageContextRequested">
-       <Image x:Name="PageImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Top" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Página da partitura"/>
-       <Canvas x:Name="PositionOverlay" IsHitTestVisible="False" ClipToBounds="True"/>
-      </Grid>
+      <StackPanel x:Name="PageSpread" Orientation="Horizontal" Margin="12,12,12,64" HorizontalAlignment="Center" VerticalAlignment="Top">
+       <Grid x:Name="PageSurface" VerticalAlignment="Top" Background="Transparent" MouseLeftButtonDown="PageSelected" MouseRightButtonUp="PageContextRequested">
+        <Image x:Name="PageImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Top" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Página da partitura"/>
+        <Canvas x:Name="PositionOverlay" IsHitTestVisible="False" ClipToBounds="True"/>
+       </Grid>
+       <Grid x:Name="SecondPageSurface" Margin="12,0,0,0" VerticalAlignment="Top" Background="Transparent" Visibility="Collapsed" MouseLeftButtonDown="PageSelected" MouseRightButtonUp="PageContextRequested">
+        <Image x:Name="SecondPageImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Top" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Página seguinte da partitura"/>
+        <Canvas x:Name="SecondPositionOverlay" IsHitTestVisible="False" ClipToBounds="True"/>
+       </Grid>
+      </StackPanel>
      </ScrollViewer>
      <Border x:Name="ViewerMessagePanel" Background="{DynamicResource Background}" Padding="24">
       <TextBlock x:Name="ViewerMessage" Text="Gere ou selecione uma partitura para visualizar suas páginas." TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" MaxWidth="420"/>
@@ -79,6 +85,7 @@
        <Rectangle Style="{StaticResource ViewerSeparator}"/>
        <Button x:Name="FitWidthButton" Content="&#xE9A6;" Style="{StaticResource ViewerButton}" Click="FitWidthClick" ToolTip="Ajustar à largura" AutomationProperties.Name="Ajustar à largura"/>
        <Button x:Name="FitPageButton" Content="&#xE7C3;" Style="{StaticResource ViewerButton}" Click="FitPageClick" ToolTip="Mostrar a página inteira" AutomationProperties.Name="Página inteira"/>
+       <Button x:Name="TwoPagesButton" Content="&#xE89A;" Style="{StaticResource ViewerButton}" Click="TwoPagesClick" ToolTip="Duas páginas lado a lado" AutomationProperties.Name="Duas páginas lado a lado"/>
        <Button x:Name="FullscreenButton" Content="&#xE740;" Style="{StaticResource ViewerButton}" Click="FullscreenClick" ToolTip="Tela cheia (F11)" AutomationProperties.Name="Tela cheia"/>
       </StackPanel>
      </Border>

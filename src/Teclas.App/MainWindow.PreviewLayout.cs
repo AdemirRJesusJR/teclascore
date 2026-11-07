@@ -13,6 +13,11 @@ public partial class MainWindow
 
     private void InitializePreviewLayout()
     {
+        // The player no longer has a speed box (v1.1): preview playback is always at normal speed. Practice and
+        // the study audio keep their own speed choices.
+        settings.ScorePlaybackSpeed = 1;
+        MainScoreViewer.TwoPages = settings.ScoreTwoPages;
+        MainScoreViewer.TwoPagesChanged += (_, enabled) => { settings.ScoreTwoPages = enabled; PersistPreferences(); };
         Loaded += (_, _) => QueuePreviewAlignment();
         ScoreEditorScrollViewer.SizeChanged += (_, _) => QueuePreviewAlignment();
         EditorTabs.SelectionChanged += (_, e) => { if (ReferenceEquals(e.Source, EditorTabs)) { LeaveScoreFocusOutsideGenerate(); QueuePreviewAlignment(); } };

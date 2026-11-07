@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 1.1.0 — 07/11/2026
+
+Duas páginas lado a lado na prévia da partitura, e o player fica sem a caixa de velocidade.
+
+- Novo botão de duas páginas na barra sobre a página:
+  - Mostra a página atual e a seguinte lado a lado, as duas ajustadas à largura.
+  - As setas e Page Up/Page Down passam de duas em duas, e o contador mostra "1–2 / N". Uma última página ímpar aparece sozinha.
+  - O destaque da reprodução, o clique num compasso e o botão direito funcionam nas duas páginas.
+  - A escolha fica salva e também vale na tela cheia.
+- A caixa de velocidade saiu do player da etapa Gerar. A prévia toca sempre na velocidade normal, e uma velocidade salva antes volta a 100%. Para estudar mais devagar, use Praticar ou Arquivo → Áudio MP3.
+
 ## 1.0.1 — 07/11/2026
 
 Correção do modo Foco da partitura.

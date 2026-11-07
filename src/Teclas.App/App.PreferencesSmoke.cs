@@ -129,8 +129,8 @@ public partial class App
                 && second.SearchText == "repertorio" && second.CurrentFilter == "review"
                 && ((TabControl)second.FindName("EditorTabs")).SelectedIndex == 1,
                 "Startup must show Visão geral while preserving search, filter and editor tab.");
-            Require(second.IsPreviewControlsCompact && second.TrackAuditionSpeed == .75 && second.ScorePlaybackSpeed == .5
-                && !second.FollowScorePlayback, "Preview layout or study preferences were changed by dashboard startup.");
+            Require(second.IsPreviewControlsCompact && second.TrackAuditionSpeed == .75 && second.ScorePlaybackSpeed == 1
+                && !second.FollowScorePlayback, "Preview layout or study preferences were changed by dashboard startup (preview playback speed returns to normal: the player has no speed box).");
             Require(!restored.UseReviewedProfile && restored.Tracks[0].IsMelody && restored.Tracks.Count(t => t.IsMelody) == 1,
                 "The user's melody selection was not restored.");
             Require(restored.KeyFifths == -2 && restored.KeyMinor && restored.Chords.Count == 2

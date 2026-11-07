@@ -59,22 +59,22 @@ public partial class App
             window.ImportForSmoke(midi); Flush();
             var row = window.Files.Single();
             string pages = Path.Combine(work, "paginas"); Directory.CreateDirectory(pages);
-            Page(Path.Combine(pages, "pagina-1.png")); Page(Path.Combine(pages, "pagina-2.png"));
+            Page(Path.Combine(pages, "pagina-1.png")); Page(Path.Combine(pages, "pagina-2.png")); Page(Path.Combine(pages, "pagina-3.png"));
             string score = Path.Combine(work, "musica.mscz"); File.WriteAllBytes(score, [1]);
-            row.ScorePath = score; row.PreviewPath = Path.Combine(pages, "pagina-1.png"); row.PageCount = 2;
+            row.ScorePath = score; row.PreviewPath = Path.Combine(pages, "pagina-1.png"); row.PageCount = 3;
             ((ListBox)window.FindName("Library")).SelectedItem = null; Flush();
             ((ListBox)window.FindName("Library")).SelectedItem = row; Flush();
             window.SelectPageForSmoke("library", 2); Flush();
             var viewer = (ScoreViewer)window.FindName("MainScoreViewer");
-            await Wait(() => viewer.PageCount == 2, "preview pages did not load");
+            await Wait(() => viewer.PageCount == 3, "preview pages did not load");
 
             // Floating bar inside the preview, instead of a row of buttons above it.
             var bar = (Border)viewer.FindName("ViewerToolbar");
             Check(bar.IsVisible && bar.VerticalAlignment == VerticalAlignment.Bottom && VisualTreeHelper.GetParent(bar) is Grid host && host.Children.Contains((UIElement)viewer.FindName("PageScroll")), "toolbar-floats-over-the-page");
-            foreach (var name in new[] { "ThumbnailsButton", "PreviousPageButton", "NextPageButton", "ZoomOutButton", "ZoomInButton", "FitWidthButton", "FitPageButton", "FullscreenButton" })
+            foreach (var name in new[] { "ThumbnailsButton", "PreviousPageButton", "NextPageButton", "ZoomOutButton", "ZoomInButton", "FitWidthButton", "FitPageButton", "TwoPagesButton", "FullscreenButton" })
                 Check(viewer.FindName(name) is Button button && bar.IsAncestorOf(button) && button.ToolTip is string, "bar-has-" + name);
             ((Button)viewer.FindName("NextPageButton")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); Flush();
-            Check(viewer.CurrentPage == 2 && ((TextBlock)viewer.FindName("PageCounter")).Text == "2 / 2", "bar-turns-pages");
+            Check(viewer.CurrentPage == 2 && ((TextBlock)viewer.FindName("PageCounter")).Text == "2 / 3", "bar-turns-pages");
             // Thumbnails: hidden together with their splitter, then back at the dragged width.
             var thumbs = (ColumnDefinition)viewer.FindName("ThumbnailColumn");
             thumbs.Width = new GridLength(180); Flush(); viewer.UpdateLayout();
@@ -84,6 +84,28 @@ public partial class App
             toggle.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); Flush();
             Check(Math.Abs(thumbs.Width.Value - 180) < 1, "thumbnails-come-back-at-their-width");
             CaptureFolderWindow(window, Path.Combine(reports, "preview-bar.png"));
+
+            // Two pages side by side (v1.1): the next page sits to the right, both fit the width and the arrows turn two pages.
+            var twoPages = (Button)viewer.FindName("TwoPagesButton");
+            var counter = (TextBlock)viewer.FindName("PageCounter");
+            var firstImage = (Image)viewer.FindName("PageImage"); var secondImage = (Image)viewer.FindName("SecondPageImage");
+            viewer.CurrentPage = 1; Flush();
+            twoPages.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            await Wait(() => secondImage.Source is not null && firstImage.Source is not null, "second page did not load");
+            Flush(); viewer.UpdateLayout();
+            var offset = secondImage.TranslatePoint(new Point(0, 0), firstImage);
+            var scroll = (ScrollViewer)viewer.FindName("PageScroll");
+            Check(viewer.TwoPages && counter.Text == "1–2 / 3" && secondImage.IsVisible && offset.X >= firstImage.ActualWidth && Math.Abs(offset.Y) < 1,
+                $"two-pages-show-next-page-to-the-right ({counter.Text}, {offset.X:0})");
+            Check(firstImage.ActualWidth + secondImage.ActualWidth + 12 <= scroll.ViewportWidth + 1 && scroll.ComputedHorizontalScrollBarVisibility != Visibility.Visible, "two-pages-fit-the-width-without-horizontal-scroll");
+            CaptureFolderWindow(window, Path.Combine(reports, "preview-two-pages.png"));
+            ((Button)viewer.FindName("NextPageButton")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            await Wait(() => viewer.CurrentPage == 3 && firstImage.Source is not null, "two-page turn did not load");
+            Flush();
+            Check(counter.Text == "3 / 3" && !secondImage.IsVisible && !((Button)viewer.FindName("NextPageButton")).IsEnabled, "two-pages-turn-two-at-a-time-and-show-a-last-odd-page-alone");
+            twoPages.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            await Wait(() => firstImage.Source is not null, "single page did not load"); Flush();
+            Check(!viewer.TwoPages && counter.Text == "3 / 3" && !secondImage.IsVisible, "two-pages-turn-off");
 
             // Docked player (v0.53): no splitter; the controls keep their compact natural height, also with an old saved split.
             viewer.UpdateLayout();
