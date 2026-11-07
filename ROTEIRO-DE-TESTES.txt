@@ -1,3 +1,9 @@
+TECLASCORE 0.51.1 · ÍCONES DO TOPO E JANELA COMANDOS
+
+1. Com a janela em 1400 px, confira o menu do topo: ícones maiores, o nome embaixo de cada um, a tela aberta destacada na cápsula e Rascunhos, Configurações e Sobre depois do divisor. Maximize a janela: os nomes passam para o lado dos ícones.
+2. Clique no botão ☰ ao lado do menu: ficam só os ícones, e a dica de cada um mostra o nome. Clique de novo para trazer os nomes de volta.
+3. Aperte Ctrl+K: o cartão Comandos abre perto do topo, com Ações e Músicas separadas e um ícone em cada linha. Navegue com ↑ ↓, aperte Enter para executar e Esc para fechar. Digite uma palavra que não existe: aparece o aviso. Clique fora do cartão: ele fecha.
+
 TECLASCORE 0.51.0 · VISUAL NOVO E PASSO A PASSO EM QUATRO TELAS
 
 1. Abra o app: o menu fica no topo, e o ícone novo (nota branca em fundo azul) aparece na barra de tarefas e no atalho. Diminua a largura da janela: os nomes do menu somem e aparecem na dica de cada ícone.

@@ -1,5 +1,22 @@
 # Histórico de versões
 
+## 0.51.1 — 07/11/2026
+
+Ícones maiores e mais claros no menu do topo e janela Comandos (Ctrl+K) modernizada.
+
+- Menu do topo:
+  - Os ícones passaram de 14 para 18 px.
+  - Início, Biblioteca, Produção e Apresentação ficam agrupados numa cápsula, com a tela aberta destacada.
+  - Rascunhos, Configurações e Sobre ficam à parte, depois de um divisor.
+  - Ícones trocados para ficarem mais claros: Produção ganhou uma prancheta com lista, Apresentação uma tela com ▶ e Rascunhos um relógio com seta (antes era a seta de desfazer).
+  - Em janelas médias (de 1180 a 1560 px) o nome aparece embaixo de cada ícone; em janelas largas, ao lado. O botão de mostrar só os ícones agora diz o que faz.
+- Janela Comandos (Ctrl+K):
+  - Abre como um cartão sem moldura, com sombra, perto do topo da janela, e fecha ao clicar fora.
+  - Tem uma busca grande com lupa e dica, e os resultados ficam separados em Ações e Músicas.
+  - Cada linha tem um ícone, e o artista e a situação da música aparecem embaixo do nome.
+  - A linha selecionada mostra "Executar ↵".
+  - O rodapé mostra as teclas (↑ ↓ navegar, Enter executar, Esc fechar) e o número de resultados. Quando a busca não encontra nada, aparece um aviso.
+
 ## 0.51.0 — 07/11/2026
 
 Visual novo: menu no topo, músicas agrupadas por situação, passo a passo em quatro telas e painel de progresso. Ícone novo.

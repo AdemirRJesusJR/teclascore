@@ -26,8 +26,8 @@ public sealed record ProgressItemView(string Number, string Title, string Detail
 /// </summary>
 public partial class MainWindow
 {
-    private const double WideLayoutWidth = 1560, TopBarLabelsWidth = 1560, CommandTextWidth = 1280;
-    private bool wideLayout = true, topBarWide = true, commandText = true, showAllTracks, keyEditorOpen;
+    private const double WideLayoutWidth = 1560, TopBarLabelsWidth = 1560, CommandTextWidth = 1280, StackedLabelsWidth = 1180;
+    private bool wideLayout = true, topBarWide = true, commandText = true, stackedLabels = true, showAllTracks, keyEditorOpen;
     private MidiRow? visibleTracksRow;
     private ListCollectionView? visibleTracks;
 
@@ -40,6 +40,8 @@ public partial class MainWindow
     public Visibility FooterChecksVisibility => GuidedFlow && !wideLayout ? Visibility.Visible : Visibility.Collapsed;
     /// <summary>Navigation labels in the top bar: hidden by the "só ícones" preference or when the window is narrow.</summary>
     public Visibility NavLabelVisibility => topBarWide && !IsSidebarCollapsed ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>Medium windows: the menu name goes under the icon, so the icons never stand alone.</summary>
+    public Visibility NavStackedLabelVisibility => !topBarWide && stackedLabels && !IsSidebarCollapsed ? Visibility.Visible : Visibility.Collapsed;
     public Visibility CommandBoxTextVisibility => commandText ? Visibility.Visible : Visibility.Collapsed;
 
     private void InitializeResponsiveLayout()
@@ -51,13 +53,13 @@ public partial class MainWindow
     private void ApplyResponsiveLayout(double width)
     {
         if (double.IsNaN(width) || width <= 0) return;
-        bool wide = width >= WideLayoutWidth, labels = width >= TopBarLabelsWidth, command = width >= CommandTextWidth;
+        bool wide = width >= WideLayoutWidth, labels = width >= TopBarLabelsWidth, command = width >= CommandTextWidth, stacked = width >= StackedLabelsWidth;
         if (wide != wideLayout)
         {
             wideLayout = wide;
             foreach (var name in new[] { nameof(ProgressPanelVisibility), nameof(ProgressPanelColumnWidth), nameof(ProgressPanelGapWidth), nameof(FooterChecksVisibility) }) Notify(name);
         }
-        if (labels != topBarWide) { topBarWide = labels; Notify(nameof(NavLabelVisibility)); }
+        if (labels != topBarWide || stacked != stackedLabels) { topBarWide = labels; stackedLabels = stacked; Notify(nameof(NavLabelVisibility)); Notify(nameof(NavStackedLabelVisibility)); }
         if (command != commandText) { commandText = command; Notify(nameof(CommandBoxTextVisibility)); }
     }
 

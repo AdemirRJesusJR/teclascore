@@ -1,0 +1,51 @@
+<Window x:Class="Teclas.App.CommandPaletteWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Comandos" Width="660" SizeToContent="Height" WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
+        ShowInTaskbar="False" WindowStartupLocation="CenterOwner" FontFamily="Segoe UI" FontSize="13" Foreground="{DynamicResource Ink}" UseLayoutRounding="True">
+ <Window.Resources>
+  <Style x:Key="KeyCap" TargetType="Border"><Setter Property="CornerRadius" Value="5"/><Setter Property="BorderThickness" Value="1,1,1,2"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="Background" Value="{DynamicResource CardBrush}"/><Setter Property="Padding" Value="6,0,6,1"/><Setter Property="MinWidth" Value="22"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+  <Style x:Key="KeyText" TargetType="TextBlock"><Setter Property="FontSize" Value="10.5"/><Setter Property="Foreground" Value="{DynamicResource SoftInk}"/><Setter Property="HorizontalAlignment" Value="Center"/></Style>
+  <Style x:Key="HintText" TargetType="TextBlock"><Setter Property="FontSize" Value="11.5"/><Setter Property="Foreground" Value="{DynamicResource Muted}"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Margin" Value="6,0,16,0"/></Style>
+ </Window.Resources>
+ <Border x:Name="Card" Margin="20" CornerRadius="16" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+  <Border.Effect><DropShadowEffect BlurRadius="30" ShadowDepth="8" Direction="270" Opacity="0.24"/></Border.Effect>
+  <DockPanel>
+   <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="18,4,14,4"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="17" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+    <Grid Grid.Column="1" Margin="12,0,10,0">
+     <TextBlock x:Name="Placeholder" Text="Buscar uma ação ou música…" FontSize="16.5" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="7,0,0,0" IsHitTestVisible="False"/>
+     <TextBox x:Name="Query" FontSize="16.5" MinHeight="50" VerticalContentAlignment="Center" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Ink}" CaretBrush="{DynamicResource Accent}" AutomationProperties.Name="Buscar comando ou música"><TextBox.Template><ControlTemplate TargetType="TextBox"><ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Focusable="False"/></ControlTemplate></TextBox.Template></TextBox>
+    </Grid>
+    <Border Grid.Column="2" Style="{StaticResource KeyCap}" ToolTip="Fechar"><TextBlock Text="Esc" Style="{StaticResource KeyText}"/></Border>
+   </Grid></Border>
+   <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource Background}" CornerRadius="0,0,15,15" Padding="16,9"><DockPanel>
+    <TextBlock x:Name="CountText" DockPanel.Dock="Right" FontSize="11.5" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
+    <StackPanel Orientation="Horizontal">
+     <Border Style="{StaticResource KeyCap}"><TextBlock Text="↑" Style="{StaticResource KeyText}"/></Border><Border Style="{StaticResource KeyCap}" Margin="3,0,0,0"><TextBlock Text="↓" Style="{StaticResource KeyText}"/></Border><TextBlock Text="navegar" Style="{StaticResource HintText}"/>
+     <Border Style="{StaticResource KeyCap}"><TextBlock Text="Enter" Style="{StaticResource KeyText}"/></Border><TextBlock Text="executar" Style="{StaticResource HintText}"/>
+     <Border Style="{StaticResource KeyCap}"><TextBlock Text="Esc" Style="{StaticResource KeyText}"/></Border><TextBlock Text="fechar" Style="{StaticResource HintText}"/>
+    </StackPanel>
+   </DockPanel></Border>
+   <Grid>
+    <StackPanel x:Name="EmptyState" Visibility="Collapsed" HorizontalAlignment="Center" Margin="0,34,0,34">
+     <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="26" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center"/>
+     <TextBlock x:Name="EmptyText" FontSize="13" Foreground="{DynamicResource SoftInk}" HorizontalAlignment="Center" Margin="0,10,0,2" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="420"/>
+     <TextBlock Text="Tente outra palavra: o nome da ação, da música ou do artista." FontSize="11.5" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center"/>
+    </StackPanel>
+    <ListBox x:Name="Results" MaxHeight="404" BorderThickness="0" Background="Transparent" Padding="8,4,8,8" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizingWhenGrouping="True" AutomationProperties.Name="Resultados">
+     <ListBox.GroupStyle><GroupStyle><GroupStyle.HeaderTemplate><DataTemplate><TextBlock Text="{Binding Name}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource Muted}" Margin="10,10,0,4"/></DataTemplate></GroupStyle.HeaderTemplate></GroupStyle></ListBox.GroupStyle>
+     <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+      <Border x:Name="Row" CornerRadius="10" Padding="8,6,12,6" Margin="0,1" Background="Transparent"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <Border x:Name="Tile" Width="32" Height="32" CornerRadius="9" Background="{DynamicResource Soft}"><TextBlock x:Name="Glyph" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource SoftInk}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+       <StackPanel Grid.Column="1" Margin="12,0,10,0" VerticalAlignment="Center"><TextBlock Text="{Binding Label}" FontSize="13.5" Foreground="{DynamicResource Ink}" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Detail}" Visibility="{Binding DetailVisibility}" FontSize="11.5" Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/></StackPanel>
+       <StackPanel x:Name="EnterHint" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Hidden"><TextBlock Text="Executar" FontSize="11" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBlock Text="&#xE751;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/></StackPanel>
+      </Grid></Border>
+      <ControlTemplate.Triggers>
+       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Soft}"/></Trigger>
+       <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Selection}"/><Setter TargetName="Tile" Property="Background" Value="{DynamicResource Accent}"/><Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource AccentInk}"/><Setter TargetName="EnterHint" Property="Visibility" Value="Visible"/></Trigger>
+      </ControlTemplate.Triggers>
+     </ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+    </ListBox>
+   </Grid>
+  </DockPanel>
+ </Border>
+</Window>

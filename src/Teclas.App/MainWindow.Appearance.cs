@@ -50,7 +50,7 @@ public partial class MainWindow
     public Visibility ExpandedSidebarVisible => IsSidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
     public HorizontalAlignment SidebarContentAlignment => IsSidebarCollapsed ? HorizontalAlignment.Center : HorizontalAlignment.Left;
     public double SidebarToggleScaleX => IsSidebarCollapsed ? -1 : 1;
-    public string SidebarToggleLabel => IsSidebarCollapsed ? "Expandir menu lateral" : "Recolher menu lateral";
+    public string SidebarToggleLabel => IsSidebarCollapsed ? "Mostrar os nomes no menu" : "Mostrar só os ícones no menu";
 
     private void InitializeAppearance()
     {
@@ -64,7 +64,7 @@ public partial class MainWindow
     {
         foreach (var name in new[] { nameof(IsSidebarCollapsed), nameof(SidebarWidth),
             nameof(ExpandedSidebarVisible), nameof(SidebarContentAlignment),
-            nameof(SidebarToggleScaleX), nameof(SidebarToggleLabel) }) Notify(name);
+            nameof(SidebarToggleScaleX), nameof(SidebarToggleLabel), nameof(NavLabelVisibility), nameof(NavStackedLabelVisibility) }) Notify(name);
     }
 
     private void ToggleSidebarClick(object sender, RoutedEventArgs e) => IsSidebarCollapsed = !IsSidebarCollapsed;

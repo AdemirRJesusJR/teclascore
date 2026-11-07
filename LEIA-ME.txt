@@ -1,3 +1,7 @@
+TECLASCORE 0.51.1
+
+Ícones maiores e mais claros no menu do topo, com o nome sob cada ícone em janelas médias. Janela Comandos (Ctrl+K) modernizada, com resultados separados em Ações e Músicas.
+
 TECLASCORE 0.51.0
 
 Visual novo: menu no topo, músicas agrupadas por situação, passo a passo em quatro telas (Melodia, Ritmo, Cifras e Gerar) e painel de progresso com o seu teclado. Ícone novo.
