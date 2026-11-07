@@ -1,3 +1,7 @@
+TECLASCORE 1.2.0
+
+Em Configurações, a aparência ganhou o Modo: Claro, Escuro ou Sistema. Toda paleta tem versão clara e escura (o Alto contraste tem uma só). Em Sistema, o app acompanha o modo do Windows e troca sozinho quando ele muda.
+
 TECLASCORE 1.1.0
 
 Na prévia da partitura, o botão de duas páginas (na barra sobre a página) mostra a página atual e a seguinte lado a lado; as setas passam de duas em duas. A escolha fica salva. A caixa de velocidade saiu do player: a prévia toca sempre na velocidade normal. Para estudar mais devagar, use Praticar ou Arquivo > Áudio MP3.

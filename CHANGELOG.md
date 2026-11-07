@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 1.2.0 — 07/11/2026
+
+Modo claro, escuro ou do sistema para todas as paletas.
+
+- Em Configurações › A aparência do seu estúdio há uma nova linha Modo, com três opções:
+  - Claro e Escuro mostram sempre a versão clara ou escura da paleta.
+  - Sistema acompanha o modo claro ou escuro do Windows e troca sozinho, com o app aberto, quando o Windows mudar.
+- Cada paleta ganhou a versão que faltava: Verde clássico, Oceano, Índigo e Azul claro têm versão escura, e Grafite e âmbar tem versão clara. As miniaturas das paletas mostram a versão do modo escolhido.
+- O Alto contraste continua com uma versão só, e o app ainda o escolhe sozinho quando o Windows está em alto contraste.
+- Quem já usava o app continua com a mesma aparência (Grafite e âmbar no escuro, as outras no claro). Numa instalação nova, o modo começa em Sistema.
+
 ## 1.1.0 — 07/11/2026
 
 Duas páginas lado a lado na prévia da partitura, e o player fica sem a caixa de velocidade.

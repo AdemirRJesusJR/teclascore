@@ -1,3 +1,11 @@
+TECLASCORE 1.2.0 · MODO CLARO, ESCURO E DO SISTEMA
+
+1. Em Sobre, confira que a versão é 1.2.0. A aparência deve estar igual à de antes da atualização.
+2. Em Configurações › A aparência do seu estúdio, escolha Modo Escuro: o app inteiro escurece na hora, a barra de título também, e as miniaturas das paletas passam a mostrar a versão escura. A paleta escolhida continua marcada.
+3. Troque entre as paletas no modo Escuro e depois no Claro. Grafite e âmbar também tem versão clara. O Alto contraste fica igual nos dois modos.
+4. Escolha Sistema. Abra Configurações do Windows › Personalização › Cores e troque o modo dos aplicativos entre Claro e Escuro: o TeclaScore acompanha sozinho, sem reabrir.
+5. Feche e reabra o app: o modo e a paleta escolhidos continuam.
+
 TECLASCORE 1.1.0 · DUAS PÁGINAS LADO A LADO E PLAYER SEM VELOCIDADE
 
 1. Em Sobre, confira que a versão é 1.1.0.

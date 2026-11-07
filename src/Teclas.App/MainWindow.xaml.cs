@@ -61,7 +61,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public MainWindow(bool smoke=false,string? settingsPath=null,Func<IMidiOutputTransport>? midiOutputFactory=null)
     {
         settings=Settings.Load(settingsPath);
-        ThemeManager.Apply(ThemeManager.StartupId(settings.ThemeId, !smoke && SystemParameters.HighContrast));
+        naturalThemeVersion=smoke;
+        ThemeManager.Apply(ThemeManager.StartupId(settings.ThemeId, !smoke && SystemParameters.HighContrast), EffectiveDark);
         KeyboardDiagramPreview.CLabel = settings.NoteNames == "solfejo" ? "Dó" : "C";
         Teclas.Core.ChordNotation.Current = ToPreference(settings.ChordNotation);
         InitializeComponent();

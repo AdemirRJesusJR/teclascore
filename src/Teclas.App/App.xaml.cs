@@ -173,7 +173,13 @@ public partial class App : Application
             if (options.Result is not null && navigationChecks is not null)
                 navigationChecks["conversion-completion-preserves-selection"] = 1;
             var themeChecks = options.VerifyThemes ? VerifyThemes(window, options.Output) : null;
-            if (options.Theme is not null) window.SetThemeForSmoke(options.Theme);
+            if (options.Theme is not null)
+            {
+                // "--theme ocean:dark" also picks a mode (light, dark or system, where system renders as dark).
+                var themeParts = options.Theme.Split(':', 2);
+                window.SetThemeForSmoke(themeParts[0]);
+                if (themeParts.Length == 2) window.SetThemeModeForSmoke(themeParts[1], themeParts[1] == "system" ? true : null);
+            }
             window.SetSidebarForSmoke(options.Collapsed);
             var sidebarChecks = options.VerifyNavigation ? VerifySidebar(window) : null;
 
@@ -495,6 +501,59 @@ public partial class App : Application
             }
             Require(canvasSamples.Count >= 4, "The root visual did not change when switching themes.");
             results["distinct-live-backgrounds"] = canvasSamples.Count;
+
+            // Light, dark and system modes: each palette switches version live and keeps readable contrast.
+            var modeResults = new Dictionary<string, object>();
+            foreach (var theme in ThemeManager.Themes)
+            {
+                window.SetThemeForSmoke(theme.Id);
+                foreach (var (mode, systemDark) in new[] { ("light", (bool?)null), ("dark", null), ("system", true) })
+                {
+                    window.SetThemeModeForSmoke(mode, systemDark);
+                    CheckMode(theme, mode, mode != "light");
+                }
+                window.SimulateWindowsModeForSmoke(false);
+                CheckMode(theme, "system-follows-windows-light", false);
+                window.SimulateWindowsModeForSmoke(true);
+                CheckMode(theme, "system-follows-windows-dark", true);
+            }
+            void CheckMode(ThemeDefinition theme, string label, bool modeDark)
+            {
+                var applied = ThemeManager.Current;
+                bool expectDark = ThemeManager.HasBothModes(theme.Id) ? modeDark : theme.IsDark;
+                Require(applied.Id == theme.Id && applied.IsDark == expectDark, $"{theme.Id} did not follow the {label} mode.");
+                Require(ReferenceEquals(window.SelectedTheme, applied), $"The picker shows another version of {theme.Id} in the {label} mode.");
+                Require(window.ThemeOptions.All(option => option.IsDark == modeDark || !ThemeManager.HasBothModes(option.Id)),
+                    $"The palette previews did not switch to the {label} mode: " + string.Join(", ", window.ThemeOptions.Select(option => option.Id + (option.IsDark ? " dark" : " light"))));
+                Require(((SolidColorBrush)Application.Current.Resources["Background"]).Color == applied.Background.Color,
+                    $"{theme.Id}: the {label} mode did not reach the live resources.");
+                foreach (var (foreground, background) in new[]
+                {
+                    ("Ink", "Card"), ("Ink", "Background"), ("Muted", "Card"), ("Muted", "Background"),
+                    ("AccentInk", "Accent"), ("SoftInk", "Soft"), ("SidebarInk", "Sidebar"),
+                    ("SidebarInk", "SidebarActive"), ("SidebarInk", "SidebarPanel"), ("SidebarMuted", "Sidebar"),
+                    ("HeroInk", "HeroStartColor"), ("HeroInk", "HeroEndColor"),
+                    ("HeroMuted", "HeroStartColor"), ("HeroMuted", "HeroEndColor"),
+                    ("TableHeaderInk", "TableHeader"), ("Ready", "Card"), ("Generated", "Card"),
+                    ("Review", "Card"), ("Error", "Card")
+                })
+                {
+                    double ratio = Contrast(applied.Palette[foreground], applied.Palette[background]);
+                    Require(ratio >= 4.5, $"{theme.Id} ({label}): {foreground}/{background} contrast is {ratio:0.00}:1 (requires 4.5:1).");
+                }
+                modeResults[theme.Id + "-" + label] = applied.IsDark ? "dark" : "light";
+            }
+            results["light-dark-system-modes"] = modeResults;
+
+            string modeSettings = Path.Combine(fixtureDirectory, "mode.json");
+            new Settings { ThemeId = "ocean", ThemeMode = "dark" }.Save(modeSettings);
+            Require(Settings.Load(modeSettings).ThemeMode == "dark", "The chosen mode did not survive settings reload.");
+            File.WriteAllText(modeSettings, "{\"ThemeId\":\"graphite\"}");
+            Require(Settings.Load(modeSettings).ThemeMode == "dark", "Older graphite settings did not keep their dark version.");
+            File.WriteAllText(modeSettings, "{\"ThemeId\":\"ocean\",\"ThemeMode\":\"sepia\"}");
+            Require(Settings.Load(modeSettings).ThemeMode == "light", "An unknown mode did not fall back to the palette's version.");
+            Require(Settings.Load(Path.Combine(fixtureDirectory, "missing-mode.json")).ThemeMode == "system", "First launch does not follow Windows.");
+            results["theme-mode-persistence"] = true;
 
             foreach (string value in new[] { "", "outdated-theme-id", "OCEAN", "../../outside" })
             {

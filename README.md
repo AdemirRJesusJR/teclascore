@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 1.1.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 1.2.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Selecionar várias músicas:** clique com o botão direito num card e escolha **Selecionar** (ou use Ctrl+clique). Cada card ganha uma caixa de marcação; Shift+clique marca um intervalo, a caixa da seção marca a seção inteira e Ctrl+A marca todas. A barra flutuante embaixo da lista age sobre todas as marcadas: **PDFs**, **Repertório**, **Gerar**, **Cifras**, **Coleção**, **Favoritar**, **Títulos** e **Remover** (com Desfazer). Esc sai da seleção.
 
@@ -243,14 +243,14 @@ Trocar a pista de melodia ou alternar o perfil revisado descarta a tabela de cif
 - **Visão geral**: total de MIDIs importados, prontos para o lote, partituras geradas e arquivos para revisão musical. O gráfico separa também as falhas de leitura ou conversão. Clique nos indicadores para abrir os arquivos correspondentes.
 - **Biblioteca & editor**: busca por nome sem distinção de maiúsculas ou acentos, filtros por situação, remoção com opção de desfazer e editor em três etapas: melodia, cifras e prévia com reprodução e PDF.
 - **Produção**: partituras disponíveis, páginas no resultado mais recente de cada MIDI, percentual concluído da biblioteca, abertura da prévia e exportação de ZIP.
-- **Configurações**: temas Verde clássico, Oceano, Índigo, Grafite e âmbar e Azul claro; inversão padrão dos diagramas para novos MIDIs; caminhos do MuseScore, do Python e da pasta de saída.
+- **Configurações**: modo Claro, Escuro ou Sistema (acompanha o Windows e troca sozinho) e paletas Verde clássico, Oceano, Índigo, Grafite e âmbar e Azul claro, cada uma com versão clara e escura, além do Alto contraste; inversão padrão dos diagramas para novos MIDIs; caminhos do MuseScore, do Python e da pasta de saída.
 - **Sobre**: versão atual obtida do aplicativo, descrição e acesso ao repositório.
 
 Os indicadores refletem a biblioteca restaurada. As saídas permanecem na pasta escolhida quando o app é fechado. As quatro categorias do gráfico não se sobrepõem. Um arquivo com perfil revisado só está pronto para o lote quando a revisão está marcada e não há falha pendente. A contagem de páginas considera apenas o último resultado disponível por MIDI. Busca e filtros não alteram as partituras.
 
 ## Preferências e trabalho salvo
 
-Ao fechar o aplicativo, são salvos o tema, o modo do menu, os caminhos configurados, o tamanho e a posição da janela, a tela aberta, a busca, o filtro, a aba do editor e o arquivo selecionado. A biblioteca também mantém a escolha das pistas, o uso de perfis revisados, as cifras editadas, a tonalidade, as propriedades do cabeçalho e dos diagramas e os vínculos com análises e partituras geradas.
+Ao fechar o aplicativo, são salvos o tema, o modo claro/escuro/sistema, o modo do menu, os caminhos configurados, o tamanho e a posição da janela, a tela aberta, a busca, o filtro, a aba do editor e o arquivo selecionado. A biblioteca também mantém a escolha das pistas, o uso de perfis revisados, as cifras editadas, a tonalidade, as propriedades do cabeçalho e dos diagramas e os vínculos com análises e partituras geradas.
 
 Os dados ficam em `%LOCALAPPDATA%/TeclasPartituras/settings.json`, com gravação atômica e cópia de recuperação. Se o salvamento falhar, a janela permanece aberta e mostra o motivo. Os arquivos MIDI e .mscz continuam nos locais originais; o app salva suas referências. Um MIDI alterado precisa de nova análise para impedir a reutilização de resultados de outro conteúdo. Mantenha os arquivos e pastas de trabalho para continuar de onde parou.
 

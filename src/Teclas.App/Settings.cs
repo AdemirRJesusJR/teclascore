@@ -17,6 +17,8 @@ public sealed class Settings
     public string OutputDirectory { get; set; } = "";
     public string LastExportDirectory { get; set; } = "";
     public string ThemeId { get; set; } = "classic";
+    /// <summary>"light", "dark" or "system" (follows Windows). Older settings keep the version their palette had.</summary>
+    public string ThemeMode { get; set; } = "";
     public bool IsSidebarCollapsed { get; set; }
     public bool IsPreviewControlsCompact { get; set; }
     public double LibraryFiltersShare { get; set; } = .55;
@@ -136,7 +138,7 @@ public sealed class Settings
             if (settings is not null) warning = "As configurações foram recuperadas da cópia de segurança.";
             else if (string.IsNullOrEmpty(warning)) warning = "A cópia de segurança das configurações não pôde ser lida.";
         }
-        settings ??= new();
+        settings ??= new() { ThemeMode = "system" };
         settings.LoadWarning = warning;
         settings.Normalize();
         settings.FindDefaultPaths();
@@ -170,6 +172,7 @@ public sealed class Settings
         StudyHistory = NormalizeStudyHistory(StudyHistory);
         DefaultDiagramInversion = NormalizeDiagramInversion(DefaultDiagramInversion);
         ThemeId = ThemeId is "classic" or "ocean" or "indigo" or "graphite" or "light" or "contrast" ? ThemeId : "classic";
+        ThemeMode = ThemeMode is "light" or "dark" or "system" ? ThemeMode : ThemeId is "graphite" or "contrast" ? "dark" : "light";
         CurrentPage = CurrentPage is "library" or "production" or "settings" or "about" ? CurrentPage : "dashboard";
         CurrentFilter = CurrentFilter is "ready" or "review" or "generated" or "error" ? CurrentFilter : "all";
         SearchText ??= "";

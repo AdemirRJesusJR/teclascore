@@ -11,12 +11,14 @@ try
     var path = Path.Combine(folder, "user", "settings.json");
     var missing = Settings.Load(path);
     Check(missing.ThemeId == "classic" && missing.CurrentPage == "dashboard", "Fresh installation defaults");
+    Check(missing.ThemeMode == "system", "Fresh installation follows the Windows light or dark mode");
     Check(missing.TrackAuditionSpeed == 1.0, "Fresh installation starts track audition at normal speed");
     Check(missing.Library.Count == 0 && !File.Exists(path), "Read does not write state");
     File.WriteAllText(Path.Combine(folder, "old.json"), "{\"PythonPath\":\"Z:/custom/python.exe\",\"MuseScorePath\":\"Z:/custom/musescore.exe\",\"OutputDirectory\":\"Z:/partituras\"}");
     var old = Settings.Load(Path.Combine(folder, "old.json"));
     Check(old.PythonPath == "Z:/custom/python.exe" && old.MuseScorePath == "Z:/custom/musescore.exe", "Temporarily unavailable user tools retained");
     Check(old.OutputDirectory == "Z:/partituras" && old.ThemeId == "classic", "Old settings migrate without erasing paths");
+    Check(old.ThemeMode == "light", "Older settings keep the light version of their palette");
     Check(old.TrackAuditionSpeed == 1.0, "Settings without the audition speed field migrate to normal speed");
     Check(old.ComfortableDiagramMaximumSpan == 12, "Legacy settings adopt an octave for voicing suggestions");
     var reachPath = Path.Combine(folder, "voicing-reach.json");
@@ -70,7 +72,7 @@ try
     var state = new Settings
     {
         PythonPath = "Z:/meu python.exe", MuseScorePath = "Z:/MuseScore.exe", OutputDirectory = "Z:/canções",
-        ThemeId = "graphite", IsSidebarCollapsed = true, WindowLeft = -1560, WindowTop = 20,
+        ThemeId = "graphite", ThemeMode = "system", IsSidebarCollapsed = true, WindowLeft = -1560, WindowTop = 20,
         WindowWidth = 1420, WindowHeight = 920, WindowMaximized = true, CurrentPage = "library",
         CurrentFilter = "review", SearchText = "Canção", EditorTab = 1, SelectedMidiPath = "Z:/canção.mid", TrackAuditionSpeed = 0.75,
         Library = [new SavedMidi
