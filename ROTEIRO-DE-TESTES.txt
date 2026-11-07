@@ -1,3 +1,12 @@
+TECLASCORE 0.50.2 · BARRA DE AÇÕES DA BIBLIOTECA
+
+1. Abra a Biblioteca: Adicionar, Gerar, Exportar e Estudar ficam numa barra no topo; Comandos (Ctrl+K) e ⋯ à direita. A coluna da esquerda começa pela busca.
+2. Abra cada menu e confira as ações: Adicionar (5), Gerar (4), Exportar (4), Estudar (3) e ⋯ (3, com Limpar biblioteca em vermelho). Clique numa ação: o menu fecha e a ação abre.
+3. Abra um menu pelo teclado (Tab até o botão, Enter), navegue com as setas e feche com Esc.
+4. Clique no funil: Coleção e Lista inteligente aparecem; escolha uma lista e feche o funil: o ponto no botão indica filtro ativo. Feche e reabra o app: o filtro continua visível.
+5. Confira as contagens em Todos, Prontos, Revisar, Gerados e Falhas, e o player "Ouvir MIDI completo" no card selecionado.
+6. Com a janela na largura mínima e nos temas claro e escuro, a barra cabe inteira.
+
 TECLASCORE 0.50.1 · PASSO A PASSO COM TRAVAS E PLAYER FIXO
 
 1. Importe um MIDI novo: o editor mostra as etapas Melodia, Ritmo e acordes, Cifras e Gerar e conferir; só Melodia está aberta e não há botão Gerar.

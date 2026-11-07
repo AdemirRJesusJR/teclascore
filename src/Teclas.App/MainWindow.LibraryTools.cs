@@ -6,7 +6,7 @@ namespace Teclas.App;
 public partial class MainWindow
 {
     public bool FavoritesOnly { get=>settings.FavoritesOnly; set { settings.FavoritesOnly=value;Notify();RefreshLibraryFilters(); } }
-    public string CollectionFilter { get=>settings.CollectionFilter;set { settings.CollectionFilter=value??"";Notify();RefreshLibraryFilters(); } }
+    public string CollectionFilter { get=>settings.CollectionFilter;set { settings.CollectionFilter=value??"";Notify();NotifyLibraryAdvancedFilter();RefreshLibraryFilters(); } }
     public IEnumerable<string> LibraryCollections=>new[]{""}.Concat(Files.Select(row=>row.Collection).Where(c=>!string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase).Order());
     public bool CanShowHistory=>IsIdle && selectedFile is { } row && (row.Versions.Count>0 || row.ScorePath is not null);
     public sealed record SmartListOption(string Value, string Label);
@@ -17,7 +17,7 @@ public partial class MainWindow
         new("favoritas-sem-partitura", "Favoritas ainda sem partitura"), new("fora-do-teclado", "Não cabem no meu teclado"),
         new("revisar-primeiro", "Revisar primeiro (pela nota)"), new("aprovadas", "Aprovadas na revisão")
     ];
-    public string SmartList { get => settings.SmartList; set { settings.SmartList = value ?? ""; Notify(); RefreshLibraryFilters(); } }
+    public string SmartList { get => settings.SmartList; set { settings.SmartList = value ?? ""; Notify(); NotifyLibraryAdvancedFilter(); RefreshLibraryFilters(); } }
     /// <summary>Lists built from what the library already knows: study history, key, doubtful chords, favorites.</summary>
     private bool MatchesSmartList(MidiRow row) => settings.SmartList switch
     {

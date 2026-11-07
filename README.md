@@ -74,7 +74,7 @@ Versão 0.50.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artis
 
 **Mover a janela:** arraste o título da página ou os espaços vazios do cabeçalho, além da barra de título do Windows. Os botões de PDF e importação continuam clicáveis.
 
-**Divisor da biblioteca:** arraste a linha entre os filtros e os cards para ajustar a altura. Também é possível usar Tab e as setas para cima/baixo. A posição fica salva, com espaço mínimo para acessar filtros e músicas. Salvar PDF usa o tamanho padrão e fica ao lado de Importar MuseScore.
+**Barra de ações da biblioteca:** Adicionar, Gerar, Exportar e Estudar ficam em menus numa barra no topo da Biblioteca, com Comandos (Ctrl+K) e ⋯ (títulos e artistas, músicas repetidas, limpar biblioteca) à direita. A coluna da esquerda tem só a busca, favoritos, o botão de filtro (coleção e lista inteligente) e os filtros com contagem, e os cards usam o resto da altura. Salvar PDF usa o tamanho padrão e fica ao lado de Importar MuseScore.
 
 **Acesso rápido:** Salvar PDF fica no cabeçalho fixo da Biblioteca, inclusive com controles compactos. Limpar biblioteca remove todos os cards, inclusive os filtrados, com confirmação e Desfazer durante a sessão; os arquivos são preservados. Subir oitava e Descer oitava atualizam todas as notas da partitura atual e sua reprodução, mantendo as cifras no mesmo tom e a versão anterior no Histórico. Valem também para MuseScore importado; estruturas não suportadas ou notas fora do intervalo válido são informadas sem alterar o original. Após essa edição, continue pelo Editor musical.
 

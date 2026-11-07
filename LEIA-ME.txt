@@ -159,7 +159,7 @@ Você também pode arrastar a janela pelo título da página e espaços vazios d
 
 PDF, ZIP e PDFs em lote lembram a pasta da última exportação concluída, mesmo depois de fechar o aplicativo. Salvar novo padrão em Configurações redefine esse destino.
 
-Arraste a linha entre os filtros e os cards para ajustar o espaço da biblioteca. A posição será lembrada ao reabrir. Com foco no divisor, use as setas para cima e para baixo. Salvar PDF fica ao lado de Importar MuseScore, com tamanho padrão.
+As ações da biblioteca ficam numa barra no topo, em menus: Adicionar, Gerar, Exportar e Estudar; Comandos (Ctrl+K) e ⋯ ficam à direita. A coluna da esquerda tem a busca, os favoritos, o botão de filtro (coleção e lista inteligente) e os filtros com contagem. Salvar PDF fica ao lado de Importar MuseScore, com tamanho padrão.
 
 TECLASCORE 0.20.5
 

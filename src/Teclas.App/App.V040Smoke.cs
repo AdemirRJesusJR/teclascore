@@ -50,15 +50,25 @@ public partial class App
             window = new MainWindow(true, settingsPath) { Opacity = 0, ShowInTaskbar = false, ShowActivated = false, Width = 1300, Height = 900 };
             window.Show(); Flush();
 
-            // Library panel: the seven actions are compact rows with icons, and the clear button is an icon in the header.
-            string[] tools = ["MelodySearchButton", "ChordSheetButton", "MelodyBatchButton", "LibraryBatchPdfButton", "RepertoirePdfButton", "ConversionQueueButton"];
-            window.UpdateLayout();
-            Check(tools.All(name => window.FindName(name) is Button { ActualHeight: > 0 and <= 31 }), "library-actions-are-compact-rows");
-            Check(window.FindName("ClearLibraryButton") is Button { Width: 30 } clear && clear.ToolTip?.ToString()?.StartsWith("Limpar biblioteca") == true, "clear-library-is-an-icon-with-tooltip");
+            // Library panel: actions live in four task menus (and "⋯"); every one keeps its name, tooltip and handler.
+            window.SelectPageForSmoke("library"); window.UpdateLayout();
+            string[] menus = ["LibraryAddMenu", "LibraryGenerateMenu", "LibraryExportMenu", "LibraryStudyMenu", "LibraryMoreMenu"];
+            string[] tools = ["MelodySearchButton", "ChordSheetButton", "MelodyBatchButton", "LibraryBatchPdfButton", "RepertoirePdfButton", "ConversionQueueButton",
+                "AutopilotButton", "ReviewSequenceButton", "AudioToScoreButton", "SheetToScoreButton", "RecordIdeaButton", "ChordsToLearnButton", "SongbookButton",
+                "QuickSetlistButton", "MetadataSheetButton", "FindDuplicatesButton", "ClearLibraryButton", "LibraryImportButton"];
+            Check(menus.All(name => window.FindName(name) is System.Windows.Controls.Primitives.Popup { IsOpen: false }), "library-menus-start-closed");
+            Check(tools.All(name => window.FindName(name) is Button { ToolTip: not null }), "library-actions-all-reachable-from-menus");
+            var addMenu = (System.Windows.Controls.Primitives.Popup)window.FindName("LibraryAddMenu");
+            ((Button)window.FindName("LibraryAddMenuButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Flush();
+            Check(addMenu.IsOpen && ((Button)window.FindName("AudioToScoreButton")).ActualHeight is > 0 and <= 33, "library-menu-opens-with-compact-rows");
+            CaptureElement((FrameworkElement)addMenu.Child, Path.Combine(reports, "library-add-menu.png"));
+            addMenu.IsOpen = false; Flush();
+            Check(window.FindName("ClearLibraryButton") is Button clear && clear.ToolTip?.ToString()?.StartsWith("Limpar biblioteca") == true, "clear-library-stays-in-the-more-menu");
             var panel = (FrameworkElement)((FrameworkElement)window.FindName("LibrarySplitPanel")).Parent;
-            double actions = ((Button)window.FindName("ConversionQueueButton")).TranslatePoint(new Point(0, 30), panel).Y;
-            Check(actions < 360, $"actions-fit-in-the-top-of-the-panel ({actions:0} px)");
+            double cardsTop = ((FrameworkElement)window.FindName("Library")).TranslatePoint(new Point(0, 0), panel).Y;
+            Check(cardsTop < 200, $"cards-start-near-the-top-of-the-panel ({cardsTop:0} px)");
             CaptureElement(panel, Path.Combine(reports, "library-panel.png"));
+            CaptureElement((FrameworkElement)panel.Parent, Path.Combine(reports, "library-page.png"));
 
             // Chords only and lyrics: saved per song, sent to the engine, no melody track needed.
             var midi = Path.Combine(work, "acompanhamento.mid"); File.WriteAllBytes(midi, SyntheticTwoTrackMidi()); window.ImportForSmoke(midi); Flush();

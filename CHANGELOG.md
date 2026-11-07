@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.50.2 — 07/11/2026
+
+Biblioteca organizada: as ações saem da coluna das músicas e ficam numa barra no topo.
+
+- Barra de ações no topo da Biblioteca, sobre a lista e o editor: Adicionar (arquivos MIDI, pasta de MIDIs, áudio, PDF ou foto, gravar ideia), Gerar (piloto automático, melodias em lote, fila de conversões, revisão em sequência), Exportar (PDFs em massa, repertório em PDF, caderno de cifras, repertório rápido) e Estudar (buscar tocando a melodia, acordes para aprender, cifra em texto). À direita ficam Comandos (Ctrl+K) e ⋯, com títulos e artistas, músicas repetidas e limpar biblioteca. Os menus mostram o nome completo de cada ação, mantêm as dicas e funcionam pelo teclado (setas e Esc).
+- A coluna da esquerda fica só com a busca, o ★ de favoritos, o botão de filtro (coleção e lista inteligente; um ponto indica filtro ativo) e os filtros com a contagem de cada um (Todos, Prontos, Revisar, Gerados, Falhas). Os cards começam logo abaixo e ocupam o resto da altura; o divisor entre filtros e cards saiu.
+- O player "Ouvir MIDI completo" continua em cada card.
+
 ## 0.50.1 — 07/11/2026
 
 Passo a passo com travas para gerar a partitura de um MIDI novo, e escuta das pistas com o player sempre à vista.
