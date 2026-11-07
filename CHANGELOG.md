@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 1.0.0 — 07/11/2026
+
+Primeira versão estável. Esta versão não traz recursos novos: ela marca como definitivos a interface nova e o fluxo completo do MIDI à partitura.
+
+- Interface: menu no topo, músicas agrupadas por situação, seleção de várias músicas com ações em massa e player fixo e compacto com o modo Foco.
+- Fluxo: passo a passo com quatro etapas (Melodia, Ritmo, Cifras, Gerar), com cifras e diagramas de teclado que ficam salvos no app, revisão guiada, fila de conversões e piloto automático.
+- Entrega: partituras MuseScore .mscz, PDFs avulsos ou em massa, repertório, caderno de cifras, instalador oficial, instalador completo e atualização automática pelo GitHub.
+- Numeração a partir de agora: 1.x.0 para recurso novo e 1.x.y para correção. Uma versão 2.0.0 fica reservada para uma mudança grande, como um redesenho completo ou uma biblioteca que deixe de ser compatível com as versões anteriores.
+- Quem tem a 0.53.0 ou anterior recebe a 1.0.0 pelo botão Atualizar, e a biblioteca e as preferências continuam como estão.
+
 ## 0.53.0 — 07/11/2026
 
 Player fixo e compacto na etapa Gerar, com mais espaço para a partitura.

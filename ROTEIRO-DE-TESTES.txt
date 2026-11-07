@@ -1,3 +1,9 @@
+TECLASCORE 1.0.0 · PRIMEIRA VERSÃO ESTÁVEL
+
+1. Em Sobre, confira que a versão é 1.0.0.
+2. Com a 0.53.0 instalada, abra o app: o botão "Atualizar para 1.0.0" aparece no topo. Atualize e confira que a biblioteca, as preferências e as posições dos diagramas continuam as mesmas.
+3. Faça uma passada completa com um MIDI novo: Melodia, Ritmo, Cifras, Gerar e Salvar PDF. Depois, selecione duas músicas pelo botão direito e salve os PDFs pela barra flutuante.
+
 TECLASCORE 0.53.0 · PLAYER FIXO NA ETAPA GERAR
 
 1. Abra uma música gerada na etapa Gerar. O player fica acima da partitura em duas linhas: ▶ Reproduzir, Ⅱ, ■, posição, velocidade, A, B, repetir e ⓘ na primeira; Estudo, metrônomo, contagem, acorde atual, Acompanhar, karaokê e os menus na segunda. A partitura ocupa o restante do cartão.
