@@ -1,4 +1,5 @@
 using System.Windows;
+using Teclas.Core;
 
 namespace Teclas.App;
 
@@ -14,8 +15,21 @@ public partial class MainWindow
     {
         Loaded += (_, _) => QueuePreviewAlignment();
         ScoreEditorScrollViewer.SizeChanged += (_, _) => QueuePreviewAlignment();
-        EditorTabs.SelectionChanged += (_, e) => { if (ReferenceEquals(e.Source, EditorTabs)) QueuePreviewAlignment(); };
-        PropertyChanged += (_, e) => { if (e.PropertyName is nameof(CurrentPage) or nameof(SelectedFile)) QueuePreviewAlignment(); };
+        EditorTabs.SelectionChanged += (_, e) => { if (ReferenceEquals(e.Source, EditorTabs)) { LeaveScoreFocusOutsideGenerate(); QueuePreviewAlignment(); } };
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is not (nameof(CurrentPage) or nameof(SelectedFile))) return;
+            LeaveScoreFocusOutsideGenerate();
+            QueuePreviewAlignment();
+        };
+    }
+
+    private bool IsOnGenerateStep => CurrentPage == "library" && EditorTabs.SelectedIndex == TabOfStep(ScoreFlowStep.Generate);
+
+    /// <summary>Score focus belongs to the Gerar step only: leaving it (another step or another page) brings the side columns back.</summary>
+    private void LeaveScoreFocusOutsideGenerate()
+    {
+        if (scoreFocusMode && !IsOnGenerateStep) IsScoreFocusMode = false;
     }
 
     /// <summary>Short windows only: when the editor cannot show everything, scroll its outer viewport so the docked player
@@ -62,6 +76,7 @@ public partial class MainWindow
         get => scoreFocusMode;
         set
         {
+            if (value && !IsOnGenerateStep) value = false;
             if (scoreFocusMode == value) return;
             scoreFocusMode = value;
             foreach (var name in new[] { nameof(IsScoreFocusMode), nameof(LibraryColumnWidth), nameof(LibraryGapWidth), nameof(ProgressPanelVisibility),

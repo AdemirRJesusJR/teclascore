@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 1.0.1 — 07/11/2026
+
+Correção do modo Foco da partitura.
+
+- O Foco vale só na etapa Gerar: ao voltar para Melodia, Ritmo ou Cifras, ou ao sair da biblioteca, a lista de músicas e o painel de progresso aparecem de novo.
+- Fora da etapa Gerar o Foco não pode ser ligado.
+
 ## 1.0.0 — 07/11/2026
 
 Primeira versão estável. Esta versão não traz recursos novos: ela marca como definitivos a interface nova e o fluxo completo do MIDI à partitura.

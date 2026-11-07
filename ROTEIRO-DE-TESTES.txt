@@ -1,3 +1,10 @@
+TECLASCORE 1.0.1 · FOCO SÓ NA ETAPA GERAR
+
+1. Em Sobre, confira que a versão é 1.0.1.
+2. Na etapa Gerar, ligue o Foco: a lista de músicas e o painel de progresso somem.
+3. Clique em ← Voltar ou em outra etapa (Melodia, Ritmo, Cifras): as colunas laterais voltam e o Foco fica desligado.
+4. Volte à etapa Gerar: a partitura aparece com as colunas laterais até você ligar o Foco de novo.
+
 TECLASCORE 1.0.0 · PRIMEIRA VERSÃO ESTÁVEL
 
 1. Em Sobre, confira que a versão é 1.0.0.
