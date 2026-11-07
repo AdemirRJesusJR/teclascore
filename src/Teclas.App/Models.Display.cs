@@ -8,6 +8,10 @@ public sealed partial class MidiRow
 {
     private SongMeter? meter;
     private bool meterRead;
+    private bool isChecked;
+
+    /// <summary>Marked in the library's selection mode (right-click › Selecionar); never saved.</summary>
+    public bool IsChecked { get => isChecked; set => Set(ref isChecked, value); }
 
     /// <summary>Title without the artist prefix of names like "Artista - Música.mid"; an edited title is kept as it is.</summary>
     public string DisplayTitle => SplitName().Title;

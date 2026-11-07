@@ -11,6 +11,9 @@ public partial class MainWindow
     internal Func<BatchPdfSelectionWindow, bool?> batchPdfSelectionDialog = window => window.ShowDialog();
     internal Func<Task<string?>>? batchPdfFolderOverride = null;
     internal Func<string, string, IProgress<string>?, CancellationToken, Task>? batchPdfExport = null;
+    /// <summary>Songs marked in the library selection; the next PDF, repertoire or songbook export uses only them.</summary>
+    private MidiRow[]? batchScope;
+    private MidiRow[] TakeBatchScope() { var pool = batchScope ?? Files.ToArray(); batchScope = null; return pool; }
 
     private static BatchPdfSource BatchPdfCandidate(MidiRow row)
     {
@@ -23,11 +26,15 @@ public partial class MainWindow
 
     private async void ExportBatchPdfClick(object sender, RoutedEventArgs e)
     {
+        bool fromSelection = batchScope is not null;
+        var pool = TakeBatchScope();
         if (!CanExportBatchPdf || !CommitEdits()) return;
         // Only cards with a generated score are offered; pending or missing ones stay visible with their reason.
-        var generated = Files.Where(row => !string.IsNullOrWhiteSpace(row.ScorePath)).ToArray();
-        var dialog = new BatchPdfSelectionWindow(generated.Select(BatchPdfCandidate).ToArray(), Files.Count - generated.Length) { Owner = this };
-        if (batchPdfSelectionDialog(dialog) != true) return;
+        var generated = pool.Where(row => !string.IsNullOrWhiteSpace(row.ScorePath)).ToArray();
+        if (fromSelection && generated.Length == 0) { Status = "Nenhuma das músicas marcadas tem partitura gerada."; return; }
+        var dialog = new BatchPdfSelectionWindow(generated.Select(BatchPdfCandidate).ToArray(), pool.Length - generated.Length) { Owner = this };
+        // From the library selection the songs are already chosen: go straight to the folder.
+        if (!fromSelection && batchPdfSelectionDialog(dialog) != true) return;
         string? folderName;
         if (batchPdfFolderOverride is { } chooseFolder) folderName = await chooseFolder();
         else
@@ -37,7 +44,7 @@ public partial class MainWindow
         }
         if (folderName is null) return;
         // Recheck the selected versions after the dialogs; never silently export an older saved version.
-        var selection = dialog.SelectedSources.Select(item => Files.FirstOrDefault(row => row.FullPath == item.Id) is { } row
+        var selection = (fromSelection ? generated.Select(BatchPdfCandidate) : dialog.SelectedSources).Select(item => Files.FirstOrDefault(row => row.FullPath == item.Id) is { } row
             ? BatchPdfCandidate(row) : item with { BlockedReason = "Esta música não está mais na biblioteca." }).ToArray();
         BatchPdfReport? report = null;
         await RunOperation(async () =>

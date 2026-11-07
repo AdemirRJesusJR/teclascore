@@ -1,3 +1,12 @@
+TECLASCORE 0.52.0 · SELEÇÃO DE VÁRIAS MÚSICAS
+
+1. Na biblioteca, clique com o botão direito numa música. O menu deve aparecer sem abrir a música. Escolha Selecionar: as caixas aparecem, a música vem marcada e a barra flutuante mostra "1 selecionada".
+2. Clique em outros cards: eles são marcados sem abrir. Use Shift+clique para marcar um intervalo, a caixa de uma seção para marcá-la inteira e Ctrl+A para marcar todas. Clique em ▶ num card: o MIDI toca e o card não muda de marcação.
+3. Com duas músicas geradas marcadas, use PDFs: só a escolha da pasta aparece, e os dois PDFs são salvos nela. Use Repertório: a janela lista só as marcadas.
+4. Marque uma música sem melodia escolhida e use Gerar: aparece a proposta de melodia; confirme e veja as músicas na Fila de conversões.
+5. Use Coleção, Favoritar e Títulos e confira as mudanças nos cards. Use Remover e depois Desfazer: todas voltam nos mesmos lugares.
+6. Pressione Esc ou clique no ×: as caixas somem e a barra normal (Adicionar, Gerar, Exportar, Estudar, ⋯) volta.
+
 TECLASCORE 0.51.2 · TROCA DE TRECHO, POSIÇÕES DOS ACORDES E CARTÕES
 
 1. Gere de novo a música que mostrava "Um ataque próximo à troca de trecho ultrapassa o limite após quantização". A geração deve seguir sem bloqueio. Em Ritmo, confira o ponto informativo no compasso da troca e ouça o trecho.

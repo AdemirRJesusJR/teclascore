@@ -1,5 +1,25 @@
 # Histórico de versões
 
+## 0.52.0 — 07/11/2026
+
+Seleção de várias músicas na biblioteca, com menu do botão direito e barra de ações em massa.
+
+- Botão direito sobre um card abre um menu com Selecionar, Abrir, Ouvir MIDI completo, Salvar PDF, Favoritar, Organizar… e Remover da biblioteca. O botão direito não abre a música.
+- Selecionar (ou Ctrl+clique no card):
+  - Cada card ganha uma caixa de marcação, e o card clicado já vem marcado.
+  - No modo de seleção, clicar no card marca ou desmarca a música em vez de abri-la. Shift+clique marca um intervalo e Ctrl+A marca todas as músicas da lista.
+  - O cabeçalho de cada seção (Em preparo, Para conferir, Prontas, Com falha) ganha uma caixa que marca a seção inteira.
+  - Os botões ▶ ⏸ ⏹ de cada card continuam funcionando.
+  - Esc ou o × sai do modo e desmarca tudo.
+- Enquanto há seleção, a barra embaixo da lista vira uma barra flutuante com o número de músicas selecionadas, Selecionar todas / Limpar seleção e oito ações:
+  - PDFs: salva um PDF de cada música marcada direto na pasta escolhida, sem abrir de novo a janela de escolher os cards.
+  - Repertório e Cifras: abrem as opções do repertório em PDF e do caderno de cifras só com as músicas marcadas.
+  - Gerar: manda para a Fila de conversões as marcadas com melodia escolhida. As que ainda não têm melodia recebem antes a proposta de Melodias em lote, para você conferir.
+  - Coleção: põe as marcadas numa coleção nova ou existente. Deixar o nome vazio tira as músicas da coleção.
+  - Favoritar ou Desfavoritar.
+  - Títulos: abre a tabela de títulos e artistas só com as marcadas.
+  - Remover: tira as marcadas da biblioteca de uma vez. Os arquivos no computador são preservados, e Desfazer traz todas de volta nos mesmos lugares.
+
 ## 0.51.2 — 07/11/2026
 
 A troca de trecho da melodia passa a ser corrigida automaticamente, e a janela de posições dos acordes foi modernizada.

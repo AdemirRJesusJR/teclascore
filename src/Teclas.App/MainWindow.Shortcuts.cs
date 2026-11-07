@@ -11,7 +11,9 @@ public partial class MainWindow
     internal static readonly IReadOnlyList<(string Keys, string Action)> KeyboardShortcuts =
     [
         ("Espaço", "Reproduzir ou pausar a partitura selecionada (Biblioteca)"),
-        ("Esc", "Parar a reprodução ou a contagem"),
+        ("Esc", "Parar a reprodução ou a contagem; sair da seleção de músicas"),
+        ("Ctrl+clique no card", "Selecionar várias músicas (também pelo botão direito › Selecionar)"),
+        ("Shift+clique / Ctrl+A", "Na seleção: marcar um intervalo ou todas as músicas da lista"),
         ("Ctrl+← / Ctrl+→", "Voltar ou avançar 5 segundos"),
         ("Ctrl+M", "Ligar ou desligar o metrônomo"),
         ("Ctrl+Shift+M", "Ligar ou desligar a contagem antes de tocar"),
@@ -60,6 +62,11 @@ public partial class MainWindow
         // Text fields keep Space, Esc and Ctrl+arrows for editing; buttons and check boxes keep Space for activation.
         bool typing = focus is TextBoxBase or PasswordBox || focus is ComboBox { IsEditable: true };
         if (typing) return false;
+        if (librarySelectionMode && currentPage == "library" && focus is not ComboBoxItem)
+        {
+            if (modifiers == ModifierKeys.None && key == Key.Escape && !audioPlaying && !countingIn) { ExitLibrarySelection(); return true; }
+            if (modifiers == ctrl && key == Key.A) { SetAllLibraryChecks(true); return true; }
+        }
         // Outside text fields (which keep their own undo), Ctrl+Z / Ctrl+Y step through the card's changes.
         if (modifiers == ctrl && key == Key.Z) { Undo(); return true; }
         if (modifiers == ctrl && key == Key.Y || modifiers == ctrlShift && key == Key.Z) { Redo(); return true; }

@@ -1,3 +1,7 @@
+TECLASCORE 0.52.0
+
+Clique com o botão direito numa música e escolha Selecionar (ou use Ctrl+clique) para marcar várias músicas. Uma barra flutuante salva os PDFs, monta o repertório ou o caderno de cifras, gera, põe numa coleção, favorita, edita os títulos ou remove todas as marcadas de uma vez.
+
 TECLASCORE 0.51.2
 
 A troca de trecho da melodia é corrigida automaticamente, sem bloquear a geração. A janela de posições dos acordes foi modernizada, e as posições ficam sempre salvas no app, inclusive as escolhidas no Editor musical.

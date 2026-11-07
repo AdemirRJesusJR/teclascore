@@ -18,9 +18,12 @@ public partial class MainWindow
 
     private async void RepertoirePdfClick(object sender, RoutedEventArgs e)
     {
+        bool fromSelection = batchScope is not null;
+        var pool = TakeBatchScope();
         if (!CanExportBatchPdf || !CommitEdits()) return;
-        var generated = Files.Where(row => !string.IsNullOrWhiteSpace(row.ScorePath)).ToArray();
-        var dialog = new BatchPdfSelectionWindow(generated.Select(BatchPdfCandidate).ToArray(), Files.Count - generated.Length, repertoire: true) { Owner = this };
+        var generated = pool.Where(row => !string.IsNullOrWhiteSpace(row.ScorePath)).ToArray();
+        if (fromSelection && generated.Length == 0) { Status = "Nenhuma das músicas marcadas tem partitura gerada."; return; }
+        var dialog = new BatchPdfSelectionWindow(generated.Select(BatchPdfCandidate).ToArray(), pool.Length - generated.Length, repertoire: true) { Owner = this };
         if (batchPdfSelectionDialog(dialog) != true || dialog.Repertoire is not { } options) return;
         string? target;
         if (repertoireTarget is { } choose) target = choose(options.Title);
