@@ -123,7 +123,7 @@ public partial class App
             var exported = await window.ExportProjectionAsync([song, plainRow]); Flush();
             Check(exported.Exported == 1 && exported.Skipped.Single().Contains("sem letra") && File.Exists(Path.Combine(exported.Folder, "OpenLP", "Hino da Flauta.xml")) && File.Exists(Path.Combine(exported.Folder, "Holyrics", "Hino da Flauta.txt")), "projection-files-are-written " + window.Status);
 
-            // 6. Retries with adjustment: one song works without folding repeats, one only as chords, one keeps failing.
+            // 6. Retries with adjustment: one song works without folding repeats; the melody is never dropped to make the others pass.
             string MidiCopy(string name, int shift) { string p = Path.Combine(work, name + ".mid"); File.WriteAllBytes(p, TwoPartMidi(shift)); window.ImportForSmoke(p); Flush(); return p; }
             string pa = MidiCopy("falha-a", 9), pb = MidiCopy("falha-b", 10), pc = MidiCopy("falha-c", 11);
             var a = window.Files.Single(r => r.FullPath == pa); var b = window.Files.Single(r => r.FullPath == pb); var c = window.Files.Single(r => r.FullPath == pc);
@@ -141,10 +141,22 @@ public partial class App
                 return Task.FromResult<IReadOnlyDictionary<MidiRow, string>>(failed);
             };
             var remaining = await window.RetryFailuresAsync([a, b, c]); Flush();
-            Check(remaining.Keys.SequenceEqual([c]) && window.LastAdjustments[a] == "sem dobrar as repetições" && window.LastAdjustments[b] == "sem dobrar as repetições e só com cifras"
-                && !a.HasOperationError && c.HasOperationError && c.FoldRepeats && !c.ChordsOnly && !a.FoldRepeats && b.ChordsOnly && attempts.Count == 3 + 3 + 2,
+            Check(remaining.Keys.OrderBy(r => r.FullPath).SequenceEqual(new[] { b, c }) && window.LastAdjustments.Count == 1 && window.LastAdjustments[a] == "sem dobrar as repetições"
+                && !a.HasOperationError && b.HasOperationError && c.HasOperationError && b.FoldRepeats && c.FoldRepeats && !a.FoldRepeats && attempts.Count == 3 + 3,
                 "failures-are-retried-with-adjustments " + string.Join(" ", attempts) + " | " + window.Status);
-            Check(window.Status.Contains("2 de 3") && window.Status.Contains("Continuam falhando"), "retry-reports-what-changed");
+            Check(!b.ChordsOnly && !c.ChordsOnly && attempts.All(at => !at.EndsWith(":True")), "retry-never-drops-the-melody " + string.Join(" ", attempts));
+            Check(window.Status.Contains("1 de 3") && window.Status.Contains("Continuam falhando"), "retry-reports-what-changed");
+
+            // 0.50.0: a pending change withdraws the approval, which belonged to the score already on disk.
+            a.Approved = true; a.HasPendingScoreProperties = false;
+            Check(a.Approved && a.ConfidenceBadge == "✓ Aprovada", "approval-stays-while-nothing-changes");
+            a.HasPendingScoreProperties = true;
+            Check(!a.Approved && a.ConfidenceBadge != "✓ Aprovada", "pending-change-withdraws-the-approval");
+            a.HasPendingScoreProperties = false;
+
+            // 0.50.0: the collection rule only fills songs not decided yet; a generated score keeps its choices.
+            var ruleTargets = window.CollectionRuleTargets(a);
+            Check(ruleTargets.All(t => t.Row.ScorePath is null && !t.Row.ChordsOnly), "collection-rule-skips-generated-or-chords-only-songs");
 
             // 0.49.1: a failed transcription is shown in a window (not only on the status line); the private Python is used.
             string? shown = null; window.showFailure = (title, message) => shown = title + ": " + message;

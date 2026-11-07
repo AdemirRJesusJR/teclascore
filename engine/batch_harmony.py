@@ -28,6 +28,12 @@ CHORD_INTERVALS = {
     '9': (0, 2, 4, 7, 10), 'maj9': (0, 2, 4, 7, 11),
     'm9': (0, 2, 3, 7, 10), '7sus4': (0, 5, 7, 10),
 }
+# A chord below this confidence is written but flagged for review ("cifra com dúvida");
+# the same threshold is ScoreConfidence.DoubtfulChord in the app.
+DOUBTFUL_CHORD = .75
+# Below this a candidate change is not written; it is reported as a review point instead.
+_MINIMUM_CHORD = .66
+
 _TEMPLATES = [(root, quality, frozenset((root + n) % 12 for n in intervals))
               for root in range(12) for quality, intervals in CHORD_INTERVALS.items()]
 _FIFTHS_MAJOR = {0: 0, 1: -5, 2: 2, 3: -3, 4: 4, 5: -1,
@@ -335,6 +341,30 @@ def _key_suggestion(parsed, notes, events):
     return inferred
 
 
+def _discarded_changes(discarded, events):
+    """Candidate chords left out for weak support that would have changed the chord in force.
+
+    Weak repetitions of the sounding chord are noise; a different chord is a real doubt the
+    reader must hear, so it is kept for the review instead of disappearing silently.
+    """
+    changes = []; previous = None
+    for item in sorted(discarded, key=lambda x: x['tick']):
+        active = None
+        for event in events:
+            if event['tick'] > item['tick']:
+                break
+            active = event
+        chord = (item['root'], item['quality'])
+        if active is not None and (active['root'], active['quality']) == chord:
+            continue
+        marker = (chord, None if active is None else active['tick'])
+        if marker == previous:
+            continue
+        previous = marker
+        changes.append(dict(item))
+    return changes
+
+
 def analyze_harmony(parsed, melody_sources=None, context_advice=False):
     """Analyze MIDI accompaniment; return JSON-serializable evidence and warnings.
 
@@ -398,7 +428,7 @@ def analyze_harmony(parsed, melody_sources=None, context_advice=False):
     weights_by_source = {p['key']: max(.3, p['reliability']) for p in eligible}
     bass = sorted([n for p in profiles if p['bass_source'] for n in groups[p['key']]], key=lambda n:n['start'])
     bass_starts = [n['start'] for n in bass]
-    observations = []; rejected = 0
+    observations = []; rejected = 0; discarded = []
     for key in sorted(source_keys):
         clusters = clusters_by_source[key]
         active = []; last_complete = None
@@ -500,8 +530,11 @@ def analyze_harmony(parsed, melody_sources=None, context_advice=False):
             confidence -= .13
         if winner['method'] != 'simultaneous_onset':
             confidence -= .05
-        if confidence < .66:
-            rejected += 1; continue
+        if confidence < _MINIMUM_CHORD:
+            rejected += 1
+            discarded.append({'tick': tick, 'root': winner['root'], 'quality': winner['quality'],
+                              'confidence': round(confidence, 3)})
+            continue
         evidence = {'method': winner['method'], 'source_tick': winner['source_tick'],
                     'last_support_tick': winner['source_tick'],
                     'sources': [dict(zip(('track','channel','program'), key))
@@ -539,6 +572,7 @@ def analyze_harmony(parsed, melody_sources=None, context_advice=False):
             smoothed[-1]['confidence'] = max(smoothed[-1]['confidence'], event['confidence'])
         else:
             smoothed.append(event)
+    uncertain_discarded = _discarded_changes(discarded, smoothed)
     if not smoothed:
         warnings.append('Nenhuma sequência de acordes suficientemente apoiada por polifonia explícita foi encontrada; cifras não inventadas.')
     ambiguous_count = sum(e['evidence']['ambiguous'] for e in smoothed)
@@ -546,6 +580,9 @@ def analyze_harmony(parsed, melody_sources=None, context_advice=False):
         warnings.append(f'{ambiguous_count} cifras têm outra leitura harmônica possível; conferir as alternativas no relatório.')
     span = max(1, parsed.get('end_tick', max((n['end'] for n in notes), default=1)) / ppq)
     density = len(smoothed) / span
+    if uncertain_discarded:
+        warnings.append(f'{len(uncertain_discarded)} possíveis trocas de acorde ficaram de fora por falta de apoio; '
+                        'elas aparecem na Revisão guiada para você ouvir e decidir.')
     if density > .45:
         warnings.append('Mudanças de acorde muito frequentes; há ornamentos ou vozes internas que exigem revisão antes de diagramar cada cifra.')
     harmonic_ticks = sorted(set(o['tick'] for o in observations))
@@ -566,6 +603,8 @@ def analyze_harmony(parsed, melody_sources=None, context_advice=False):
         review_reasons.append('ambiguous_chord_names')
     if any(e['confidence'] < .80 for e in smoothed):
         review_reasons.append('low_confidence_chord_changes')
+    if uncertain_discarded:
+        review_reasons.append('discarded_uncertain_chords')
     if density > .45:
         review_reasons.append('dense_harmonic_changes')
     if unsupported_gaps:
@@ -580,6 +619,7 @@ def analyze_harmony(parsed, melody_sources=None, context_advice=False):
         'source_profiles': [{k:v for k,v in p.items() if k != 'key'} for p in profiles],
         'candidate_observations': len(observations), 'rejected_observations': rejected,
         'chord_changes': len(smoothed), 'ambiguous_changes': ambiguous_count,
+        'uncertain_discarded': uncertain_discarded,
         'changes_per_quarter': round(density, 3),
         'unsupported_gaps': unsupported_gaps,
         'first_evidence_tick': harmonic_ticks[0] if harmonic_ticks else None,

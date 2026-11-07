@@ -44,8 +44,12 @@ public partial class App
             var changes = DiagramPositionPropagation.Changes(before, [0, null, 0, 1], 0);
             Check(changes.Count == 1 && changes[0] == new ChordPositionChange(DiagramPositionPropagation.Shape("E", "", 0)!.Value, 0), "only-changed-chords-propagate");
             Check(DiagramPositionPropagation.Changes(before, [0, null, 1, 1], 0).Count == 0, "mixed-positions-do-not-propagate");
-            var plan = DiagramPositionPropagation.Plan([E("Ab", "m"), E("E", "", 0), E("E", "", 2), E("F")], 0, changes);
-            Check(plan.Count == 1 && plan[2] == 0, "plan-skips-same-and-unrelated-chords");
+            var chordsElsewhere = new[] { E("Ab", "m"), E("E", "", 0), E("E", "", 2), E("F"), E("E") };
+            var inherited = new Dictionary<ChordShape, int> { [DiagramPositionPropagation.Shape("E", "", 0)!.Value] = 2 };
+            var plan = DiagramPositionPropagation.Plan(chordsElsewhere, 0, changes, inherited, out int kept);
+            Check(plan.Count == 2 && plan[2] == 0 && plan[4] == 0 && kept == 0, "plan-skips-same-and-unrelated-chords");
+            plan = DiagramPositionPropagation.Plan(chordsElsewhere, 0, changes, null, out kept);
+            Check(plan.Count == 1 && plan[4] == 0 && kept == 1, "plan-keeps-positions-chosen-in-the-song");
 
             string settingsPath = Path.Combine(work, "settings.json");
             new Settings { OutputDirectory = Path.Combine(work, "output") }.Save(settingsPath);

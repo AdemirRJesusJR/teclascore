@@ -1,3 +1,12 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 0.50.0
+07/11/2026
+
+- Motor: 8 testes novos (tests/test_business_rules.py) para acordes descartados por dúvida, limite de cifra com dúvida, ponto de aviso no primeiro compasso e diagnóstico de MIDIs sem melodia completa (todos os status não prontos de profiles.json têm mensagem).
+- Análise real em 36 MIDIs da coleção do usuário com a pista escolhida à mão: os 24 marcados "sem melodia completa" ou "melodia parcial" receberam o aviso no compasso 1; os 12 prontos, nenhum. Impacto nas cifras: 8 acordes com dúvida em 3.503 e 1 troca descartada mostrada na revisão.
+- Geração real com o MuseScore Studio 4.7.5: partitura de 6 páginas salva, reaberta e exportada em PDF.
+- App: Teclas.Tests com 172 verificações (nota de confiança e propagação das posições); testes de interface 0.48, 0.49 e propagação atualizados (falhas sem só cifras, aprovação retirada por alteração pendente, regra por coleção, posições próprias mantidas). verify_ci: 64 aprovados, 0 falhas, 4 ignorados por exigirem MuseScore ou coleção pessoal.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.49.1
 18/10/2026
 

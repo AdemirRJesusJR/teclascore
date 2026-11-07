@@ -1,3 +1,10 @@
+TECLASCORE 0.50.0 · REGRAS QUE PROTEGEM A PARTITURA
+
+1. Escolha à mão uma pista de um MIDI marcado "Sem melodia completa" e analise: a Revisão guiada mostra o aviso no compasso 1; depois de gerar, o card fica em "Revisar".
+2. Rode o Piloto automático com esse MIDI na biblioteca: ele aparece em "Precisam de você", sem melodia escolhida.
+3. Aprove uma partitura e mude a posição de um diagrama: o "✓ Aprovada" some até gerar de novo.
+4. Em outra música, escolha uma posição própria para um acorde; depois mude esse acorde com "Aplicar também às outras músicas": a posição própria é mantida e o aviso informa.
+
 TECLASCORE 0.49.1 · ÁUDIO PARA PARTITURA
 
 1. Na Biblioteca, Áudio (ícone de nota musical): escolha um MP3; a música entra na biblioteca. Se algo falhar, uma janela explica o motivo.

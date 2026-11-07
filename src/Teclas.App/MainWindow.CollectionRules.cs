@@ -24,7 +24,9 @@ public partial class MainWindow
         var result = new List<(MidiRow, TrackRow)>();
         foreach (var row in Files)
         {
-            if (row == source || row.UsesNativeScoreWorkflow || row.Document is null || row.HasMelodyChoice || row.UseReviewedProfile) continue;
+            // Songs already generated, or set to chords only, keep their choices: the rule only fills songs not decided yet.
+            if (row == source || row.UsesNativeScoreWorkflow || row.Document is null || row.HasMelodyChoice || row.UseReviewedProfile
+                || row.ChordsOnly || row.ScorePath is not null || row.CatalogLacksMelody) continue;
             bool sameGroup = string.Equals(Path.GetDirectoryName(row.FullPath), folder, StringComparison.OrdinalIgnoreCase)
                 || source.Collection.Length > 0 && string.Equals(row.Collection, source.Collection, StringComparison.OrdinalIgnoreCase);
             if (!sameGroup) continue;

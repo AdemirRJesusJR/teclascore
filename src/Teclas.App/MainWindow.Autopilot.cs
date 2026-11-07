@@ -33,6 +33,8 @@ public partial class MainWindow
     internal string? PrepareAutopilotMelody(MidiRow row)
     {
         if (row.UseReviewedProfile || row.HasMelodyChoice) return null;
+        // A missing voice is not replaced by arpeggios, bass or lyric guide notes: the user decides (another MIDI or Só cifras).
+        if (row.CatalogLacksMelody) return "o diagnóstico do lote indica que o MIDI não traz a melodia completa; escolha outra fonte ou ligue Só cifras";
         var coverage = LyricsCoverageOf(row);
         if (coverage.Count > 0 && coverage[0].Share >= .5 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } sung)
         {

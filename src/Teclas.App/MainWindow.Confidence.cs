@@ -21,7 +21,8 @@ public partial class MainWindow
         return ScoreConfidence.Rate(new ConfidenceInput(
             row.Chords.Select(c => c.Confidence).ToArray(), row.Chords.Count(c => !string.IsNullOrWhiteSpace(c.Alternatives)),
             row.ReviewPoints.Count, row.ReviewPoints.Count(p => p.Blocking),
-            row.AutoMelody, row.AutoMelodyConfident, lyrics, row.IncludeLyrics, row.HasOperationError, row.PageCount));
+            row.AutoMelody, row.AutoMelodyConfident, lyrics, row.IncludeLyrics, row.HasOperationError, row.PageCount,
+            row.CatalogLacksMelody && !row.ChordsOnly && !row.UseReviewedProfile));
     }
 
     internal void RefreshConfidence(MidiRow row) => row.Confidence = RateScore(row);

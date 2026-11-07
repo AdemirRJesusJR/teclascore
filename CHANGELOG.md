@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 0.50.0 — 07/11/2026
+
+Regras de negócio revistas para não produzir partituras erradas sem aviso.
+
+- Repetir falhas com ajuste tenta de novo apenas sem dobrar as repetições. A tentativa "só com cifras" saiu: ela fazia a música perder a melodia em todas as gerações seguintes, sem registro do motivo. Só cifras continua disponível como escolha sua.
+- Acordes duvidosos não somem mais em silêncio. Trocas de acorde com apoio insuficiente aparecem na Revisão guiada (um ponto por compasso, com a cifra provável), e o aviso "acorde com dúvida" volta a funcionar: vale para cifras abaixo de 75%, o mesmo limite usado na nota de confiança. Cifras digitadas por você não contam como dúvida.
+- MIDIs que o diagnóstico do lote marcou sem melodia completa ou com melodia parcial: ao escolher a pista à mão, a análise avisa no primeiro compasso, a nota de confiança perde 40 pontos ("Revisar") e o Piloto automático deixa a música em "Precisam de você" em vez de escolher uma pista sozinho.
+- Regras por coleção não alcançam músicas que já têm partitura ou estão em Só cifras.
+- Posições na biblioteca inteira só mudam, nas outras músicas, os acordes que seguiam o padrão da música ou a posição lembrada da biblioteca; uma posição escolhida na própria música é mantida, e o aviso diz quantas foram preservadas.
+- Uma alteração pendente (posições, propriedades, transposição, cifras) retira o "Aprovada" do card: a aprovação valia para a partitura anterior.
+
 ## 0.49.1 — 18/10/2026
 
 - Áudio para partitura e Gravar ideia funcionam mesmo quando o Python escolhido em Configurações é outro: a transcrição usa sempre o Python que acompanha o TeclaScore (com os componentes de reconhecimento de notas). Antes, com outro Python, o MP3 era lido e a transcrição falhava sem aviso visível.

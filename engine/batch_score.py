@@ -8,7 +8,7 @@ import xml.etree.ElementTree as E
 import ast, struct, math, json, zipfile, subprocess, hashlib, re, copy, os, tempfile, textwrap, shutil
 from PIL import Image, ImageDraw
 from inspect_midi import parse_midi, summarize
-from batch_harmony import analyze_harmony, CHORD_INTERVALS
+from batch_harmony import analyze_harmony, CHORD_INTERVALS, DOUBTFUL_CHORD, chord_label
 from batch_svg_qa import analyze as analyze_svg
 import batch_svg_qa as svg_geometry
 import compact_score_layout
@@ -74,6 +74,15 @@ def locate_review_point(quarter,origin,bars,kind,message,blocking=False):
             'measureEndQuarter':(bar['end']+origin)/DIV,
             'kind':kind,'message':message,'blocking':blocking}
 
+def song_start_review_point(parsed,kind,message):
+    """A review point about the whole song, placed on its first bar."""
+    try:
+        _,meters,_=meta(parsed);origin,_,bars=make_bars(parsed,meters)
+    except NeedsReview:
+        return None
+    if not bars:return None
+    return locate_review_point((bars[0]['start']+origin)/DIV,origin,bars,kind,message)
+
 def rhythm_failure_points(error,parsed,config,origin,bars):
     """Carry the actual source attacks into both analysis and generation errors."""
     from melody_sections import all_sources
@@ -106,9 +115,19 @@ def review_points(parsed,config,harmony,*,include_melody_report=False):
         point=locate_review_point(quarter,origin,bars,kind,text,blocking)
         if point is not None:points.append(point)
     for chord in harmony.get('events',[]):
-        if chord.get('confidence',0)<.65:
+        if 0<chord.get('confidence',0)<DOUBTFUL_CHORD:
             add(chord['tick']/parsed['ppq'],'chord_low_confidence',
                 f"Acorde com confiança de {chord.get('confidence',0):.0%}. Confira a cifra ouvindo o acompanhamento.")
+    # Changes left out for weak support are a doubt, not silence: one point per bar.
+    fifths=harmony.get('key',{}).get('fifths',0);flagged=set()
+    for item in harmony.get('statistics',{}).get('uncertain_discarded',[]):
+        point=locate_review_point(item['tick']/parsed['ppq'],origin,bars,'chord_discarded','')
+        if point is None or point['measure'] in flagged:continue
+        flagged.add(point['measure'])
+        point['message']=(f"Possível troca para {chord_label(item['root'],item['quality'],fifths)} "
+                          f"({item['confidence']:.0%}) ficou fora da cifra por falta de apoio. "
+                          'Ouça o compasso e acrescente a cifra se ela fizer parte da música.')
+        points.append(point)
     if harmony.get('context_advice'):
         for diagnostic in harmony.get('diagnostics',[]):
             add(diagnostic['tick']/parsed['ppq'],diagnostic['kind'],diagnostic['message'])

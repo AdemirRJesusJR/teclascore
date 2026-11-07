@@ -30,16 +30,29 @@ public static class DiagramPositionPropagation
     }
 
     /// <summary>New positions for another song's chords, by index; only matching chords with a different position appear.</summary>
-    public static IReadOnlyDictionary<int, int?> Plan(IReadOnlyList<ChordPositionEntry> chords, int transposeSemitones, IReadOnlyList<ChordPositionChange> changes)
+    /// <remarks>
+    /// Only chords that follow the library's choice are replaced: the song default (null) or the position the library
+    /// remembered for that chord before this change (<paramref name="inherited"/>). A different position was picked in
+    /// that song on purpose and stays; <paramref name="kept"/> counts them.
+    /// </remarks>
+    public static IReadOnlyDictionary<int, int?> Plan(IReadOnlyList<ChordPositionEntry> chords, int transposeSemitones, IReadOnlyList<ChordPositionChange> changes,
+        IReadOnlyDictionary<ChordShape, int>? inherited, out int kept)
     {
         var wanted = changes.ToDictionary(change => change.Shape, change => change.Inversion);
         var plan = new Dictionary<int, int?>();
+        kept = 0;
         for (int index = 0; index < chords.Count; index++)
-            if (Shape(chords[index].Root, chords[index].Quality, transposeSemitones) is { } shape &&
-                wanted.TryGetValue(shape, out var inversion) && chords[index].Inversion != inversion)
-                plan[index] = inversion;
+        {
+            if (Shape(chords[index].Root, chords[index].Quality, transposeSemitones) is not { } shape ||
+                !wanted.TryGetValue(shape, out var inversion) || chords[index].Inversion == inversion) continue;
+            bool followsLibrary = chords[index].Inversion is not { } current || inherited is not null && inherited.TryGetValue(shape, out int remembered) && remembered == current;
+            if (followsLibrary) plan[index] = inversion; else kept++;
+        }
         return plan;
     }
+
+    public static IReadOnlyDictionary<int, int?> Plan(IReadOnlyList<ChordPositionEntry> chords, int transposeSemitones, IReadOnlyList<ChordPositionChange> changes,
+        IReadOnlyDictionary<ChordShape, int>? inherited = null) => Plan(chords, transposeSemitones, changes, inherited, out _);
 
     /// <summary>Fills JSON chords without diagramInversion from remembered {pitchClass, quality, inversion} entries.</summary>
     public static int ApplyPreferences(System.Text.Json.Nodes.JsonArray chords, System.Text.Json.Nodes.JsonArray preferences, int transposeSemitones)

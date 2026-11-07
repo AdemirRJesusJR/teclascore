@@ -11,7 +11,8 @@ public sealed record ConfidenceInput(
     double? LyricsShareOnMelody,
     bool LyricsRequested,
     bool HasError,
-    int PageCount);
+    int PageCount,
+    bool SourceMelodyIncomplete = false);
 
 /// <summary>A 0–100 rating (higher needs less review) and the reasons that lowered it, in words.</summary>
 public sealed record ConfidenceRating(int Score, IReadOnlyList<string> Reasons)
@@ -27,7 +28,8 @@ public sealed record ConfidenceRating(int Score, IReadOnlyList<string> Reasons)
 /// </summary>
 public static class ScoreConfidence
 {
-    public const double DoubtfulChord = .65;
+    /// <summary>Below this a chord counts as doubtful; the engine flags the same chords (batch_harmony.DOUBTFUL_CHORD).</summary>
+    public const double DoubtfulChord = .75;
 
     public static ConfidenceRating Rate(ConfidenceInput input)
     {
@@ -45,6 +47,7 @@ public static class ScoreConfidence
         if (input.BlockingReviewPoints > 0) { score -= Math.Min(35, 20 + 5 * input.BlockingReviewPoints); reasons.Add($"{input.BlockingReviewPoints} ponto(s) que impedem gerar sem revisão"); }
         int soft = input.ReviewPoints - input.BlockingReviewPoints;
         if (soft > 0) { score -= Math.Min(20, 4 * soft); reasons.Add($"{soft} ponto(s) de revisão"); }
+        if (input.SourceMelodyIncomplete) { score -= 40; reasons.Add("o diagnóstico do MIDI indica que falta parte da melodia"); }
         if (input.MelodyChosenAutomatically && !input.MelodyChoiceConfident) { score -= 20; reasons.Add("melodia escolhida automaticamente sem certeza"); }
         if (input.LyricsRequested && input.LyricsShareOnMelody is { } share2 && share2 < .6)
         { score -= share2 < .3 ? 15 : 8; reasons.Add($"só {share2:P0} da letra cai na melodia"); }

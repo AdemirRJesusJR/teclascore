@@ -55,15 +55,20 @@ public partial class MainWindow
             row.HasPendingScoreProperties=true;
         }
         // Other songs receive only the chords changed here; their remaining chords and defaults stay as they were.
-        var updated=applyToLibrary && changes.Count>0 ? PropagateDiagramPositions(row,changes) : [];
+        int keptChoices=0;
+        var updated=applyToLibrary && changes.Count>0 ? PropagateDiagramPositions(row,changes,out keptChoices) : [];
         // Every chosen position is remembered and used automatically for chords analyzed later.
         if(changes.Count>0)RememberChordPreferences(changes);
-        if(!changed && updated.Count==0)return;
+        if(!changed && updated.Count==0)
+        {
+            if(keptChoices>0)Status=KeptChoicesText(keptChoices).Trim();
+            return;
+        }
         ResetPlayback();RefreshSelection();PersistPreferences();
         var regenerate=new List<MidiRow>();
         if(changed && CanRegenerate(row))regenerate.Add(row);
         regenerate.AddRange(updated.Where(other=>other.ScorePath is not null && CanRegenerate(other)));
-        string library=updated.Count==0?"":updated.Count==1?" Também aplicadas a 1 outra música.":$" Também aplicadas a {updated.Count} outras músicas.";
+        string library=(updated.Count==0?"":updated.Count==1?" Também aplicadas a 1 outra música.":$" Também aplicadas a {updated.Count} outras músicas.")+KeptChoicesText(keptChoices);
         if(regenerate.Count==0)
         {
             Status=(row.Document is null?"Posições salvas. Reconecte o MIDI original para atualizar os diagramas.":
@@ -92,12 +97,24 @@ public partial class MainWindow
         PersistPreferences();
     }
 
-    private List<MidiRow> PropagateDiagramPositions(MidiRow source,IReadOnlyList<ChordPositionChange> changes)
+    private static string KeptChoicesText(int kept)=>kept switch
+    {
+        0=>"",
+        1=>" 1 acorde com posição escolhida na própria música foi mantido.",
+        _=>$" {kept} acordes com posição escolhida na própria música foram mantidos."
+    };
+
+    /// <summary>Carries the changes to other songs; chords placed on purpose in a song (not the library's choice) stay.</summary>
+    private List<MidiRow> PropagateDiagramPositions(MidiRow source,IReadOnlyList<ChordPositionChange> changes,out int keptChoices)
     {
         var updated=new List<MidiRow>();
+        // Called before the new choices are remembered: these are the positions the other songs inherited.
+        var inherited=new Dictionary<ChordShape,int>(chordPreferences);
+        keptChoices=0;
         foreach(var other in Files.Where(other=>IsPropagationTarget(other,source)).ToArray())
         {
-            var plan=DiagramPositionPropagation.Plan(Entries(other),other.TransposeSemitones,changes);
+            var plan=DiagramPositionPropagation.Plan(Entries(other),other.TransposeSemitones,changes,inherited,out int kept);
+            keptChoices+=kept;
             if(plan.Count==0)continue;
             RememberVersion(other);
             foreach(var (index,inversion) in plan)other.Chords[index].DiagramInversion=inversion;

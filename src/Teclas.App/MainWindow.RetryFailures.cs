@@ -3,9 +3,10 @@ using System.Windows;
 namespace Teclas.App;
 
 /// <summary>
-/// Failed generations are tried again with adjustments instead of being investigated one by one: first without folding
-/// the repeats (the most common cause of a refused score), then as chords only (when the melody cannot be written).
-/// What had to change is reported per song; songs that still fail keep their original options.
+/// Failed generations are tried again with adjustments instead of being investigated one by one: without folding the
+/// repeats (the most common cause of a refused score). The melody is never dropped to make a song pass: a song that
+/// still fails keeps its original options and waits for a decision (Só cifras is the user's choice, not a fallback).
+/// What had to change is reported per song.
 /// </summary>
 public partial class MainWindow
 {
@@ -31,7 +32,6 @@ public partial class MainWindow
                 if (again.TryGetValue(row, out var error)) failures[row] = error; else failures.Remove(row);
         }
         await Retry(r => r.FoldRepeats, r => r.FoldRepeats = false, "sem dobrar as repetições");
-        await Retry(r => !r.ChordsOnly, r => r.ChordsOnly = true, "só com cifras");
         foreach (var row in failures.Keys.Where(original.ContainsKey))
         {
             // Still failing: the song keeps the options it had.

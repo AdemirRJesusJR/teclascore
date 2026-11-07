@@ -107,6 +107,23 @@ def report_error(error,request_path=None):
 
 NATURALS={'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}
 
+SOURCE_DIAGNOSES={
+    'no_melody':'O diagnóstico do lote indica que este MIDI não traz a melodia completa: {reason} '
+                'Confira se a pista escolhida é mesmo a voz principal; arpejos, baixo e notas-guia da letra não substituem a melodia. '
+                'Sem a voz, use Só cifras ou outra fonte.',
+    'partial_melody':'O diagnóstico do lote indica que este MIDI traz só parte da melodia: {reason} '
+                     'Os trechos sem a voz principal precisam de outra fonte; confira a partitura antes de aprová-la.',
+}
+
+def source_diagnosis(profile):
+    """The batch verdict on a MIDI without a complete melody, to warn when its tracks are chosen by hand."""
+    config=(profile or {}).get('config') or {}
+    template=SOURCE_DIAGNOSES.get(config.get('status'))
+    if template is None:return None
+    reason=str(config.get('reason','')).strip()
+    if reason and not reason.endswith('.'):reason+='.'
+    return {'status':config['status'],'message':template.format(reason=reason or 'sem detalhes.')}
+
 def pitch_class(spelling):
     if not isinstance(spelling,str) or not re.fullmatch('[A-G](#{1,2}|b{1,2})?',spelling):raise ValueError('Nota inválida na cifra: '+str(spelling))
     return (NATURALS[spelling[0]]+spelling.count('#')-spelling.count('b'))%12
@@ -253,8 +270,13 @@ def main():
         send('progress',message='Conferindo a melodia, o ritmo e os trechos que precisam de revisão…')
         if config.get('chords_only'):points,rhythm_ready,rhythm_message,melody_report=[],True,'',{}
         else:points,rhythm_ready,rhythm_message,melody_report=engine.review_points(parsed,config,harmony,include_melody_report=True)
+        diagnosis=None if reviewed or config.get('chords_only') else source_diagnosis(profile)
+        if diagnosis:
+            point=engine.song_start_review_point(parsed,'source_melody_incomplete',diagnosis['message'])
+            if point is not None:points.insert(0,point)
         document={'source':str(source),'sha256':parsed['sha256'],'config':config,'harmony':harmony,'reviewedProfile':reviewed,'ppq':parsed['ppq'],'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
         if 'melody_merge' in melody_report:document['melodyMerge']=melody_report['melody_merge']
+        if diagnosis:document['sourceDiagnosis']=diagnosis
         analysis=workspace/'analysis.json'
         fifths=harmony.get('key',{}).get('fifths',0)
         chords=[]
@@ -276,6 +298,9 @@ def main():
         send('progress',message='Análise concluída. Preparando as cifras e os pontos de revisão…')
         response={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation',''),'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
         if 'melodyMerge' in document:response['melodyMerge']=document['melodyMerge']
+        if diagnosis:
+            response['sourceDiagnosis']=diagnosis
+            response['warnings']=[diagnosis['message'],*response['warnings']]
         send('result',data=response)
         return
     if mode!='generate':raise ValueError('Operação desconhecida.')
