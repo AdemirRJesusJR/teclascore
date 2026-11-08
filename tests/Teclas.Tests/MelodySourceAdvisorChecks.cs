@@ -84,6 +84,60 @@ internal static class MelodySourceAdvisorChecks
         check(emptySuggestion.Label=="Sem notas válidas" && emptySuggestion.SampleStartTick==0 && emptySuggestion.SampleEndTick==0,"Empty source remains visible without a fabricated audition");
         var invalidNotes=Document([Note(0,1,0,60,0,0),new(0,1,0,61,0,0,480)]);
         check(MelodySourceAdvisor.Analyze(invalidNotes).Single().Label=="Sem notas válidas","Non-sounding or zero-duration notes cannot produce a recommendation");
+        LyricsRanking(check);
+    }
+
+    /// <summary>Karaoke MIDIs written with SimpleMidiWriter and read back: the lyrics decide the default melody.</summary>
+    private static void LyricsRanking(Action<bool,string> check)
+    {
+        // The sung line: varied, one attack per syllable. A busier flute line scores better without lyrics.
+        int[] steps=[0,2,4,5,7,5,4,2];
+        var voice=Enumerable.Range(0,64).Select(i=>new WrittenNote(i+(i/8)*1.0,.9,64+steps[i%8])).ToArray();
+        var syllables=voice.Select((n,i)=>new WrittenLyric(n.Start+.02,(i%8==0?"/":"")+"la")).ToArray();
+        var flute=Enumerable.Range(0,150).Select(i=>new WrittenNote(i*.5,.45,76+new[]{0,3,5,7,10,7,5,3,12,10}[i%10])).ToArray();
+        var guideNotes=voice.Select(n=>new WrittenNote(n.Start,.9,64)).ToArray();
+        MidiDocument Read(params WrittenTrack[] tracks)=>MidiReader.Read(SimpleMidiWriter.Write(100,4,tracks));
+        var plain=Read(new("Flauta",0,73,flute),new("Voz",1,0,voice));
+        var withoutLyrics=MelodySourceAdvisor.Analyze(plain);
+        check(withoutLyrics.All(s=>s.LyricsShare is null && !s.FollowsLyrics),"Without lyrics nothing claims to follow them");
+        var karaoke=Read(new("Flauta",0,73,flute),new WrittenTrack("Voz",1,0,voice){Lyrics=syllables},new("Guia",2,0,guideNotes));
+        var ranked=MelodySourceAdvisor.Analyze(karaoke);
+        var top=ranked[0];
+        check(top.Key.Channel==2 && top.FollowsLyrics && top.LyricsShare>=.9 && top.Label=="Boa candidata" && top.Reason.Contains("letra"),
+            "The source that carries 90% or more of the syllables is the suggested melody: "+string.Join(" | ",ranked.Select(s=>$"{s.Key.Channel} {s.Score} {s.LyricsShare}")));
+        check(ranked.Single(s=>s.Key.Channel==3).Label=="Guia possível" && !ranked.Single(s=>s.Key.Channel==3).FollowsLyrics,"A fixed-pitch guide on the lyrics is never the melody");
+        var proposal=MelodyBatchAdvisor.Propose(ranked);
+        check(proposal.Confident && proposal.Source==top.Key,"Batch proposal, autopilot and queue take the lyrics melody with confidence");
+
+        // Only a guide follows the words: the sung voice is missing, so no instrument is chosen confidently.
+        var guideOnly=MelodySourceAdvisor.Analyze(Read(new("Sax",3,65,voice.Select(n=>n with{Start=n.Start+.5,Length=.4}).ToArray()),new WrittenTrack("Guia",2,0,guideNotes){Lyrics=syllables}));
+        check(guideOnly.All(s=>!s.FollowsLyrics) && guideOnly[0].Reason.Contains("nota-guia"),"Lyrics on a guide note explain that the voice may be missing: "+string.Join(" | ",guideOnly.Select(s=>$"{s.Key.Channel} {s.Label} {s.LyricsShare} {s.Reason}")));
+        check(!MelodyBatchAdvisor.Propose(guideOnly).Confident,"No confident melody when only a guide follows the lyrics");
+
+        // Two lines equally close to the words (same coverage, same sparseness) leave the choice to the user.
+        var other=voice.Select((n,i)=>n with{Pitch=60+steps[(i+3)%8]}).ToArray();
+        var rivals=MelodySourceAdvisor.Analyze(Read(new WrittenTrack("Voz",1,0,voice){Lyrics=syllables},new("Sax",3,65,other)));
+        check(rivals.All(s=>!s.FollowsLyrics),"Two different lines on the lyrics are a doubt, not a lyrics choice");
+
+        // An octave doubling 20 ticks late is the same line; the one on the lyrics is kept and the other marked as its double.
+        var doubled=voice.Select(n=>n with{Start=n.Start+20d/480,Pitch=n.Pitch+12}).ToArray();
+        var doubles=MelodySourceAdvisor.Analyze(Read(new WrittenTrack("Teclado",1,0,voice){Lyrics=syllables},new("Sintetizador",4,80,doubled)));
+        var kept=doubles.Single(s=>s.Key.Channel==2);var doubling=doubles.Single(s=>s.Key.Channel==5);
+        check(kept.FollowsLyrics && doubling.DoubleOf==kept.Key && doubling.Reason.Contains("Dobra"),"Octave doubling with a small delay is recognized; the lyrics line is kept: "+string.Join(" | ",doubles.Select(s=>$"{s.Key.Channel} {s.Score} {s.LyricsShare} {s.Reason}")));
+        check(MelodyBatchAdvisor.Propose(doubles).Confident,"A double of the melody is not a rival in the batch proposal");
+        // Without lyrics the voice timbre decides between two doubled lines.
+        var choir=voice.Select(n=>n with{Start=Math.Max(0,n.Start-25d/480)}).ToArray();
+        var timbre=MelodySourceAdvisor.Analyze(Read(new("Teclado",1,0,voice),new("Coro",5,52,choir)));
+        check(timbre[0].Key.Channel==6 && timbre.Single(s=>s.Key.Channel==2).DoubleOf==timbre[0].Key,"Without lyrics, a unison double keeps the voice timbre: "+string.Join(" | ",timbre.Select(s=>$"{s.Key.Channel} {s.Score} {s.Reason}")));
+        // Identical lines with nothing to tell them apart stay as equal candidates (no false certainty).
+        var same=MelodySourceAdvisor.Analyze(Read(new("Teclado",1,0,voice),new("Piano",6,1,voice)));
+        check(same.All(s=>s.DoubleOf is null && s.Reason.Contains("semelhante")),"Undecided doubles keep the comparison hint");
+
+        // Coverage of a melody chosen from two tracks counts their attacks together.
+        var flutes=karaoke.Sources.Where(s=>s.Key.Channel==1).Select(s=>s.Key).ToArray();
+        var half=LyricsTrack.CoverageOf(karaoke,flutes);
+        var union=LyricsTrack.CoverageOf(karaoke,karaoke.Sources.Where(s=>s.Key.Channel is 1 or 2).Select(s=>s.Key));
+        check(union is not null && half is not null && union.Share>=half.Share && union.Share>=.9,"Lyrics coverage of several chosen tracks is their union");
     }
 
     private static MidiNote Note(int track,int channel,int program,int pitch,long start,double duration)=>new(track,channel,program,pitch,80,start,start+(long)duration);
