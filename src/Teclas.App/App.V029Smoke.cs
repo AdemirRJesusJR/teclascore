@@ -39,7 +39,7 @@ public partial class App
             var model = new NativeMusicModel("x.mscz", "", null!, [
                 new MusicMeasure(1, 1, "", [Rest(1, 3)], [Chord(1, 0, "A", "m"), Chord(1, 2, "A", "m"), Chord(1, 2.5, "G", "7", 0)]),
                 new MusicMeasure(1, 2, "", [Rest(2, 3)], [Chord(2, 0, "F", ""), Chord(2, 1, "X", "")]),
-                new MusicMeasure(1, 3, "", [], [Chord(3, 0, "C", "13")])], []);
+                new MusicMeasure(1, 3, "", [], [Chord(3, 0, "C", "7#11")])], []);
             var chords = PracticeSession.ChordsFromScore(model, 2);
             Check(chords.Select(c => c.Label).SequenceEqual(new[] { "Am", "G7", "F" }), "chord-steps-skip-repeats-and-unknown-symbols");
             Check(chords[0].Pitches.SequenceEqual(KeyboardDiagramVoicing.Pitches(9, "m", 2)) && chords[1].Pitches.SequenceEqual(KeyboardDiagramVoicing.Pitches(7, "7", 0)), "chord-steps-use-the-diagram-position");
