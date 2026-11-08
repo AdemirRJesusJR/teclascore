@@ -58,8 +58,15 @@ public partial class App
             window.ScoreMusicFont = "Bravura"; window.ScoreSize = "grande";
             Check(window.ScoreStyleRequest() is { } style && (string?)style["musicFont"] == "Bravura" && (string?)style["size"] == "grande"
                 && Settings.Load(settingsPath) is { ScoreMusicFont: "Bravura", ScoreSize: "grande" }, "look-is-saved-and-sent");
-            var bad = Settings.Load(settingsPath); bad.ScoreMusicFont = "Comic"; bad.ScoreSize = "enorme"; bad.Save(settingsPath);
-            Check(Settings.Load(settingsPath) is { ScoreMusicFont: "Leland", ScoreSize: "normal" }, "unknown-look-falls-back");
+            // Space between the systems: only a non-normal choice is sent; the combo is in Configurações.
+            Check(window.ScoreStyleRequest() is { } plain && plain["spacing"] is null, "normal-spacing-is-not-sent");
+            window.ScoreMusicFont = "Leland"; window.ScoreSize = "normal"; window.ScoreSpacing = "compacto";
+            Check(window.ScoreStyleRequest() is { } spaced && (string?)spaced["spacing"] == "compacto"
+                && Settings.Load(settingsPath) is { ScoreSpacing: "compacto" } && window.FindName("ScoreSpacingCombo") is ComboBox { Items.Count: 3 }, "spacing-is-saved-and-sent");
+            window.ScoreSpacing = "normal";
+            Check(window.ScoreStyleRequest() is null, "normal-look-sends-no-style-again");
+            var bad = Settings.Load(settingsPath); bad.ScoreMusicFont = "Comic"; bad.ScoreSize = "enorme"; bad.ScoreSpacing = "apertado"; bad.Save(settingsPath);
+            Check(Settings.Load(settingsPath) is { ScoreMusicFont: "Leland", ScoreSize: "normal", ScoreSpacing: "normal" }, "unknown-look-falls-back");
 
             // Problem report: summary without personal folders, recent messages, diagnostics only when asked.
             string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

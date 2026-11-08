@@ -146,11 +146,19 @@ def _apply_label_lanes(final,report,out,planned):
     if style is None:style=E.SubElement(style_root if style_name else root.find('Score'),'Style')
     # Text offsets do not reserve skyline space with autoplace disabled.
     # Allow the complete label stack plus the previous system's stems/notes.
-    for tag,minimum in (('minSystemDistance',28+extra),('maxSystemDistance',36+extra),
-                        ('minSystemSpread',28+extra),('maxSystemSpread',36+extra),('staffUpperBorder',18+extra)):
+    # The chosen spacing (Configurações) shifts or caps this fallback; the
+    # compact pass later replaces it with space only where the labels are.
+    spacing=core.score_spacing(report.get('score_style'))
+    low,high=core.spacing_limits(spacing,28+extra,36+extra)
+    for tag,minimum in (('minSystemDistance',low),('maxSystemDistance',high),
+                        ('minSystemSpread',low),('maxSystemSpread',high),('staffUpperBorder',18+extra)):
         element=style.find(tag)
         if element is None:element=E.SubElement(style,tag)
-        element.text=str(max(float(element.text or '0'),minimum))
+        value=max(float(element.text or '0'),minimum)
+        # Compact keeps each range tight (its minimum is set first): a larger
+        # maximum would only stretch the systems again to fill the page.
+        if spacing=='compacto' and tag.startswith('max'):value=min(value,float(style.findtext('min'+tag[3:]))+2)
+        element.text=str(value)
     if style_name:contents[style_name]=E.tostring(style_root,encoding='utf-8',xml_declaration=True)
     # Fixed page breaks would compress the enlarged systems back into their
     # old pages. Keep all line boundaries and let the native renderer paginate.
@@ -213,23 +221,38 @@ def layout_with_instrument_labels(final,report,out):
 
 
 def compact_instrument_label_layout(final,report,out):
+    _compact_layout_attempt(final,report,out)
+    result=report.get('compact_layout') or {}
+    # Compact first tries less room above raised diagrams and names; an unsafe
+    # result gets one more try with the usual room, still without stretching.
+    if result.get('mode')=='compacto' and not result.get('applied') and result.get('reason')=='candidate_geometry_not_safe':
+        _compact_layout_attempt(final,report,out,'compacto-seguro')
+
+
+def _compact_layout_attempt(final,report,out,mode=None):
     """Try local vertical allowances only after obtaining a validated fallback.
 
     The original score and previews remain untouched until the full native
     candidate is smaller and passes content, labels, diagrams and musical-ink QA.
     Worker publication happens later, after the ordinary MusicXML round trip.
+    With "Espaço entre as pautas: Compacto" every single-staff score gets this
+    pass, and a candidate with the same page count is still accepted; when
+    its tighter room above raised items is not safe, the usual room is tried.
     """
-    if not report.get('instrument_label_lanes'):return
+    spacing=core.score_spacing(report.get('score_style'));mode=mode or spacing
+    if not report.get('instrument_label_lanes') and spacing!='compacto':return
     before_pages=len(list(out.glob('qa-*.svg')))
-    if before_pages<2:return
-    result={'pages_before':before_pages,'pages_after':before_pages,'applied':False,
+    if before_pages<(1 if spacing=='compacto' else 2):return
+    first=report.get('compact_layout') if mode!=spacing else None
+    result={'pages_before':before_pages,'pages_after':before_pages,'applied':False,'spacing':spacing,'mode':mode,
             'method':'local_measure_clearance','note_and_text_sizes_preserved':True}
+    if first:result['first_attempt']={key:first.get(key) for key in ('mode','reason','checks')}
     report['compact_layout']=result
     candidate_dir=out/'compactacao';candidate_dir.mkdir(exist_ok=True)
     publishing=False
     try:
         with zipfile.ZipFile(final) as archive:before={name:archive.read(name) for name in archive.namelist()}
-        prepared=core.compact_score_layout.prepare(before)
+        prepared=core.compact_score_layout.prepare(before,mode)
         if prepared is None:result['reason']='unsupported_native_layout';return
         contents,spacers=prepared
         input_path=candidate_dir/'preparado.mscz';candidate=candidate_dir/'compacta.mscz'
@@ -242,7 +265,8 @@ def compact_instrument_label_layout(final,report,out):
                              [candidate_dir/'reaberto.musicxml'])
         paths=sorted(candidate_dir.glob('qa-*.svg'),key=core.page_order)
         result['candidate_pages']=len(paths)
-        if not paths or len(paths)>=before_pages:result['reason']='no_page_reduction';return
+        if not paths or len(paths)>before_pages or (len(paths)==before_pages and spacing!='compacto'):
+            result['reason']='no_page_reduction';return
         with zipfile.ZipFile(candidate) as archive:after={name:archive.read(name) for name in archive.namelist()}
         if not core.compact_score_layout.content_preserved(before,after):result['reason']='content_or_typography_changed';return
         reopened=E.parse(candidate_dir/'reaberto.musicxml');parts=reopened.findall('part')
@@ -260,10 +284,23 @@ def compact_instrument_label_layout(final,report,out):
                 'ink_problems':sum(len(page['overlaps'])+len(page['clipped']) for page in ink)}
         result['checks']=checks
         (candidate_dir/'geometria_completa.json').write_text(json.dumps(ink,ensure_ascii=False),encoding='utf8')
-        if (checks['label_count']!=len(report['instrument_labels']) or checks['diagram_count']!=report['chord_symbols']
-            or checks['label_problems'] or checks['diagram_problems'] or checks['ink_problems']
-            or not all(page['passed'] for page in ink)):
+        if checks['label_count']!=len(report.get('instrument_labels',[])) or checks['diagram_count']!=report['chord_symbols']:
             result['reason']='candidate_geometry_not_safe';return
+        signature=core.compact_score_layout.problem_signature
+        found=signature(labels,diagrams,ink)
+        if found:
+            # Bounding-box findings the validated score already has (a tie arc grazing a
+            # chord box, for instance) are no reason to keep the larger layout; new ones are.
+            fallback=sorted(out.glob('qa-*.svg'),key=core.page_order)
+            with core.timed('svg_analysis'):
+                baseline=signature([core.instrument_label_geometry(path) for path in fallback],
+                                   [core.analyze_svg(path) for path in fallback],
+                                   [core.compact_score_layout.page_quality(path) for path in fallback])
+            added=core.compact_score_layout.new_problems(baseline,found)
+            checks['inherited_problems']=sum(found.values())-sum(added.values())
+            if added:
+                checks['new_problems']=added
+                result['reason']='candidate_geometry_not_safe';return
         # Stage every replacement before changing the validated set. A disk
         # error restores the previous set; no mixed page count reaches output.
         replacements={final:candidate.read_bytes()}
@@ -293,8 +330,8 @@ def compact_instrument_label_layout(final,report,out):
             raise
         publishing=False
         result.update(applied=True,pages_after=len(paths),reason='validated_smaller_layout',local_spacers=len(spacers))
-        report['instrument_label_layout_qa'].update(pages=len(paths),compact_layout_verified=True)
-        report['geometric_layout_qa'].update(pages=len(paths),compact_layout_verified=True)
+        for key in ('instrument_label_layout_qa','geometric_layout_qa'):
+            if key in report:report[key].update(pages=len(paths),compact_layout_verified=True)
     except (OSError,ValueError,E.ParseError,zipfile.BadZipFile,core.NeedsReview,subprocess.TimeoutExpired) as error:
         if publishing:raise  # An un-restorable set must never reach worker publication.
         # Compactness is optional. A failed candidate must not turn the already

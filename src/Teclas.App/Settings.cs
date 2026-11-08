@@ -44,6 +44,8 @@ public sealed class Settings
     /// <summary>Look of generated scores: MuseScore music font and staff size (normal, grande, muito-grande).</summary>
     public string ScoreMusicFont { get; set; } = "Leland";
     public string ScoreSize { get; set; } = "normal";
+    /// <summary>Space between the systems of new scores: "compacto", "normal" or "amplo".</summary>
+    public string ScoreSpacing { get; set; } = "normal";
     public bool Karaoke { get; set; }
     public bool CurrentChord { get; set; }
     /// <summary>Keys of the user's keyboard (49, 61, 76 or 88), to warn about melodies outside it.</summary>
@@ -193,6 +195,7 @@ public sealed class Settings
         DailyGoalMinutes = Math.Clamp(DailyGoalMinutes, 0, 600);
         ScoreMusicFont = ScoreMusicFont is "Leland" or "Bravura" or "Emmentaler" or "Petaluma" ? ScoreMusicFont : "Leland";
         ScoreSize = ScoreSize is "normal" or "grande" or "muito-grande" ? ScoreSize : "normal";
+        ScoreSpacing = ScoreSpacing is "compacto" or "normal" or "amplo" ? ScoreSpacing : "normal";
         TempoGoals = new Dictionary<string, int>((TempoGoals ?? []).Where(goal => goal.Key is { Length: > 0 } && goal.Value is >= 30 and <= 300), StringComparer.OrdinalIgnoreCase);
         if (PreviewControlsHeight is { } controls && (!double.IsFinite(controls) || controls < MinimumPreviewControlsHeight || controls > 1200)) PreviewControlsHeight = null;
         StudyHistory = NormalizeStudyHistory(StudyHistory);

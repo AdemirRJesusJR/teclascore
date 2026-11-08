@@ -1189,6 +1189,29 @@ def score_style_values(choice):
     if size:values['spatium']=size
     return values
 
+# Espaço entre as pautas (Configurações): "compacto" põe mais sistemas por página, "amplo" deixa
+# mais respiro para anotar. As folgas mínimas para diagramas, nomes e letras continuam garantidas.
+SCORE_SPACINGS=('compacto','normal','amplo')
+AMPLE_EXTRA_SPATIUM=6
+
+def score_spacing(choice):
+    value=(choice or {}).get('spacing')
+    return value if value in SCORE_SPACINGS else 'normal'
+
+def spacing_limits(spacing,low,high):
+    """System distance range for the chosen spacing; the minimum keeps every engine allowance."""
+    if spacing=='amplo':return low+AMPLE_EXTRA_SPATIUM,high+AMPLE_EXTRA_SPATIUM+2
+    # Vertical justification would stretch compact systems again to fill the page.
+    if spacing=='compacto':return low,low+2
+    return low,high
+
+def apply_score_spacing(style_values,spacing):
+    if spacing=='normal':return style_values
+    low,high=spacing_limits(spacing,float(style_values['minSystemDistance']),float(style_values['maxSystemDistance']))
+    spread=max(32.0,high) if spacing=='amplo' else high
+    style_values.update(minSystemDistance=str(low),maxSystemDistance=str(high),minSystemSpread=str(low),maxSystemSpread=str(spread))
+    return style_values
+
 def convert_score(xml,report,out,filename):
     style=E.parse(WORK/'garoto_melodia_cifras'/'melodia-cifras.mss').getroot()
     vertical=report.get('high_melody_layout',[])
@@ -1224,6 +1247,8 @@ def convert_score(xml,report,out,filename):
                             minSystemSpread=style_values['minSystemDistance'],
                             maxSystemSpread=str(max(32,float(style_values['maxSystemDistance']))))
         report['hidden_empty_staves']=True
+    spacing=score_spacing(report.get('score_style'));report['score_spacing']=spacing
+    apply_score_spacing(style_values,spacing)
     footer=report.get('page_footer',False)
     if footer:
         # Title and "página X de Y" on every page, so loose printed pages stay in order.

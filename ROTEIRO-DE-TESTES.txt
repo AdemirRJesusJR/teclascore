@@ -1,3 +1,12 @@
+TECLASCORE 1.6.0 · ESPAÇO ENTRE AS PAUTAS
+
+1. Em Sobre, confira que a versão é 1.6.0.
+2. Em Configurações › Aparência das partituras, confira a lista "Espaço entre as pautas" com Compacto, Normal e Amplo.
+3. Gere de novo uma música com trocas de instrumento (por exemplo, Inquilina): com Normal, as pautas ficam mais próximas e a partitura tem menos páginas que antes.
+4. Escolha Compacto e gere de novo: os sistemas ficam juntos, sem esticar até o fim da página, e sobra espaço no pé da última página.
+5. Escolha Amplo e gere de novo: há mais espaço entre as pautas.
+6. Em todas, nomes de instrumento, cifras, diagramas e letras não se sobrepõem.
+
 TECLASCORE 1.5.7 · PISTAS SOANDO NA ESCUTA
 
 1. Em Sobre, confira que a versão é 1.5.7.

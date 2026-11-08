@@ -10,6 +10,8 @@ public partial class MainWindow
         [new("Leland", "Leland (padrão do MuseScore)"), new("Bravura", "Bravura (traço forte)"), new("Emmentaler", "Emmentaler (clássica)"), new("Petaluma", "Petaluma (manuscrita)")];
     public IReadOnlyList<StyleOption> ScoreSizeOptions { get; } =
         [new("normal", "Normal"), new("grande", "Grande (leitura de longe)"), new("muito-grande", "Muito grande")];
+    public IReadOnlyList<StyleOption> ScoreSpacingOptions { get; } =
+        [new("compacto", "Compacto (mais por página)"), new("normal", "Normal"), new("amplo", "Amplo (espaço para anotar)")];
 
     public string ScoreMusicFont
     {
@@ -22,7 +24,24 @@ public partial class MainWindow
         set { if (value is null || settings.ScoreSize == value) return; settings.ScoreSize = value; Notify(); PersistPreferences(); Status = "Tamanho das próximas partituras alterado. Partituras maiores ocupam mais páginas."; }
     }
 
+    /// <summary>Space between the systems: compact fits more music on each page, ample leaves room to write.</summary>
+    public string ScoreSpacing
+    {
+        get => settings.ScoreSpacing;
+        set
+        {
+            if (value is null || settings.ScoreSpacing == value) return;
+            settings.ScoreSpacing = value; Notify(); PersistPreferences();
+            Status = "Espaço entre as pautas alterado: vale para as próximas partituras geradas (as já geradas mudam ao gerar de novo).";
+        }
+    }
+
     /// <summary>Request part for the engine; null keeps MuseScore's defaults.</summary>
-    internal JsonObject? ScoreStyleRequest() =>
-        settings.ScoreMusicFont == "Leland" && settings.ScoreSize == "normal" ? null : new JsonObject { ["musicFont"] = settings.ScoreMusicFont, ["size"] = settings.ScoreSize };
+    internal JsonObject? ScoreStyleRequest()
+    {
+        if (settings.ScoreMusicFont == "Leland" && settings.ScoreSize == "normal" && settings.ScoreSpacing == "normal") return null;
+        var style = new JsonObject { ["musicFont"] = settings.ScoreMusicFont, ["size"] = settings.ScoreSize };
+        if (settings.ScoreSpacing != "normal") style["spacing"] = settings.ScoreSpacing;
+        return style;
+    }
 }

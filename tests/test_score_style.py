@@ -15,6 +15,17 @@ class StyleValueTests(unittest.TestCase):
         self.assertEqual(engine.score_style_values({'music_font': '../x', 'size': '9'}), {})
         self.assertEqual(engine.score_style_values(None), {})
 
+    def test_spacing_choice_moves_the_system_distances(self):
+        base = lambda: {'minSystemDistance': '17', 'maxSystemDistance': '24'}
+        self.assertEqual(engine.apply_score_spacing(base(), 'normal'), base())
+        compact = engine.apply_score_spacing(base(), 'compacto')
+        self.assertEqual((compact['minSystemDistance'], compact['maxSystemDistance'], compact['maxSystemSpread']), ('17.0', '19.0', '19.0'))
+        ample = engine.apply_score_spacing(base(), 'amplo')
+        self.assertEqual((ample['minSystemDistance'], ample['maxSystemDistance'], ample['maxSystemSpread']), ('23.0', '32.0', '32.0'))
+        self.assertEqual([engine.score_spacing(c) for c in ({'spacing': 'compacto'}, {'spacing': 'x'}, None)], ['compacto', 'normal', 'normal'])
+        # The instrument-label fallback keeps its label room; compact only stops the stretching.
+        self.assertEqual(engine.spacing_limits('compacto', 28, 36), (28, 30))
+
 
 @unittest.skipUnless(os.environ.get('TECLAS_TEST_NATIVE_LABELS') == '1', 'Set TECLAS_TEST_NATIVE_LABELS=1 to render in MuseScore')
 class NativeStyleTests(unittest.TestCase):

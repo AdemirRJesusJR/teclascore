@@ -391,7 +391,7 @@ def main():
     config['clean_durations']=req.get('cleanDurations') is not False and not data.get('reviewedProfile')
     if isinstance(req.get('chordNotation'),dict):config['chord_notation']=req['chordNotation']
     if req.get('secondVoiceSources'):config['second_voice_sources']=manual_melody_config(req['secondVoiceSources'])['melody_sources']
-    if isinstance(req.get('scoreStyle'),dict):config['score_style']={'music_font':str(req['scoreStyle'].get('musicFont','')),'size':str(req['scoreStyle'].get('size',''))}
+    if isinstance(req.get('scoreStyle'),dict):config['score_style']={'music_font':str(req['scoreStyle'].get('musicFont','')),'size':str(req['scoreStyle'].get('size','')),'spacing':str(req['scoreStyle'].get('spacing',''))}
     metadata=engine.score_metadata(config,engine.default_score_title(config['filename']))
     if edited is not None:
         if not edited:raise ValueError('A partitura precisa de pelo menos uma cifra.')

@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 1.6.0 — 08/11/2026
+
+Menos espaço vazio entre as pautas, e uma opção para ajustar esse espaço.
+
+- **Nova opção "Espaço entre as pautas"** em Configurações › Aparência das partituras: Compacto (mais música por página), Normal ou Amplo (mais espaço para anotar). Vale para as próximas partituras geradas; as já geradas mudam ao gerar de novo. Em todas as opções, cifras, diagramas, letras e nomes de instrumento continuam sem se sobrepor, e o tamanho das notas não muda.
+- **Partituras com nomes de instrumento ficam mais curtas.** Quando a música troca de instrumento, o app abria muito espaço entre todas as pautas para caber os nomes. Ele já tentava uma versão mais compacta, mas a descartava por causa de pequenos toques (como uma ligadura encostando na caixa de uma cifra) que a versão espaçosa também tinha. Agora a versão compacta só é recusada se criar um problema novo. Exemplo: Inquilina (Aviões do Forró) passou de 9 para 5 páginas.
+- **Compacto não estica os sistemas** para preencher a página. Se a folga menor acima dos diagramas não couber, o app tenta de novo com a folga normal antes de desistir.
+
 ## 1.5.7 — 08/11/2026
 
 Escuta das pistas: dá para ver quais pistas estão soando.

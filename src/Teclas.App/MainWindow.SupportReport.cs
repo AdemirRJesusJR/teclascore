@@ -44,7 +44,7 @@ public partial class MainWindow
             ("MuseScore", File.Exists(MuseScorePath) ? MuseScorePath + " (encontrado)" : "não encontrado"),
             ("Python", File.Exists(PythonPath) ? PythonPath + " (encontrado)" : PythonPath.Length == 0 ? "padrão do app" : "não encontrado"),
             ("Biblioteca", $"{Files.Count} músicas · {Files.Count(r => r.ScorePath is not null)} com partitura · {Files.Count(r => r.HasOperationError)} com falha"),
-            ("Tema", settings.ThemeId + " · modo " + settings.ThemeMode), ("Fonte e tamanho", settings.ScoreMusicFont + " · " + settings.ScoreSize),
+            ("Tema", settings.ThemeId + " · modo " + settings.ThemeMode), ("Fonte, tamanho e espaço", settings.ScoreMusicFont + " · " + settings.ScoreSize + " · " + settings.ScoreSpacing),
             ("Pasta de saída", settings.OutputDirectory), ("Fila de conversões", conversionQueue is null ? "fechada" : $"{conversionQueue.Items.Count} itens")
         };
         string data = persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!;

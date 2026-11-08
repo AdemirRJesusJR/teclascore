@@ -1,3 +1,7 @@
+TECLASCORE 1.6.0
+
+Em Configurações › Aparência das partituras, a nova opção "Espaço entre as pautas" (Compacto, Normal ou Amplo) controla a distância entre as linhas das próximas partituras geradas. Partituras com nomes de instrumento deixaram de abrir espaço demais entre todas as pautas (Inquilina, por exemplo, passou de 9 para 5 páginas).
+
 TECLASCORE 1.5.7
 
 Na escuta das pistas, o botão ■ de uma pista ligada fica esmaecido enquanto ela ainda não tem notas naquele ponto da música, e a linha da pista mostra quando ela entra (por exemplo, "só entra em 0:57").

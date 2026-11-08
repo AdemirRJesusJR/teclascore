@@ -42,6 +42,14 @@ class CompactLayoutTests(unittest.TestCase):
             mutated=after.copy();mutated[name]=mutated[name].replace(old,new)
             self.assertFalse(compact.content_preserved(before,mutated),name)
 
+    def test_spacing_choice_sets_range_and_room_above_raised_items(self):
+        for spacing,low,high,space in (('compacto',10,12,25.7),('normal',12,24,26.7),('amplo',18,32,32.7)):
+            after,spaces=compact.prepare(contents(),spacing)
+            style=engine.E.fromstring(after['score_style.mss'])
+            self.assertEqual((style.findtext('Style/minSystemDistance'),style.findtext('Style/maxSystemSpread')),(str(low),str(high)),spacing)
+            self.assertAlmostEqual(spaces[0]['space'],space,msg=spacing)
+            self.assertTrue(compact.content_preserved(contents(),after))
+
     def test_existing_larger_local_space_is_preserved(self):
         before=contents();before['score.mscx']=before['score.mscx'].replace(b'<Measure>',b'<Measure><vspacerUp>40</vspacerUp>',1)
         after,spaces=compact.prepare(before)
@@ -77,7 +85,7 @@ class CompactLayoutTests(unittest.TestCase):
         result=self.geometry('<path class="Note" d="M200 100 L290 100 L290 115 L200 115Z"/><path class="Note" d="M250 100 L310 100 L310 115 L250 115Z"/>')
         self.assertFalse(result['passed'])
 
-    def run_candidate(self, problem=False, candidate_pages=2, failure=None):
+    def run_candidate(self, problem=False, candidate_pages=2, failure=None, baseline_problem=False, spacing=None, lanes=True):
         with tempfile.TemporaryDirectory() as directory,redirect_stdout(io.StringIO()):
             out=Path(directory);final=out/'original.mscz';archive(final,contents())
             for i in range(1,4):
@@ -88,7 +96,11 @@ class CompactLayoutTests(unittest.TestCase):
             report={'instrument_label_lanes':{},'instrument_labels':[{}],'chord_symbols':1,'measures':1,
                     'instrument_label_layout_qa':{'passed':True},'geometric_layout_qa':{'passed':True}}
             report['instrument_label_lanes']={'count':2}
+            if not lanes:report.pop('instrument_label_lanes');report['instrument_labels']=[]
+            if spacing:report['score_style']={'spacing':spacing}
+            renders=[]
             def fake_musescore(args,log,timeout=90):
+                renders.append(log.name)
                 if failure=='render':raise engine.NeedsReview('renderer unavailable')
                 # Um job grava a candidata e renderiza os SVG e o MusicXML (sem páginas PNG).
                 job=json.loads(Path(args[-1]).read_text(encoding='utf8'))[0];folder=log.parent
@@ -99,9 +111,14 @@ class CompactLayoutTests(unittest.TestCase):
                 reopened=b'<score-partwise><part><measure number="1"/></part></score-partwise>'
                 if failure=='incomplete_reopen':reopened=b'<score-partwise><part/></score-partwise>'
                 (folder/'reaberto.musicxml').write_bytes(reopened)
-            label=lambda path:dict(path=str(path),labels=[{}] if path.name=='qa-1.svg' else [],overlaps=[],clipped=[])
+            labels=1 if lanes else 0
+            label=lambda path:dict(path=str(path),labels=[{}]*labels if path.name=='qa-1.svg' else [],overlaps=[],clipped=[])
             diagram=lambda path:dict(svg_path=str(path),diagrams=[{}] if path.name=='qa-1.svg' else [],overlaps=[],clipped=[],warnings=[])
-            ink=lambda path:dict(path=str(path),passed=not problem,overlaps=[{}] if problem else [],clipped=[])
+            # The candidate renders in compactacao/; the validated fallback stays in out/.
+            def ink(path):
+                bad=(problem=='first' and len(renders)==1 or problem is True) if path.parent.name=='compactacao' else baseline_problem
+                tie=[{'kinds':['TieSegment','Harmony'],'cross_system':False}]
+                return dict(path=str(path),passed=not bad,overlaps=tie if bad else [],clipped=[])
             real_replace=os.replace;calls=0
             def replace(source,destination):
                 nonlocal calls
@@ -115,9 +132,9 @@ class CompactLayoutTests(unittest.TestCase):
             else:
                 # As páginas PNG antigas saem; render_final_pages reabre a partitura publicada.
                 self.assertFalse(any(name.startswith('pagina-') for name in actual))
-                self.assertNotIn('qa-3.svg',actual)
+                if candidate_pages<3:self.assertNotIn('qa-3.svg',actual)
                 self.assertEqual(actual['qa-1.svg'],b'new svg')
-                self.assertEqual(report['instrument_label_layout_qa']['pages'],2)
+                if lanes:self.assertEqual(report['instrument_label_layout_qa']['pages'],candidate_pages)
             return report['compact_layout']
 
     def test_success_replaces_the_whole_page_set(self):
@@ -125,6 +142,26 @@ class CompactLayoutTests(unittest.TestCase):
 
     def test_unsafe_candidate_preserves_fallback_byte_for_byte(self):
         self.assertEqual(self.run_candidate(problem=True)['reason'],'candidate_geometry_not_safe')
+
+    def test_finding_already_in_the_validated_score_does_not_block_the_candidate(self):
+        result=self.run_candidate(problem=True,baseline_problem=True)
+        self.assertTrue(result['applied']);self.assertEqual(result['checks']['inherited_problems'],2)
+
+    def test_compact_choice_compacts_without_instrument_labels_and_at_equal_page_count(self):
+        result=self.run_candidate(candidate_pages=3,spacing='compacto',lanes=False)
+        self.assertTrue(result['applied']);self.assertEqual(result['spacing'],'compacto')
+
+    def test_unsafe_tight_compact_candidate_gets_one_try_with_the_usual_room(self):
+        result=self.run_candidate(problem='first',spacing='compacto')
+        self.assertTrue(result['applied']);self.assertEqual(result['mode'],'compacto-seguro')
+        self.assertEqual(result['first_attempt']['reason'],'candidate_geometry_not_safe')
+        self.assertEqual(self.run_candidate(problem=True,spacing='compacto')['reason'],'candidate_geometry_not_safe')
+
+    def test_normal_choice_without_instrument_labels_keeps_the_score(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report={'score_style':{'spacing':'normal'}}
+            engine.compact_instrument_label_layout(Path(directory)/'x.mscz',report,Path(directory))
+            self.assertNotIn('compact_layout',report)
 
     def test_no_page_reduction_preserves_fallback(self):
         self.assertEqual(self.run_candidate(candidate_pages=3)['reason'],'no_page_reduction')

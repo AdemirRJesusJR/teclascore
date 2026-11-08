@@ -10,6 +10,12 @@ import batch_svg_qa as geometry
 
 SPACING = {'minSystemDistance':12, 'maxSystemDistance':24,
            'minSystemSpread':12, 'maxSystemSpread':24, 'staffUpperBorder':7}
+# Per "Espaço entre as pautas" choice: (minimum, maximum) system distance and the
+# room kept above a raised text / keyboard diagram. Native geometry stays the gate.
+MODES = {'compacto':{'range':(10, 12), 'text':8, 'image':7},
+         'compacto-seguro':{'range':(10, 12), 'text':9, 'image':8},
+         'normal':{'range':(12, 24), 'text':9, 'image':8},
+         'amplo':{'range':(18, 32), 'text':15, 'image':14}}
 
 
 def _set(parent, tag, value):
@@ -18,8 +24,9 @@ def _set(parent, tag, value):
     element.text = str(value)
 
 
-def prepare(contents):
+def prepare(contents, spacing='normal'):
     """Leave a copy of every musical/typographic element exactly as received."""
+    mode = MODES.get(spacing, MODES['normal']);low, high = mode['range']
     result = contents.copy()
     native_name = next(name for name in result if name.endswith('.mscx'))
     style_name = next((name for name in result if name.endswith('score_style.mss')), None)
@@ -34,15 +41,16 @@ def prepare(contents):
         top = 0
         for text in measure.findall('voice/StaffText') + measure.findall('voice/Tempo') + measure.findall('voice/RehearsalMark'):
             offset = text.find('offset')
-            if offset is not None:top = max(top, -float(offset.get('y', '0')) + 9)
+            if offset is not None:top = max(top, -float(offset.get('y', '0')) + mode['text'])
         for image in measure.findall('voice/Image'):
             offset = image.find('offset')
-            if offset is not None:top = max(top, -float(offset.get('y', '0')) + 8)
+            if offset is not None:top = max(top, -float(offset.get('y', '0')) + mode['image'])
         top = max(top, float(measure.findtext('vspacerUp', '0')))
         if top > 0:
             _set(measure, 'vspacerUp', top)
             spacers.append({'measure':index + 1, 'space':top})
-    for tag, value in SPACING.items():_set(style, tag, value)
+    values = dict(SPACING, minSystemDistance=low, maxSystemDistance=high, minSystemSpread=low, maxSystemSpread=high)
+    for tag, value in values.items():_set(style, tag, value)
     result[native_name] = E.tostring(root, encoding='utf-8', xml_declaration=True)
     result[style_name] = E.tostring(style_root, encoding='utf-8', xml_declaration=True)
     return result, spacers
@@ -121,3 +129,28 @@ def page_quality(path):
                or item['bbox'][2]>page[2]+.5 or item['bbox'][3]>page[3]+.5]
     return {'path':str(path),'overlaps':overlaps,'clipped':clipped,
             'staff_rows':len(rows),'passed':bool(rows) and not overlaps and not clipped}
+
+
+def problem_signature(labels, diagrams, ink):
+    """Every geometric finding of a rendered page set, as comparable counts.
+
+    A candidate may keep a finding the validated score already has (e.g. a
+    tie arc grazing a chord's bounding box), but must never add one.
+    """
+    from collections import Counter
+    found = Counter()
+    for page in labels:
+        found['label-overlap'] += len(page['overlaps']);found['label-clipped'] += len(page['clipped'])
+    for page in diagrams:
+        for overlap in page['overlaps']:found[('diagram-overlap', overlap.get('type', ''))] += 1
+        found['diagram-clipped'] += len(page['clipped']);found['diagram-warning'] += len(page['warnings'])
+    for page in ink:
+        for overlap in page['overlaps']:
+            found[('ink', tuple(sorted(overlap.get('kinds', []))), bool(overlap.get('cross_system')))] += 1
+        for item in page['clipped']:found[('ink-clipped', item.get('kind', ''))] += 1
+        if not page.get('staff_rows', 1):found['ink-no-staff'] += 1
+    return found
+
+
+def new_problems(baseline, candidate):
+    return {str(key):count for key, count in (candidate - baseline).items()}
