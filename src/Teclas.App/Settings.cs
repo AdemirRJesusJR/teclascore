@@ -77,6 +77,10 @@ public sealed class Settings
     public string MidiFolder { get; set; } = "";
     public bool MidiFolderIncludeSubfolders { get; set; } = true;
     public Dictionary<string, DateTime> MidiFolderVisits { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Pasta acompanhada (off by default): MIDIs that arrive in MidiFolder become cards on their own.</summary>
+    public bool WatchMidiFolder { get; set; }
+    /// <summary>Only with WatchMidiFolder: the new cards go to the autopilot.</summary>
+    public bool WatchMidiFolderAutopilot { get; set; }
     public bool PropagateDiagramPositions { get; set; } = true;
     public List<SavedChordPreference> ChordPositionPreferences { get; set; } = [];
     public bool ChordPreferencesSeeded { get; set; }
@@ -169,6 +173,7 @@ public sealed class Settings
         TrackAuditionSpeed = NormalizeTrackAuditionSpeed(TrackAuditionSpeed);
         ScorePlaybackSpeed = NormalizeTrackAuditionSpeed(ScorePlaybackSpeed);
         CollectionFilter ??= "";
+        MidiFolder ??= "";
         PracticeBpm = Math.Clamp(PracticeBpm, 30, 200);
         LibrarySyncFolder ??= ""; LibrarySyncSentHash ??= ""; LibrarySyncRestoreRoot ??= "";
         KnownUpdateTag ??= ""; KnownUpdateSetup ??= ""; KnownUpdateSha256 ??= "";

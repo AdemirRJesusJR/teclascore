@@ -40,7 +40,7 @@ public sealed class MidiFolderWindow : Window
     private readonly ObservableCollection<MidiFolderItem> items = [];
     private readonly ICollectionView view;
     private readonly TextBox folderBox, filterBox;
-    private readonly CheckBox subfolders;
+    private readonly CheckBox subfolders, watchBox, watchAutopilotBox;
     private readonly TextBlock summary;
     private readonly Button addButton;
     private readonly Action stopOtherPlayback;
@@ -53,6 +53,10 @@ public sealed class MidiFolderWindow : Window
     public bool Accepted { get; private set; }
     public string Folder => folderBox.Text;
     public bool IncludeSubfolders => subfolders.IsChecked == true;
+    /// <summary>"Acompanhar esta pasta": new MIDIs that arrive here become cards on their own.</summary>
+    public bool WatchFolder => watchBox.IsChecked == true;
+    /// <summary>"Gerar sozinho com o Piloto automático"; it only takes effect together with WatchFolder.</summary>
+    public bool WatchAutopilot => watchAutopilotBox.IsChecked == true;
     internal IReadOnlyList<MidiFolderItem> Items => items;
     internal Task? ScanTask { get; private set; }
 
@@ -61,7 +65,8 @@ public sealed class MidiFolderWindow : Window
 
     /// <param name="libraryPaths">Library files and whether each already has a generated score.</param>
     /// <param name="lastVisit">When this folder was last opened here; later files are marked new.</param>
-    public MidiFolderWindow(string folder, bool includeSubfolders, IReadOnlyDictionary<string, bool> libraryPaths, DateTime? lastVisit, Action stopOtherPlayback, Func<IMidiOutputTransport>? outputFactory = null)
+    public MidiFolderWindow(string folder, bool includeSubfolders, IReadOnlyDictionary<string, bool> libraryPaths, DateTime? lastVisit, Action stopOtherPlayback, Func<IMidiOutputTransport>? outputFactory = null,
+        bool watchFolder = false, bool watchAutopilot = false)
     {
         library = new(StringComparer.OrdinalIgnoreCase);
         foreach (var (path, generated) in libraryPaths) library[Path.GetFullPath(path)] = generated;
@@ -81,6 +86,22 @@ public sealed class MidiFolderWindow : Window
         AutomationName(folderBox, "Pasta de MIDIs");
         folderRow.Children.Add(browse); folderRow.Children.Add(subfolders); folderRow.Children.Add(folderBox);
         header.Children.Add(folderRow);
+        watchBox = new CheckBox
+        {
+            Content = "Acompanhar esta pasta", IsChecked = watchFolder, VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 0, 18, 0),
+            ToolTip = "Acompanhar esta pasta: os MIDIs novos que chegarem aqui (também com o app fechado, conferidos ao abrir) viram cards sozinhos, com um aviso no rodapé. Os que já estão na pasta continuam de fora até você marcá-los."
+        };
+        AutomationName(watchBox, "Acompanhar esta pasta");
+        watchAutopilotBox = new CheckBox
+        {
+            Content = "Gerar sozinho com o Piloto automático", IsChecked = watchAutopilot, IsEnabled = watchFolder, VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Gerar sozinho com o Piloto automático: os cards novos da pasta acompanhada vão para o Piloto, que gera as partituras de melodia clara. MIDIs sem melodia completa ou com melodia duvidosa esperam a sua escolha."
+        };
+        AutomationName(watchAutopilotBox, "Gerar sozinho com o Piloto automático");
+        watchBox.Click += (_, _) => watchAutopilotBox.IsEnabled = watchBox.IsChecked == true;
+        var watchRow = new WrapPanel { Margin = new(0, 0, 0, 10) };
+        watchRow.Children.Add(watchBox); watchRow.Children.Add(watchAutopilotBox);
+        header.Children.Add(watchRow);
         filterBox = new TextBox { Margin = new(0, 0, 0, 10), ToolTip = "Filtrar por nome ou subpasta (sem diferenciar acentos)" };
         AutomationName(filterBox, "Filtrar MIDIs da pasta");
         filterBox.TextChanged += (_, _) => { view!.Refresh(); UpdateSummary(); };

@@ -73,7 +73,8 @@ public partial class MainWindow
         await RunAutopilotAsync(candidates, pdf.IsChecked == true, awake.IsChecked == true);
     }
 
-    internal async Task<IReadOnlyList<AutopilotOutcome>> RunAutopilotAsync(IReadOnlyList<MidiRow> candidates, bool exportPdf, bool keepAwake)
+    /// <param name="quiet">Background runs (watched folder, command line): progress only in the footer, no report window.</param>
+    internal async Task<IReadOnlyList<AutopilotOutcome>> RunAutopilotAsync(IReadOnlyList<MidiRow> candidates, bool exportPdf, bool keepAwake, bool quiet = false)
     {
         LastAdjustments = new Dictionary<MidiRow, string>();
         var outcomes = new List<AutopilotOutcome>();
@@ -91,7 +92,7 @@ public partial class MainWindow
             if (keepAwake) SetThreadExecutionState(ContinuousState | SystemRequired);
             try
             {
-                await RunOperation(async () =>
+                await RunOperationCore(async () =>
                 {
                     var token = cancellation!.Token;
                     Status = $"Piloto automático: gerando {ready.Count} partitura(s)…";
@@ -104,7 +105,7 @@ public partial class MainWindow
                         Status = $"Piloto automático: salvando {made.Count} PDF(s)…";
                         pdfs = autopilotPdf is { } export ? await export(made, folder, token) : await ExportAutopilotPdfsAsync(made, folder, token);
                     }
-                }, operationTitle: "Piloto automático");
+                }, null, "Piloto automático", null, useOverlay: !quiet);
             }
             finally { if (keepAwake) SetThreadExecutionState(ContinuousState); }
         }
@@ -122,7 +123,7 @@ public partial class MainWindow
         int Count(string group) => outcomes.Count(o => o.Group == group);
         Status = $"Piloto automático: {Count("Prontas")} pronta(s), {Count("Para revisar")} para revisar, {Count("Precisam de você")} precisam de você, {Count("Falharam")} falharam" +
                  (exportPdf && pdfs > 0 ? $"; {pdfs} PDF(s) salvos." : ".");
-        ShowAutopilotReport(outcomes);
+        if (!quiet) ShowAutopilotReport(outcomes);
         return outcomes;
     }
 

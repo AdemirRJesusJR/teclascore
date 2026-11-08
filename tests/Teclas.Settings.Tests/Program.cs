@@ -146,6 +146,18 @@ try
     CustomDiagramChecks.Run(folder, Check);
     ArtistMetadataChecks.Run(folder, Check);
     OutputDirectoryChecks.Run(folder, Check);
+
+    // Pasta acompanhada: off in fresh and older settings; both choices survive reopening.
+    var watchPath = Path.Combine(folder, "folder-watch.json");
+    Check(Settings.Load(watchPath) is { WatchMidiFolder: false, WatchMidiFolderAutopilot: false }, "Fresh installations do not watch the MIDI folder");
+    File.WriteAllText(watchPath, "{\"MidiFolder\":\"Z:/midis\",\"MidiFolderIncludeSubfolders\":false,\"ThemeId\":\"ocean\"}");
+    var olderWatch = Settings.Load(watchPath);
+    Check(!olderWatch.WatchMidiFolder && !olderWatch.WatchMidiFolderAutopilot && olderWatch.MidiFolder == "Z:/midis" && !olderWatch.MidiFolderIncludeSubfolders,
+        "Older settings keep their MIDI folder and start without watching it");
+    olderWatch.WatchMidiFolder = true; olderWatch.WatchMidiFolderAutopilot = true; olderWatch.Save(watchPath);
+    Check(Settings.Load(watchPath) is { WatchMidiFolder: true, WatchMidiFolderAutopilot: true, MidiFolder: "Z:/midis" }, "Watching and autopilot choices persist");
+    File.WriteAllText(watchPath, "{\"MidiFolder\":null,\"WatchMidiFolder\":true}");
+    Check(Settings.Load(watchPath) is { MidiFolder: "", WatchMidiFolder: true }, "A null MIDI folder loads as empty");
     Console.WriteLine($"PASS: {checks} persistence checks");
 }
 finally

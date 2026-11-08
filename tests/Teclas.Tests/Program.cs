@@ -9,6 +9,8 @@ ScoreFileNameChecks.Run(Check);
 MelodySourceAdvisorChecks.Run(Check);
 BusinessRuleChecks.Run(Check);
 ScoreFlowChecks.Run(Check);
+BatchCommandLineChecks.Run(Check);
+MidiFolderWatchChecks.Run(Check);
 byte[] Midi(byte[] track)
 {
     var b=new List<byte>(Encoding.ASCII.GetBytes("MThd"));b.AddRange(new byte[]{0,0,0,6,0,0,0,1,1,224});b.AddRange(Encoding.ASCII.GetBytes("MTrk"));b.AddRange(new byte[]{0,0,(byte)(track.Length>>8),(byte)track.Length});b.AddRange(track);return b.ToArray();
