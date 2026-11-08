@@ -126,6 +126,7 @@ public partial class App
             var main = Open(settingsPath);
             var fake = new V019DependencyRunner();
             var preparation = new DependencyPreparation(Path.Combine(work, "managed"), Path.Combine(work, "dependency-checks"), fake);
+            main.FlushPreferences(); // the startup save is coalesced: put it on disk before measuring
             string beforeSetup = Hash(settingsPath);
             var setup = new DependencySetupWindow(python, muse, preparation) { Owner = main };
             bool? setupAccepted = Modal(setup, async () =>
@@ -136,7 +137,7 @@ public partial class App
                 Check(AutomationProperties.GetName(pathBox) == "Caminho do Python" && pathBox.IsTabStop && verify.IsTabStop, "setup-path-and-action-keyboard-accessibility");
                 Check(Find<Button>(setup, "BrowsePythonButton").IsEnabled && Find<Button>(setup, "BrowseMuseScoreButton").IsEnabled, "manual-path-selection-is-available");
                 Click(verify); await V018Wait(() => apply.IsEnabled);
-                Check(fake.Requests == 3 && Hash(settingsPath) == beforeSetup, "verification-never-applies-settings");
+                Check(fake.Requests == 3, "verification-runs-three-checks:" + fake.Requests); Check(Hash(settingsPath) == beforeSetup, "verification-never-applies-settings");
                 Check(!Directory.Exists(preparation.ManagedRoot), "verification-never-creates-python-environment");
                 pathBox.Text = alternate;
                 Check(!apply.IsEnabled && !Find<Button>(setup, "PreparePythonButton").IsEnabled, "manual-path-change-invalidates-validation");
