@@ -24,6 +24,7 @@ public partial class MainWindow
         PortugueseAccents.UseEngineList(engineDirectory);
         ScoreExporter.AppendLyricsPage = settings.PdfLyricsPage;
         Loaded += (_, _) => AddLyricsPageCheckBox();
+        PropertyChanged += (_, e) => { if (e.PropertyName == nameof(LyricsTrackHint)) Notify(nameof(LyricsTrackActionVisibility)); };
     }
 
     private void AddLyricsPageCheckBox()

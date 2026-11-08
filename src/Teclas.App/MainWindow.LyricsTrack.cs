@@ -28,7 +28,7 @@ public partial class MainWindow
         if (row.Tracks.FirstOrDefault(t => t.MelodySuggestion?.FollowsLyrics == true) is { } sung)
             return coverage.FirstOrDefault(c => c.Source == sung.Source.Key);
         return coverage.FirstOrDefault(c => c.Share >= .5 && row.Tracks.FirstOrDefault(t => t.Source.Key == c.Source) is { } track
-            && !IsGuideTrack(track) && track.Hint is not ("Guia possível" or "Acompanhamento provável" or "Baixo provável" or "Percussão"));
+            && !IsGuideTrack(track) && track.MelodySuggestion?.LyricsGuide != true && track.Hint is not ("Guia possível" or "Acompanhamento provável" or "Baixo provável" or "Percussão"));
     }
 
     /// <summary>Share of the syllables on the chosen melody (all marked tracks together); null without lyrics or melody.</summary>
@@ -63,7 +63,8 @@ public partial class MainWindow
     {
         get
         {
-            if (selectedFile is not { } row || SuggestedLyricsTrack(row) is not { } best) return "";
+            if (selectedFile is not { } row) return "";
+            if (SuggestedLyricsTrack(row) is not { } best) return GuideOnlyLyrics(row) ? MelodySourceAdvisor.GuideOnlyMessage + " Sem a voz, a letra entra por versos sob os compassos; escolha a melodia de outra pista só se ela for a do canto." : "";
             bool chosen = row.Tracks.Any(t => t.IsMelody);
             int current = (int)Math.Round((ChosenLyricsShare(row) ?? 0) * best.Syllables);
             string kept = row.UseReviewedProfile ? " A música usa o perfil revisado e não muda sozinha: troque só se quiser." : "";
@@ -73,6 +74,13 @@ public partial class MainWindow
     }
 
     public Visibility LyricsTrackVisibility => LyricsTrackHint.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>The "Usar a pista da letra" button only when there is a part to switch to (not for guide notes).</summary>
+    public Visibility LyricsTrackActionVisibility => selectedFile is { } row && SuggestedLyricsTrack(row) is not null ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>The words follow only guide notes and no part carries the sung melody.</summary>
+    internal static bool GuideOnlyLyrics(MidiRow row) =>
+        !row.ChordsOnly && row.Tracks.Any(t => t.MelodySuggestion?.LyricsGuide == true) && !row.Tracks.Any(t => t.MelodySuggestion?.FollowsLyrics == true);
 
     private void UseLyricsTrackClick(object sender, RoutedEventArgs e)
     {

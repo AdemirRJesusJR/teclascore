@@ -12,6 +12,8 @@ public record MelodySourceSuggestion(SourceKey Key,int Rank,double Score,string 
     public bool FollowsLyrics { get; init; }
     /// <summary>This source doubles another one in unison or octave; that one (the voice, or the one on the lyrics) is preferred.</summary>
     public SourceKey? DoubleOf { get; init; }
+    /// <summary>This source hits the lyrics but only as guide notes (too few pitches for a sung melody); it is never the default melody.</summary>
+    public bool LyricsGuide { get; init; }
 }
 
 /// <summary>Ranks sources without changing notes or selecting a melody for the user.</summary>
@@ -127,6 +129,21 @@ public static class MelodySourceAdvisor
             .Select((c,index)=>c with{Rank=index+1}).ToArray();
     }
 
+    /// <summary>Shown when the words follow only guide notes: the engine then writes the lyric by lines (lyricsMode "auto").</summary>
+    public const string GuideOnlyMessage="A letra segue notas-guia; não há melodia do canto neste MIDI.";
+
+    /// <summary>
+    /// Real melodic content, required of the part that takes the melody from the lyrics: the engine's minimum of three
+    /// pitches ("alturas suficientes"), at least five pitch classes over a fifth or more, and not a repetitive alternation
+    /// of one or two pitches (karaoke guide notes).
+    /// </summary>
+    private static bool RealMelody(Features f)
+    {
+        if(f.DistinctPitches<3 || f.Range<7 || f.Notes.Select(n=>n.Pitch%12).Distinct().Count()<5)return false;
+        var counts=f.Notes.GroupBy(n=>n.Pitch).Select(g=>g.Count()).OrderByDescending(c=>c).ToArray();
+        return counts.Take(2).Sum()<.85*f.Notes.Length;
+    }
+
     private static readonly HashSet<string> MelodicLabels=new(StringComparer.Ordinal){"Boa candidata","Conferir"};
 
     /// <summary>General MIDI voices (choir, voice oohs, synth voice, lead voice) or a track named after the singer's part.</summary>
@@ -178,7 +195,7 @@ public static class MelodySourceAdvisor
         var melodic=candidates.Where(c=>c.Key.Channel!=10 && MelodicLabels.Contains(c.Label)).ToArray();
         // The sung line has about one attack per syllable. A riff on every eighth also covers the words, but most of
         // its attacks fall between them (in the user's karaoke files the sung lines stay above 50%, riffs below 40%).
-        var best=melodic.Where(c=>c.DoubleOf is null && Fit(c.Key).Share>=.9 && Fit(c.Key).Precision>=.5)
+        var best=melodic.Where(c=>c.DoubleOf is null && Fit(c.Key).Share>=.9 && Fit(c.Key).Precision>=.5 && RealMelody(byKey[c.Key]))
             .OrderByDescending(c=>Math.Round(Fit(c.Key).Share,2)).ThenByDescending(c=>Fit(c.Key).Precision).ThenBy(c=>Fit(c.Key).Offset).ThenByDescending(c=>c.Score).FirstOrDefault();
         if(best is not null)
         {
@@ -200,11 +217,18 @@ public static class MelodySourceAdvisor
                 return;
             }
         }
-        var guide=candidates.Where(c=>c.Label=="Guia possível" && Fit(c.Key).Share>=.9).OrderByDescending(c=>Fit(c.Key).Share).FirstOrDefault();
-        if(guide is null)return;
+        // The words fall on guide notes only (too few pitches for a sung line): no default melody from the lyrics.
+        var guides=candidates.Where(c=>c.Key.Channel!=10 && byKey.ContainsKey(c.Key) && byKey[c.Key].Notes.Length>0 && Fit(c.Key).Share>=.9 && !RealMelody(byKey[c.Key])).Select(c=>c.Key).ToHashSet();
+        if(guides.Count==0)return;
         for(int index=0;index<candidates.Count;index++)
-            if(MelodicLabels.Contains(candidates[index].Label))
-                candidates[index]=candidates[index] with{Reason=candidates[index].Reason+$" A letra acompanha só uma nota-guia ({Describe(guide.Key)}, altura quase fixa): a voz cantada pode não estar neste MIDI."};
+        {
+            var c=candidates[index];
+            if(guides.Contains(c.Key))
+                candidates[index]=c with{LyricsGuide=true,FollowsLyrics=false,Label=MelodicLabels.Contains(c.Label)?"Guia possível":c.Label,Score=Math.Min(c.Score,36),
+                    Reason=$"Acerta {Fit(c.Key).Hits} de {Fit(c.Key).Syllables} sílabas, mas só com notas-guia (poucas alturas, repetidas): não é a voz cantada. "+GuideOnlyMessage};
+            else if(MelodicLabels.Contains(c.Label))
+                candidates[index]=c with{Reason=c.Reason+" "+GuideOnlyMessage+" Sem a voz, a letra entra por versos sob os compassos."};
+        }
     }
 
     private static Features Describe(MidiSource source,MidiNote[] notes,int ppq)

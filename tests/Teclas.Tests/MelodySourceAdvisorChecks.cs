@@ -111,8 +111,14 @@ internal static class MelodySourceAdvisorChecks
 
         // Only a guide follows the words: the sung voice is missing, so no instrument is chosen confidently.
         var guideOnly=MelodySourceAdvisor.Analyze(Read(new("Sax",3,65,voice.Select(n=>n with{Start=n.Start+.5,Length=.4}).ToArray()),new WrittenTrack("Guia",2,0,guideNotes){Lyrics=syllables}));
-        check(guideOnly.All(s=>!s.FollowsLyrics) && guideOnly[0].Reason.Contains("nota-guia"),"Lyrics on a guide note explain that the voice may be missing: "+string.Join(" | ",guideOnly.Select(s=>$"{s.Key.Channel} {s.Label} {s.LyricsShare} {s.Reason}")));
-        check(!MelodyBatchAdvisor.Propose(guideOnly).Confident,"No confident melody when only a guide follows the lyrics");
+        check(guideOnly.All(s=>!s.FollowsLyrics) && guideOnly[0].Reason.Contains(MelodySourceAdvisor.GuideOnlyMessage) && guideOnly.Single(s=>s.Key.Channel==3).LyricsGuide,"Lyrics on a guide note explain that the voice may be missing: "+string.Join(" | ",guideOnly.Select(s=>$"{s.Key.Channel} {s.Label} {s.LyricsShare} {s.Reason}")));
+        check(!MelodyBatchAdvisor.Propose(guideOnly).Confident && MelodyBatchAdvisor.Propose(guideOnly).Reason.StartsWith(MelodySourceAdvisor.GuideOnlyMessage),"No confident melody when only a guide follows the lyrics");
+        // Guide notes that move a little (three pitches, two pitch classes, an octave apart: 64/76 and 67) are not a sung melody either.
+        var movingGuide=voice.Select((n,i)=>n with{Pitch=i%9==8?67:i%2==0?64:76}).ToArray();
+        var moving=MelodySourceAdvisor.Analyze(Read(new("Flauta",0,73,flute),new WrittenTrack("Guia",2,0,movingGuide){Lyrics=syllables}));
+        var movingTrack=moving.Single(s=>s.Key.Channel==3);
+        check(moving.All(s=>!s.FollowsLyrics) && movingTrack.LyricsGuide && movingTrack.Label=="Guia possível" && movingTrack.Reason.Contains(MelodySourceAdvisor.GuideOnlyMessage) && !MelodyBatchAdvisor.Propose(moving).Confident,
+            "A lyrics source without real melodic content (five pitch classes over a fifth) never becomes the melody: "+string.Join(" | ",moving.Select(s=>$"{s.Key.Channel} {s.Label} {s.LyricsShare} {s.Reason}")));
 
         // Two lines equally close to the words (same coverage, same sparseness) leave the choice to the user.
         var other=voice.Select((n,i)=>n with{Pitch=60+steps[(i+3)%8]}).ToArray();
