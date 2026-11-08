@@ -1,3 +1,16 @@
+TECLASCORE 1.3.0 · APRESENTAÇÃO, CONFERÊNCIA E AUTOMAÇÃO
+
+1. Em Sobre, confira que a versão é 1.3.0.
+2. Em Configurações › Aparência das partituras, escolha Diagramas Destacado e gere uma música: as teclas do acorde aparecem pintadas, com o nome de cada nota, e a nota do baixo mais escura. Ainda na segunda inversão. Troque para Cinza e Clássico e gere de novo.
+3. Na partitura gerada, confira o rodapé "Título · página X de Y". Numa música com várias pautas de instrumentos, as pautas vazias somem nos sistemas em que o instrumento não toca; a pauta de cima, com cifras e diagramas, continua em todos.
+4. Exporte o PDF: a última página lista os acordes da música com os diagramas. Em Propriedades do PDF, confira título e intérprete. Desmarque "Página de acordes no PDF" e exporte de novo: a página some.
+5. Altere uma cifra na edição de cifras: o diagrama destacado é refeito no mesmo estilo.
+6. Escolha como melodia uma pista que só repete uma ou duas notas: a revisão pede confirmação ("parece a nota-guia da letra") e o Piloto automático não a usa.
+7. Num karaokê com letra sem acentos, confira palavras como "coração" e "você" acentuadas.
+8. Na janela Pasta de MIDIs, ligue "Acompanhar esta pasta" e copie um MIDI novo para ela: o card aparece sozinho e o rodapé avisa.
+9. Num terminal: Teclas.Partituras.exe --ajuda mostra o uso de --gerar; rode --gerar numa pasta de teste com --relatorio e confira o JSON.
+10. Num MIDI sem melodia completa, use Melodia de uma gravação… com uma gravação da mesma música: entra um card novo com a pista "Melodia (gravação)" e a nota fica em Revisar.
+
 TECLASCORE 1.2.1 · FOCO MANTIDO ENTRE AS ETAPAS
 
 1. Em Sobre, confira que a versão é 1.2.1.

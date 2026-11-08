@@ -1,5 +1,38 @@
 # Histórico de versões
 
+## 1.3.0 — 08/11/2026
+
+Partituras mais fáceis de ler e imprimir, conferência automática da escrita e três formas novas de automatizar o trabalho.
+
+- **Diagramas de teclado destacados.** Em Configurações › Aparência das partituras, escolha entre:
+  - Destacado: teclas do acorde pintadas de azul, com o nome de cada nota escrito na tecla (Cm mostra C, Eb e G) e a nota do baixo mais escura.
+  - Cinza: o mesmo desenho para imprimir em preto e branco.
+  - Clássico: o desenho de bolinhas de antes.
+
+  Todos continuam na segunda inversão. A edição de cifras refaz o diagrama no mesmo estilo.
+- **Rodapé e pautas.** O rodapé mostra "Título · página X de Y". Quando a música tem uma pauta por instrumento, as pautas vazias somem nos sistemas em que o instrumento não toca; a pauta de cima, com cifras e diagramas, fica sempre.
+- **Durações legíveis.** Notas curtíssimas seguidas de pausas minúsculas viram colcheias. Nenhum ataque muda de lugar e as tercinas não são tocadas. A opção pode ser desligada.
+- **Página de acordes no PDF.** O PDF termina com uma página com os acordes da música e os seus diagramas. O título e o intérprete passam a constar das propriedades do arquivo.
+- **Nota da escrita.** Cada partitura é conferida e recebe uma nota pelos seguintes pontos, que também entra na nota de confiança:
+  - pausas e notas minúsculas;
+  - compassos vazios;
+  - letra apertada;
+  - páginas demais.
+- **Nota-guia não vira melodia.** Uma pista que quase não muda de altura é tratada como a nota-guia da letra: a revisão pede confirmação e o Piloto automático não a usa como melodia.
+- **Letras e artistas.** Letras de karaokê escritas sem acentos recuperam os acentos das palavras sem ambiguidade. Artistas inferidos do nome do arquivo ganham iniciais maiúsculas (Os Barões da Pisadinha). O que vem declarado no MIDI fica como está.
+- **Pasta acompanhada e geração pela linha de comando.**
+  - A janela Pasta de MIDIs (Ctrl+L) e as Configurações ganharam a opção "Acompanhar esta pasta", desligada por padrão.
+  - Com ela ligada, cada MIDI novo que chegar à pasta vira um card assim que termina de ser gravado ou baixado, sem copiar arquivos nem repetir o que já está na biblioteca. Os MIDIs que já estavam na pasta continuam de fora até você marcá-los, e ao abrir o app entram os que chegaram com ele fechado.
+  - Com "Gerar sozinho com o Piloto automático", os cards novos vão para o Piloto em segundo plano, com as mesmas regras de sempre.
+  - Para scripts e tarefas agendadas, `Teclas.Partituras.exe --gerar <pasta-ou-arquivos>` importa os MIDIs e roda o Piloto automático sem janelas. Também aceita `--recursivo`, `--pdf <pasta>`, `--saida <pasta>` e `--relatorio <arquivo.json>`.
+  - O código de saída é 0 quando tudo fica pronto, 2 quando algo precisa de revisão e 1 em caso de erro. `--ajuda` mostra o uso.
+- **Melodia de uma gravação.** Quando o MIDI não traz a melodia completa, a etapa Melodia oferece "Melodia de uma gravação…".
+  - Escolha uma gravação da mesma música; de preferência só a voz, mas a mixagem completa também serve.
+  - O TeclaScore transcreve a gravação no próprio computador, compara a harmonia dela com o MIDI e estima o início, o andamento e, se preciso, ajustes por trechos.
+  - A melodia vai para uma cópia nova do MIDI, que entra como um card próprio com a pista "Melodia (gravação)". O MIDI original não é alterado.
+  - Gravações que não combinam com o MIDI são recusadas sem gravar nada. Essas partituras ficam no máximo em "Revisar".
+- **Entrega em um comando.** `tools/release.ps1` encadeia publicação, instaladores oficial e completo, pacote, conferência, tag e release.
+
 ## 1.2.1 — 07/11/2026
 
 O modo Foco da partitura fica ligado entre as etapas.

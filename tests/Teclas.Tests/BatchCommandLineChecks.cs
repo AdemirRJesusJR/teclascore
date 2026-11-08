@@ -64,7 +64,7 @@ static class BatchCommandLineChecks
             check(BatchCommandLine.ExitCode([F(BatchFileReport.Review), F(BatchFileReport.Failed)]) == 1 && BatchCommandLine.ExitCode([F(BatchFileReport.Ready, "sem MuseScore")]) == 1
                 && BatchCommandLine.ExitCode([]) == 1 && BatchCommandLine.ExitCode([F(BatchFileReport.Ready)], "erro geral") == 1, "cli: exit 1 on errors and failures");
             var files = new[] { new BatchFileReport(@"C:\m\Canção.mid", BatchFileReport.Ready, "Canção", @"C:\p\Canção.mscz", @"C:\p\Canção.pdf", "confiança 92%"), F(BatchFileReport.NeedsYou) };
-            var report = BatchRunReport.Create("1.2.1", DateTimeOffset.Now.AddMinutes(-1), files);
+            var report = BatchRunReport.Create("1.3.0", DateTimeOffset.Now.AddMinutes(-1), files);
             string json = Path.Combine(root, "saida", "relatorio.json");
             BatchCommandLine.WriteReport(report, json);
             using var parsed = JsonDocument.Parse(File.ReadAllText(json));
