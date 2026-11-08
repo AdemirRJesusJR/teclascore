@@ -152,6 +152,11 @@ def review_points(parsed,config,harmony,*,include_melody_report=False):
             add(change['first_quarter'],'program_change',
                 f"A pista da melodia troca de instrumento (programa {change['from_program']+1} → {change['to_program']+1}); "
                 'as notas depois da troca continuam na melodia. Ouça o trecho para confirmar.')
+        if report.get('masked_inner_attacks',0)>=4 and report.get('masked_inner_quarters'):
+            # Um único ponto, no primeiro trecho: a pista da melodia também toca acompanhamento.
+            add(report['masked_inner_quarters'][0],'inner_voice',
+                f"{report['masked_inner_attacks']} notas mais graves tocadas sob notas longas da própria pista da melodia "
+                'foram tratadas como acompanhamento e ficaram fora da melodia. Ouça o trecho para confirmar.')
         if report.get('swing'):
             add((bars[0]['start']+origin)/DIV,'swing',
                 f"Colcheias tocadas com swing (razão {report['swing']['ratio']:.2f} do tempo) foram escritas retas, com a indicação Swing.")
@@ -690,7 +695,9 @@ def melody_events(parsed,config,origin,end):
         # exemplo). Colcheias e semicolcheias destacadas continuam escritas com o legato de sempre, sem pausas miúdas.
         if fill and next_s-visible>=DIV//4 and visible-s>=DIV and index+1<len(plans):
             candidates.append((s,n['pitch'],plans[index+1][1]['pitch'],visible-s,next_s-visible))
-    preserved_keys=rhythm.repeated_rest_keys(candidates,bar_of)
+    # Desligado por padrão: nas partituras reais, a respiração repetida escrita trazia ligaduras e pausas miúdas
+    # (semínima ligada a semicolcheia e pausa) onde o legato aprovado escreve uma figura só.
+    preserved_keys=rhythm.repeated_rest_keys(candidates,bar_of) if config.get('preserve_repeated_rests') else set()
     preserved=set()
     for s,pitch,following,duration,rest in candidates:
         offset,_=bar_of(s)

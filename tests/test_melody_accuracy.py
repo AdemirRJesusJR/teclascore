@@ -60,6 +60,8 @@ class InnerVoiceTests(unittest.TestCase):
         self.assertEqual({e['pitch'] for e in events}, {72, 73, 74})
         self.assertEqual(report['masked_inner_attacks'], 24)
         self.assertTrue(all(e['end'] - e['start'] == 2 * DIV for e in events[:-1]))
+        points, _, _ = engine.review_points(document(notes), {'melody_sources': [VOICE]}, {'events': []})
+        self.assertEqual([p['kind'] for p in points].count('inner_voice'), 1)
 
     def test_legato_overlap_and_fast_runs_are_kept(self):
         # A nota aguda anterior termina logo depois do ataque grave (note-off atrasado): não é voz interna.
@@ -257,10 +259,14 @@ class LegatoTests(unittest.TestCase):
         notes = []
         for bar in range(8):
             notes += [note(bar * 4, 64, 1.8), note(bar * 4 + 2, 65, .97), note(bar * 4 + 3, 67, .97)]
-        events, _, report, origin = melody(document(notes, bpm=72))
+        events, _, report, origin = melody(document(notes, bpm=72), {'preserve_repeated_rests': True})
         self.assertTrue(all(e['end'] - e['start'] == 1680 for e in events if e['pitch'] == 64))
         self.assertTrue(all(e['end'] - e['start'] == DIV for e in events if e['pitch'] == 65))
         self.assertEqual(report['preserved_rests'], 8)
+        # Padrão: o legato aprovado escreve a mínima inteira.
+        events, _, report, origin = melody(document(notes, bpm=72))
+        self.assertTrue(all(e['end'] - e['start'] == 2 * DIV for e in events if e['pitch'] == 64))
+        self.assertNotIn('preserved_rests', report)
 
     def test_repeated_detached_eighths_stay_legato(self):
         # Colcheias destacadas (metade do valor) em todos os compassos: escrita de colcheias, sem pausas miúdas.
