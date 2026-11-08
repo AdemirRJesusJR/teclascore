@@ -686,7 +686,9 @@ def melody_events(parsed,config,origin,end):
     candidates=[]
     for index,(s,n,next_s,stop,fill,minimum) in enumerate(plans):
         visible=min(next_s,end-origin,max(s+minimum,stop))
-        if fill and visible<next_s and index+1<len(plans):
+        # Só a respiração depois de uma nota de um tempo ou mais (semínima pontuada e pausa de semicolcheia, por
+        # exemplo). Colcheias e semicolcheias destacadas continuam escritas com o legato de sempre, sem pausas miúdas.
+        if fill and next_s-visible>=DIV//4 and visible-s>=DIV and index+1<len(plans):
             candidates.append((s,n['pitch'],plans[index+1][1]['pitch'],visible-s,next_s-visible))
     preserved_keys=rhythm.repeated_rest_keys(candidates,bar_of)
     preserved=set()

@@ -469,10 +469,12 @@ def meter_guess(parsed, declared):
 
 # ---- 9. Pausas curtas --------------------------------------------------------------------------------------------
 
-def legato_fill(gap_ticks, duration_ticks, ppq, quarter_ms, threshold_ms=60, share=.25):
-    """Uma pausa curta entre duas notas é preenchida quando dura menos de 60 ms ou menos de 25% da nota."""
+def legato_fill(gap_ticks, duration_ticks, ppq, quarter_ms, threshold_ms=200, share=.28):
+    """Uma pausa curta entre duas notas é preenchida (legato) quando dura até 0,28 tempo, como sempre, e no máximo
+    200 ms: nos andamentos lentos, uma pausa audível fica escrita. Nos andamentos de forró (acima de ~110 BPM), o
+    limite de 0,28 tempo é o que vale. duration_ticks fica para compatibilidade."""
     if gap_ticks <= 0: return True
-    return gap_ticks / ppq * quarter_ms < threshold_ms or gap_ticks < share * duration_ticks
+    return gap_ticks <= share * ppq and gap_ticks / ppq * quarter_ms <= threshold_ms
 
 
 def repeated_rest_keys(items, bar_of):

@@ -248,19 +248,26 @@ class ProgramChangeTests(unittest.TestCase):
 class LegatoTests(unittest.TestCase):
     def test_threshold_is_in_milliseconds_or_share_of_the_note(self):
         self.assertTrue(rhythm.legato_fill(20, 480, PPQ, 500))      # ~21 ms
-        self.assertTrue(rhythm.legato_fill(100, 480, PPQ, 500))     # 21% da nota
-        self.assertFalse(rhythm.legato_fill(150, 480, PPQ, 500))    # 156 ms e 31% da nota
+        self.assertTrue(rhythm.legato_fill(130, 480, PPQ, 500))     # 0,27 tempo, 135 ms
+        self.assertFalse(rhythm.legato_fill(150, 480, PPQ, 500))    # 0,31 tempo
+        self.assertFalse(rhythm.legato_fill(120, 480, PPQ, 1000))   # 0,25 tempo, mas 250 ms em andamento lento
 
-    def test_short_gap_is_filled_and_repeated_rest_is_preserved(self):
-        # Semínimas com uma pausa de 0,15 tempo (150 ms, que o legato preencheria) (pausa visível de semicolcheia) só no mesmo ponto de cada compasso.
+    def test_short_gap_is_filled_and_repeated_breath_is_preserved(self):
+        # Mínima com respiração de 0,2 tempo (167 ms, que o legato preencheria) no mesmo ponto de cada compasso.
         notes = []
         for bar in range(8):
-            notes += [note(bar * 4, 64, .85), note(bar * 4 + 1, 65, .97), note(bar * 4 + 2, 67, .97), note(bar * 4 + 3, 69, .97)]
-        events, _, report, origin = melody(document(notes, bpm=60))
-        first = [e for e in events if e['pitch'] == 64]
-        self.assertTrue(all(e['end'] - e['start'] == 720 for e in first), [e['end'] - e['start'] for e in first])
+            notes += [note(bar * 4, 64, 1.8), note(bar * 4 + 2, 65, .97), note(bar * 4 + 3, 67, .97)]
+        events, _, report, origin = melody(document(notes, bpm=72))
+        self.assertTrue(all(e['end'] - e['start'] == 1680 for e in events if e['pitch'] == 64))
         self.assertTrue(all(e['end'] - e['start'] == DIV for e in events if e['pitch'] == 65))
         self.assertEqual(report['preserved_rests'], 8)
+
+    def test_repeated_detached_eighths_stay_legato(self):
+        # Colcheias destacadas (metade do valor) em todos os compassos: escrita de colcheias, sem pausas miúdas.
+        notes = [note(bar * 4 + k * .5, 64 + k % 5, .3) for bar in range(8) for k in range(8)]
+        events, _, report, _ = melody(document(notes, bpm=150))
+        self.assertTrue(all(e['end'] - e['start'] == DIV // 2 for e in events[:-1]), {e['end'] - e['start'] for e in events})
+        self.assertNotIn('preserved_rests', report)
 
 
 class SpellingTests(unittest.TestCase):

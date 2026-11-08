@@ -42,7 +42,11 @@ def snapshot(midi_directory):
 def verify_correction(previous, current, expected, proof, evidence):
     if current != expected:
         raise AssertionError(f'Corrected output changed beyond its reviewed fingerprint: {current["filename"]}')
-    increase = current['event_count']-previous['event_count']
+    # Attacks masked as an inner voice of the same source (documented per proof) leave the net count.
+    masked = evidence['statistics'].get('masked_inner_attacks', 0)
+    if masked != proof.get('masked_inner_attacks', 0):
+        raise AssertionError(f'Unexpected inner-voice masking: {current["filename"]}')
+    increase = current['event_count']-previous['event_count']+masked
     if increase != proof['expected_attack_increase'] or increase != len(proof['restored_attacks']):
         raise AssertionError(f'Unexpected attack count: {current["filename"]}')
     if current['collisions'] != 0 or previous['collisions'] != increase:
