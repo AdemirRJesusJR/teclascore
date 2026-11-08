@@ -15,6 +15,14 @@ internal static class ScoreFlowChecks
         check(checks.Any(c=>c.Id=="melody-hint:Sax tenor" && c.Pending),"A bass-like track marked as melody needs confirmation");
         check(checks.Any(c=>c.Id=="melody-lyrics" && c.Pending) && checks.Any(c=>c.Id=="melody-listen" && c.Pending),"Lyrics elsewhere and not listening need confirmation");
         check(ScoreFlowRules.Reachable(checks)==ScoreFlowStep.Melody && !ScoreFlowRules.CanGenerate(checks),"Nothing past the Melodia step is reachable");
+        // "Confirmar pendências desta etapa": only the doubts of that step with a Confirmar button, never a block.
+        var confirmable=ScoreFlowRules.Confirmable(checks,ScoreFlowStep.Melody);
+        check(confirmable.Count>0 && confirmable.All(c=>c.Level==ScoreFlowLevel.Confirm && c.Pending && c.ConfirmLabel is not null && c.Step==ScoreFlowStep.Melody)
+            && !confirmable.Any(c=>c.Id=="melody-outside-piano") && confirmable.Any(c=>c.Id=="melody-lyrics"),"Confirming a step takes only its confirmations, never its blocks");
+        var afterConfirming=ScoreFlowRules.Evaluate(baroes with{Confirmed=confirmable.Select(c=>c.Id).ToHashSet()});
+        check(afterConfirming.Any(c=>c.Id=="melody-outside-piano" && c.Pending) && ScoreFlowRules.Confirmable(afterConfirming,ScoreFlowStep.Melody).Count==0
+            && ScoreFlowRules.Reachable(afterConfirming)==ScoreFlowStep.Melody,"After confirming, the block still holds the step");
+        check(ScoreFlowRules.Confirmable(checks,ScoreFlowStep.Chords).Count==0,"Other steps are not confirmed");
 
         var confirmed=new HashSet<string>{"melody-hint:Sax tenor","melody-lyrics"};
         var fixedRange=baroes with{MelodyRange=(42,81),Confirmed=confirmed,HeardMarked=true};
