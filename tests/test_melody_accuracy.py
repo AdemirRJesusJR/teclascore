@@ -146,6 +146,20 @@ class GridTests(unittest.TestCase):
         self.assertEqual(measure.findtext('.//normal-type'), 'quarter')
         self.assertEqual(measure.find('.//tuplet').get('type'), 'start')
 
+    def test_anticipation_is_written_on_the_beat_without_a_finer_grid(self):
+        # Colcheias com um ataque 30 ms antes do tempo 9: fica no tempo, e a grade continua de colcheias.
+        notes = scale(0, 16, .5, duration=.4) + [note(8.94, 70, .9)] + scale(9.5, 12, .5, duration=.4)
+        events, grids, report, origin = melody(document(notes, bpm=120))
+        self.assertIn(9 * DIV - origin, [e['start'] for e in events])
+        self.assertTrue(all(g in (4, 8) for g in grids.values()), grids)
+        self.assertTrue(all((e['start'] + origin) % (DIV // 2) == 0 for e in events))
+
+    def test_small_constant_lateness_is_not_compensated(self):
+        # 15 ms de atraso constante fica abaixo do mínimo de 25 ms: não há janela de deslocamento.
+        notes = [note(b + f + .03, 60 + b % 4 + k, .2) for b in range(1, 17) for k, f in enumerate((0, .5))]
+        _, _, report, _ = melody(document(notes, bpm=120))
+        self.assertNotIn('timing_offset_windows', report)
+
     def test_systematically_early_playing_is_compensated(self):
         notes = [note(b + f - .07, 60 + b % 4 + k, .2) for b in range(1, 17) for k, f in enumerate((0, .5))]
         events, grids, report, origin = melody(document(notes, bpm=92))

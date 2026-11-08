@@ -381,7 +381,8 @@ def _separate_quantized_attacks(bybeat,grids,choices,origin,end):
     for beat in sorted(bybeat):
         for phase in sorted(bybeat[beat]):
             quarter=beat+phase
-            position=round((beat+round(phase*grids[beat])/grids[beat])*DIV)
+            # The same nearest position as the main snap: an anticipation attributed to the beat sits on it.
+            position=round((beat+max(0,round(phase*grids[beat]))/grids[beat])*DIV)
             if origin<=position<end:records.append((beat,quarter,position))
     affected=set()
     for previous,current in zip(records,records[1:]):
@@ -427,7 +428,9 @@ def _separate_quantized_attacks(bybeat,grids,choices,origin,end):
     adjustments=[{'original_quarter':quarter,'quantized_quarter':position/DIV,
                   'adjustment_quarters':position/DIV-quarter,'grid':refined[beat]}
         for (beat,quarter,nearest),position in zip(records,assigned)
-        if position!=nearest]
+        # Only a position away from the attack's own nearest slot on the refined grid is an adjustment; an
+        # anticipation written just before its beat is the refinement itself.
+        if position!=nearest and position!=round(round(quarter*refined[beat])/refined[beat]*DIV)]
     grids.update(refined)
     return {quarter:position for (_,quarter,_),position in zip(records,assigned)},refinements,adjustments
 
@@ -615,7 +618,7 @@ def melody_events(parsed,config,origin,end):
                 straight.append(dict(n,start=start,end=stop,_swing_start=n['start']))
             top=straight
     # Execução sistematicamente adiantada ou atrasada: a grade é escolhida depois de compensar o deslocamento local.
-    timing=rhythm.TimingOffset([n['start']/ppq for n in top])
+    timing=rhythm.TimingOffset([n['start']/ppq for n in top],tempo)
     def shifted(q):return q+timing.at(q)
     bybeat=defaultdict(list);attack_quarter={}
     for n in top:
@@ -625,7 +628,12 @@ def melody_events(parsed,config,origin,end):
     initial_grids=dict(grids);attack_positions={};attack_adjustments=[]
     # Ataques de tempos vizinhos que se juntam mesmo na grade mais fina (uma antecipação atribuída ao tempo
     # seguinte) vão direto para a separação limitada; colisões internas toleradas seguem o caminho antigo.
-    crossing=any(any(p<0 for p in bybeat[b]) for b in collided)
+    # Ataques quase simultâneos (até o agrupamento de onset, como um ornamento de 10 ms) seguem o caminho antigo, em
+    # que o mais forte representa os dois; só ataques realmente distintos pedem a separação.
+    def distinct(phases):
+        ordered=sorted(phases);slots=[max(0,round(p*16)) for p in ordered]
+        return any(slots[i]==slots[i+1] and ordered[i+1]-ordered[i]>cluster for i in range(len(ordered)-1))
+    crossing=any(any(p<0 for p in bybeat[b]) and distinct(bybeat[b]) for b in collided)
     try:
         if crossing:raise NeedsReview('Ataques vizinhos na fronteira do tempo.')
         boundary_refinements=_refine_boundary_grids(bybeat,grids,grid_choices,origin,end)
@@ -634,8 +642,8 @@ def melody_events(parsed,config,origin,end):
         attack_positions,boundary_refinements,attack_adjustments=_separate_quantized_attacks(bybeat,grids,grid_choices,origin,end)
     def snap(t):
         beat,phase=rhythm.attribute(shifted(t/ppq),tempo);div=rhythm.grid_div(grids.get(beat,4))
-        # Near a beat boundary use the shared endpoint.
-        return round((beat+round(phase*div)/div)*DIV)
+        # Near a beat boundary use the shared endpoint; an anticipation attributed to the beat is written on it.
+        return round((beat+max(0,round(phase*div))/div)*DIV)
     if not attack_positions:
         nearest=[snap(n['start']) for n in top if origin<=snap(n['start'])<end]
         if len(nearest)-len(set(nearest))>(0 if merge_report is not None else max(3,len(top)*.008)):

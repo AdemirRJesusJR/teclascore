@@ -165,12 +165,14 @@ class TimingOffset:
     """Deslocamento local e constante da execução (tocar sistematicamente adiantado ou atrasado).
 
     Para cada ataque, a mediana do desvio com sinal até a semicolcheia ou tercina mais próxima entre os ataques a até
-    4 tempos dele; vale só quando há pelo menos 6 ataques, a mediana passa de 0,02 tempo e 60% dos ataques desviam
+    4 tempos dele; vale só quando há pelo menos 6 ataques, a mediana passa de 0,02 tempo e de 25 ms e 60% dos ataques desviam
     para o mesmo lado. Um MIDI quantizado não tem deslocamento. at(q) devolve o quanto somar ao quarto (o valor do
     último ataque até q) antes de escolher a grade."""
     REACH = 4
 
-    def __init__(self, quarters):
+    MINIMUM_MS = 25         # abaixo disso o deslocamento é a própria imprecisão da execução (sigma mínimo)
+
+    def __init__(self, quarters, tempo=None):
         ordered = sorted(quarters)
         deviations = []
         for q in ordered:
@@ -185,7 +187,8 @@ class TimingOffset:
             if len(values) >= 6:
                 middle = sorted(values)[len(values) // 2]
                 same = sum(1 for v in values if v * middle > 0 and abs(v) >= .01)
-                if abs(middle) >= .02 and same >= .6 * len(values): offset = max(-.1, min(.1, middle))
+                floor = max(.02, tempo.quarters_for_ms(self.MINIMUM_MS, q)) if tempo is not None else .02
+                if abs(middle) >= floor and same >= .6 * len(values): offset = max(-.1, min(.1, middle))
             self.quarters.append(q); self.values.append(offset)
             if offset: self.offsets[round(q, 4)] = offset
 
@@ -212,7 +215,8 @@ def _deviation_cost(distance, quarter_ms, sigma):
 
 
 def _state_error(phases, div, quarter_ms, sigma):
-    slots = [round(p * div) for p in phases]
+    # Uma antecipação atribuída ao tempo (fase negativa) é escrita no tempo, em qualquer grade: não pede grade fina.
+    slots = [max(0, round(p * div)) for p in phases]
     if len(set(slots)) != len(slots): return None
     return sum(_deviation_cost(abs(p - s / div), quarter_ms, sigma) for p, s in zip(phases, slots))
 
@@ -276,8 +280,8 @@ def choose_grids(bybeat, tempo, meter_map=None):
         ternary_ok = (not is_compound and best_ternary is not None and
                       ((best_binary is None and thirds) or
                        (best_binary is not None and best_binary > .05 and best_ternary < .6 * best_binary)))
-        offbeat = any(abs(p) > 1e-6 for p in phases)
-        inner = [p for p in phases if abs(p) > 1e-6]
+        offbeat = any(p > 1e-6 for p in phases)
+        inner = [p for p in phases if p > 1e-6]
         # A grade mais grossa em que todos os contratempos caem exatamente: é a grade em que o MIDI foi escrito.
         exact = next((d for d in sorted(BINARY + TERNARY) if inner and _exact(inner, d)), None)
         for div in BINARY:
@@ -341,7 +345,7 @@ def choose_grids(bybeat, tempo, meter_map=None):
             if beat - 1 in pair_starts: continue
             state = 4 if errors[4] is not None else min((d for d in BINARY if errors[d] is not None), default=16)
         if beat not in bybeat: continue
-        if state in TERNARY and not any(abs(p) > 1e-6 for p in phases): state = 4
+        if state in TERNARY and not any(p > 1e-6 for p in phases): state = 4
         if state in TERNARY and errors[state] is None: state = 12
         if state in BINARY and errors[state] is None:
             state = next((d for d in BINARY if errors[d] is not None), BINARY[-1])
