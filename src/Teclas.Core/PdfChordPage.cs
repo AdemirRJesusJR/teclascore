@@ -21,7 +21,7 @@ public sealed record MapMeasure(string? Section, IReadOnlyList<string> Chords, b
 /// properties (title, performer, subject). It is a PDF incremental update: the pages MuseScore wrote are kept
 /// byte for byte, and the new objects, page tree and trailer are appended after them.
 /// </summary>
-public static class PdfChordPage
+public static partial class PdfChordPage
 {
     private static readonly XNamespace Svg = "http://www.w3.org/2000/svg";
     private const double DiagramWidth = 158, Scale = DiagramWidth / 282;
@@ -163,7 +163,7 @@ public static class PdfChordPage
 
     /// <summary>Appends the chord page(s) and the document properties to <paramref name="pdfPath"/> in place.</summary>
     public static void Append(string pdfPath, string title, string artist, IReadOnlyList<PdfChord> chords, bool chordPage = true,
-        IReadOnlyList<MapMeasure>? map = null)
+        IReadOnlyList<MapMeasure>? map = null, IReadOnlyList<LyricSheetLine>? lyrics = null)
     {
         byte[] original = File.ReadAllBytes(pdfPath);
         string text = Encoding.Latin1.GetString(original);
@@ -205,7 +205,7 @@ public static class PdfChordPage
         var drawable = chords.Where(c => c.Diagram is not null).ToArray();
         var mapRows = map is not null && map.Any(m => m.Chords.Count > 0) ? MapRows(map) : [];
         int regular = 0, bold = 0;
-        if (mapRows.Count > 0 || chordPage && drawable.Length > 0)
+        if (mapRows.Count > 0 || chordPage && drawable.Length > 0 || lyrics is { Count: > 0 })
         {
             regular = next++; bold = next++;
             Write(regular, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
@@ -218,6 +218,7 @@ public static class PdfChordPage
             Write(pageId, $"<< /Type /Page /Parent {pagesId} 0 R /MediaBox [{Num(box[0])} {Num(box[1])} {Num(box[2])} {Num(box[3])}] /Resources << /Font << /F1 {regular} 0 R /F2 {bold} 0 R >> /ProcSet [/PDF /Text] >> /Contents {contentId} 0 R >>");
             newPages.Add(pageId);
         }
+        if (lyrics is { Count: > 0 }) AddLyricsPages(lyrics, title, artist, width, height, AddPage);
         if (mapRows.Count > 0)
         {
             // "Mapa da música": the part names on the left, then up to four bars per row between barlines.

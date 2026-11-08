@@ -44,6 +44,12 @@ public partial class App
             var row = new MidiRow { FullPath = source, NativeSourceSha256 = originalHash, ScorePath = source, PageCount = 1, ScoreTitle = "Casa azul", GeneratedAt = DateTimeOffset.UtcNow, Status = "Importada" };
             window.Files.Add(row); ((ListBox)window.FindName("Library")).SelectedItem = row; Flush();
             Check(window.FindName("LyricsEditorButton") is Button { IsEnabled: true } && window.CanEditLyrics, "menu-item-enabled-for-a-score");
+            var pageBox = window.FindName("PdfLyricsPageCheckBox") as CheckBox;
+            Check(pageBox is { IsChecked: false } && !ScoreExporter.AppendLyricsPage && window.FindName("PdfMusicMapCheckBox") is CheckBox map && ((Panel)map.Parent).Children.IndexOf(pageBox) == ((Panel)map.Parent).Children.IndexOf(map) + 1,
+                "lyrics-page-option-sits-next-to-the-pdf-pages-and-starts-off");
+            pageBox!.IsChecked = true; Flush();
+            Check(window.PdfLyricsPage && ScoreExporter.AppendLyricsPage && Settings.Load(settingsPath).PdfLyricsPage, "lyrics-page-option-applies-and-persists");
+            pageBox.IsChecked = false; Flush();
 
             // 1. Cancel: nothing is saved.
             LyricsEditorWindow? opened = null;

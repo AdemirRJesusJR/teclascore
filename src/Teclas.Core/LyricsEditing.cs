@@ -35,16 +35,16 @@ public sealed class LyricsEditorDocument
     public static LyricsEditorDocument FromModel(NativeMusicModel model)
     {
         ArgumentNullException.ThrowIfNull(model);
-        var top = model.Measures.Where(m => m.Events.Any(e => e.Kind == "Chord")).Select(m => m.Staff).DefaultIfEmpty(1).Min();
-        double start = 0, lastEnd = 0;
+        int top = TopStaff(model);
+        var starts = MeasureStarts(model, top);
+        double lastEnd = 0;
         var slots = new List<LyricSlot>();
         foreach (var measure in model.Measures.Where(m => m.Staff == top).OrderBy(m => m.Number))
         {
-            double length = 0;
+            double start = starts[measure.Number];
             foreach (var item in measure.Events.Where(e => e.Voice == 1 && e.Quarter is not null).OrderBy(e => e.Quarter))
             {
                 double at = start + item.Quarter!.Value;
-                length = Math.Max(length, item.Quarter.Value + (item.DurationQuarter ?? 0));
                 if (item.Kind != "Chord" || item.DurationQuarter is 0) continue;
                 bool continues = item.LyricContinues && item.Lyric.Length > 0;
                 bool previousContinues = slots.LastOrDefault(s => s.Text.Length > 0)?.Continues == true;
@@ -57,9 +57,25 @@ public sealed class LyricsEditorDocument
                 });
                 lastEnd = at + (item.DurationQuarter ?? 0);
             }
-            start += length;
         }
         return new LyricsEditorDocument(slots);
+    }
+
+    /// <summary>The staff that carries the melody and the lyrics: the first one with notes.</summary>
+    public static int TopStaff(NativeMusicModel model) =>
+        model.Measures.Where(m => m.Events.Any(e => e.Kind == "Chord")).Select(m => m.Staff).DefaultIfEmpty(1).Min();
+
+    /// <summary>Where each measure of a staff starts, in quarters from the first measure (the longest voice sets its length).</summary>
+    public static IReadOnlyDictionary<int, double> MeasureStarts(NativeMusicModel model, int staff)
+    {
+        var starts = new Dictionary<int, double>();
+        double start = 0;
+        foreach (var measure in model.Measures.Where(m => m.Staff == staff).OrderBy(m => m.Number))
+        {
+            starts[measure.Number] = start;
+            start += measure.Events.Where(e => e.Quarter is not null).Select(e => e.Quarter!.Value + (e.DurationQuarter ?? 0)).DefaultIfEmpty(0).Max();
+        }
+        return starts;
     }
 
     private static string Syllabic(bool previousContinues, bool continues) =>
