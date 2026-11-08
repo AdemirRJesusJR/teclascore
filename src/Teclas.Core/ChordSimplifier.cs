@@ -7,8 +7,9 @@ public static class ChordSimplifier
 {
     public static string Simplify(string? quality) => (quality ?? "").Trim() switch
     {
-        "" or "6" or "7" or "maj7" or "9" or "maj9" or "add9" => "",
-        "m" or "m6" or "m7" or "m9" or "madd9" or "mMaj7" => "m",
+        "" or "6" or "7" or "maj7" or "9" or "maj9" or "add9" or "13" or "7b9" or "7#9" or "69" or "7b5" => "",
+        "m" or "m6" or "m7" or "m9" or "madd9" or "mMaj7" or "m11" => "m",
+        "7#5" => "aug",
         "dim" or "dim7" or "m7b5" => "dim",
         "7sus4" or "sus4" => "sus4",
         var other => other

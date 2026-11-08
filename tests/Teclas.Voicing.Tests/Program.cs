@@ -16,7 +16,18 @@ Check(KeyboardDiagramVoicing.Pitches(0, "9", 1).SequenceEqual(new[] { 52, 55, 58
 Check(KeyboardDiagramVoicing.TryRootPitchClass("F♯", out int sharp) && sharp == 6 && KeyboardDiagramVoicing.TryRootPitchClass("Gbb", out int dbl) && dbl == 5, "Accidentals and double flats resolve exactly");
 Check(!KeyboardDiagramVoicing.TryRootPitchClass("C/E", out _) && !KeyboardDiagramVoicing.TryRootPitchClass("H", out _), "Slash and unsupported roots are not guessed");
 Check(Throws<ArgumentOutOfRangeException>(() => KeyboardDiagramVoicing.Pitches(0, "", 3)), "Unsupported third inversion is rejected");
-Check(Throws<ArgumentException>(() => KeyboardDiagramVoicing.Pitches(0, "13", 0)), "Unrecognized extensions are not reduced to another chord");
+Check(Throws<ArgumentException>(() => KeyboardDiagramVoicing.Pitches(0, "7#11", 0)), "Unrecognized extensions are not reduced to another chord");
+// Qualities added for the analysis: second inversion keeps the fifth (or the altered fifth) in the bass and every tone.
+Check(KeyboardDiagramVoicing.Pitches(0, "13", 2).SequenceEqual(new[] { 55, 57, 58, 60, 64 }), "C13 second inversion is G A Bb C E");
+Check(KeyboardDiagramVoicing.Pitches(0, "7b9", 2).SequenceEqual(new[] { 55, 58, 60, 61, 64 }), "C7(b9) second inversion is G Bb C Db E");
+Check(KeyboardDiagramVoicing.Pitches(0, "7#9", 1)[0] % 12 == 4, "C7(#9) first inversion stands on the major third, not on the #9");
+Check(KeyboardDiagramVoicing.Pitches(0, "7b5", 2)[0] % 12 == 6 && KeyboardDiagramVoicing.Pitches(0, "7#5", 2)[0] % 12 == 8, "Altered fifths are the bass of the second inversion");
+Check(KeyboardDiagramVoicing.Pitches(0, "69", 2).SequenceEqual(new[] { 55, 57, 60, 62, 64 }) && KeyboardDiagramVoicing.Pitches(0, "m11", 2).SequenceEqual(new[] { 55, 58, 60, 63, 65 }), "C6/9 and Cm11 keep five tones over the fifth");
+Check(ChordSheetParser.TryParse("G7(b9)")?.Quality == "7b9" && ChordSheetParser.TryParse("A7(#9)")?.Quality == "7#9" && ChordSheetParser.TryParse("C6/9")?.Quality == "69"
+    && ChordSheetParser.TryParse("D7(13)")?.Quality == "13" && ChordSheetParser.TryParse("Em7(11)")?.Quality == "m11" && ChordSheetParser.TryParse("E7(#5)")?.Quality == "7#5"
+    && ChordSheetParser.TryParse("B7(b5)")?.Quality == "7b5" && ChordSheetParser.TryParse("C6/9")?.Bass is null, "Pasted chord sheets read the new qualities (Brazilian spellings)");
+Check(new[] { "13", "7b9", "7#9", "69", "7b5", "m11", "7#5" }.Select(ChordSimplifier.Simplify).SequenceEqual(new[] { "", "", "", "", "", "m", "aug" }), "Beginner chords reduce the new qualities to their triad");
+Check(ChordNotation.Canonical("aug7") == "7#5" && ChordNotation.Canonical("7(b9)") == "7b9" && ChordNotation.Canonical("6/9") == "69" && ChordNotation.Canonical("m11") == "m11", "Scores written by MuseScore are read back to the internal qualities");
 
 var parity = new List<object>();
 foreach (int pc in Enumerable.Range(0, 12)) foreach (string quality in KeyboardDiagramVoicing.Qualities) foreach (int inv in Enumerable.Range(0, 3))
@@ -47,7 +58,7 @@ var reachable = ComfortableVoicingService.Suggest([Chord("C", inversion: 1)], 7)
 Check(reachable.Span <= 7 && reachable.Changed, "Reach constraint finds a smaller available voicing even for a single chord");
 var alreadyBest = ComfortableVoicingService.Suggest([Chord("C", inversion: 2)]);
 Check(alreadyBest.ChangeCount == 0, "A single already-valid position is not changed arbitrarily");
-var unknown = ComfortableVoicingService.Suggest([Chord("C/E"), Chord("C", "13")]);
+var unknown = ComfortableVoicingService.Suggest([Chord("C/E"), Chord("C", "7#11")]);
 Check(unknown.ChangeCount == 0 && unknown.Suggestions.All(s => s.BeforePitches.Count == 0 && s.Limitation.Length > 0), "Unsupported chords are retained with explicit unknown-span status");
 Check(ComfortableVoicingService.Suggest([]).ChangeCount == 0, "Empty sequences remain harmless");
 Check(Throws<ArgumentOutOfRangeException>(() => ComfortableVoicingService.Suggest(sequence, 4)) && Throws<ArgumentOutOfRangeException>(() => ComfortableVoicingService.Suggest(sequence, 13)), "Invalid reach constraints are rejected");

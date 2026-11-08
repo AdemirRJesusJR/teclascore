@@ -160,6 +160,9 @@ public static partial class ChordSheetParser
             "aug" or "5+" => "aug", "sus2" or "2" => "sus2", "sus4" or "4" or "sus" => "sus4",
             "6" => "6", "m6" => "m6", "9" or "add9" => "add9", "m9" or "madd9" => "madd9",
             "79" or "7/9" or "7(9)" => "9", "7M9" or "maj9" => "maj9", "m79" or "m7/9" => "m9", "74" or "7sus4" or "7/4" => "7sus4",
+            "7b9" or "7-9" or "7/b9" => "7b9", "7#9" or "7aug9" or "7/#9" => "7#9", "7#5" or "7aug5" or "7/#5" or "aug7" => "7#5",
+            "7b5" or "7-5" or "7/b5" => "7b5", "13" or "713" or "7/13" => "13", "m11" or "m711" or "m7/11" => "m11",
+            "69" or "6/9" => "69",
             _ => "?"
         };
     }

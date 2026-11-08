@@ -9,7 +9,7 @@ internal static partial class LibrarySearch
     private static readonly string[] Minor = ["Ab", "Eb", "Bb", "F", "C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#"];
     private static readonly Dictionary<char, string> Solfege = new() { ['C'] = "Dó", ['D'] = "Ré", ['E'] = "Mi", ['F'] = "Fá", ['G'] = "Sol", ['A'] = "Lá", ['B'] = "Si" };
 
-    [GeneratedRegex(@"^[A-Ga-g](#|b|♯|♭)?(m|maj7|m7|7|dim|dim7|m7b5|aug|sus2|sus4|6|m6|9|maj9|m9|add9|madd9|mMaj7|7sus4)?$")]
+    [GeneratedRegex(@"^[A-Ga-g](#|b|♯|♭)?(m|maj7|m7|7|dim|dim7|m7b5|aug|sus2|sus4|6|m6|9|maj9|m9|add9|madd9|mMaj7|7sus4|13|7b9|7#9|m11|69|7#5|7b5)?$")]
     private static partial Regex ChordPattern();
 
     /// <summary>True for words such as Dm, F#dim or Am7; plain words like "forró" are text searches.</summary>
