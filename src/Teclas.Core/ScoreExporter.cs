@@ -238,6 +238,9 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
     /// <summary>Whether exported PDFs also get the "Mapa da música" page (parts and chords bar by bar).</summary>
     public static bool AppendMusicMap { get; set; } = true;
 
+    /// <summary>Whether exported PDFs also get the "Letra e cifras" page (the whole lyric with the chords above the syllables).</summary>
+    public static bool AppendLyricsPage { get; set; }
+
     /// <summary>
     /// Adds the chord page and the document properties (title, performer). A score MuseScore wrote in a way this
     /// step does not recognize keeps the plain PDF: finishing never makes an export fail.
@@ -251,12 +254,21 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
             var map = AppendMusicMap ? PdfChordPage.ReadMap(scorePath) : null;
             if (map is not null && map.Any(m => m.Chords.Count > 0)) progress?.Report("Acrescentando o mapa da música ao PDF…");
             if (AppendChordPage && chords.Any(c => c.Diagram is not null)) progress?.Report("Acrescentando a página de acordes ao PDF…");
-            PdfChordPage.Append(pdfPath, title, artist, chords, AppendChordPage, map);
+            var lyrics = AppendLyricsPage ? ReadLyricsPage(scorePath) : null;
+            if (lyrics is { Count: > 0 }) progress?.Report("Acrescentando a página de letra e cifras ao PDF…");
+            PdfChordPage.Append(pdfPath, title, artist, chords, AppendChordPage, map, lyrics);
         }
         catch (Exception e) when (e is InvalidDataException or IOException or FormatException or System.Xml.XmlException or ArgumentException or OverflowException)
         {
             progress?.Report("O PDF foi salvo sem a página de acordes: " + e.Message);
         }
+    }
+
+    /// <summary>The lyric lines for the page; a score whose lyrics cannot be read simply has no lyrics page.</summary>
+    private static IReadOnlyList<LyricSheetLine>? ReadLyricsPage(string scorePath)
+    {
+        try { return PdfLyricsPage.Read(scorePath); }
+        catch (Exception e) when (e is InvalidDataException or IOException or InvalidOperationException or System.Xml.XmlException or ArgumentException or FormatException) { return null; }
     }
 
     private void ValidateScore(string path)

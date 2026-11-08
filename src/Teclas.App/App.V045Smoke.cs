@@ -178,7 +178,9 @@ public partial class App
         {
             var body = new List<byte> { 0, (byte)(0xC0 | channel), 0 };
             if (offBeat) body.AddRange([0x81, 0x70, (byte)(0x90 | channel), (byte)pitch, 0]); // a silent start to shift by half a beat
-            for (int i = 0; i < 16; i++) body.AddRange([0, (byte)(0x90 | channel), (byte)(pitch + i % 3), 90, 0x83, 0x60, (byte)(0x80 | channel), (byte)(pitch + i % 3), 0]);
+            // A real tune (five pitch classes over a fifth): guide notes repeating two or three pitches never become the melody.
+            int[] steps = [0, 2, 4, 5, 7, 5, 4, 2];
+            for (int i = 0; i < 16; i++) body.AddRange([0, (byte)(0x90 | channel), (byte)(pitch + steps[i % 8]), 90, 0x83, 0x60, (byte)(0x80 | channel), (byte)(pitch + steps[i % 8]), 0]);
             return MidiTrack(body);
         }
         return [.. "MThd"u8, 0, 0, 0, 6, 0, 1, 0, 3, 1, 224, .. MidiTrack(words), .. Part(0, 60, true), .. Part(1, 67, false)];

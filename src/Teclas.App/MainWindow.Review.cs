@@ -60,6 +60,7 @@ public partial class MainWindow
         if (row.UsesNativeScoreWorkflow || row.AnalysisPath is null || !File.Exists(row.AnalysisPath)) return;
         try { using var document = JsonDocument.Parse(File.ReadAllText(row.AnalysisPath)); ParseReviewPoints(row, document.RootElement); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }
+        AddLyricsReviewPoints(row);
     }
 
     private async void ReviewScoreClick(object sender, RoutedEventArgs e)

@@ -140,6 +140,8 @@ public sealed class Settings
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         { error = "Informe um caminho completo de pasta válido, como C:\\Partituras, sem caracteres reservados."; return false; }
     }
+    /// <summary>PDFs also get the "Letra e cifras" page: the whole lyric by lines and stanzas, chords above the syllables (off by default).</summary>
+    public bool PdfLyricsPage { get; set; }
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public static Settings Load(string? filePath = null)

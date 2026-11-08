@@ -41,6 +41,12 @@ public partial class MainWindow
         if (row.HasMelodyChoice) return null;
         // A missing voice is not replaced by arpeggios, bass or lyric guide notes: the user decides (another MIDI or Só cifras).
         if (row.CatalogLacksMelody) return "o diagnóstico do lote indica que o MIDI não traz a melodia completa; escolha outra fonte ou ligue Só cifras";
+        // The lyrics decide: the part with 90% or more of the syllables, clearly ahead of the other lines, is the melody.
+        if (row.Tracks.FirstOrDefault(t => t.MelodySuggestion?.FollowsLyrics == true && !IsGuideTrack(t)) is { } lyricsMelody)
+        {
+            lyricsMelody.IsMelody = true; row.AutoMelody = true; row.AutoMelodyConfident = true;
+            return null;
+        }
         var coverage = LyricsCoverageOf(row);
         if (coverage.Count > 0 && coverage[0].Share >= .5 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } sung
             && !IsGuideTrack(sung))

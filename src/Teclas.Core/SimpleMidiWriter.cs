@@ -5,7 +5,13 @@ namespace Teclas.Core;
 /// <summary>A note in beats (quarter notes) from the start.</summary>
 public sealed record WrittenNote(double Start, double Length, int Pitch, int Velocity = 90);
 /// <summary>One part of a written MIDI file.</summary>
-public sealed record WrittenTrack(string Name, int Channel, int Program, IReadOnlyList<WrittenNote> Notes);
+public sealed record WrittenTrack(string Name, int Channel, int Program, IReadOnlyList<WrittenNote> Notes)
+{
+    /// <summary>Karaoke syllables written as lyric events (meta type 5) in this track, at their beat.</summary>
+    public IReadOnlyList<WrittenLyric> Lyrics { get; init; } = [];
+}
+/// <summary>A lyric syllable in beats from the start; "/" and "\" at its start mark a new line and a new stanza.</summary>
+public sealed record WrittenLyric(double Start, string Text);
 
 /// <summary>Writes a format 1 MIDI file: tempo track (tempo and meter) followed by one track per part, 480 ticks per beat.</summary>
 public static class SimpleMidiWriter
@@ -40,7 +46,17 @@ public static class SimpleMidiWriter
                 })
                 .OrderBy(e => e.Tick).ThenBy(e => e.Order).ThenBy(e => e.Pitch).ToList();
             long last = 0;
-            foreach (var e in events) { Vlq(body, (int)(e.Tick - last)); last = e.Tick; body.AddRange([e.Status, (byte)e.Pitch, (byte)e.Velocity]); }
+            var lyrics = new Queue<(long Tick, byte[] Text)>(track.Lyrics.OrderBy(l => l.Start).Select(l => (Ticks(l.Start), Encoding.UTF8.GetBytes(l.Text))));
+            void LyricsUntil(long tick)
+            {
+                while (lyrics.Count > 0 && lyrics.Peek().Tick <= tick)
+                {
+                    var (at, text) = lyrics.Dequeue();
+                    Vlq(body, (int)(at - last)); last = at; body.AddRange([0xFF, 0x05]); Vlq(body, text.Length); body.AddRange(text);
+                }
+            }
+            foreach (var e in events) { LyricsUntil(e.Tick); Vlq(body, (int)(e.Tick - last)); last = e.Tick; body.AddRange([e.Status, (byte)e.Pitch, (byte)e.Velocity]); }
+            LyricsUntil(long.MaxValue);
             Chunk(file, body);
         }
         return file.ToArray();

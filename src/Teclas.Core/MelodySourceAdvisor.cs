@@ -4,7 +4,17 @@ using System.Text;
 namespace Teclas.Core;
 
 /// <summary>A listening priority, not a probability that a source is the melody.</summary>
-public record MelodySourceSuggestion(SourceKey Key,int Rank,double Score,string Label,string Reason,long SampleStartTick,long SampleEndTick);
+public record MelodySourceSuggestion(SourceKey Key,int Rank,double Score,string Label,string Reason,long SampleStartTick,long SampleEndTick)
+{
+    /// <summary>Share of the MIDI's lyric syllables that fall on this source's attacks; null when the MIDI has no lyrics.</summary>
+    public double? LyricsShare { get; init; }
+    /// <summary>The source carries the lyrics (90% of the syllables or more, clearly ahead of the other lines): the default melody.</summary>
+    public bool FollowsLyrics { get; init; }
+    /// <summary>This source doubles another one in unison or octave; that one (the voice, or the one on the lyrics) is preferred.</summary>
+    public SourceKey? DoubleOf { get; init; }
+    /// <summary>This source hits the lyrics but only as guide notes (too few pitches for a sung melody); it is never the default melody.</summary>
+    public bool LyricsGuide { get; init; }
+}
 
 /// <summary>Ranks sources without changing notes or selecting a melody for the user.</summary>
 public static class MelodySourceAdvisor
@@ -26,6 +36,8 @@ public static class MelodySourceAdvisor
         double registerCenter=pitched.Length>0?Median(pitched.Select(f=>f.MedianPitch)):60;
         var allNotes=features.SelectMany(f=>f.Notes).ToArray();
         double songQuarters=allNotes.Length>0?Math.Max(1,((double)allNotes.Max(n=>n.End)-allNotes.Min(n=>n.Start))/document.Ppq):1;
+        // In a karaoke MIDI the words say where the sung line is: their coverage is the strongest evidence.
+        var lyrics=LyricsTrack.Coverage(document).ToDictionary(c=>c.Source);
         var candidates=new List<MelodySourceSuggestion>();
         foreach(var f in features)
         {
@@ -71,6 +83,7 @@ public static class MelodySourceAdvisor
                 string name=Normalize(f.Source.Name);
                 if(new[]{"melodia","melody","vocal","solo","lead"}.Any(name.Contains))score+=2;
                 if(new[]{"acompanh","chord","arpeggio","arpejo"}.Any(name.Contains))score-=2;
+                if(lyrics.Count>0)score+=24*(lyrics.GetValueOrDefault(f.Source.Key)?.Share??0)-12;
                 score=Math.Clamp(score,1,92);
                 if(fixedPitch)score=Math.Min(score,f.DistinctPitches==1?18:36);
                 if(few)score=Math.Min(score,f.Attacks.Length<8 || f.SpanQuarters<2?24:44);
@@ -104,13 +117,118 @@ public static class MelodySourceAdvisor
                         ?"Predomina uma nota por vez, com variação de alturas. É uma prioridade de escuta, não uma seleção automática."
                         :"Há variação de alturas e alguns trechos sobrepostos. Ouça para distinguir melodia e acompanhamento.";
                 }
-                if(label=="Boa candidata" && pitched.Count(other=>other!=f && SimilarLine(f,other))>0)
+                if(label=="Boa candidata" && pitched.Count(other=>other!=f && SimilarLine(f,other,document.Ppq))>0)
                     reason="Há outra fonte com linha semelhante; compare o timbre e o trecho antes de escolher a melodia.";
             }
-            candidates.Add(new(f.Source.Key,0,Math.Round(score,1),label,reason,sample.Start,sample.End));
+            candidates.Add(new(f.Source.Key,0,Math.Round(score,1),label,reason,sample.Start,sample.End)
+                {LyricsShare=lyrics.Count>0 && f.Source.Key.Channel!=10?Math.Round(lyrics.GetValueOrDefault(f.Source.Key)?.Share??0,4):null});
         }
-        return candidates.OrderByDescending(c=>c.Score).ThenBy(c=>c.Key.Track).ThenBy(c=>c.Key.Channel).ThenBy(c=>c.Key.Program)
+        ResolveDoubles(candidates,features,lyrics,document.Ppq);
+        MarkLyricsMelody(candidates,features,lyrics,document.Ppq);
+        return candidates.OrderByDescending(c=>c.FollowsLyrics).ThenByDescending(c=>c.Score).ThenBy(c=>c.Key.Track).ThenBy(c=>c.Key.Channel).ThenBy(c=>c.Key.Program)
             .Select((c,index)=>c with{Rank=index+1}).ToArray();
+    }
+
+    /// <summary>Shown when the words follow only guide notes: the engine then writes the lyric by lines (lyricsMode "auto").</summary>
+    public const string GuideOnlyMessage="A letra segue notas-guia; não há melodia do canto neste MIDI.";
+
+    /// <summary>
+    /// Real melodic content, required of the part that takes the melody from the lyrics: the engine's minimum of three
+    /// pitches ("alturas suficientes"), at least five pitch classes over a fifth or more, and not a repetitive alternation
+    /// of one or two pitches (karaoke guide notes).
+    /// </summary>
+    private static bool RealMelody(Features f)
+    {
+        if(f.DistinctPitches<3 || f.Range<7 || f.Notes.Select(n=>n.Pitch%12).Distinct().Count()<5)return false;
+        var counts=f.Notes.GroupBy(n=>n.Pitch).Select(g=>g.Count()).OrderByDescending(c=>c).ToArray();
+        return counts.Take(2).Sum()<.85*f.Notes.Length;
+    }
+
+    private static readonly HashSet<string> MelodicLabels=new(StringComparer.Ordinal){"Boa candidata","Conferir"};
+
+    /// <summary>General MIDI voices (choir, voice oohs, synth voice, lead voice) or a track named after the singer's part.</summary>
+    internal static bool VoiceTimbre(MidiSource source)
+    {
+        string name=Normalize(source.Name);
+        return source.Key.Program is 52 or 53 or 54 or 85 || new[]{"voz","vocal","voice","canto","cantor","melodia","melody"}.Any(name.Contains);
+    }
+
+    private static string Describe(SourceKey key)=>$"pista {key.Track+1}, canal {key.Channel}";
+
+    /// <summary>
+    /// Two candidates that play the same line in unison or octave: the one that follows the lyrics, else the one with a
+    /// voice timbre, is kept as the suggestion and the other is marked as its double. Without such a reason both stay as
+    /// equal candidates to compare by ear.
+    /// </summary>
+    private static void ResolveDoubles(List<MelodySourceSuggestion> candidates,Features[] features,Dictionary<SourceKey,LyricsCoverage> lyrics,int ppq)
+    {
+        var byKey=features.ToDictionary(f=>f.Source.Key);
+        for(int i=0;i<candidates.Count;i++)
+        for(int j=i+1;j<candidates.Count;j++)
+        {
+            var a=candidates[i];var b=candidates[j];
+            if(a.Label!="Boa candidata" || b.Label!="Boa candidata" || a.DoubleOf is not null || b.DoubleOf is not null)continue;
+            if(!SimilarLine(byKey[a.Key],byKey[b.Key],ppq))continue;
+            double shareA=lyrics.GetValueOrDefault(a.Key)?.Share??0,shareB=lyrics.GetValueOrDefault(b.Key)?.Share??0;
+            bool voiceA=VoiceTimbre(byKey[a.Key].Source),voiceB=VoiceTimbre(byKey[b.Key].Source);
+            int preferred=Math.Abs(shareA-shareB)>=.05?(shareA>shareB?0:1):voiceA!=voiceB?(voiceA?0:1):-1;
+            if(preferred<0)continue;
+            var (keep,drop)=preferred==0?(i,j):(j,i);
+            var kept=candidates[keep];var dropped=candidates[drop];
+            string why=Math.Abs(shareA-shareB)>=.05?"acerta mais sílabas da letra":"tem timbre de voz";
+            candidates[keep]=kept with{Reason=$"Dobra em uníssono ou oitava com a {Describe(dropped.Key)}. Mantenha esta, que {why}."};
+            candidates[drop]=dropped with{DoubleOf=kept.Key,Score=Math.Max(1,Math.Round(Math.Min(dropped.Score,kept.Score)-6,1)),
+                Reason=$"Dobra a mesma linha da {Describe(kept.Key)} (uníssono ou oitava). Prefira aquela, que {why}."};
+        }
+    }
+
+    /// <summary>
+    /// The source with 90% or more of the syllables that is clearly ahead of every other melodic line becomes the
+    /// default melody. A fixed-pitch guide note is never the melody: when only a guide follows the words, the voice is
+    /// probably missing from the MIDI and the other candidates say so.
+    /// </summary>
+    private static void MarkLyricsMelody(List<MelodySourceSuggestion> candidates,Features[] features,Dictionary<SourceKey,LyricsCoverage> lyrics,int ppq)
+    {
+        if(lyrics.Count==0)return;
+        var byKey=features.ToDictionary(f=>f.Source.Key);
+        LyricsCoverage Fit(SourceKey key)=>lyrics.GetValueOrDefault(key)??new(key,0,lyrics.Values.First().Syllables);
+        var melodic=candidates.Where(c=>c.Key.Channel!=10 && MelodicLabels.Contains(c.Label)).ToArray();
+        // The sung line has about one attack per syllable. A riff on every eighth also covers the words, but most of
+        // its attacks fall between them (in the user's karaoke files the sung lines stay above 50%, riffs below 40%).
+        var best=melodic.Where(c=>c.DoubleOf is null && Fit(c.Key).Share>=.9 && Fit(c.Key).Precision>=.5 && RealMelody(byKey[c.Key]))
+            .OrderByDescending(c=>Math.Round(Fit(c.Key).Share,2)).ThenByDescending(c=>Fit(c.Key).Precision).ThenBy(c=>Fit(c.Key).Offset).ThenByDescending(c=>c.Score).FirstOrDefault();
+        if(best is not null)
+        {
+            var fit=Fit(best.Key);
+            // The same line doubled in unison or octave is not a rival: either one carries the same melody.
+            bool Doubles(MelodySourceSuggestion c)=>c.DoubleOf==best.Key || SimilarLine(byKey[c.Key],byKey[best.Key],ppq);
+            // Another melodic line just as close to the words (and as sparse between them) leaves the choice to the user.
+            bool rival=melodic.Any(c=>c!=best && !Doubles(c) && Fit(c.Key).Share>=fit.Share-.1 && Fit(c.Key).Precision>=fit.Precision-.15);
+            if(!rival)
+            {
+                int index=candidates.IndexOf(best);
+                string doubled=best.Reason.StartsWith("Dobra",StringComparison.Ordinal)?" "+best.Reason:"";
+                candidates[index]=best with{FollowsLyrics=true,Label="Boa candidata",Score=Math.Max(best.Score,90),
+                    Reason=$"Acompanha a letra: {fit.Hits} de {fit.Syllables} sílabas caem nas notas desta fonte. É a melodia sugerida; solos e introdução podem entrar por trecho."+doubled};
+                for(int other=0;other<candidates.Count;other++)
+                    if(candidates[other].Key!=best.Key && candidates[other].DoubleOf is null && melodic.Contains(candidates[other]) && Doubles(candidates[other]))
+                        candidates[other]=candidates[other] with{DoubleOf=best.Key,Score=Math.Max(1,Math.Round(Math.Min(candidates[other].Score,89)-6,1)),
+                            Reason=$"Dobra a mesma linha da {Describe(best.Key)} (uníssono ou oitava), que fica sugerida por começar junto com as sílabas da letra."};
+                return;
+            }
+        }
+        // The words fall on guide notes only (too few pitches for a sung line): no default melody from the lyrics.
+        var guides=candidates.Where(c=>c.Key.Channel!=10 && byKey.ContainsKey(c.Key) && byKey[c.Key].Notes.Length>0 && Fit(c.Key).Share>=.9 && !RealMelody(byKey[c.Key])).Select(c=>c.Key).ToHashSet();
+        if(guides.Count==0)return;
+        for(int index=0;index<candidates.Count;index++)
+        {
+            var c=candidates[index];
+            if(guides.Contains(c.Key))
+                candidates[index]=c with{LyricsGuide=true,FollowsLyrics=false,Label=MelodicLabels.Contains(c.Label)?"Guia possível":c.Label,Score=Math.Min(c.Score,36),
+                    Reason=$"Acerta {Fit(c.Key).Hits} de {Fit(c.Key).Syllables} sílabas, mas só com notas-guia (poucas alturas, repetidas): não é a voz cantada. "+GuideOnlyMessage};
+            else if(MelodicLabels.Contains(c.Label))
+                candidates[index]=c with{Reason=c.Reason+" "+GuideOnlyMessage+" Sem a voz, a letra entra por versos sob os compassos."};
+        }
     }
 
     private static Features Describe(MidiSource source,MidiNote[] notes,int ppq)
@@ -210,13 +328,26 @@ public static class MelodySourceAdvisor
         return(bestStart,bestEnd);
     }
 
-    private static bool SimilarLine(Features left,Features right)
+    /// <summary>
+    /// The same line played by two sources: at least 90% of the attacks of the shorter one meet an attack of the other
+    /// within ±30 ticks (at 480 per quarter, scaled to the file's resolution), at the same pitch or an octave apart.
+    /// A small delay or an octave doubling is still the same line.
+    /// </summary>
+    private static bool SimilarLine(Features left,Features right,int ppq)
     {
-        if(left.Attacks.Length<12 || right.Attacks.Length!=left.Attacks.Length || left.Overlap>.3 || right.Overlap>.3)return false;
+        if(left.Attacks.Length<12 || right.Attacks.Length<12 || left.Overlap>.3 || right.Overlap>.3)return false;
+        var (shorter,longer)=left.Attacks.Length<=right.Attacks.Length?(left.Attacks,right.Attacks):(right.Attacks,left.Attacks);
+        if(shorter.Length<longer.Length*.85)return false;
+        long tolerance=Math.Max(1,(long)Math.Round(30d*ppq/480));
+        var ticks=longer.Select(a=>a.Tick).ToArray();
         int count=0;
-        for(int index=0;index<left.Attacks.Length;index++)
-            if(left.Attacks[index].Tick==right.Attacks[index].Tick && left.Attacks[index].Pitch==right.Attacks[index].Pitch)count++;
-        return count>=left.Attacks.Length*.9;
+        foreach(var attack in shorter)
+        {
+            int index=Array.BinarySearch(ticks,attack.Tick-tolerance);if(index<0)index=~index;
+            for(;index<ticks.Length && ticks[index]<=attack.Tick+tolerance;index++)
+                if(Math.Abs(longer[index].Pitch-attack.Pitch) is 0 or 12){count++;break;}
+        }
+        return count>=shorter.Length*.9;
     }
 
     private static double Median(IEnumerable<double> values)
