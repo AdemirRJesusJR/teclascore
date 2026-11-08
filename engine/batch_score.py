@@ -370,7 +370,8 @@ def _separate_quantized_attacks(bybeat,grids,choices,origin,end):
         for index,(beat,quarter,nearest) in enumerate(records):
             if beat in affected:
                 div=refined[beat];step=DIV//div;source=quarter*DIV
-                candidates=[beat*DIV+slot*step for slot in range(div+1)
+                # Uma antecipação atribuída a este tempo (fase negativa) também pode ocupar o fim do tempo anterior.
+                candidates=[beat*DIV+slot*step for slot in range(-div if min(bybeat[beat])<0 else 0,div+1)
                     if origin<=beat*DIV+slot*step<end
                     and abs(beat*DIV+slot*step-source)<=step+1e-7]
             else:candidates=[nearest]
@@ -490,8 +491,40 @@ def _readable_stop(start,stop,next_start,end,origin,grids):
         if start<rounded<=limit and rounded!=stop:return rounded,1
     return stop,0
 
+def _followed_program_sources(parsed,config,sources):
+    """Troca de instrumento na pista da melodia: o mesmo (pista, canal) com outro programa continua a fonte.
+
+    Receitas antigas guardam o programa; as notas tocadas depois de uma troca de patch na mesma pista e no mesmo
+    canal (que não pertencem a outra fonte escolhida) seguem a fonte. Retorna (fontes acrescentadas, trocas)."""
+    if config.get('follow_program_changes') is False or config.get('melody_sections'):return [],[]
+    from melody_sections import all_sources
+    claimed={tuple(s.get(k) for k in ('track','channel','program')) for s in all_sources(config)+config.get('solo_sources',[])}
+    extra=[];changes=[]
+    for source in sources:
+        if 'program' not in source or 'track' not in source or 'channel' not in source:continue
+        found={}
+        for note in parsed['notes']:
+            if note['track']!=source['track'] or note['channel']!=source['channel'] or note['program']==source['program']:continue
+            if (note['track'],note['channel'],note['program']) in claimed:continue
+            found[note['program']]=min(found.get(note['program'],note['start']),note['start'])
+        for program,first in sorted(found.items(),key=lambda item:item[1]):
+            added=dict(source,program=program,_followed_from=source['program'])
+            extra.append(added);claimed.add((source['track'],source['channel'],program))
+            changes.append({'track':source['track'],'channel':source['channel'],'from_program':source['program'],
+                            'to_program':program,'first_quarter':first/parsed['ppq']})
+    return extra,changes
+
 def melody_events(parsed,config,origin,end):
-    ppq=parsed['ppq'];sources=config['melody_sources']
+    import melody_rhythm as rhythm
+    ppq=parsed['ppq'];sources=list(config['melody_sources'])
+    followed,program_changes=_followed_program_sources(parsed,config,sources)
+    if followed:
+        # Cada fonte acompanhada fica logo depois da fonte original, com a mesma prioridade relativa.
+        extended=[]
+        for source in sources:
+            extended.append(source)
+            extended.extend(f for f in followed if all(f[k]==source.get(k) for k in ('track','channel')) and f['_followed_from']==source.get('program'))
+        sources=extended
     selected=sorted([n for n in parsed['notes'] if (not config.get('velocity_filter') or n['velocity'] in config['velocity_filter']) and any(source_matches(n,[s]) and s.get('start_quarter',-1)<=n['start']/ppq<s.get('end_quarter',float('inf')) and s.get('min_pitch',0)<=n['pitch']<=s.get('max_pitch',127) for s in sources)],key=lambda n:(n['start'],n['pitch']))
     sections=config.get('melody_sections',[])
     if sections:
@@ -520,48 +553,76 @@ def melody_events(parsed,config,origin,end):
                 added=dict(n,end=min(n['end'],gap[1]),_role='solo')
                 if added['end']>added['start']:selected.append(added);solo_count+=1
         selected.sort(key=lambda n:(n['start'],n['pitch']))
+    # Voz interna da própria pista: ataques graves sob uma nota aguda que continua soando não são melodia.
+    cluster=config.get('onset_cluster_quarters',.04)
+    masked=[]
+    if config.get('mask_inner_voice',True):
+        # Os solos instrumentais acrescentados nas lacunas (acordeom, teclado) têm textura polifônica própria e
+        # foram aprovados assim: a regra vale para as fontes da melodia.
+        solos=[n for n in selected if n.get('_role')=='solo']
+        selected,masked=rhythm.mask_inner_by_source([n for n in selected if n.get('_role')!='solo'],ppq,cluster=cluster)
+        if solos:selected=sorted(selected+solos,key=lambda n:(n['start'],n['pitch']))
     merge_report=None
     if sections or config.get('merge_mode')=='priority' and len(sources)>1:
-        top,merge_report=priority_melody_notes(selected,sources,ppq,config.get('onset_cluster_quarters',.04))
+        top,merge_report=priority_melody_notes(selected,sources,ppq,cluster)
     else:
         # Reviewed profiles and single-source selections retain their exact path.
         groups=[]
         for n in selected:
-            if not groups or n['start']-groups[-1][0]['start']>ppq*config.get('onset_cluster_quarters',.04):groups.append([n])
+            if not groups or n['start']-groups[-1][0]['start']>ppq*cluster:groups.append([n])
             else:groups[-1].append(n)
         top=[max(g,key=lambda n:n['pitch']) for g in groups]
-    bybeat=defaultdict(list)
-    for n in top:bybeat[int(n['start']//ppq)].append(n['start']/ppq%1)
-    grids={};grid_choices={};triplet_beats=[]
-    for beat,phases in bybeat.items():
-        binary=sum(abs(p-round(p*4)/4) for p in phases)
-        ternary=sum(abs(p-round(p*3)/3) for p in phases)
-        has1=any(abs(p-1/3)<.06 for p in phases);has2=any(abs(p-2/3)<.06 for p in phases)
-        if has1 and has2 and ternary+.055<binary:
-            choices=(3,6,12);triplet_beats.append(beat)
-        elif any(abs(p-round(p*8)/8)<.025 and abs(p-round(p*4)/4)>.08 for p in phases):choices=(8,16)
-        else:choices=(4,8,16)
-        grid_choices[beat]=choices
-        grids[beat]=choices[-1]
-        for div in choices:
-            if len({round(p*div) for p in phases})==len(phases):grids[beat]=div;break
+    try:_,meters,tempos=meta(parsed)
+    except Exception:meters,tempos=[{'tick':0,'numerator':4,'denominator':4}],[{'tick':0,'bpm':120}]
+    tempo=rhythm.TempoMap(tempos,ppq);meter_map=rhythm.MeterMap(meters,ppq)
+    # Swing: colcheias longa-curta são escritas retas (a indicação "Swing" vai na partitura).
+    swing=None
+    if config.get('swing','auto')!='off':
+        swing=rhythm.swing_estimate([n['start']/ppq for n in top])
+        if swing:
+            ratio=swing['ratio'];straight=[]
+            for n in top:
+                start=round(rhythm.straighten(n['start']/ppq,ratio)*ppq)
+                stop=max(start+1,round(rhythm.straighten(n['end']/ppq,ratio)*ppq))
+                straight.append(dict(n,start=start,end=stop,_swing_start=n['start']))
+            top=straight
+    # Execução sistematicamente adiantada ou atrasada: a grade é escolhida depois de compensar o deslocamento local.
+    timing=rhythm.TimingOffset([n['start']/ppq for n in top])
+    def shifted(q):return q+timing.at(q)
+    bybeat=defaultdict(list);attack_quarter={}
+    for n in top:
+        beat,phase=rhythm.attribute(shifted(n['start']/ppq),tempo);bybeat[beat].append(phase)
+        attack_quarter[id(n)]=beat+phase
+    grids,grid_choices,pair_starts,triplet_beats,collided=rhythm.choose_grids(bybeat,tempo,meter_map)
     initial_grids=dict(grids);attack_positions={};attack_adjustments=[]
-    try:boundary_refinements=_refine_boundary_grids(bybeat,grids,grid_choices,origin,end)
+    # Ataques de tempos vizinhos que se juntam mesmo na grade mais fina (uma antecipação atribuída ao tempo
+    # seguinte) vão direto para a separação limitada; colisões internas toleradas seguem o caminho antigo.
+    crossing=any(any(p<0 for p in bybeat[b]) for b in collided)
+    try:
+        if crossing:raise NeedsReview('Ataques vizinhos na fronteira do tempo.')
+        boundary_refinements=_refine_boundary_grids(bybeat,grids,grid_choices,origin,end)
     except NeedsReview:
         grids=initial_grids
         attack_positions,boundary_refinements,attack_adjustments=_separate_quantized_attacks(bybeat,grids,grid_choices,origin,end)
     def snap(t):
-        q=t/ppq;beat=math.floor(q);div=grids.get(beat,4)
+        beat,phase=rhythm.attribute(shifted(t/ppq),tempo);div=rhythm.grid_div(grids.get(beat,4))
         # Near a beat boundary use the shared endpoint.
-        return round((beat+round((q-beat)*div)/div)*DIV)
+        return round((beat+round(phase*div)/div)*DIV)
     if not attack_positions:
         nearest=[snap(n['start']) for n in top if origin<=snap(n['start'])<end]
         if len(nearest)-len(set(nearest))>(0 if merge_report is not None else max(3,len(top)*.008)):
             attack_positions,_,attack_adjustments=_separate_quantized_attacks(bybeat,grids,grid_choices,origin,end)
             boundary_refinements=[{'beat_original':beat,'from':initial_grids[beat],'to':div}
-                for beat,div in sorted(grids.items()) if div!=initial_grids[beat]]
+                for beat,div in sorted(grids.items()) if div!=initial_grids.get(beat)]
+    pairs=rhythm.encode_pairs(grids,pair_starts)
+    # A partitura mede os tempos pelo início: o tempo que recebe uma antecipação precisa de grade que a represente.
+    final_positions=sorted({attack_positions.get(attack_quarter[id(n)],snap(n['start'])) for n in top})
+    grids,floor_refined=rhythm.floor_grids(final_positions,grids,DIV)
+    known={item['beat_original'] for item in boundary_refinements}
+    boundary_refinements=boundary_refinements+[{'beat_original':beat,'from':old,'to':new}
+        for beat,old,new in floor_refined if beat not in known]
     onsetmap={};collision=0;collision_quarters=[];section_adjustments=[]
-    positions=[(n,attack_positions.get(n['start']/ppq,snap(n['start']))) for n in top]
+    positions=[(n,attack_positions.get(attack_quarter[id(n)],snap(n['start']))) for n in top]
     # An attack played a hair before a section change snaps onto the next section.
     # The incoming section owns that position: a duplicate attack there is dropped,
     # otherwise the note stays where it is heard, with its real length.
@@ -581,21 +642,44 @@ def melody_events(parsed,config,origin,end):
         if s not in onsetmap or n['velocity']>onsetmap[s]['velocity']:onsetmap[s]=n
     if collision>max(3,len(top)*.008):raise NeedsReview(f'{collision} ataques colidem após quantização; requer revisão rítmica individual.',sorted(set(collision_quarters)))
     events=[];errors=[];onsets=sorted(onsetmap);durations_cleaned=0
+    # Primeiro passo: a duração de cada nota sem o legato e se o legato a preencheria.
+    plans=[]
     for i,s in enumerate(onsets):
         n=onsetmap[s];next_s=onsets[i+1] if i+1<len(onsets) else end-origin
         # A note moved across a section change was clipped at the old section's end; use its MIDI length.
         note_end=n.get('_source_end',n['end']) if n.get('_crossing') else n['end']
+        if n.get('_crossing') and swing:note_end=round(rhythm.straighten(note_end/ppq,swing['ratio'])*ppq)
         stop=snap(note_end)-origin
-        if i+1<len(onsets) and onsetmap[next_s]['start']-note_end<=ppq*.28:stop=next_s
-        beat=int((s+origin)//DIV);minimum=DIV//grids.get(beat,4)
+        fill=False
+        if i+1<len(onsets):
+            gap=onsetmap[next_s]['start']-note_end
+            fill=rhythm.legato_fill(gap,note_end-n['start'],ppq,tempo.quarter_ms(n['start']/ppq))
+        beat=rhythm.attribute((s+origin)/DIV,tempo)[0];minimum=DIV//rhythm.grid_div(grids.get(beat,4))
+        plans.append((s,n,next_s,stop,fill,minimum))
+    # Uma pausa curta que se repete no mesmo ponto das frases repetidas é articulação: fica escrita.
+    def bar_of(position):
+        quarter=(position+origin)/DIV;start,_,_=meter_map.at(quarter)
+        return round(quarter-start,4),round(start,4)
+    candidates=[]
+    for index,(s,n,next_s,stop,fill,minimum) in enumerate(plans):
+        visible=min(next_s,end-origin,max(s+minimum,stop))
+        if fill and visible<next_s and index+1<len(plans):
+            candidates.append((s,n['pitch'],plans[index+1][1]['pitch'],visible-s,next_s-visible))
+    preserved_keys=rhythm.repeated_rest_keys(candidates,bar_of)
+    preserved=set()
+    for s,pitch,following,duration,rest in candidates:
+        offset,_=bar_of(s)
+        if (offset,pitch,following,duration,rest) in preserved_keys:preserved.add(s)
+    for s,n,next_s,stop,fill,minimum in plans:
+        if fill and s not in preserved:stop=next_s
         stop=min(next_s,end-origin,max(s+minimum,stop))
-        if config.get('clean_durations'):
+        if config.get('clean_durations') and s not in preserved:
             stop,cleaned=_readable_stop(s,stop,next_s,end,origin,grids)
             durations_cleaned+=cleaned
         if sections and not n.get('_crossing'):stop=min(stop,n['_section_end']-origin)
         if stop>s:
             event={'start':s,'end':stop,'pitch':n['pitch']}
-            gs=[g['pitch'] for g in grace_notes if abs(n['start']/ppq-g['target_quarter'])<.001]
+            gs=[g['pitch'] for g in grace_notes if abs(n.get('_swing_start',n['start'])/ppq-g['target_quarter'])<.001]
             if gs:event['graces']=gs
             events.append(event)
             if merge_report is not None:
@@ -607,7 +691,15 @@ def melody_events(parsed,config,origin,end):
         errors.append(abs(s+origin-n['start']/ppq*DIV)/DIV)
     if len({n['pitch'] for n in events})<3:raise NeedsReview('Fonte selecionada não contém alturas suficientes para uma melodia identificável.')
     assert sum(len(n.get('graces',[])) for n in events)==len(grace_notes),'Grace target lost during grouping'
-    report={'raw_notes':len(selected),'principal_source_notes':main_count,'grace_notes_preserved':len(grace_notes),'solo_notes_added':solo_count,'simultaneous_notes_reduced':len(selected)-len(top),'melody_attacks':len(events),'quantized_attack_collisions':collision,'triplet_beats_original':triplet_beats,'onset_adjustment_max_quarters':max(errors),'onset_adjustment_mean_quarters':sum(errors)/len(errors)}
+    report={'raw_notes':len(selected)+len(masked),'principal_source_notes':main_count,'grace_notes_preserved':len(grace_notes),'solo_notes_added':solo_count,'simultaneous_notes_reduced':len(selected)-len(top),'melody_attacks':len(events),'quantized_attack_collisions':collision,'triplet_beats_original':triplet_beats,'onset_adjustment_max_quarters':max(errors),'onset_adjustment_mean_quarters':sum(errors)/len(errors)}
+    if masked:
+        report['masked_inner_attacks']=len(masked)
+        report['masked_inner_quarters']=sorted({round(n['start']/ppq,4) for n in masked})[:200]
+    if swing:report['swing']=swing
+    if timing.offsets:report['timing_offset_windows']=len(timing.offsets)
+    if pairs:report['quarter_triplet_groups']=[beat-int(origin//DIV) for beat in pairs]
+    if preserved:report['preserved_rests']=len(preserved)
+    if program_changes:report['program_changes_followed']=program_changes
     if config.get('clean_durations'):report['durations_cleaned']=durations_cleaned
     if boundary_refinements:report['boundary_grid_refinements']=boundary_refinements
     if attack_adjustments:report['attack_position_adjustments']=attack_adjustments
