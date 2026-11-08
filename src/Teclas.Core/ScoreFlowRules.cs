@@ -11,6 +11,11 @@ public sealed record ScoreFlowCheck(string Id, ScoreFlowStep Step, ScoreFlowLeve
     string? Action = null, string? ActionLabel = null, bool Confirmed = false, string? ConfirmLabel = "Confirmar")
 {
     public bool Pending => Level == ScoreFlowLevel.Block || Level == ScoreFlowLevel.Confirm && !Confirmed;
+    /// <summary>
+    /// A confirmation that is a real decision, shown like a block until decided: either the action (one click) or a
+    /// conscious "keep it" that the app confirms again before accepting.
+    /// </summary>
+    public bool Critical { get; init; }
 }
 
 /// <param name="GuideNotes">The track barely changes pitch: a karaoke guide note, not the sung line.</param>
@@ -28,6 +33,9 @@ public sealed record ScoreFlowInput
     public int KeyboardKeys { get; init; } = 61;
     /// <summary>The lyrics-carrying track when it is clearly not among the chosen ones.</summary>
     public string? LyricsTrack { get; init; }
+    /// <summary>Share of the syllables on the chosen melody, and on <see cref="LyricsTrack"/>; null when unknown.</summary>
+    public double? ChosenLyricsShare { get; init; }
+    public double? LyricsTrackShare { get; init; }
     public bool HeardMarked { get; init; }
     public bool HasAnalysis { get; init; }
     public int ReviewPoints { get; init; }
@@ -98,9 +106,17 @@ public static class ScoreFlowRules
                     $"{track.Name} está marcada como melodia, mas {what}.", null, null, Confirmed(id), "É melodia"));
             }
             if (input.LyricsTrack is { Length: > 0 } lyrics)
-                checks.Add(new("melody-lyrics", ScoreFlowStep.Melody, ScoreFlowLevel.Confirm,
-                    $"A letra acompanha {lyrics}, que não está marcada. Sem trocar, a maior parte da letra fica fora da partitura.",
-                    "use-lyrics", "Usar esta pista", Confirmed("melody-lyrics"), "Seguir sem trocar"));
+            {
+                // The chosen melody leaves out more than half of the words while one part carries 90% of them: a decision.
+                bool critical = melody.Length > 0 && input.ChosenLyricsShare is < .5 && input.LyricsTrackShare is >= .9;
+                checks.Add(critical
+                    ? new("melody-lyrics", ScoreFlowStep.Melody, ScoreFlowLevel.Confirm,
+                        $"A melodia escolhida cobre só {input.ChosenLyricsShare:P0} da letra, e {lyrics} acompanha {input.LyricsTrackShare:P0}. Decida: troque com um clique ou mantenha sabendo que a maior parte da letra fica fora da partitura.",
+                        "use-lyrics", "Usar a pista da letra", Confirmed("melody-lyrics"), "Manter sem a letra") { Critical = true }
+                    : new("melody-lyrics", ScoreFlowStep.Melody, ScoreFlowLevel.Confirm,
+                        $"A letra acompanha {lyrics}, que não está marcada. Sem trocar, a maior parte da letra fica fora da partitura.",
+                        "use-lyrics", "Usar a pista da letra", Confirmed("melody-lyrics"), "Seguir sem trocar"));
+            }
             if (melody.Length > 0)
                 checks.Add(new("melody-listen", ScoreFlowStep.Melody, ScoreFlowLevel.Confirm,
                     melody.Length == 1 ? "Ouça a pista marcada antes de seguir." : $"Ouça as {melody.Length} pistas marcadas juntas antes de seguir.",

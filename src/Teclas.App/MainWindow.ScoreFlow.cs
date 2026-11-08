@@ -16,7 +16,7 @@ public sealed record FlowStepView(int Step, int Tab, string Number, string Title
 /// <summary>One line of "Para continuar", with the command that resolves it and, for doubts, a confirmation.</summary>
 public sealed record FlowCheckView(ScoreFlowCheck Check)
 {
-    public string Level => Check.Level == ScoreFlowLevel.Block ? "block" : Check.Pending ? "confirm" : "done";
+    public string Level => Check.Level == ScoreFlowLevel.Block || Check.Critical && Check.Pending ? "block" : Check.Pending ? "confirm" : "done";
     public string Glyph => Level switch { "block" => "", "confirm" => "", _ => "" };
     public string Message => Check.Message;
     public string ActionLabel => Check.ActionLabel ?? "";
@@ -103,7 +103,7 @@ public partial class MainWindow
 
     public IReadOnlyList<FlowCheckView> FlowPanelChecks =>
         ChecksOfCurrentStep()
-            .OrderBy(c => c.Pending ? c.Level == ScoreFlowLevel.Block ? 0 : 1 : 2).Select(c => new FlowCheckView(c)).ToArray();
+            .OrderBy(c => c.Pending ? c.Level == ScoreFlowLevel.Block || c.Critical ? 0 : 1 : 2).Select(c => new FlowCheckView(c)).ToArray();
 
     public Visibility FlowPanelVisibility => GuidedFlow ? Visibility.Visible : Visibility.Collapsed;
     /// <summary>Guided songs generate from the fixed footer; the old generation row and Analisar acordes stay for the free workflow.</summary>
@@ -199,7 +199,7 @@ public partial class MainWindow
             Tracks = row.Tracks.Select(t => new ScoreFlowTrack(TrackLabel(t), t.Hint, t.IsMelody, t.Channel == 10, t.Count, IsGuideTrack(t))).ToArray(),
             MelodyRange = marked.Length == 0 ? null : PlayedMelodyRange(row),
             KeyboardKeys = KeyboardKeys,
-            LyricsTrack = lyrics,
+            LyricsTrack = lyrics, ChosenLyricsShare = ChosenLyricsShare(row), LyricsTrackShare = SuggestedLyricsTrack(row)?.Share,
             HeardMarked = marked.Length > 0 && state.HeardSignature == MelodySignature(row),
             HasAnalysis = analysed,
             ReviewPoints = analysed ? row.ReviewPoints.Count : 0,
@@ -356,9 +356,16 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>Asks once more before keeping a critical choice (test hook: returns whether the user keeps it).</summary>
+    internal Func<ScoreFlowCheck, bool> confirmCriticalFlow = check => MessageBox.Show(
+        check.Message + "\n\nManter a escolha atual mesmo assim?", "Decisão da etapa Melodia", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
+
     private void FlowConfirmClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: FlowCheckView view } && selectedFile is { } row) ConfirmFlow(row, view.Check.Id);
+        if (sender is not FrameworkElement { Tag: FlowCheckView view } || selectedFile is not { } row) return;
+        // A critical doubt is kept only consciously: the confirmation asks again before accepting it.
+        if (view.Check.Critical && !confirmCriticalFlow(view.Check)) return;
+        ConfirmFlow(row, view.Check.Id);
     }
 
     private void FlowUndoClick(object sender, RoutedEventArgs e)

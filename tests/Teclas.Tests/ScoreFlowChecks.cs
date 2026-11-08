@@ -24,6 +24,13 @@ internal static class ScoreFlowChecks
 
         var wide=fixedRange with{MelodyRange=(36,100)};
         check(ScoreFlowRules.Evaluate(wide).Single(c=>c.Id=="melody-keyboard").Level==ScoreFlowLevel.Confirm,"Wider than a 61-key keyboard but within the piano is a confirmation, not a block");
+        // Under half of the lyrics on the chosen melody while another part has 90%: a decision shown like a block.
+        var missing=baroes with{ChosenLyricsShare=.01,LyricsTrackShare=.99};
+        var decision=ScoreFlowRules.Evaluate(missing).Single(c=>c.Id=="melody-lyrics");
+        check(decision.Critical && decision.Pending && decision.Action=="use-lyrics" && decision.ConfirmLabel=="Manter sem a letra" && decision.Message.Contains("Decida"),"A melody that leaves out most of the lyrics needs a decision");
+        check(!ScoreFlowRules.Evaluate(missing with{Confirmed=new HashSet<string>{"melody-lyrics"}}).Single(c=>c.Id=="melody-lyrics").Pending,"Keeping it consciously clears the decision");
+        check(!ScoreFlowRules.Evaluate(baroes with{ChosenLyricsShare=.6,LyricsTrackShare=.99}).Single(c=>c.Id=="melody-lyrics").Critical
+            && !ScoreFlowRules.Evaluate(baroes with{ChosenLyricsShare=.1,LyricsTrackShare=.8}).Single(c=>c.Id=="melody-lyrics").Critical,"Half the lyrics, or no part with 90%, stays an ordinary confirmation");
         check(ScoreFlowRules.Evaluate(baroes with{Tracks=[T("Bateria","Percussão",true,500,true)],MelodyRange=null}).Any(c=>c.Id.StartsWith("melody-percussion") && c.Level==ScoreFlowLevel.Block),"Percussion can never be the melody");
         check(ScoreFlowRules.Evaluate(new ScoreFlowInput{Tracks=[T("Flauta","Boa candidata",false)]}).Any(c=>c.Id=="melody-none" && c.Level==ScoreFlowLevel.Block),"No marked melody is blocked");
         check(!ScoreFlowRules.Evaluate(new ScoreFlowInput{ChordsOnly=true,Tracks=[T("Flauta","Boa candidata",false)]}).Any(c=>c.Step==ScoreFlowStep.Melody),"Só cifras skips the melody checks");
