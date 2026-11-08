@@ -48,6 +48,11 @@ class LyricsTests(unittest.TestCase):
         self.assertEqual(report['dropped'],[])
         self.assertNotIn('@TTitulo',[text for text,_ in lyrics])
 
+    def test_split_digraphs_move_to_the_next_syllable(self):
+        syllables=[{'text':t,'word_start':w} for t,w in (('no',True),('vin',False),('ha',False),('fil',True),('ho',False),('bic',True),('ho',False),('com',True),('ha',True))]
+        engine.fix_split_digraphs(syllables)
+        self.assertEqual([s['text'] for s in syllables],['no','vi','nha','fi','lho','bi','cho','com','ha'])
+
     def test_lyric_events_use_hyphens(self):
         words=['Ma-','ri-','a ','vem ','cá ']*4
         parsed,notes=self.events(words,lyric_type=5)

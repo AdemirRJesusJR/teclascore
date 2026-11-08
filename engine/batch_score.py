@@ -822,9 +822,21 @@ def karaoke_syllables(parsed):
         if breaks:line=True
         if breaks>=2:paragraph=True
     if len(syllables)<16:return []
+    fix_split_digraphs(syllables)
     if lyrics_accents.needs_restoring([s['text'] for s in syllables]):
         restored=lyrics_accents.restore(syllables)
         if restored:syllables[0]['accents_restored']=restored
+    return syllables
+
+def fix_split_digraphs(syllables):
+    """nh, lh and ch are never split in Portuguese: karaoke files often write "vin"+"ha" or "fil"+"ho".
+    Inside one word the consonant moves to the next syllable ("vi"+"nha"); the timing stays the same."""
+    for previous,current in zip(syllables,syllables[1:]):
+        if current['word_start']:continue
+        a,b=previous['text'],current['text']
+        if (len(a)>=2 and a[-1].lower() in 'nlc' and a[-2].isalpha() and len(b)>=2 and b[0].lower()=='h'
+                and b[1].lower() in 'aeiouáéíóúâêôãõ'):
+            previous['text'],current['text']=a[:-1],a[-1]+b
     return syllables
 
 def lyrics_lines(syllables,ppq,origin=0,bars=None,kinds=None,groups=None):
