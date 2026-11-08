@@ -164,3 +164,97 @@ def repair_spacing(final,report,out):
         for pattern in ('pagina-*.png','qa-*.svg'):
             for old in out.glob(pattern):old.unlink()
         core.call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
+
+
+def _rendered_systems(musicxml):
+    """Measure indices of each system as MuseScore laid them out (its MusicXML export marks every new system)."""
+    root=E.parse(musicxml).getroot();part=root.find('part');systems=[]
+    for index,measure in enumerate(part.findall('measure') if part is not None else []):
+        mark=measure.find('print')
+        if not systems or (mark is not None and (mark.get('new-system')=='yes' or mark.get('new-page')=='yes')):systems.append([])
+        systems[-1].append(index)
+    return systems
+
+
+def _lyric_pages(folder):
+    return [core.svg_geometry.analyze_lyrics(path) for path in sorted(folder.glob('qa-*.svg'),key=core.page_order)]
+
+
+def _diagram_problems(folder):
+    pages=[core.analyze_svg(path) for path in sorted(folder.glob('qa-*.svg'),key=core.page_order)]
+    return sum(len(page['overlaps'])+len(page['clipped']) for page in pages)
+
+
+def repair_lyric_collisions(final,report,out,passes=2):
+    """Checks the rendered syllables for overlaps or too little room between neighbours and repairs them in a separate
+    candidate: a crowded measure is widened inside its system (measure stretch); on the second pass a system that is
+    still crowded is split in two. A candidate is kept only when it has fewer collisions and no new diagram problem.
+    The result goes to report['lyric_collisions']."""
+    lyrics=report.get('melody_analysis',{}).get('lyrics')
+    if not isinstance(lyrics,dict) or not (lyrics.get('attached') or lyrics.get('text_lines') or lyrics.get('spoken')):return
+    pages=_lyric_pages(out);before=sum(len(page['collisions']) for page in pages)
+    summary={'before':before,'count':before,'passes':[]}
+    report['lyric_collisions']=summary
+    if not before:return
+    core.progress('Conferindo o espaço entre as sílabas da letra…')
+    diagram_problems=_diagram_problems(out);stretched={}
+    for attempt in range(passes):
+        systems=_rendered_systems(out/'reaberto.musicxml')
+        rows=[(page,row) for page in pages for row in range(page['rows'])]
+        if len(rows)!=len(systems):
+            summary['passes'].append({'pass':attempt,'skipped':'staves_per_system'});break
+        stretch=defaultdict(float);split=set()
+        for number,(page,row) in enumerate(rows):
+            found=[c for c in page['collisions'] if c['row']==row]
+            if not found:continue
+            measures=systems[number];bars=page['barlines'].get(row,[])
+            for collision in found:
+                if len(bars)!=len(measures):split.add(number);continue
+                index=next((k for k,x in enumerate(bars) if collision['x']<=x),len(bars)-1)
+                stretch[measures[index]]+=max(.1,LYRIC_GAP-collision['gap'])
+                if attempt:split.add(number)
+        with zipfile.ZipFile(final) as archive:contents={name:archive.read(name) for name in archive.namelist()}
+        name=next(n for n in contents if n.endswith('.mscx'));root=E.fromstring(contents[name])
+        measures=root.find('Score/Staff').findall('Measure')
+        trial=dict(stretched)
+        for index,amount in stretch.items():
+            trial[index]=round(min(2.,stretched.get(index,1.)*(1.15+min(.6,amount/6))),3)
+            measure=measures[index];element=measure.find('stretch')
+            if element is None:
+                element=E.Element('stretch');eid=measure.find('eid')
+                measure.insert(list(measure).index(eid)+1 if eid is not None else 0,element)
+            element.text=str(trial[index])
+        breaks=0
+        for number in split:
+            group=systems[number]
+            if len(group)<2:continue
+            measure=measures[group[len(group)//2-1]]
+            if measure.find('LayoutBreak') is not None:continue
+            layout=E.Element('LayoutBreak');core.sub(layout,'subtype','line');eid=measure.find('eid')
+            measure.insert(list(measure).index(eid)+1 if eid is not None else 0,layout);breaks+=1
+        if not stretch and not breaks:break
+        contents[name]=E.tostring(root,encoding='utf-8',xml_declaration=True)
+        with tempfile.TemporaryDirectory(prefix='letra-',dir=out) as temporary:
+            folder=Path(temporary);candidate=folder/'score.mscz'
+            with zipfile.ZipFile(folder/'prepared.mscz','w',zipfile.ZIP_DEFLATED) as archive:
+                for item,data in contents.items():archive.writestr(item,data)
+            core.call_musescore(['-o',str(candidate),str(folder/'prepared.mscz')],folder/'ajuste_letra.log')
+            (folder/'render.json').write_text(json.dumps([{'in':str(candidate),'out':[str(folder/'pagina.png'),str(folder/'qa.svg'),str(folder/'reaberto.musicxml')]}]),encoding='utf8')
+            core.call_musescore(['-r','120','-j',str(folder/'render.json')],folder/'render.log',150)
+            verified=_lyric_pages(folder);after=sum(len(page['collisions']) for page in verified)
+            accepted=after<summary['count'] and _diagram_problems(folder)<=diagram_problems
+            summary['passes'].append({'pass':attempt,'stretched_measures':len(stretch),'system_breaks':breaks,'collisions':after,'accepted':accepted})
+            if not accepted:break
+            stretched=trial;summary['count']=after
+            shutil.copyfile(candidate,final)
+            for pattern in ('pagina-*.png','qa-*.svg'):
+                for old in out.glob(pattern):old.unlink()
+                for page in folder.glob(pattern):shutil.copyfile(page,out/page.name)
+            shutil.copyfile(folder/'reaberto.musicxml',out/'reaberto.musicxml')
+        pages=_lyric_pages(out)
+        if not after:break
+    summary['items']=[dict(page=number+1,row=c['row'],type=c['type'],gap=c['gap']) for number,page in enumerate(pages) for c in page['collisions']][:30]
+    if stretched:summary['measure_stretch']={str(index+1):value for index,value in sorted(stretched.items())}
+
+
+LYRIC_GAP=.6  # staff spaces aimed at between neighbouring syllables when a measure is widened
