@@ -67,6 +67,12 @@ internal static class MixChecks
         check(live.SourceStarts[1] == TimeSpan.Zero && Math.Abs(live.SourceStarts[0].TotalSeconds - 1.0) < 1e-6
             && live.SourceEnds.All(end => end > TimeSpan.FromSeconds(3.9)), "live-mix-knows-where-each-source-starts-and-ends");
 
+        check(!live.IsSourceSounding(0, TimeSpan.FromSeconds(0.5)) && live.NextSourceNote(0, TimeSpan.FromSeconds(0.5)) is { } entry
+            && Math.Abs(entry.TotalSeconds - 1.0) < 1e-6, "live-mix-says-when-a-silent-source-comes-in");
+        check(live.IsSourceSounding(0, TimeSpan.FromSeconds(1.5)) && live.IsSourceSounding(1, TimeSpan.FromSeconds(0.5))
+            && live.NextSourceNote(1, TimeSpan.FromSeconds(0.5)) == TimeSpan.FromSeconds(0.5), "live-mix-knows-which-sources-sound-now");
+        check(live.NextSourceNote(0, TimeSpan.FromSeconds(4.1)) is null && !live.IsSourceSounding(0, TimeSpan.FromSeconds(4.1)), "live-mix-knows-a-source-has-finished");
+
         var output = new RecordingMidiOutput();
         using var player = new MidiAuditionPlayer(() => output);
         player.Play(live, TimeSpan.FromSeconds(1.5), [0]);

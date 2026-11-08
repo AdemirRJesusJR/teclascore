@@ -1,3 +1,10 @@
+TECLASCORE 1.5.7 · PISTAS SOANDO NA ESCUTA
+
+1. Em Sobre, confira que a versão é 1.5.7.
+2. Toque uma pista que já soa na introdução e, logo no começo, ligue uma pista que só entra depois (baixo, por exemplo).
+3. O ■ da segunda pista fica esmaecido, a linha mostra "só entra em m:ss" e o player avisa quando ela entra.
+4. Ao chegar nesse ponto, a pista começa a tocar junto e o ■ volta à cor cheia.
+
 TECLASCORE 1.5.6 · PISTAS COMO MIXER
 
 1. Em Sobre, confira que a versão é 1.5.6.

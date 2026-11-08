@@ -1,3 +1,7 @@
+TECLASCORE 1.5.7
+
+Na escuta das pistas, o botão ■ de uma pista ligada fica esmaecido enquanto ela ainda não tem notas naquele ponto da música, e a linha da pista mostra quando ela entra (por exemplo, "só entra em 0:57").
+
 TECLASCORE 1.5.6
 
 Na escuta das pistas, com Somar ligado, cada ▶ acrescenta a pista na hora e cada ■ silencia só aquela pista, sem parar a música. O botão Ouvir marcadas saiu: o botão principal do player das pistas toca juntas as pistas marcadas como melodia.

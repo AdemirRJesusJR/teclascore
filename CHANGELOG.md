@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 1.5.7 — 08/11/2026
+
+Escuta das pistas: dá para ver quais pistas estão soando.
+
+- **Pista ligada, mas ainda em silêncio.** Muitas pistas só entram depois da introdução. Ligar uma delas nesse trecho parecia não funcionar, porque ela ainda não tem notas ali. Agora o botão ■ da pista fica esmaecido enquanto ela está em silêncio, a linha mostra "só entra em 0:57" (ou "já terminou"), e o player avisa quando ela vai entrar. Assim que a pista começa a tocar, o botão volta à cor cheia, junto com as outras.
+
 ## 1.5.6 — 08/11/2026
 
 Escuta das pistas como um mixer.

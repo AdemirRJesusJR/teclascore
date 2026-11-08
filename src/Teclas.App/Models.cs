@@ -155,6 +155,12 @@ public sealed class TrackRow : Observable
 {
     private bool isAuditioning;
     public bool IsAuditioning{get=>isAuditioning;set{if(Set(ref isAuditioning,value)){Notify(nameof(AuditionGlyph));Notify(nameof(AuditionToolTip));}}}
+    private bool isSounding;
+    /// <summary>While auditioning: whether this track has a note sounding at the current point of the song.</summary>
+    public bool IsSounding{get=>isSounding;set=>Set(ref isSounding,value);}
+    private string auditionWait="";
+    /// <summary>While auditioning a silent stretch: " · só entra em 0:57" or " · já terminou".</summary>
+    public string AuditionWait{get=>auditionWait;set=>Set(ref auditionWait,value);}
     public string AuditionGlyph=>IsAuditioning?"■":"▶";
     public string AuditionToolTip=>$"{(IsAuditioning?"Parar":"Ouvir")} pista {Track}, canal {Channel}: {Instrument}";
     private bool melody;

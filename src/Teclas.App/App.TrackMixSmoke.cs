@@ -44,12 +44,12 @@ public partial class App
         try
         {
             string midi = Path.Combine(work, "duas-pistas.mid"), settingsPath = Path.Combine(work, "settings.json");
-            // Track 1: piano on channel 1 from 0 s; track 2: flute on channel 2 from 0.5 s, both lasting several seconds.
+            // Track 1: piano on channel 1 from 0 s to 5 s; track 2: flute on channel 2 from 2.5 s to 4 s (silent at first, like an intro).
             byte[] Track(params byte[][] events) { var body = events.SelectMany(e => e).Concat(new byte[] { 0, 0xff, 0x2f, 0 }).ToArray();
                 return [.. "MTrk"u8, (byte)(body.Length >> 24), (byte)(body.Length >> 16), (byte)(body.Length >> 8), (byte)body.Length, .. body]; }
             File.WriteAllBytes(midi, [.. "MThd"u8, 0, 0, 0, 6, 0, 1, 0, 2, 1, 224,
-                .. Track([0, 0xC0, 0], [0, 0x90, 60, 90], [0x8f, 0x00, 0x80, 60, 0]),
-                .. Track([0, 0xC1, 73], [0x83, 0x60, 0x91, 79, 90], [0x8b, 0x20, 0x81, 79, 0])]);
+                .. Track([0, 0xC0, 0], [0, 0x90, 60, 90], [0xa5, 0x40, 0x80, 60, 0]),
+                .. Track([0, 0xC1, 73], [0x92, 0x60, 0x91, 79, 90], [0x8b, 0x20, 0x81, 79, 0])]);
             new Settings { OutputDirectory = Path.Combine(work, "output") }.Save(settingsPath);
             var outputs = new List<SilentMidiOutput>();
             window = new MainWindow(true, settingsPath, () => { var output = new SilentMidiOutput(); lock (outputs) outputs.Add(output); return output; })
@@ -78,6 +78,10 @@ public partial class App
             Check(ReferenceEquals(player.Sequence, mix) && player.IsPlaying && player.Position >= before && window.CanAuditionTracks, "adding-a-track-never-stops-or-restarts-the-music");
             Check(window.TrackAuditionTitle.StartsWith("2 pistas juntas", StringComparison.Ordinal) && player.Position >= TimeSpan.FromSeconds(0.25),
                 "adding-a-track-keeps-both-and-the-place-in-the-song");
+            Check(piano.IsSounding && !flute.IsSounding && flute.AuditionWait.Contains("só entra em 0:02", StringComparison.Ordinal)
+                && window.TrackAuditionStatus.Contains("só entra em 0:02", StringComparison.Ordinal), "a-silent-track-shows-when-it-comes-in");
+            await Wait(() => flute.IsSounding && flute.AuditionWait.Length == 0 && player.Position >= TimeSpan.FromSeconds(2.5), "flute did not come in at its first note");
+            Check(piano.IsSounding && Audible(flute), "both-tracks-sound-together-once-the-second-comes-in");
             Listen(piano);
             Check(window.IsIdle && !piano.IsAuditioning && flute.IsAuditioning && !Audible(piano) && Audible(flute), "stop-on-one-track-removes-only-it");
             Check(player.IsPlaying && ReferenceEquals(player.Sequence, mix) && window.CanStopTrackAudition, "removing-a-track-keeps-the-others-playing");

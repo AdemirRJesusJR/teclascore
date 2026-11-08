@@ -129,6 +129,7 @@ public partial class MainWindow
 
     private void NotifyTrackAudition()
     {
+        UpdateTrackActivity();
         foreach (string name in new[] { nameof(CanAuditionTracks), nameof(CanPlayMarkedTracks), nameof(CanPauseTrackAudition), nameof(CanStopTrackAudition),
             nameof(CanSeekTrackAudition), nameof(TrackAuditionVisible), nameof(TrackPlayerDockVisibility), nameof(ScoreEditorMinimumHeight), nameof(TrackAuditionTitle), nameof(TrackSelectionHint), nameof(TrackPauseLabel), nameof(TrackPauseGlyph), nameof(CanUseTrackMainButton), nameof(TrackMainButtonToolTip),
             nameof(TrackAuditionPositionSeconds), nameof(TrackAuditionPositionText), nameof(TrackAuditionDurationSeconds), nameof(TrackAuditionDurationText),
@@ -198,11 +199,46 @@ public partial class MainWindow
         catch (Exception error) { TrackAuditionFailed(error.Message); return true; }
         foreach (var track in auditionTracks.Except(tracks)) track.IsAuditioning = false;
         foreach (var track in tracks) track.IsAuditioning = true;
+        var added = tracks.Except(auditionTracks).ToList();
         auditionTracks.Clear(); auditionTracks.AddRange(tracks);
         MarkFlowHeard(row, tracks);
         TrackAuditionStatus = LiveStatus(mix);
+        // A track turned on during a stretch where it has no notes is on, just silent: say when it comes in.
+        if (added.Count == 1 && trackPlayer!.IsPlaying && WaitText(mix, added[0], trackPlayer.Position) is { Length: > 0 } wait)
+            TrackAuditionStatus = $"{added[0].Instrument} (canal {added[0].Channel}) está ligada, mas{wait} — até lá, ouça as outras pistas.";
         NotifyTrackAudition();
         return true;
+    }
+
+    private static int SourceIndex(MidiAuditionSequence mix, TrackRow track)
+    {
+        for (int index = 0; index < mix.MixedSources.Count; index++) if (mix.MixedSources[index] == track.Source.Key) return index;
+        return -1;
+    }
+
+    /// <summary>Empty while the track sounds or comes in within a second; otherwise " só entra em 0:57" or " já terminou".</summary>
+    private static string WaitText(MidiAuditionSequence mix, TrackRow track, TimeSpan position)
+    {
+        int index = SourceIndex(mix, track);
+        if (index < 0 || mix.IsSourceSounding(index, position)) return "";
+        var next = mix.NextSourceNote(index, position);
+        if (next is null) return " já terminou";
+        return next.Value - position > TimeSpan.FromSeconds(1) ? " só entra em " + FormatTime(next.Value.TotalSeconds) : "";
+    }
+
+    /// <summary>Marks which turned-on tracks are sounding right now, and when the silent ones come in.</summary>
+    private void UpdateTrackActivity()
+    {
+        var mix = auditionMidi is { } row && PlayingLiveMix(row) ? liveMix : null;
+        var position = trackPlayer?.Position ?? TimeSpan.Zero;
+        foreach (var track in auditionMidi?.Tracks ?? [])
+        {
+            bool on = track.IsAuditioning && mix is not null;
+            int index = on ? SourceIndex(mix!, track) : -1;
+            track.IsSounding = on && index >= 0 && mix!.IsSourceSounding(index, position);
+            string wait = on ? WaitText(mix!, track, position).Trim() : "";
+            track.AuditionWait = wait.Length == 0 ? "" : " · " + wait;
+        }
     }
 
     private string LiveStatus(MidiAuditionSequence mix) =>
@@ -257,7 +293,7 @@ public partial class MainWindow
     private void StartLiveMix(MidiRow row, MidiAuditionSequence mix, IReadOnlyList<TrackRow> tracks, TimeSpan? moment, bool keepPaused)
     {
         StopLibraryPlayback();
-        foreach (var track in auditionTracks) track.IsAuditioning = false;
+        foreach (var track in auditionTracks) { track.IsAuditioning = false; track.IsSounding = false; track.AuditionWait = ""; }
         auditionTracks.Clear();
         ResetPlayback();
         PlaybackStatus = SelectedScoreExists ? "Ouça esta partitura sem abrir o editor do MuseScore." : "Gere uma partitura para ouvir aqui no aplicativo.";
@@ -315,7 +351,7 @@ public partial class MainWindow
         StopLibraryPlayback();
         if (auditionTrack is null) return;
         trackAuditionTimer.Stop();
-        foreach (var track in auditionTracks) track.IsAuditioning = false;
+        foreach (var track in auditionTracks) { track.IsAuditioning = false; track.IsSounding = false; track.AuditionWait = ""; }
         auditionTracks.Clear(); auditionMidi = null; auditionTrim = TimeSpan.Zero;
         trackPlayer?.Stop(releaseOutput: true);
         TrackAuditionStatus = message;
