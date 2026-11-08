@@ -4,15 +4,19 @@ namespace Teclas.Core;
 
 /// <summary>
 /// How many conversions (Python + MuseScore) run at the same time. "Automático" (0) uses the processor threads and the
-/// free memory: one conversion for every four threads and for every 2 GB free, up to six. A generation was measured
-/// at about 0.6–0.9 GB at its peak (MuseScore rendering the pages plus the Python engine), so 2 GB per conversion keeps
-/// room for the app, the audio and the rest of Windows. The user can choose 1 to 8 in Configurações.
+/// free memory: one conversion for every four threads and for every 2 GB free, up to six. A real generation (2 pages,
+/// analysis + generation, measured on 08/11/2026 sampling the process tree every 50 ms) peaked at about 290 MB:
+/// MuseScore 4.7 rendering and exporting about 250 MB, the Python worker about 70 MB (the analysis alone about 40 MB).
+/// 2 GB per conversion is a wide margin for long songs, MuseScore spikes, the app, the audio and the rest of Windows;
+/// the processor threads are the usual limit. The user can choose 1 to 8 in Configurações.
 /// </summary>
 public static class ConversionParallelism
 {
     public const int Automatic = 0, Maximum = 8, AutomaticCap = 6;
     /// <summary>Free memory reserved per conversion when choosing automatically.</summary>
     public const double GigabytesPerConversion = 2.0;
+    /// <summary>The measured peak of one generation (Python worker + MuseScore), shown in Configurações.</summary>
+    public const string MeasuredPeakText = "0,3 GB";
 
     /// <summary>min(threads / 4, free GB / 2, 6), at least 1.</summary>
     public static int Recommended(int processorCount, double availableMemoryGb)

@@ -31,10 +31,20 @@ public static class EngineErrorKind
         return null;
     }
 
-    /// <summary>Failures that a new attempt without folding the repeats can fix: repeats/jumps and page or diagram layout.</summary>
+    /// <summary>
+    /// Failures that a new attempt without folding the repeats can fix: repeat_jump and the layout causes
+    /// (diagram_layout, instrument_label_layout). diagram_collision, rhythm_collision, instrument_source,
+    /// transpose_range and musescore need a decision instead.
+    /// </summary>
     public static bool IsRepeatOrLayout(string? kind) => kind is { Length: > 0 } value &&
-        (value.StartsWith("repeat", StringComparison.Ordinal) || value.EndsWith("_layout", StringComparison.Ordinal) ||
-         value is "diagram_collision" or "page_overflow" or "system_overflow");
+        (value.StartsWith("repeat", StringComparison.Ordinal) || value.EndsWith("_layout", StringComparison.Ordinal));
+
+    /// <summary>
+    /// Whether "Repetir falhas com ajuste" tries a failure again: repeats and layout causes, and unknown causes (older
+    /// workers, failures before the engine). Other known causes (instrument source, transposition range…) are not
+    /// retried blindly: they are grouped by cause in the report for a decision.
+    /// </summary>
+    public static bool Retryable(string? kind) => string.IsNullOrWhiteSpace(kind) || IsRepeatOrLayout(kind);
 
     /// <summary>A short Portuguese name of the cause, for grouping failures in reports.</summary>
     public static string Describe(string? kind) => kind switch
@@ -47,6 +57,7 @@ public static class EngineErrorKind
         "instrument_source" => "pista de origem inválida",
         "rhythm_collision" => "ritmo para revisar",
         "transpose_range" => "transposição fora da extensão",
+        "musescore" => "falha do MuseScore",
         var other when other.StartsWith("repeat", StringComparison.Ordinal) => "repetições",
         var other => other.Replace('_', ' ')
     };

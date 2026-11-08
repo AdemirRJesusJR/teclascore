@@ -295,6 +295,12 @@ using (var queue = new ConversionQueueService(Path.Combine(work, "queue-concurre
     Check(EngineErrorKind.IsRepeatOrLayout("repeat_jump") && EngineErrorKind.IsRepeatOrLayout("repeat_volta") && EngineErrorKind.IsRepeatOrLayout("diagram_layout") &&
         EngineErrorKind.IsRepeatOrLayout("instrument_label_layout") && !EngineErrorKind.IsRepeatOrLayout("transpose_range") && !EngineErrorKind.IsRepeatOrLayout(null),
         "Only repeats and layout causes are worth a retry without folded repeats");
+    Check(EngineErrorKind.Retryable(null) && EngineErrorKind.Retryable("") && EngineErrorKind.Retryable("repeat_jump") && EngineErrorKind.Retryable("diagram_layout")
+        && EngineErrorKind.Retryable("instrument_label_layout") && !EngineErrorKind.Retryable("diagram_collision") && !EngineErrorKind.Retryable("musescore")
+        && !EngineErrorKind.Retryable("instrument_source") && !EngineErrorKind.Retryable("transpose_range") && !EngineErrorKind.Retryable("rhythm_collision"),
+        "Retry by kind: unknown, repeat and layout causes are retried; other known causes are grouped for a decision");
+    Check(EngineErrorKind.Describe(null) == "causa não informada" && EngineErrorKind.Describe("transpose_range") != EngineErrorKind.Describe("instrument_source"),
+        "Each cause has its own group name");
     await kindQueue.ResumeAsync(failed[0].Id);
     Check(kindQueue.Items[0].ErrorKind is null, "Resuming clears the old cause");
 }
