@@ -7,6 +7,7 @@ void Check(bool ok,string message){if(!ok)throw new Exception(message);passed++;
 MetadataOrganizationChecks.Run(Check);
 ScoreFileNameChecks.Run(Check);
 MelodySourceAdvisorChecks.Run(Check);
+MelodySectionAdvisorChecks.Run(Check);
 BusinessRuleChecks.Run(Check);
 ScoreFlowChecks.Run(Check);
 BatchCommandLineChecks.Run(Check);
