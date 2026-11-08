@@ -353,6 +353,9 @@ def main():
     # readable note lengths (attacks never move). Reviewed profiles keep their approved rhythm text.
     config['diagram_style']=engine.keyboard_svg.diagram_style(req.get('diagramStyle'))
     config['page_footer']=req.get('pageFooter') is not False
+    # Section names (Intro, A, Refrão…) that also start the systems, and key, time and tempo under the title.
+    config['section_marks']=req.get('sectionMarks') is not False
+    config['header_info']=req.get('headerInfo') is not False
     config['clean_durations']=req.get('cleanDurations') is not False and not data.get('reviewedProfile')
     if isinstance(req.get('chordNotation'),dict):config['chord_notation']=req['chordNotation']
     if req.get('secondVoiceSources'):config['second_voice_sources']=manual_melody_config(req['secondVoiceSources'])['melody_sources']

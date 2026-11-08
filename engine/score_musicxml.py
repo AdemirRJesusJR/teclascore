@@ -158,16 +158,71 @@ def emit_marker(measure,kind,text=None):
         core.sub(d,'sound',**({'dacapo':'yes'} if text.startswith('D.C.') else {'dalsegno':'segno'}))
     return at_end
 
-def layout_bars(bars,notes,chords,max_chords=3,first_page_capacity=7):
-    lines=[];current=[];notecount=chordcount=quarters=0
-    for i,b in enumerate(bars):
-        nc=sum(b['start']<=n['start']<b['end'] for n in notes)
-        cc=sum(b['start']<=c['tick']<b['end'] for c in chords)
-        q=(b['end']-b['start'])/core.DIV
-        if current and (len(current)>=6 or quarters+q>12 or notecount+nc>38 or chordcount+cc>max_chords):
-            lines.append(current);current=[];notecount=chordcount=quarters=0
-        current.append(i);notecount+=nc;chordcount+=cc;quarters+=q
-    if current:lines.append(current)
+BARS_PER_SYSTEM=4     # at most a phrase of four bars per system, as in lead sheets
+MAX_CHORDS_PER_SYSTEM=4
+# Staff spaces of music a system holds after the clef and key signature. Calibrated on rendered scores: lines
+# estimated up to this width were never broken again by MuseScore (a broken line loses its restated chord).
+SYSTEM_WIDTH=98
+
+def lyric_width(text):
+    """Estimated width, in staff spaces, of one syllable under the staff (10 pt text plus the gap between words)."""
+    return len(text)*1.2+1.2
+
+def note_width(note):
+    """Estimated width, in staff spaces, of one melody attack: its syllable or the note itself."""
+    lyric=note.get('lyric')
+    return max(2.4,lyric_width(lyric['text'])) if lyric else 2.4
+
+def chord_widths(chords):
+    """(width, leading space) each chord symbol with its keyboard diagram needs, in staff spaces, by tick. Chords
+    closer than three beats get the extra leading space convert_score gives them (none at a system start)."""
+    widths={};previous=None
+    for c in sorted(chords,key=lambda c:c['tick']):
+        name=len(CHORD_TEXT.get(c.get('quality',''),c.get('quality','')))+1
+        distance=(c['tick']-previous['tick'])/core.DIV if previous else 3
+        widths[c['tick']]=(21+max(0,name-2)*.8,max(0,(3-distance)*6))
+        previous=c
+    return widths
+
+def layout_bars(bars,notes,chords,max_chords=MAX_CHORDS_PER_SYSTEM,first_page_capacity=7,section_starts=(),bars_per_system=BARS_PER_SYSTEM):
+    """Systems with as few lines as fit, each section starting a new one; among equally short layouts, lines end on
+    the phrase grid (every two and four bars from the section start). A bar's width is the larger of its notes
+    (with their words) and its chord symbols with keyboard diagrams."""
+    widths=chord_widths(chords);note_widths=[];chord_ticks=[]
+    for b in bars:
+        note_widths.append(sum(note_width(n) for n in notes if b['start']<=n['start']<b['end'])+2)
+        chord_ticks.append(sorted(t for t in widths if b['start']<=t<b['end']))
+    def fits(group):
+        if len(group)>bars_per_system or sum((bars[i]['end']-bars[i]['start'])/core.DIV for i in group)>16:return False
+        if sum(len(chord_ticks[i]) for i in group)>max_chords:return False
+        total=0;first=True
+        for index in group:
+            chord=0
+            if index==group[0] and (not chord_ticks[index] or chord_ticks[index][0]!=bars[index]['start']):
+                chord+=21  # the chord sounding at the system start is written again
+            for tick in chord_ticks[index]:
+                chord+=widths[tick][0]+(0 if first else widths[tick][1]);first=False
+            total+=max(note_widths[index],chord)
+        return total<=SYSTEM_WIDTH
+    def section_lines(first,stop):
+        # Fewest systems first (pages matter most); among layouts with as many systems, the one whose lines end
+        # on the phrase grid (every two and four bars from the section start).
+        best={first:(0.,[])}
+        for end in range(first+1,stop+1):
+            options=[]
+            for size in range(1,bars_per_system+1):
+                start=end-size
+                if start<first or start not in best:continue
+                group=list(range(start,end))
+                if size>1 and not fits(group):continue
+                offset=end-first
+                penalty=0 if end==stop else (.3 if offset%2 else 0)+(.1 if offset%4 else 0)
+                options.append((best[start][0]+1+penalty,best[start][1]+[group]))
+            best[end]=min(options,key=lambda item:item[0])
+        return best[stop][1]
+    edges=sorted({0,len(bars)}|{int(s) for s in section_starts if 0<int(s)<len(bars)})
+    lines=[]
+    for first,stop in zip(edges,edges[1:]):lines.extend(section_lines(first,stop))
     pages=math.ceil((len(lines)+7-first_page_capacity)/7);base,extra=divmod(len(lines),pages)
     counts=[base+(page<extra) for page in range(pages)]
     while counts[0]>first_page_capacity:
@@ -235,6 +290,7 @@ def build_musicxml(parsed,config,harmony,out,title):
         note_report['octave_transposition_semitones']=transpose
         assert all(0<=n['pitch']<=127 for n in notes)
     output_transpose=core.transpose_semitones(config.get('transpose_semitones'))
+    original_key=harmony.get('key') or {'fifths':0,'minor':False}
     if output_transpose and not chords_only:
         for note in notes:
             note['pitch']+=output_transpose
@@ -245,6 +301,8 @@ def build_musicxml(parsed,config,harmony,out,title):
         note_report['output_transposition_semitones']=output_transpose
     # MIDI lyrics (karaoke files) go under the melody unless the user turned them off.
     note_report['lyrics']=core.attach_lyrics(parsed,notes,origin) if not chords_only and config.get('include_lyrics',True) else 0
+    # When each syllable is sung (also the ones without a note of their own): used to find the parts, not reported.
+    sung_ticks=note_report['lyrics'].pop('sung_ticks',None) if isinstance(note_report['lyrics'],dict) else None
     second=[]
     if config.get('second_voice_sources') and not chords_only:
         # Optional second voice (counter-melody or duet) on its own staff, with the same time grid and transposition.
@@ -257,6 +315,13 @@ def build_musicxml(parsed,config,harmony,out,title):
         if any(not 0<=note['pitch']<=127 for note in second):raise core.NeedsReview('A transposição ultrapassa as alturas da segunda voz.',kind='transpose_range')
         note_report['second_voice_notes']=len(second)
     key=harmony.get('key') or {'fifths':0,'minor':False};fifths=key.get('fifths',0);ps=core.spellings(fifths,key.get('minor',False))
+    if config.get('header_info'):
+        # Key, time signature and tempo under the title; the first tempo mark is then hidden in the score
+        # (it still sets the playback tempo). Later tempo changes stay in the music.
+        first_tempo=max([t for t in tempos if round(t['tick']/parsed['ppq']*core.DIV)<=origin] or [tempos[0]],key=lambda t:t['tick'])
+        metadata['info']=core.header_info(key,bars[0]['meter'],first_tempo['bpm'],original_key if output_transpose else None,
+                                          len(harmony.get('key_changes',[])))
+        header=core._header_layout(metadata)
     chords=[]
     for ev in harmony['events']:
         tick=round(ev['tick']/parsed['ppq']*core.DIV)-origin
@@ -307,7 +372,16 @@ def build_musicxml(parsed,config,harmony,out,title):
     # A large custom heading consumes first-page space. Rebalance page breaks,
     # retaining the same systems and events, instead of compressing the music.
     first_capacity=max(3,7-max(0,math.ceil((header['height']-16)/16)))
-    starts,lines=core.layout_bars(bars,notes,chords,config.get('max_chords_per_system',3),first_capacity)
+    sections=[]
+    if config.get('section_marks') and not config.get('line_starts'):
+        # Where the song's parts start (Intro, A, Refrão…), found in its words and repetitions (score_sections.py).
+        import score_sections
+        # Folded repeats move the bars after them; the words on the written notes are used then.
+        sung=sung_ticks if not note_report.get('repeat_folds') and not note_report.get('repeat_jump') else None
+        sections=score_sections.detect_sections(bars,notes+second,chords,core.DIV,sung)
+        if sections:note_report['sections']=sections
+    starts,lines=core.layout_bars(bars,notes,chords,config.get('max_chords_per_system',MAX_CHORDS_PER_SYSTEM),first_capacity,
+                                  [item['bar'] for item in sections])
     if config.get('line_starts'):
         # A chord sheet keeps its own lines: each one starts a system (MuseScore adds page breaks as needed).
         first_bars=sorted({int(index) for index in config['line_starts'] if 0<int(index)<len(bars)})
@@ -410,6 +484,9 @@ def build_musicxml(parsed,config,harmony,out,title):
                 if b.get('repeat_start'):core.sub(bl,'repeat',direction='forward')
             if primary and b.get('segno'):emit_marker(measure,'segno')
             if primary and b.get('coda'):emit_marker(measure,'coda')
+            for section in (sections if primary else []):
+                if section['bar']==i:
+                    d=core.sub(measure,'direction',placement='above');core.sub(core.sub(d,'direction-type'),'rehearsal',section['label'])
             active_tempo=max([t for t in tempos if round(t['tick']/parsed['ppq']*core.DIV)<=origin+b['start']] or [tempos[0]],key=lambda t:t['tick'])
             ts=[dict(active_tempo,tick=origin+b['start'])] if i==0 else []
             ts.extend(t for t in tempos if origin+b['start']<=round(t['tick']/parsed['ppq']*core.DIV)<origin+b['end'] and not (i==0 and round(t['tick']/parsed['ppq']*core.DIV)==origin))

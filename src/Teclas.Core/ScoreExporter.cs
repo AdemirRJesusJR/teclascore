@@ -235,6 +235,9 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
     /// <summary>PDFs end with a page of the song's chords and keyboard diagrams (Configurações › Página de acordes no PDF).</summary>
     public static bool AppendChordPage { get; set; } = true;
 
+    /// <summary>Whether exported PDFs also get the "Mapa da música" page (parts and chords bar by bar).</summary>
+    public static bool AppendMusicMap { get; set; } = true;
+
     /// <summary>
     /// Adds the chord page and the document properties (title, performer). A score MuseScore wrote in a way this
     /// step does not recognize keeps the plain PDF: finishing never makes an export fail.
@@ -245,8 +248,10 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         try
         {
             var (title, artist, chords) = PdfChordPage.ReadScore(scorePath);
+            var map = AppendMusicMap ? PdfChordPage.ReadMap(scorePath) : null;
+            if (map is not null && map.Any(m => m.Chords.Count > 0)) progress?.Report("Acrescentando o mapa da música ao PDF…");
             if (AppendChordPage && chords.Any(c => c.Diagram is not null)) progress?.Report("Acrescentando a página de acordes ao PDF…");
-            PdfChordPage.Append(pdfPath, title, artist, chords, AppendChordPage);
+            PdfChordPage.Append(pdfPath, title, artist, chords, AppendChordPage, map);
         }
         catch (Exception e) when (e is InvalidDataException or IOException or FormatException or System.Xml.XmlException or ArgumentException or OverflowException)
         {

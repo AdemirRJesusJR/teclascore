@@ -1,3 +1,7 @@
+TECLASCORE 1.4.0
+
+As partituras marcam as partes da música (Intro, A, B, Refrão, Instrumental, Final), começam cada parte num sistema novo e têm até 4 compassos por sistema. Abaixo do título aparecem o tom, o compasso e o andamento. As sílabas da letra não ficam mais grudadas. O PDF ganha o Mapa da música, com os acordes compasso por compasso de cada parte. Cada novidade pode ser desligada em Configurações › Aparência das partituras.
+
 TECLASCORE 1.3.0
 
 Diagramas de teclado destacados (ou em cinza para imprimir), rodapé com página X de Y, pautas vazias ocultas, durações mais fáceis de ler e uma página final com os acordes da música no PDF. Cada partitura recebe uma nota da qualidade da escrita. Novidades de automação: pasta acompanhada, geração pela linha de comando (Teclas.Partituras.exe --gerar) e Melodia de uma gravação para MIDIs sem melodia completa.

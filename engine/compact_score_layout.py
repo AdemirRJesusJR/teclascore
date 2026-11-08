@@ -32,7 +32,7 @@ def prepare(contents):
         # Nine staff spaces account for the glyph above its offset and the
         # previous system's below-staff notes/stems; geometry remains the gate.
         top = 0
-        for text in measure.findall('voice/StaffText') + measure.findall('voice/Tempo'):
+        for text in measure.findall('voice/StaffText') + measure.findall('voice/Tempo') + measure.findall('voice/RehearsalMark'):
             offset = text.find('offset')
             if offset is not None:top = max(top, -float(offset.get('y', '0')) + 9)
         for image in measure.findall('voice/Image'):
@@ -82,7 +82,7 @@ def page_quality(path):
     rows = geometry._staff_rows(records);items = []
     music = {'Note','NoteDot','Accidental','Rest','Stem','Beam','Hook','LedgerLine',
              'TieSegment','SlurSegment','Tuplet','Clef','TimeSig','KeySig'}
-    decorations = {'StaffText','Tempo','Text','Harmony','Image','MeasureNumber'}
+    decorations = {'StaffText','Tempo','Text','Harmony','Image','MeasureNumber','RehearsalMark'}
     for record in records:
         element = record['element'];kind = element.get('class', '')
         if not kind or kind == 'Image':continue

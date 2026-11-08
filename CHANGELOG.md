@@ -1,5 +1,21 @@
 # Histórico de versões
 
+## 1.4.0 — 08/11/2026
+
+Partituras organizadas pelas partes da música, com cabeçalho informativo e um mapa da música no PDF.
+
+- **Nomes das partes.** A partitura marca onde começam as partes da música: Intro, A, B, Refrão, Instrumental e Final. As partes vêm só do que o MIDI contém:
+  - trechos sem letra no começo, no meio ou no fim viram Intro, Instrumental ou Final;
+  - um trecho de 4 compassos ou mais que volta depois (mesmos acordes e quase a mesma melodia) ganha a mesma letra (A, B…);
+  - o trecho mais repetido que também repete a letra é o Refrão.
+
+  Música sem partes claras fica sem marcas. A opção "Nomes das partes" pode ser desligada.
+- **Sistemas por frase.** Cada parte começa num sistema novo, e os sistemas têm até 4 compassos, terminando de preferência no fim da frase (de 2 em 2 ou de 4 em 4 compassos). Acordes muito próximos, com seus diagramas, continuam pedindo menos compassos por sistema.
+- **Letra sem palavras grudadas.** As sílabas da letra ganham um espaço mínimo entre si.
+- **Tom, compasso e andamento no cabeçalho.** Abaixo do título aparece, por exemplo, "Tom: Dó menor (Cm) · Compasso 4/4 · ♩ = 86". Numa partitura transposta, o tom original também aparece; se a música muda de tom, o cabeçalho avisa. A marca de andamento do primeiro compasso fica oculta para não repetir a informação, mas a reprodução continua no mesmo andamento.
+- **Mapa da música no PDF.** O PDF ganha uma página com a sequência de acordes compasso por compasso, separada pelas partes (Intro: | Cm | Ab | Eb | Bb |). Compasso que mantém o acorde aparece como %, ritornelos como |: :|, e um trecho repetido seguido aparece uma vez só com 2×, 3×… A página vem antes da página de acordes e pode ser desligada em "Mapa da música no PDF".
+- **Sem texto sobreposto.** Com o rodapé ligado, o número da página sai do alto da página (ele já está no rodapé) e não cobre mais o primeiro diagrama. As marcas das partes ficam acima das cifras sem encostar no cabeçalho.
+
 ## 1.3.0 — 08/11/2026
 
 Partituras mais fáceis de ler e imprimir, conferência automática da escrita e três formas novas de automatizar o trabalho.

@@ -114,6 +114,27 @@ public partial class MainWindow
         set { if (settings.PdfChordPage == value) return; settings.PdfChordPage = value; ScoreExporter.AppendChordPage = value; Notify(); PersistPreferences(); }
     }
 
+    /// <summary>PDFs get a "Mapa da música" page with the chords bar by bar, part by part.</summary>
+    public bool PdfMusicMap
+    {
+        get => settings.PdfMusicMap;
+        set { if (settings.PdfMusicMap == value) return; settings.PdfMusicMap = value; ScoreExporter.AppendMusicMap = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>Section names (Intro, A, Refrão…) in the next generated scores, each starting a system.</summary>
+    public bool SectionMarks
+    {
+        get => settings.SectionMarks;
+        set { if (settings.SectionMarks == value) return; settings.SectionMarks = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>Key, time signature and tempo under the title of the next generated scores.</summary>
+    public bool HeaderInfo
+    {
+        get => settings.HeaderInfo;
+        set { if (settings.HeaderInfo == value) return; settings.HeaderInfo = value; Notify(); PersistPreferences(); }
+    }
+
     /// <summary>Note lengths written for reading (fewer tiny rests); attacks never move.</summary>
     public bool CleanDurations
     {
@@ -127,6 +148,8 @@ public partial class MainWindow
         request["diagramStyle"] = KeyboardDiagramSvg.Normalize(settings.DiagramStyle);
         if (!settings.PageFooter) request["pageFooter"] = false;
         if (!settings.CleanDurations) request["cleanDurations"] = false;
+        if (!settings.SectionMarks) request["sectionMarks"] = false;
+        if (!settings.HeaderInfo) request["headerInfo"] = false;
     }
 
     public bool SimplifiedChords

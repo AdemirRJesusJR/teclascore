@@ -10,6 +10,12 @@ namespace Teclas.Core;
 public sealed record PdfChord(string Label, XElement? Diagram);
 
 /// <summary>
+/// One written bar for the "Mapa da música" page: the part that starts on it (Intro, A, Refrão…), its chord
+/// symbols in order, repeat barlines and the navigation words (Segno, Fine, D.S. al Coda…) written on it.
+/// </summary>
+public sealed record MapMeasure(string? Section, IReadOnlyList<string> Chords, bool StartRepeat, int EndRepeat, string? Marks);
+
+/// <summary>
 /// Finishes a PDF exported by MuseScore: appends "Acordes desta música" (every chord of the score, in order of
 /// first appearance, with its keyboard diagram drawn in vector at a readable size) and fills the document
 /// properties (title, performer, subject). It is a PDF incremental update: the pages MuseScore wrote are kept
@@ -35,11 +41,7 @@ public static class PdfChordPage
         var staff = score.Elements("Staff").FirstOrDefault();
         foreach (var harmony in staff?.Descendants("Harmony") ?? [])
         {
-            var info = harmony.Element("harmonyInfo") ?? harmony;
-            if (!int.TryParse((string?)info.Element("root"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int tpc) || TpcName(tpc) is not { } root) continue;
-            string label = root + ((string?)info.Element("name") ?? "");
-            string? bassValue = (string?)info.Element("bass") ?? (string?)info.Element("base");
-            if (int.TryParse(bassValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int bassTpc) && TpcName(bassTpc) is { } bass) label += "/" + bass;
+            if (ChordLabel(harmony) is not { } label) continue;
             var image = harmony.ElementsAfterSelf().TakeWhile(e => e.Name.LocalName is not ("Harmony" or "Chord" or "Rest")).FirstOrDefault(e => e.Name == "Image");
             string? path = (string?)image?.Element("path");
             if (!seen.Add(label + "|" + path)) continue;
@@ -52,6 +54,105 @@ public static class PdfChordPage
         return (Meta("workTitle"), Meta("artist"), chords);
     }
 
+    /// <summary>The written bars of a native score (first staff), for the "Mapa da música" page.</summary>
+    public static IReadOnlyList<MapMeasure> ReadMap(string scorePath)
+    {
+        using var zip = ZipFile.OpenRead(scorePath);
+        var main = zip.Entries.FirstOrDefault(e => e.FullName.EndsWith(".mscx", StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidDataException("A partitura não contém o arquivo principal do MuseScore.");
+        XDocument document;
+        using (var stream = main.Open()) document = XDocument.Load(stream);
+        var staff = document.Root?.Element("Score")?.Elements("Staff").FirstOrDefault();
+        var measures = new List<MapMeasure>();
+        static string Words(XElement? element) =>
+            string.Concat(element?.DescendantNodes().OfType<XText>().Select(x => x.Value) ?? []).Trim();
+        foreach (var measure in staff?.Elements("Measure") ?? [])
+        {
+            string? section = null; var chords = new List<string>(); var marks = new List<string>();
+            foreach (var element in measure.Elements("voice").Elements())
+            {
+                switch (element.Name.LocalName)
+                {
+                    case "RehearsalMark":
+                        if (Words(element.Element("text")) is { Length: > 0 } text) section ??= text;
+                        break;
+                    case "Harmony":
+                        if (ChordLabel(element) is { } label) chords.Add(label);
+                        break;
+                }
+            }
+            // Markers and jumps are written on the measure itself.
+            foreach (var element in measure.Elements().Concat(measure.Elements("voice").Elements()))
+            {
+                if (element.Name.LocalName == "Marker")
+                    marks.Add(((string?)element.Element("subtype"))?.ToLowerInvariant() switch
+                    {
+                        "segno" or "varsegno" => "Segno", "coda" or "varcoda" or "codab" => "Coda", "fine" => "Fine",
+                        "tocoda" or "tocodasym" => "To Coda", var other => Words(element.Element("text")) is { Length: > 0 } words ? words : other ?? ""
+                    });
+                else if (element.Name.LocalName == "Jump") marks.Add(Words(element.Element("text")));
+            }
+            var end = measure.Element("endRepeat");
+            int endRepeat = end is null ? 0 : int.TryParse((string?)end, NumberStyles.Integer, CultureInfo.InvariantCulture, out int times) && times > 2 ? times : 2;
+            string joined = string.Join(" · ", marks.Where(m => m.Length > 0).Distinct());
+            measures.Add(new(section, chords, measure.Element("startRepeat") is not null, endRepeat, joined.Length > 0 ? joined : null));
+        }
+        return measures;
+    }
+
+    /// <summary>The chord symbol of a Harmony element ("Cm7", "G/B"), or null when it has no root.</summary>
+    private static string? ChordLabel(XElement harmony)
+    {
+        var info = harmony.Element("harmonyInfo") ?? harmony;
+        if (!int.TryParse((string?)info.Element("root"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int tpc) || TpcName(tpc) is not { } root) return null;
+        string label = root + ((string?)info.Element("name") ?? "");
+        string? bassValue = (string?)info.Element("bass") ?? (string?)info.Element("base");
+        if (int.TryParse(bassValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int bassTpc) && TpcName(bassTpc) is { } bass) label += "/" + bass;
+        return label;
+    }
+
+    /// <summary>
+    /// Rows of the map: each part of the song (or the whole song when it has no part names) in lines of up to
+    /// <paramref name="perRow"/> bars. A bar that keeps the chord before it shows "%"; a part made of one passage
+    /// played several times in a row shows the passage once and the number of times. Each row is (part name on
+    /// its first row, bar texts, times the row is played).
+    /// </summary>
+    public static IReadOnlyList<(string Section, string[] Bars, int Times)> MapRows(IReadOnlyList<MapMeasure> measures, int perRow = 4)
+    {
+        var parts = new List<(string Name, List<string> Bars)>();
+        string? active = null;
+        foreach (var measure in measures)
+        {
+            if (parts.Count == 0 || measure.Section is not null) parts.Add((measure.Section ?? "", []));
+            // A bar that only restates the chord still sounding (as at a system start) holds it.
+            var chords = measure.Chords;
+            string text = chords.Count == 0 || chords.Count == 1 && chords[0] == active
+                ? (active is null ? "-" : "%")
+                : string.Join("  ", chords);
+            if (chords.Count > 0) active = chords[^1];
+            if (measure.StartRepeat) text = "|: " + text;
+            if (measure.EndRepeat > 0) text += measure.EndRepeat > 2 ? $" :| {measure.EndRepeat}×" : " :|";
+            if (measure.Marks is not null) text += "  [" + measure.Marks + "]";
+            parts[^1].Bars.Add(text);
+        }
+        var rows = new List<(string, string[], int)>();
+        foreach (var (name, bars) in parts)
+        {
+            int times = 1; var unit = bars;
+            for (int size = 1; size <= Math.Min(8, bars.Count / 2); size++)
+            {
+                if (bars.Count % size != 0 || bars[0] == "%") continue;
+                bool repeats = true;
+                for (int i = 0; i < bars.Count && repeats; i++)
+                    repeats = bars[i] == bars[i % size] && !bars[i].Contains(':') && !bars[i].Contains('[');
+                if (repeats) { unit = bars.Take(size).ToList(); times = bars.Count / size; break; }
+            }
+            for (int start = 0; start < unit.Count; start += perRow)
+                rows.Add((start == 0 ? name : "", unit.Skip(start).Take(perRow).ToArray(), start + perRow >= unit.Count ? times : 1));
+        }
+        return rows;
+    }
+
     /// <summary>Note name of a MuseScore tonal pitch class (14 = C, 12 = Bb, 20 = F#).</summary>
     public static string? TpcName(int tpc)
     {
@@ -61,7 +162,8 @@ public static class PdfChordPage
     }
 
     /// <summary>Appends the chord page(s) and the document properties to <paramref name="pdfPath"/> in place.</summary>
-    public static void Append(string pdfPath, string title, string artist, IReadOnlyList<PdfChord> chords, bool chordPage = true)
+    public static void Append(string pdfPath, string title, string artist, IReadOnlyList<PdfChord> chords, bool chordPage = true,
+        IReadOnlyList<MapMeasure>? map = null)
     {
         byte[] original = File.ReadAllBytes(pdfPath);
         string text = Encoding.Latin1.GetString(original);
@@ -101,11 +203,65 @@ public static class PdfChordPage
         int next = size;
         var newPages = new List<int>();
         var drawable = chords.Where(c => c.Diagram is not null).ToArray();
-        if (chordPage && drawable.Length > 0)
+        var mapRows = map is not null && map.Any(m => m.Chords.Count > 0) ? MapRows(map) : [];
+        int regular = 0, bold = 0;
+        if (mapRows.Count > 0 || chordPage && drawable.Length > 0)
         {
-            int regular = next++, bold = next++;
+            regular = next++; bold = next++;
             Write(regular, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
             Write(bold, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+        }
+        void AddPage(StringBuilder content)
+        {
+            int contentId = next++, pageId = next++;
+            WriteStream(contentId, Encoding.Latin1.GetBytes(content.ToString()));
+            Write(pageId, $"<< /Type /Page /Parent {pagesId} 0 R /MediaBox [{Num(box[0])} {Num(box[1])} {Num(box[2])} {Num(box[3])}] /Resources << /Font << /F1 {regular} 0 R /F2 {bold} 0 R >> /ProcSet [/PDF /Text] >> /Contents {contentId} 0 R >>");
+            newPages.Add(pageId);
+        }
+        if (mapRows.Count > 0)
+        {
+            // "Mapa da música": the part names on the left, then up to four bars per row between barlines.
+            const double marginX = 46, labelWidth = 84, rowHeight = 25, timesWidth = 30;
+            double cellWidth = (width - 2 * marginX - labelWidth - timesWidth) / 4, top = height - 90;
+            int perPage = Math.Max(1, (int)((top - 56) / rowHeight));
+            // Keep a part's rows together on a page when it fits.
+            var pagesOfRows = new List<List<(string Section, string[] Bars, int Times)>> { new() };
+            for (int index = 0; index < mapRows.Count; index++)
+            {
+                int length = 1;
+                while (mapRows[index].Section.Length > 0 && index + length < mapRows.Count && mapRows[index + length].Section.Length == 0) length++;
+                if (pagesOfRows[^1].Count > 0 && (pagesOfRows[^1].Count + 1 > perPage || mapRows[index].Section.Length > 0 && length <= perPage && pagesOfRows[^1].Count + length > perPage))
+                    pagesOfRows.Add(new());
+                pagesOfRows[^1].Add(mapRows[index]);
+            }
+            for (int page = 0; page < pagesOfRows.Count; page++)
+            {
+                var content = new StringBuilder();
+                Text(content, "F2", 15, marginX, height - 40, "Mapa da música" + (title.Length > 0 ? " — " + title : "") + (page > 0 ? " (continuação)" : ""), "0 0 0", center: false);
+                if (artist.Length > 0) Text(content, "F1", 10, marginX, height - 54, artist, "0.3 0.3 0.3", center: false);
+                var slice = pagesOfRows[page];
+                for (int index = 0; index < slice.Count; index++)
+                {
+                    var (section, bars, times) = slice[index];
+                    double y = top - index * rowHeight, x0 = marginX + labelWidth;
+                    if (section.Length > 0)
+                    {
+                        if (index > 0) content.Append($"0.82 0.82 0.82 RG 0.5 w {Num(marginX)} {Num(y + rowHeight - 7)} m {Num(width - marginX)} {Num(y + rowHeight - 7)} l S\n");
+                        Text(content, "F2", FitSize(section, labelWidth - 8, 11, true), marginX, y, section, "0.15 0.3 0.75", center: false);
+                    }
+                    content.Append("0.35 0.35 0.35 RG 0.8 w");
+                    for (int bar = 0; bar <= bars.Length; bar++) content.Append($" {Num(x0 + bar * cellWidth)} {Num(y - 5)} m {Num(x0 + bar * cellWidth)} {Num(y + 13)} l");
+                    content.Append(" S\n");
+                    for (int bar = 0; bar < bars.Length; bar++)
+                        Text(content, "F2", FitSize(bars[bar], cellWidth - 10, 12, true), x0 + bar * cellWidth + 6, y, bars[bar], "0 0 0", center: false);
+                    if (times > 1) Text(content, "F2", 11, x0 + 4 * cellWidth + 8, y, times + "×", "0.15 0.3 0.75", center: false);
+                }
+                Text(content, "F1", 8, width / 2, 28, "% = mesmo acorde do compasso anterior;  |: :| = repetição;  2× = toque a linha duas vezes.", "0.4 0.4 0.4", center: true);
+                AddPage(content);
+            }
+        }
+        if (chordPage && drawable.Length > 0)
+        {
             const int columns = 3;
             double marginX = 46, top = height - 60, cell = (width - 2 * marginX) / columns, rowHeight = 92;
             int rows = Math.Max(1, (int)((top - 50) / rowHeight));
@@ -125,11 +281,11 @@ public static class PdfChordPage
                     DrawDiagram(content, slice[index].Diagram!, x, y - 8);
                 }
                 Text(content, "F1", 8, width / 2, 28, "Diagramas na posição usada na partitura; a tecla mais escura é a nota do grave.", "0.4 0.4 0.4", center: true);
-                int contentId = next++, pageId = next++;
-                WriteStream(contentId, Encoding.Latin1.GetBytes(content.ToString()));
-                Write(pageId, $"<< /Type /Page /Parent {pagesId} 0 R /MediaBox [{Num(box[0])} {Num(box[1])} {Num(box[2])} {Num(box[3])}] /Resources << /Font << /F1 {regular} 0 R /F2 {bold} 0 R >> /ProcSet [/PDF /Text] >> /Contents {contentId} 0 R >>");
-                newPages.Add(pageId);
+                AddPage(content);
             }
+        }
+        if (newPages.Count > 0)
+        {
             string updatedPages = pages.Remove(kids.Index, kids.Length).Insert(kids.Index, "/Kids [" + kids.Groups[1].Value.Trim() + " " + string.Join(" ", newPages.Select(p => p + " 0 R")) + "]");
             var updatedCount = Regex.Match(updatedPages, @"/Count\s+(\d+)");
             updatedPages = updatedPages.Remove(updatedCount.Index, updatedCount.Length).Insert(updatedCount.Index, "/Count " + (int.Parse(count.Groups[1].Value, CultureInfo.InvariantCulture) + newPages.Count));
@@ -240,6 +396,13 @@ public static class PdfChordPage
         content.Append($"BT {color} rg /{font} {Num(size)} Tf {Num(x)} {Num(y)} Td {PdfLatin1(value)} Tj ET\n");
     }
 
+    /// <summary>The font size (at most <paramref name="size"/>) at which the text fits the given width.</summary>
+    private static double FitSize(string value, double width, double size, bool bold)
+    {
+        double natural = TextWidth(value, size, bold);
+        return natural <= width ? size : Math.Max(6, size * width / natural);
+    }
+
     /// <summary>Helvetica advance widths (per 1000 em) for the characters chord names and labels use.</summary>
     private static double TextWidth(string value, double size, bool bold)
     {
@@ -250,6 +413,7 @@ public static class PdfChordPage
             total += c switch
             {
                 ' ' => 278, '#' => 556, '/' => 278, '(' or ')' or '-' => 333, '.' or ',' => 278, ':' => 278,
+                '|' => 260, '%' => 889, '[' or ']' => 278, '×' => 584, '·' => 278,
                 >= '0' and <= '9' => 556,
                 'I' => 278, 'J' => 500, 'L' or 'F' or 'T' or 'Z' => 611, 'M' => 833, 'W' => 944,
                 'C' or 'D' or 'H' or 'N' or 'R' or 'U' => 722, 'G' or 'O' or 'Q' => 778,

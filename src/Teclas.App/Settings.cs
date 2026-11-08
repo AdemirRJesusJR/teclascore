@@ -56,6 +56,12 @@ public sealed class Settings
     public bool PageFooter { get; set; } = true;
     /// <summary>PDFs end with a page of the song's chords and their keyboard diagrams.</summary>
     public bool PdfChordPage { get; set; } = true;
+    /// <summary>PDFs also get a "Mapa da música" page: the chords bar by bar, part by part.</summary>
+    public bool PdfMusicMap { get; set; } = true;
+    /// <summary>New scores name their parts (Intro, A, Refrão…) and start a system at each one.</summary>
+    public bool SectionMarks { get; set; } = true;
+    /// <summary>New scores show key, time signature and tempo in a line under the title.</summary>
+    public bool HeaderInfo { get; set; } = true;
     /// <summary>Note lengths written for reading (attacks unchanged): fewer tiny rests.</summary>
     public bool CleanDurations { get; set; } = true;
     /// <summary>How chord symbols are written (7M or maj7, ø or m7(b5), flats or sharps…).</summary>

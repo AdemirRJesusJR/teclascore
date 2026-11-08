@@ -209,6 +209,33 @@ def chord_diagram_inversion(chord,default=2):
 def _header_lines(text,width):
     return '\n'.join(textwrap.wrap(text,width=width,break_long_words=True,break_on_hyphens=False))
 
+KEY_MAJOR=('Cb','Gb','Db','Ab','Eb','Bb','F','C','G','D','A','E','B','F#','C#')
+KEY_MINOR=('Ab','Eb','Bb','F','C','G','D','A','E','B','F#','C#','G#','D#','A#')
+SOLFEGE={'C':'Dó','D':'Ré','E':'Mi','F':'Fá','G':'Sol','A':'Lá','B':'Si'}
+
+def key_name(key):
+    """'Dó menor (Cm)' for a key signature with its mode; None when the signature is out of range."""
+    fifths=key.get('fifths',0) if isinstance(key,dict) else 0
+    if not -7<=fifths<=7:return None
+    minor=bool(key.get('minor'))
+    letter=(KEY_MINOR if minor else KEY_MAJOR)[fifths+7]
+    spoken=SOLFEGE[letter[0]]+{'#':' sustenido','b':' bemol'}.get(letter[1:],'')
+    return f"{spoken} {'menor' if minor else 'maior'} ({letter}{'m' if minor else ''})"
+
+def header_info(key,meter,bpm,original_key=None,key_changes=0):
+    """The line under the title: key (and the original one when transposed), time signature and tempo."""
+    parts=[]
+    name=key_name(key)
+    if name:
+        text='Tom: '+name
+        if original_key is not None and key_name(original_key) and key_name(original_key)!=name:
+            text+=', original '+key_name(original_key).split(' (')[0]
+        if key_changes:text+=' (muda de tom)'
+        parts.append(text)
+    if meter:parts.append(f'Compasso {meter[0]}/{meter[1]}')
+    if bpm:parts.append(f'♩ = {round(bpm)}')
+    return ' · '.join(parts)
+
 def _header_layout(metadata):
     title=_header_lines(metadata['title'],68)
     subtitle=_header_lines(metadata['subtitle'],100)
@@ -216,6 +243,7 @@ def _header_layout(metadata):
     composer=('\n'.join(_header_lines(label+value,70) for label,value in
         (('Intérprete: ',artist),('Autor: ',metadata['composer'])) if value)
         if artist else _header_lines(metadata['composer'],70))
+    info=_header_lines(metadata.get('info',''),100)
     title_size=20 if len(metadata['title'])<60 else 16
     lines=lambda text:len(text.splitlines()) if text else 0
     # Frame text uses absolute millimetre offsets, unlike staff-attached text.
@@ -224,9 +252,16 @@ def _header_layout(metadata):
     line_mm=lambda text,size:lines(text)*size*25.4/72*1.2
     subtitle_offset=max(10,line_mm(title,title_size)+1)
     content_bottom=subtitle_offset+line_mm(subtitle,10) if subtitle else line_mm(title,title_size)
-    height=max(10,(content_bottom+(line_mm(composer,10)+3 if composer else 1))/1.65)
-    return dict(title=title,subtitle=subtitle,composer=composer,title_size=title_size,
-                subtitle_offset=round(subtitle_offset,3),composer_offset=round(content_bottom+2,3),height=round(height,3))
+    composer_offset=content_bottom+2
+    # The key, time and tempo line sits on the left, level with the performer on the right; below it when
+    # both would not fit on one line.
+    shared=bool(info and composer) and len(info)+max(len(line) for line in composer.splitlines())<=92
+    info_offset=composer_offset if shared or not composer else composer_offset+line_mm(composer,10)
+    extra=max(line_mm(composer,10),info_offset-composer_offset+line_mm(info,10) if info else 0)
+    height=max(10,(content_bottom+(extra+3 if composer or info else 1))/1.65)
+    return dict(title=title,subtitle=subtitle,composer=composer,info=info,title_size=title_size,
+                subtitle_offset=round(subtitle_offset,3),composer_offset=round(composer_offset,3),
+                info_offset=round(info_offset,3),height=round(height,3))
 
 def sub(parent,tag,value=None,**attrs):
     e=E.SubElement(parent,tag,{k.replace('_','-'):str(v) for k,v in attrs.items()})
@@ -628,9 +663,10 @@ def attach_lyrics(parsed,notes,origin):
     syllables=karaoke_syllables(parsed)
     attacks=sorted(notes,key=lambda n:n['start'])
     if not syllables or not attacks:return {'syllables':len(syllables),'attached':0}
-    assigned=[];index=0
+    assigned=[];index=0;sung=[]
     for syllable in syllables:
         tick=round(syllable['tick']/parsed['ppq']*DIV)-origin
+        sung.append(tick)
         while index+1<len(attacks) and attacks[index+1]['start']<=tick+DIV//4:index+=1
         note=attacks[index]
         if abs(note['start']-tick)>DIV:continue
@@ -644,7 +680,8 @@ def attach_lyrics(parsed,notes,origin):
         item['note']['lyric']={'text':item['text'],'syllabic':syllabic}
         # Three or more sung words on one note: the melody line is probably not the sung voice.
         if item['text'].count(' ')>=2:crowded.append(item['note']['start'])
-    result={'syllables':len(syllables),'attached':len(assigned)}
+    # When each word is sung (score ticks), also for words left off the melody: section marks use it.
+    result={'syllables':len(syllables),'attached':len(assigned),'sung_ticks':sung}
     if crowded:result['crowded_notes']=crowded
     if syllables[0].get('accents_restored'):result['accents_restored']=syllables[0]['accents_restored']
     return result
@@ -783,6 +820,21 @@ def _apply_native_header(root,metadata):
         content=text.find('text')
         if content is None:content=sub(text,'text')
         content.clear();content.text=header[role]
+    # Key, time signature and tempo: a left-aligned line in the header (the lyricist text style sits on the left).
+    for text in [t for t in vbox.findall('Text') if t.findtext('style')=='lyricist']:vbox.remove(text)
+    if header.get('info'):
+        if not metadata.get('artist'):
+            for name,value in (('boxAutoSize','0'),('sizeIsSpatiumDependent','1')):
+                element=vbox.find(name)
+                if element is None:element=sub(vbox,name)
+                element.text=value
+        text=sub(vbox,'Text');sub(text,'style','lyricist');sub(text,'size',10);sub(text,'align','left,top')
+        E.SubElement(text,'offset',x='0',y=str(header['info_offset']))
+        content=sub(text,'text');before,_,after=header['info'].partition('♩')
+        content.text=before
+        if _:
+            # The quarter-note glyph of the music font, as in MuseScore's own tempo texts.
+            sym=sub(content,'sym','metNoteQuarterUp');sym.tail=after
     return vbox
 
 MUSIC_FONTS={'Leland':'Leland Text','Bravura':'Bravura Text','Emmentaler':'MScore Text','Petaluma':'Petaluma Text'}
@@ -816,9 +868,13 @@ def convert_score(xml,report,out,filename):
                             maxSystemDistance=str(max(float(style_values['maxSystemDistance']),label_top+7)),
                             staffUpperBorder=str(label_top+1))
     lyrics=report.get('melody_analysis',{}).get('lyrics')
-    if isinstance(lyrics,dict) and lyrics.get('attached'):
+    lyrics_attached=isinstance(lyrics,dict) and bool(lyrics.get('attached'))
+    if lyrics_attached:
         # The words under the staff need room before the next system's chord names and keyboard diagrams.
         style_values.update(minSystemDistance=str(max(float(style_values['minSystemDistance']),17)),maxSystemDistance=str(max(float(style_values['maxSystemDistance']),24)))
+        # A visible gap between neighbouring words: MuseScore's 0.25 sp lets "deixar" and "você" touch.
+        style_values['lyricsMinDistance']='1.2'
+        report['lyrics_min_distance']=1.2
     style_values.update(score_style_values(report.get('score_style')))
     if report.get('staff_per_source'):
         # Instrument staves that only rest in a system are hidden (the first system shows them all).
@@ -833,7 +889,9 @@ def convert_score(xml,report,out,filename):
         # Title and "página X de Y" on every page, so loose printed pages stay in order.
         text='$:workTitle: · página $P de $n'
         style_values.update(showFooter='1',footerFirstPage='1',footerOddEven='0',oddFooterC=text,evenFooterC=text,
-                            oddFooterL='',oddFooterR='',evenFooterL='',evenFooterR='')
+                            oddFooterL='',oddFooterR='',evenFooterL='',evenFooterR='',
+                            # The footer already numbers the pages; the corner number would sit on the first diagrams.
+                            showPageNumber='0',showHeader='0')
         report['page_footer']=text
     for tag,val in style_values.items():
         n=style.find('Style/'+tag)
@@ -916,10 +974,32 @@ def convert_score(xml,report,out,filename):
                         voice.insert(list(voice).index(im)+1,segment)
                         report['image_spacing'][images-1]=round((3-distance)*6,3)
                 previous_chord=c
-            for tempo in voice.findall('Tempo'):
+            header_tempo=bool((report.get('score_metadata') or {}).get('info')) and measure_index==0
+            for number,tempo in enumerate(voice.findall('Tempo')):
                 off=tempo.find('offset')
                 if off is None:off=E.SubElement(tempo,'offset')
                 off.set('x','0');off.set('y',str((-13.5 if labels else -8.5)-lift));sub(tempo,'autoplace',0)
+                if header_tempo and number==0:
+                    # The opening tempo is printed in the header line; the mark stays for playback, hidden.
+                    sub(tempo,'visible',0);report['opening_tempo_hidden']=True
+            for mark in voice.findall('RehearsalMark'):
+                # Section name just above the keyboard diagrams (and above instrument names or a visible
+                # opening tempo). Its height is reserved over the staff, so it never reaches the system above.
+                visible_tempo=measure_index==0 and voice.findall('Tempo') and not header_tempo
+                y=(-12.8 if labels else -7.8)-lift-(2.6 if visible_tempo else 0)
+                off=mark.find('offset')
+                if off is None:off=E.SubElement(mark,'offset')
+                off.set('x','0');off.set('y',str(round(y,3)))
+                for tag,value in (('size','11'),('autoplace','0')):
+                    element=mark.find(tag)
+                    if element is None:element=sub(mark,tag)
+                    element.text=value
+                top=round(-y+3.2+(6 if lyrics_attached else 4),3)
+                spacer=measure.find('vspacerUp')
+                if spacer is None or float(spacer.text or 0)<top:
+                    if spacer is None:spacer=sub(measure,'vspacerUp')
+                    spacer.text=str(top)
+                report.setdefault('section_marks_placed',[]).append({'measure':measure_index+1,'text':''.join(mark.find('text').itertext()) if mark.find('text') is not None else '','y':round(y,3),'reserved':top})
             if labels:
                 for text in voice.findall('StaffText'):
                     for tag,value in (('size','9'),('autoplace','0')):
@@ -945,7 +1025,10 @@ def convert_score(xml,report,out,filename):
     if vbox is not None:
         gap=vbox.find('bottomGap')
         if gap is None:gap=sub(vbox,'bottomGap')
-        gap.text=str((18 if labels else 11)+(vertical[0]['lift_spatium'] if vertical else 0))
+        # Room under the header for the key/tempo line and for a section name on the first bar.
+        first_mark=any(item['bar']==0 for item in report.get('melody_analysis',{}).get('sections',[]))
+        info=bool((report.get('score_metadata') or {}).get('info'))
+        gap.text=str((18 if labels else 11)+(vertical[0]['lift_spatium'] if vertical else 0)+(2 if info else 0)+(4.5 if first_mark else 0))
     contents[name]=E.tostring(root,encoding='utf-8',xml_declaration=True)
     container=E.fromstring(contents['META-INF/container.xml'])
     for path in assets:sub(container.find('rootfiles'),'rootfile',**{'full-path':path})

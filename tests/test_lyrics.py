@@ -43,6 +43,7 @@ class LyricsTests(unittest.TestCase):
         lyrics=[(n['lyric']['text'],n['lyric']['syllabic']) for n in notes if 'lyric' in n]
         self.assertEqual(lyrics[:7],[('Ca','begin'),('sa','middle'),('ri','middle'),('nho','end'),('da','single'),('ro','begin'),('ça','end')])
         self.assertEqual(lyrics[7],('Sol','single'))
+        self.assertEqual(len(report.pop('sung_ticks')),18)
         self.assertEqual(report,{'syllables':18,'attached':18})
         self.assertNotIn('@TTitulo',[text for text,_ in lyrics])
 

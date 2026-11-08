@@ -1,3 +1,13 @@
+TECLASCORE 1.4.0 · PARTES DA MÚSICA, CABEÇALHO E MAPA NO PDF
+
+1. Em Sobre, confira que a versão é 1.4.0.
+2. Gere uma música com letra e refrão: as partes aparecem em caixas acima das cifras (Intro, A, Refrão…), cada uma no começo de um sistema, sem encostar no título, nas cifras ou nos diagramas.
+3. Confira que os sistemas têm até 4 compassos e que as sílabas da letra não ficam grudadas.
+4. Abaixo do título, confira a linha "Tom: … · Compasso … · ♩ = …". Transponha a música e gere de novo: o tom original aparece depois do novo. Toque a partitura: o andamento é o mesmo.
+5. Com o rodapé ligado, confira que o número da página não aparece mais no alto, sobre o primeiro diagrama.
+6. Exporte o PDF: antes da página de acordes vem o Mapa da música, com as partes à esquerda e os acordes compasso por compasso; % repete o acorde anterior e 2× indica um trecho tocado duas vezes.
+7. Em Configurações › Aparência das partituras, desligue "Nomes das partes", "Tom e andamento no cabeçalho" e "Mapa da música no PDF", gere e exporte de novo: as três coisas somem.
+
 TECLASCORE 1.3.0 · APRESENTAÇÃO, CONFERÊNCIA E AUTOMAÇÃO
 
 1. Em Sobre, confira que a versão é 1.3.0.

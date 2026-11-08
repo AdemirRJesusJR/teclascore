@@ -106,6 +106,28 @@ if (args.Length >= 3)
     foreach (System.Text.RegularExpressions.Match entry in System.Text.RegularExpressions.Regex.Matches(finished[lastXref..], @"(\d{10}) 00000 n "))
         Check(System.Text.RegularExpressions.Regex.IsMatch(finished[int.Parse(entry.Groups[1].Value)..], @"^\d+ 0 obj"), "Every new xref offset points at an object");
     Check(finished.Contains("(Acordes desta música - Luz divina) Tj"), "Heading written in WinAnsi");
+    string mapScore = Path.Combine(work, "mapa.mscz");
+    using (var zip = System.IO.Compression.ZipFile.Open(mapScore, System.IO.Compression.ZipArchiveMode.Create))
+    using (var writer = new StreamWriter(zip.CreateEntry("score.mscx").Open()))
+    {
+        string Bar(string content, string extra = "") => $"<Measure>{extra}<voice>{content}<Chord/></voice></Measure>";
+        string Chord(int root, string name = "") => $"<Harmony><harmonyInfo><name>{name}</name><root>{root}</root></harmonyInfo></Harmony>";
+        string Mark(string text) => $"<RehearsalMark><text>{text}</text></RehearsalMark>";
+        writer.Write("<museScore><Score><Staff>" + Bar(Mark("Intro") + Chord(14, "m")) + Bar("") + Bar(Mark("Refrão") + Chord(12)) + Bar(Chord(12) + Chord(14, "m"))
+            + Bar(Chord(12)) + Bar(Chord(12) + Chord(14, "m")) + Bar(Mark("Final") + Chord(16, "7"), "<startRepeat/>") + Bar(Chord(16, "7"), "<endRepeat>3</endRepeat>")
+            + "</Staff></Score></museScore>");
+    }
+    var map = PdfChordPage.ReadMap(mapScore);
+    Check(map.Count == 8 && map[2].Section == "Refrão" && map[6].StartRepeat && map[7].EndRepeat == 3, "Music map reads parts and repeats");
+    var mapRows = PdfChordPage.MapRows(map);
+    Check(mapRows.Count == 3 && mapRows[0].Bars.SequenceEqual(["Cm", "%"]), "Music map shows a held chord as %");
+    Check(mapRows[1].Section == "Refrão" && mapRows[1].Bars.SequenceEqual(["Bb", "Bb  Cm"]) && mapRows[1].Times == 2, "Music map folds a repeated passage");
+    Check(mapRows[2].Bars.SequenceEqual(["|: D7", "% :| 3×"]), "Music map writes repeat barlines");
+    string mapPdf = Path.Combine(work, "mapa.pdf");
+    File.WriteAllText(mapPdf, body.ToString(), System.Text.Encoding.Latin1);
+    PdfChordPage.Append(mapPdf, "Luz divina", "", [], true, map);
+    string withMap = File.ReadAllText(mapPdf, System.Text.Encoding.Latin1);
+    Check(withMap.Contains("(Mapa da música - Luz divina) Tj") && withMap.Contains("(Refrão) Tj") && withMap.Contains("/Count 2"), "Music map page appended to the PDF");
     Check(KeyboardDiagramSvg.ToneNames(0, KeyboardDiagramVoicing.IntervalsOf("m"), "C", false, false)!.Values.Order().SequenceEqual(["C", "Eb", "G"]), "Diagram names follow the chord");
     Check(KeyboardDiagramSvg.MarkedPitches(svg).SequenceEqual(KeyboardDiagramVoicing.Pitches(0, "m", 2)), "Highlighted diagram marks its keys");
 }

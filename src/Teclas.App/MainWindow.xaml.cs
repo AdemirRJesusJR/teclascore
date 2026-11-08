@@ -66,6 +66,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         KeyboardDiagramPreview.CLabel = settings.NoteNames == "solfejo" ? "Dó" : "C";
         KeyboardDiagramPreview.Style = KeyboardDiagramSvg.Normalize(settings.DiagramStyle);
         ScoreExporter.AppendChordPage = settings.PdfChordPage;
+        ScoreExporter.AppendMusicMap = settings.PdfMusicMap;
         Teclas.Core.ChordNotation.Current = ToPreference(settings.ChordNotation);
         InitializeComponent();
         InitializeOperations();
