@@ -15,6 +15,8 @@ import compact_score_layout
 import diagram_lanes
 import keyboard_svg
 import lyrics_accents
+import time
+from contextlib import contextmanager
 
 WORK=Path(__file__).resolve().parent
 BATCH=Path(os.environ.get('PARTITURAS_JOB',str(Path(tempfile.gettempdir())/'TeclasPartituras')));BATCH.mkdir(parents=True,exist_ok=True)
@@ -752,6 +754,41 @@ def keyboard_asset(rootpc,quality,inversion=2,c_label='C',style='classico',flats
     data=E.tostring(svg,encoding='utf-8',xml_declaration=True)
     return md4(data)+'.svg',data,pitches
 
+# Tempos por etapa de uma geração, gravados em validacao.json ('timings') e lidos pelo app
+# (EngineClient) para o registro local de desempenho. Só nomes fixos e números entram aqui.
+TIMINGS={}
+_TIMING_DEPTH={}
+
+def reset_timings():
+    TIMINGS.clear();_TIMING_DEPTH.clear()
+    TIMINGS.update(started=time.perf_counter(),stages={},musescore_calls=[],spacing_passes=0,conversions=0)
+
+@contextmanager
+def timed(stage):
+    """Soma o tempo de uma etapa; chamadas aninhadas da mesma etapa contam uma vez."""
+    if not TIMINGS:reset_timings()
+    depth=_TIMING_DEPTH.get(stage,0);_TIMING_DEPTH[stage]=depth+1;start=time.perf_counter()
+    try:yield
+    finally:
+        _TIMING_DEPTH[stage]=depth
+        if not depth:TIMINGS['stages'][stage]=TIMINGS['stages'].get(stage,0)+time.perf_counter()-start
+
+def count_timing(name,amount=1):
+    if not TIMINGS:reset_timings()
+    TIMINGS[name]=TIMINGS.get(name,0)+amount
+
+def timings_snapshot():
+    """Segundos por etapa (arredondados), cada chamada ao MuseScore com o tipo e os contadores."""
+    if not TIMINGS:return {}
+    stages={name:round(value,3) for name,value in TIMINGS['stages'].items()}
+    stages['total']=round(time.perf_counter()-TIMINGS['started'],3)
+    return {'version':1,'stages':stages,'musescore_calls':[dict(call) for call in TIMINGS['musescore_calls']],
+            'spacing_passes':TIMINGS.get('spacing_passes',0),'conversions':TIMINGS.get('conversions',0)}
+
+_native_analyze_svg=analyze_svg
+def analyze_svg(path):
+    with timed('svg_analysis'):return _native_analyze_svg(path)
+
 def call_musescore(args,log,timeout=90):
     messages={
         'importacao':'Criando a partitura no formato MuseScore…',
@@ -761,9 +798,36 @@ def call_musescore(args,log,timeout=90):
         'ajuste_espacamento':'Aplicando ajustes de espaço entre cifras e diagramas…',
     }
     progress(messages.get(log.stem,'Processando a partitura no MuseScore…'))
-    p=subprocess.run([EXE]+args,capture_output=True,text=True,errors='replace',timeout=timeout)
+    start=time.perf_counter()
+    try:
+        with timed('musescore'):p=subprocess.run([EXE]+args,capture_output=True,text=True,errors='replace',timeout=timeout)
+    finally:
+        if not TIMINGS:reset_timings()
+        TIMINGS['musescore_calls'].append({'kind':log.stem,'seconds':round(time.perf_counter()-start,3)})
     log.write_text(p.stdout+'\n'+p.stderr,encoding='utf8')
-    if p.returncode:raise NeedsReview(f'MuseScore retornou {p.returncode}; veja {log.name}.')
+    if p.returncode:raise NeedsReview(f'MuseScore retornou {p.returncode}; veja {log.name}.',kind='musescore')
+
+def save_and_render(prepared,final,folder,log,extra=()):
+    """Grava o .mscz e o SVG de conferência num único processo do MuseScore (job -j).
+
+    Substitui o par antigo '-o final.mscz' + '-j render.json' (precedente: build_keyboard_diagrams).
+    Conferido em MIDIs reais: o .mscx gravado é idêntico (exceto os <eid> aleatórios), as páginas
+    PNG saem iguais pixel a pixel e a geometria analisada dos qa-*.svg é a mesma (no máximo 0,01
+    unidade SVG de diferença num rótulo de diagrama). PNG e reaberto.musicxml ficam para o fim
+    (render_final_pages), quando o .mscz salvo é reaberto."""
+    for pattern in ('pagina-*.png','qa-*.svg'):
+        for old in folder.glob(pattern):old.unlink()
+    job=folder/(log.stem+'-job.json')
+    job.write_text(json.dumps([{'in':str(prepared),'out':[str(final),str(folder/'qa.svg'),*map(str,extra)]}]),encoding='utf8')
+    call_musescore(['-r','120','-j',str(job)],log,180)
+
+def render_final_pages(final,out):
+    """Reabre o .mscz salvo e gera as páginas PNG e o reaberto.musicxml usados na conferência final."""
+    for old in out.glob('pagina-*.png'):old.unlink()
+    (out/'render.json').write_text(json.dumps([{'in':str(final),'out':[str(out/'pagina.png'),str(out/'reaberto.musicxml')]}]),encoding='utf8')
+    call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
+    if len(list(out.glob('pagina-*.png')))!=len(list(out.glob('qa-*.svg'))):
+        raise NeedsReview('As páginas da partitura reaberta não conferem com as páginas verificadas. Gere novamente a partitura.',kind='musescore')
 
 def page_order(path):return int(path.stem.rsplit('-',1)[-1])
 
@@ -771,7 +835,7 @@ def page_order(path):return int(path.stem.rsplit('-',1)[-1])
 from score_layout import repair_orphan_pages, _compact_diagram_offsets, repair_diagram_lanes, repair_spacing
 
 # Instrument-name layout lives in score_labels.py; re-exported for callers and tests.
-from score_labels import instrument_label_geometry, _instrument_label_lanes, verify_instrument_label_layout, compact_instrument_label_layout
+from score_labels import instrument_label_geometry, _instrument_label_lanes, verify_instrument_label_layout, compact_instrument_label_layout, layout_with_instrument_labels
 
 
 def _apply_native_header(root,metadata):
@@ -1036,16 +1100,16 @@ def convert_score(xml,report,out,filename):
     pre=out/'com_diagramas_preparado.mscz'
     with zipfile.ZipFile(pre,'w',zipfile.ZIP_DEFLATED) as z:
         for name,data in contents.items():z.writestr(name,data)
-    final=out/(filename+'.mscz');call_musescore(['-o',str(final),str(pre)],out/'gravacao.log')
+    final=out/(filename+'.mscz')
     assert out.resolve().is_relative_to(BATCH.resolve())
-    for pattern in ('pagina-*.png','qa-*.svg'):
-        for old in out.glob(pattern):old.unlink()
-    job=[{'in':str(final),'out':[str(out/'pagina.png'),str(out/'qa.svg'),str(out/'reaberto.musicxml')]}]
-    (out/'render.json').write_text(json.dumps(job),encoding='utf8');call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
-    repair_orphan_pages(final,report,out)
-    repair_spacing(final,report,out)
-    verify_instrument_label_layout(final,report,out)
+    (out/'reaberto.musicxml').unlink(missing_ok=True)
+    # Um processo do MuseScore grava a partitura e renderiza os SVG de conferência; o arquivo
+    # salvo é reaberto uma vez só, no fim, para as páginas PNG e o MusicXML de ida e volta.
+    save_and_render(pre,final,out,out/'gravacao.log')
+    # Primeiro os nomes dos instrumentos (só SVG), depois paginação e espaçamento uma vez.
+    layout_with_instrument_labels(final,report,out)
     compact_instrument_label_layout(final,report,out)
+    render_final_pages(final,out)
     progress('Conferindo notas, ritmos e diagramas na partitura salva…')
     with zipfile.ZipFile(final) as z:
         native=E.fromstring(z.read(next(n for n in z.namelist() if n.endswith('.mscx'))))
@@ -1092,27 +1156,35 @@ def convert_score(xml,report,out,filename):
     assert (sorted(allnotes)==sorted(expected) if len(reopened_parts)>1 else allnotes==expected),'Melody changed during MuseScore import'
     if labels:assert reopened_labels==[(label['tick'],label['text']) for label in labels],'Instrument label position changed during MuseScore import'
     assert len(reopened.findall('.//grace'))==report['melody_analysis']['grace_notes_preserved']
-    progress('Preparando as miniaturas e a prévia da partitura…')
     pages=sorted(out.glob('pagina-*.png'),key=page_order);assert pages
-    columns=min(3,len(pages));rows=math.ceil(len(pages)/columns)
-    canvas=Image.new('RGB',(columns*350,rows*525),'#dedede');draw=ImageDraw.Draw(canvas)
-    for i,path in enumerate(pages):
-        im=Image.open(path).convert('RGB');im.thumbnail((330,480));x=10+i%columns*350;y=28+i//columns*525;canvas.paste(im,(x,y));draw.text((x,y-20),str(i+1),fill='black')
-    canvas.save(out/'previa-geral.png')
+    # previa-geral.png vai na pasta de revisão entregue ao usuário; nada no app a lê. A config
+    # pode desligá-la ('overview_preview': false); o padrão mantém a entrega atual.
+    (out/'previa-geral.png').unlink(missing_ok=True)
+    if report.pop('_overview_preview',True):
+        progress('Preparando as miniaturas e a prévia da partitura…')
+        with timed('preview'):
+            columns=min(3,len(pages));rows=math.ceil(len(pages)/columns)
+            canvas=Image.new('RGB',(columns*350,rows*525),'#dedede');draw=ImageDraw.Draw(canvas)
+            for i,path in enumerate(pages):
+                im=Image.open(path).convert('RGB');im.thumbnail((330,480));x=10+i%columns*350;y=28+i//columns*525;canvas.paste(im,(x,y));draw.text((x,y-20),str(i+1),fill='black')
+            canvas.save(out/'previa-geral.png')
     report.update(final_path=str(final),images=images,diagram_assets=asset_manifest,pages=len(pages),native_reopened=True,melody_attacks_verified=len(allnotes),final_sha256=hashlib.sha256(final.read_bytes()).hexdigest())
     import score_quality
     report['quality']=score_quality.evaluate(report)
     return final
 
-def prepare(config):
+def prepare(config,parsed=None):
+    """``parsed`` é o MIDI que o worker já leu e conferiu pelo hash; sem ele, o arquivo é lido aqui."""
+    if parsed is None:reset_timings()
     title=default_score_title(config['filename'])
     score_metadata(config,title);diagram_inversion(config.get('diagram_inversion'))
     index=config['index'];stem=f'{index+1:03d} - '+re.sub(r'[<>:"/\\|?*]','',title)[:83].rstrip(' .')
     out=BATCH/f'{index+1:03d}';out.mkdir(exist_ok=True)
-    progress('Lendo as notas da pista selecionada…')
-    parsed=parse_midi(config['source_path'])
+    if parsed is None:
+        progress('Lendo as notas da pista selecionada…')
+        with timed('midi_read'):parsed=parse_midi(config['source_path'])
     progress('Preparando a tonalidade e os acordes da partitura…')
-    harmony=analyze_harmony(parsed,config['melody_sources'])
+    with timed('analysis'):harmony=analyze_harmony(parsed,config['melody_sources'])
     for overridefile in WORK.glob('batch_harmony_overrides*.json'):
         entries=json.loads(overridefile.read_text(encoding='utf8'))
         if isinstance(entries,dict):
@@ -1143,8 +1215,10 @@ def prepare(config):
         harmony['review_required']=not override.get('review_complete',False)
     (out/'harmonia_fonte.json').write_text(json.dumps(harmony,ensure_ascii=False,indent=2),encoding='utf8')
     def build_and_convert(active):
-        xml,report=build_musicxml(parsed,active,copy.deepcopy(harmony),out,title)
+        count_timing('conversions')
+        with timed('musicxml'):xml,report=build_musicxml(parsed,active,copy.deepcopy(harmony),out,title)
         report['triage']=active
+        report['_overview_preview']=active.get('overview_preview') is not False
         suffix='posicoes personalizadas' if report['custom_diagram_inversions'] else ('posicao fundamental','1a inversao','2a inversao')[report['diagram_inversion']]
         return convert_score(xml,report,out,stem+' - cifras '+suffix),report
     try:final,report=build_and_convert(config)
@@ -1156,8 +1230,10 @@ def prepare(config):
         final,report=build_and_convert(dict(config,staff_per_source=True))
         report['staff_per_source']['reason']=str(error)
     progress('Salvando o resultado da conferência musical e visual…')
+    report['timings']=timings_snapshot()
     (out/'validacao.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
-    return {'index':index,'filename':config['filename'],'status':'generated_pending_visual_review','path':str(final),'preview':str(out/'previa-geral.png'),'pages':report['pages'],'measures':report['measures'],'notes':report['melody_attacks_verified'],'harmony_warnings':harmony.get('warnings',[])}
+    preview=out/'previa-geral.png'
+    return {'index':index,'filename':config['filename'],'status':'generated_pending_visual_review','path':str(final),'preview':str(preview) if preview.exists() else None,'pages':report['pages'],'measures':report['measures'],'notes':report['melody_attacks_verified'],'harmony_warnings':harmony.get('warnings',[])}
 
 if __name__=='__main__':
     import sys

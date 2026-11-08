@@ -90,17 +90,16 @@ class DiagramLaneTests(unittest.TestCase):
             (out/'qa-1.svg').write_bytes(b'old');(out/'pagina-1.png').write_bytes(b'old')
             snapshot={p.name:p.read_bytes() for p in out.iterdir()}
             def render(args,log,timeout=90):
-                if args[0]=='-o':
-                    shutil.copyfile(args[2],args[1])
-                    if corrupt:
-                        with zipfile.ZipFile(args[1]) as z:files={n:z.read(n) for n in z.namelist()}
-                        files['Pictures/keys.svg']=b'corrupt'
-                        with zipfile.ZipFile(args[1],'w') as z:
-                            for name,data in files.items():z.writestr(name,data)
-                else:
-                    job=json.loads(Path(args[-1]).read_text())[0];folder=Path(job['in']).parent
-                    (folder/'qa-1.svg').write_bytes(b'new');(folder/'pagina-1.png').write_bytes(b'new')
-                    (folder/'reaberto.musicxml').write_bytes(b'music')
+                # Um job grava a candidata e renderiza os SVG de conferência.
+                job=json.loads(Path(args[-1]).read_text())[0];folder=Path(job['in']).parent
+                self.assertEqual([Path(path).name for path in job['out']],['score.mscz','qa.svg'])
+                shutil.copyfile(job['in'],job['out'][0])
+                if corrupt:
+                    with zipfile.ZipFile(job['out'][0]) as z:files={n:z.read(n) for n in z.namelist()}
+                    files['Pictures/keys.svg']=b'corrupt'
+                    with zipfile.ZipFile(job['out'][0],'w') as z:
+                        for name,data in files.items():z.writestr(name,data)
+                (folder/'qa-1.svg').write_bytes(b'new')
             clean=crowded();clean['overlaps']=[];clean['svg_path']='qa-1.svg'
             report={'chord_symbols':8}
             with patch.object(engine,'call_musescore',side_effect=render),patch.object(engine,'analyze_svg',return_value=clean), \
@@ -111,7 +110,8 @@ class DiagramLaneTests(unittest.TestCase):
                 self.assertNotIn('diagram_lane_layout',report)
             else:
                 self.assertTrue(accepted);self.assertTrue(report['geometric_layout_qa']['passed'])
-                self.assertEqual((out/'pagina-1.png').read_bytes(),b'new')
+                self.assertEqual((out/'qa-1.svg').read_bytes(),b'new')
+                self.assertFalse((out/'pagina-1.png').exists())
                 self.assertFalse(any(p.is_dir() for p in out.iterdir()))
 
     def test_native_candidate_is_published_after_validation(self):self.run_candidate()

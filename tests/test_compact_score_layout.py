@@ -1,7 +1,7 @@
 """A compact candidate is optional; musical or geometric uncertainty keeps fallback."""
 from pathlib import Path
 from unittest.mock import patch
-import copy, io, os, sys, tempfile, unittest, zipfile
+import copy, io, json, os, sys, tempfile, unittest, zipfile
 from contextlib import redirect_stdout
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'engine'))
@@ -85,20 +85,20 @@ class CompactLayoutTests(unittest.TestCase):
                 (out/f'pagina-{i}.png').write_bytes(b'old png')
             (out/'reaberto.musicxml').write_bytes(b'<score-partwise><part><measure number="1"/></part></score-partwise>')
             baseline={path.name:path.read_bytes() for path in out.iterdir() if path.is_file()}
-            report={'instrument_label_lanes':{},'instrument_labels':[{}],'chord_symbols':1,
+            report={'instrument_label_lanes':{},'instrument_labels':[{}],'chord_symbols':1,'measures':1,
                     'instrument_label_layout_qa':{'passed':True},'geometric_layout_qa':{'passed':True}}
             report['instrument_label_lanes']={'count':2}
             def fake_musescore(args,log,timeout=90):
                 if failure=='render':raise engine.NeedsReview('renderer unavailable')
-                if '-o' in args:Path(args[1]).write_bytes(Path(args[2]).read_bytes())
-                else:
-                    folder=log.parent
-                    for i in range(1,candidate_pages+1):
-                        (folder/f'qa-{i}.svg').write_bytes(b'new svg')
-                        (folder/f'pagina-{i}.png').write_bytes(b'new png')
-                    reopened=b'<score-partwise><part><measure number="1"/></part></score-partwise>'
-                    if failure=='incomplete_reopen':reopened=b'<score-partwise><part/></score-partwise>'
-                    (folder/'reaberto.musicxml').write_bytes(reopened)
+                # Um job grava a candidata e renderiza os SVG e o MusicXML (sem páginas PNG).
+                job=json.loads(Path(args[-1]).read_text(encoding='utf8'))[0];folder=log.parent
+                self.assertEqual([Path(path).name for path in job['out']],['compacta.mscz','qa.svg','reaberto.musicxml'])
+                Path(job['out'][0]).write_bytes(Path(job['in']).read_bytes())
+                for i in range(1,candidate_pages+1):
+                    (folder/f'qa-{i}.svg').write_bytes(b'new svg')
+                reopened=b'<score-partwise><part><measure number="1"/></part></score-partwise>'
+                if failure=='incomplete_reopen':reopened=b'<score-partwise><part/></score-partwise>'
+                (folder/'reaberto.musicxml').write_bytes(reopened)
             label=lambda path:dict(path=str(path),labels=[{}] if path.name=='qa-1.svg' else [],overlaps=[],clipped=[])
             diagram=lambda path:dict(svg_path=str(path),diagrams=[{}] if path.name=='qa-1.svg' else [],overlaps=[],clipped=[],warnings=[])
             ink=lambda path:dict(path=str(path),passed=not problem,overlaps=[{}] if problem else [],clipped=[])
@@ -113,9 +113,10 @@ class CompactLayoutTests(unittest.TestCase):
             actual={path.name:path.read_bytes() for path in out.iterdir() if path.is_file()}
             if not report['compact_layout']['applied']:self.assertEqual(actual,baseline)
             else:
-                self.assertNotIn('pagina-3.png',actual)
+                # As páginas PNG antigas saem; render_final_pages reabre a partitura publicada.
+                self.assertFalse(any(name.startswith('pagina-') for name in actual))
                 self.assertNotIn('qa-3.svg',actual)
-                self.assertEqual(actual['pagina-1.png'],b'new png')
+                self.assertEqual(actual['qa-1.svg'],b'new svg')
                 self.assertEqual(report['instrument_label_layout_qa']['pages'],2)
             return report['compact_layout']
 

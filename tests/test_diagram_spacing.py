@@ -50,10 +50,12 @@ class DiagramSpacingTests(unittest.TestCase):
             bars=[dict(start=0, end=engine.DIV)], image_spacing=[0.0], end_spacing={})
 
     def fake_musescore(self, args, log, timeout=90):
-        if args[0] == '-o':
-            shutil.copyfile(args[2], args[1])
-        else:
-            (self.out / 'qa-1.svg').touch()
+        # Cada passe é um único job: grava a partitura e renderiza o SVG de conferência.
+        self.assertEqual(args[:3], ['-r', '120', '-j'])
+        job = json.loads(Path(args[3]).read_text(encoding='utf8'))[0]
+        self.assertEqual(job['out'], [str(self.final), str(self.out / 'qa.svg')])
+        shutil.copyfile(job['in'], job['out'][0])
+        (self.out / 'qa-1.svg').touch()
 
     def repair(self, geometry):
         # Fixed observations simulate a renderer that cannot resolve the defect.
