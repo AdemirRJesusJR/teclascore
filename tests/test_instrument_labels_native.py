@@ -117,13 +117,23 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         notes=[note(i,60+i%3,first if i%2==0 else other) for i in range(24)]
         out=self.base/'fallback';out.mkdir(parents=True,exist_ok=True);midi=out/'source.mid';write_midi(midi,notes)
         config=worker.manual_melody_config([first,other])
-        config.update(index=900,filename='fallback.mid',source_path=str(midi),status='ready')
+        config.update(index=900,filename='fallback.mid',source_path=str(midi),status='ready',overview_preview=False)
         with patch.object(engine,'BATCH',self.base),patch.object(engine,'analyze_harmony',lambda parsed,sources:harmony()),redirect_stdout(io.StringIO()):
             result=engine.prepare(config)
         report=json.loads((self.base/'901/validacao.json').read_text(encoding='utf8'))
         self.assertEqual(report['staff_per_source']['staves'],2)
         self.assertIn('trocas de instrumento',report['staff_per_source']['reason'])
         self.assertTrue(Path(result['path']).is_file())
+        # Tempos por etapa das duas conversões; a prévia geral opcional não foi montada.
+        timings=report['timings']
+        self.assertEqual(timings['conversions'],2)
+        kinds=[call['kind'] for call in timings['musescore_calls']]
+        self.assertEqual(kinds.count('importacao'),2)
+        self.assertEqual(kinds[-1],'render')
+        self.assertEqual(kinds.count('render'),1)
+        self.assertTrue({'midi_read','analysis','musicxml','musescore','svg_analysis','total'}<=set(timings['stages']))
+        self.assertNotIn('preview',timings['stages'])
+        self.assertIsNone(result['preview']);self.assertFalse((self.base/'901/previa-geral.png').exists())
 
     def test_crowded_alternation_reserves_lanes_without_missing_instruments(self):
         other=dict(B,program=24)
