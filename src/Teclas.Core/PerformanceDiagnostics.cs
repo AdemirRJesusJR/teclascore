@@ -19,13 +19,21 @@ public enum PerformanceOperation
 public enum PerformancePhase { Total, Process, Conversion }
 public enum PerformanceProcessKind { App, Worker, MuseScore }
 public enum PerformanceOutcome { Success, Failure, Cancelled, Timeout }
-public enum PerformanceCount { Items, Notes, Chords, Pages, Bytes }
+public enum PerformanceCount { Items, Notes, Chords, Pages, Bytes, MuseScoreCalls, LayoutPasses, Conversions }
+// Etapas da geração medidas pelo motor (validacao.json, campo "timings"); vocabulário fixo, em segundos.
+public enum PerformanceStage
+{
+    MidiRead, Analysis, MusicXml, MuseScore, SvgAnalysis, Preview, EngineTotal,
+    MuseScoreImport, MuseScoreSave, MuseScorePagination, MuseScoreSpacing, MuseScoreLabels,
+    MuseScoreDiagramLanes, MuseScoreCompact, MuseScoreRender, MuseScoreOther
+}
 
 public sealed record PerformanceRecord(
     DateTimeOffset StartedUtc, PerformanceOperation Operation, PerformancePhase Phase,
     PerformanceProcessKind ProcessKind, PerformanceOutcome Outcome, double DurationMilliseconds,
     double? CpuMilliseconds, long? PeakWorkingSetBytes, int ResourceSamples,
-    IReadOnlyDictionary<PerformanceCount, long> Counts);
+    IReadOnlyDictionary<PerformanceCount, long> Counts,
+    IReadOnlyDictionary<PerformanceStage, double>? StageSeconds = null);
 
 public sealed record PerformanceReport(int SchemaVersion, DateTimeOffset GeneratedUtc,
     IReadOnlyList<PerformanceRecord> Records, int UnreadableFiles, bool StorageAvailable)
@@ -166,7 +174,11 @@ public sealed class LocalPerformanceRecorder
         (record.CpuMilliseconds is null || double.IsFinite(record.CpuMilliseconds.Value) && record.CpuMilliseconds is >= 0 and <= 1e12) &&
         (record.PeakWorkingSetBytes is null or >= 0 and <= 1099511627776) && record.ResourceSamples is >= 0 and <= 10000000 &&
         record.Counts is not null && record.Counts.Count <= Enum.GetValues<PerformanceCount>().Length &&
-        record.Counts.All(pair => Enum.IsDefined(pair.Key) && pair.Value is >= 0 and <= 1000000000000);
+        record.Counts.All(pair => Enum.IsDefined(pair.Key) && pair.Value is >= 0 and <= 1000000000000) &&
+        (record.StageSeconds is null || record.StageSeconds.Count <= Enum.GetValues<PerformanceStage>().Length &&
+            record.StageSeconds.All(pair => Enum.IsDefined(pair.Key) && ValidSeconds(pair.Value)));
+
+    internal static bool ValidSeconds(double value) => double.IsFinite(value) && value is >= 0 and <= 604800;
 
     private static void AtomicWrite(string path, byte[] data)
     {
@@ -196,6 +208,7 @@ public sealed class PerformanceMeasurement : IDisposable
     private readonly Stopwatch watch = Stopwatch.StartNew();
     private readonly object gate = new();
     private readonly Dictionary<PerformanceCount, long> counts = [];
+    private readonly Dictionary<PerformanceStage, double> stages = [];
     private Process? process;
     private bool ownsProcess, disposed;
     private Timer? sampler;
@@ -281,6 +294,18 @@ public sealed class PerformanceMeasurement : IDisposable
         lock (gate) { if (!disposed) counts[count] = value; }
     }
 
+    /// <summary>Seconds of one engine stage; repeated calls for the same stage add up.</summary>
+    public void AddStage(PerformanceStage stage, double seconds)
+    {
+        if (recorder is null || !Enum.IsDefined(stage) || !LocalPerformanceRecorder.ValidSeconds(seconds)) return;
+        lock (gate)
+        {
+            if (disposed) return;
+            double total = stages.GetValueOrDefault(stage) + seconds;
+            if (LocalPerformanceRecorder.ValidSeconds(total)) stages[stage] = total;
+        }
+    }
+
     public void Dispose()
     {
         if (recorder is null) return;
@@ -293,7 +318,8 @@ public sealed class PerformanceMeasurement : IDisposable
             if (ownsProcess) process?.Dispose();
             record = new(startedUtc, operation, phase, processKind, outcome, watch.Elapsed.TotalMilliseconds,
                 cpuAvailable ? Math.Max(0, cpuLast - cpuBaseline) : null, peakWorkingSet, samples,
-                new Dictionary<PerformanceCount, long>(counts));
+                new Dictionary<PerformanceCount, long>(counts),
+                stages.Count == 0 ? null : new Dictionary<PerformanceStage, double>(stages));
         }
         recorder.Append(record, generation);
     }

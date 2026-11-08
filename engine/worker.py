@@ -81,6 +81,19 @@ def write_queue_receipt(req,workspace,result,source_sha256):
         os.replace(temporary,path)
     finally:
         if temporary.exists():temporary.unlink()
+# A mensagem de erro leva o tipo da falha em ``errorKind`` (o ``kind`` da própria mensagem é o
+# tipo do protocolo, 'error'); é o mesmo valor gravado como ``kind`` no diagnóstico. Valores
+# (``null`` para pedido inválido ou falha inesperada):
+#   rhythm_collision        ataques que não podem ser escritos separados, ou fonte de melodia
+#                           sem notas suficientes (o padrão de NeedsReview);
+#   diagram_collision       diagramas próximos demais já na etapa do MusicXML;
+#   diagram_layout          diagramas que não cabem nas margens da página renderizada;
+#   instrument_label_layout nomes de instrumentos que não cabem sem sobreposição;
+#   instrument_source       fontes de melodia que não podem ser nomeadas por instrumento;
+#   repeat_jump             sinais de D.S./Coda que não puderam ser preservados;
+#   transpose_range         transposição fora da extensão suportada;
+#   musescore               o MuseScore falhou ou gerou páginas inconsistentes.
+# O app filtra por ele: "Repetir falhas com ajuste" só repete falhas de repetição e de layout.
 def report_error(error,request_path=None):
     """Keep technical failure details in the job, not in the library status."""
     details=''.join(traceback.format_exception(type(error),error,error.__traceback__))
@@ -102,7 +115,11 @@ def report_error(error,request_path=None):
     if getattr(error,'kind',None)=='diagram_layout' or message.startswith('Sobreposição residual após ajuste de diagrama:'):
         message='Não foi possível ajustar o espaço entre alguns diagramas de acordes.'
         if diagnostic_path:message+=' Os detalhes foram salvos no diagnóstico da conversão.'
-    send('error',message=message,reviewPoints=getattr(error,'review_points',[]),diagnosticPath=diagnostic_path)
+    extra={}
+    engine=sys.modules.get('batch_score')
+    if engine is not None and getattr(engine,'TIMINGS',None):extra['timings']=engine.timings_snapshot()
+    send('error',message=message,errorKind=getattr(error,'kind',None),reviewPoints=getattr(error,'review_points',[]),
+         diagnosticPath=diagnostic_path,**extra)
     print(details,file=sys.stderr,end='')
 
 NATURALS={'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}
@@ -342,7 +359,14 @@ def main():
     if mode!='generate':raise ValueError('Operação desconhecida.')
     send('progress',message='Conferindo o MIDI e as opções escolhidas para a partitura…')
     data=json.loads(Path(req['analysisPath']).read_text(encoding='utf8'))
-    if hashlib.sha256(source.read_bytes()).hexdigest()!=data['sha256']:raise ValueError('O MIDI mudou após a análise. Analise novamente.')
+    # O MIDI é lido e conferido pelo hash uma vez por geração; prepare() reaproveita as notas.
+    engine.reset_timings()
+    try:
+        with engine.timed('midi_read'):parsed=parse_midi(source)
+        source_sha256=parsed['sha256']
+    except Exception:
+        parsed=None;source_sha256=hashlib.sha256(source.read_bytes()).hexdigest()
+    if source_sha256!=data['sha256']:raise ValueError('O MIDI mudou após a análise. Analise novamente.')
     if str(source)!=data['source']:raise ValueError('A análise pertence a outro MIDI.')
     config=copy.deepcopy(data['config']);harmony=data['harmony'];edited=req.get('chords')
     for field in ('scoreTitle','scoreSubtitle','scoreArtist','scoreComposer'):
@@ -410,7 +434,9 @@ def main():
     if any(engine.chord_diagram_inversion(chord,config['diagram_inversion'])!=config['diagram_inversion'] for chord in harmony['events']):
         inversion_label='posições personalizadas'
     send('progress',message=f'Preparando melodia, cifras e diagramas em {inversion_label}…')
-    result=engine.prepare(config)
+    # Um MIDI ilegível só falha aqui, depois de o pedido ter sido validado.
+    if parsed is None:parsed=parse_midi(source)
+    result=engine.prepare(config,parsed)
     send('progress',message='Salvando a partitura e as páginas na pasta de saída…')
     final=Path(result['path']);targetdir=Path(req['outputDirectory']).resolve();targetdir.mkdir(parents=True,exist_ok=True)
     dest=score_output_path(targetdir,metadata['artist'],metadata['title'],source)
@@ -427,6 +453,7 @@ def main():
     if report.get('staff_per_source'):notice+=f" As trocas de instrumento ficaram próximas demais para uma pauta; cada instrumento ganhou sua pauta ({', '.join(report['staff_per_source']['names'])})."
     response={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'reviewedProfile':data['reviewedProfile'],'message':notice,'transposeSemitones':config['transpose_semitones']}
     if 'melody_merge' in report['melody_analysis']:response['melodyMerge']=report['melody_analysis']['melody_merge']
+    if isinstance(report.get('timings'),dict):response['timings']=report['timings']
     if isinstance(report.get('quality'),dict):
         response['quality']=report['quality']
         if report['quality'].get('issues'):response['message']+=' Para conferir: '+'; '.join(report['quality']['issues'])+'.'

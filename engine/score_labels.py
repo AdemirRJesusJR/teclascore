@@ -9,6 +9,9 @@ import batch_score as core
 
 def instrument_label_geometry(path):
     """Measure complete rendered text runs, including italic glyph overhangs."""
+    with core.timed('svg_analysis'):return _instrument_label_geometry(path)
+
+def _instrument_label_geometry(path):
     root=E.parse(path).getroot();records=core.svg_geometry._records(root)
     rows=core.svg_geometry._staff_rows(records);texts=[];obstacles=[]
     for record in records:
@@ -86,86 +89,127 @@ def _instrument_label_lanes(pages):
         offset+=len(page['labels'])
     return positions,maximum
 
-def verify_instrument_label_layout(final,report,out):
-    """Reserve lanes and inter-system clearance before rejecting dense captions."""
+def _label_pages(out):
+    return [core.instrument_label_geometry(path) for path in sorted(out.glob('qa-*.svg'),key=core.page_order)]
+
+def _label_problems(pages,labels):
+    if sum(len(page['labels']) for page in pages)!=len(labels):
+        raise core.NeedsReview('Não foi possível conferir todos os nomes dos instrumentos na prévia.',kind='instrument_label_layout')
+    return sum(len(page['overlaps'])+len(page['clipped']) for page in pages)
+
+def _record_label_pass(pages,report,out,history,problems):
+    history.append({'pass':len(history),'overlaps':sum(len(page['overlaps']) for page in pages),
+                    'margin_overflows':sum(len(page['clipped']) for page in pages)})
+    report['instrument_label_layout_qa']={'passed':not problems,'passes':history,'pages':len(pages)}
+    (out/'instrumentos_verificados.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
+
+def _label_failure(pages,labels,report):
+    offset=0;affected=set()
+    for page in pages:
+        for problem in page['overlaps']+page['clipped']:
+            affected.add(offset+problem['index'])
+            if 'other_label' in problem:affected.add(offset+problem['other_label'])
+        offset+=len(page['labels'])
+    quarters=[labels[index]['original_quarter'] for index in sorted(affected)]
+    message='As trocas de instrumento estão muito próximas para exibir todos os nomes sem sobreposição. Ajuste os trechos das pistas ou o espaçamento da partitura.'
+    error=core.NeedsReview(message,quarters,kind='instrument_label_layout')
+    error.review_points=[point for quarter in quarters if (point:=core.locate_review_point(
+        quarter,round(report['origin_removed_quarters']*core.DIV),report['bars'],error.kind,message,True)) is not None]
+    return error
+
+def _apply_label_lanes(final,report,out,planned):
+    """Empilha os nomes em faixas e reserva o espaço; um job do MuseScore grava e renderiza os SVG."""
+    with zipfile.ZipFile(final) as archive:contents={name:archive.read(name) for name in archive.namelist()}
+    name=next(name for name in contents if name.endswith('.mscx'));root=E.fromstring(contents[name])
+    shifts,extra=planned
+    for index,text in enumerate(root.findall('Score/Staff/Measure/voice/StaffText')):
+        if index not in shifts:continue
+        off=text.find('offset')
+        if off is None:off=E.SubElement(text,'offset',x='0',y='0')
+        off.set('x',str(float(off.get('x','0'))+shifts[index]['x']))
+        off.set('y',str(float(off.get('y','0'))+shifts[index]['y']))
+    # Tempo text occupies the row immediately above the original names.
+    # Lift it with the new stack; its musical time/value is unchanged.
+    for tempo in root.findall('Score/Staff/Measure/voice/Tempo'):
+        off=tempo.find('offset')
+        if off is None:off=E.SubElement(tempo,'offset',x='0',y='0')
+        off.set('y',str(float(off.get('y','0'))-extra-3))
+    for frame in root.findall('Score/Staff/VBox'):
+        gap=frame.find('bottomGap')
+        if gap is None:gap=E.SubElement(frame,'bottomGap')
+        gap.text=str(float(gap.text or '0')+extra+3)
+    # MuseScore 4 keeps style in a separate archive member; an inline Style
+    # alone is silently discarded when that member is present.
+    style_name=next((name for name in contents if name.endswith('score_style.mss')),None)
+    style_root=E.fromstring(contents[style_name]) if style_name else root
+    style=style_root.find('Style') if style_name else root.find('Score/Style')
+    if style is None:style=E.SubElement(style_root if style_name else root.find('Score'),'Style')
+    # Text offsets do not reserve skyline space with autoplace disabled.
+    # Allow the complete label stack plus the previous system's stems/notes.
+    for tag,minimum in (('minSystemDistance',28+extra),('maxSystemDistance',36+extra),
+                        ('minSystemSpread',28+extra),('maxSystemSpread',36+extra),('staffUpperBorder',18+extra)):
+        element=style.find(tag)
+        if element is None:element=E.SubElement(style,tag)
+        element.text=str(max(float(element.text or '0'),minimum))
+    if style_name:contents[style_name]=E.tostring(style_root,encoding='utf-8',xml_declaration=True)
+    # Fixed page breaks would compress the enlarged systems back into their
+    # old pages. Keep all line boundaries and let the native renderer paginate.
+    released=0
+    for element in root.findall('.//LayoutBreak/subtype'):
+        if element.text=='page':element.text='line';released+=1
+    report['instrument_label_lanes']={'count':1+max((value['lane'] for value in shifts.values()),default=0),
+                                     'extra_spatium':extra,'anchors_preserved':True,'page_breaks_released':released}
+    contents[name]=E.tostring(root,encoding='utf-8',xml_declaration=True)
+    prepared=out/'instrumentos_preparados.mscz'
+    with zipfile.ZipFile(prepared,'w',zipfile.ZIP_DEFLATED) as archive:
+        for name,data in contents.items():archive.writestr(name,data)
+    core.save_and_render(prepared,final,out,out/'ajuste_instrumentos.log')
+
+def verify_instrument_label_layout(final,report,out,history=None,first_attempt=0):
+    """Reserve lanes and inter-system clearance before rejecting dense captions.
+
+    Roda depois da paginação e do espaçamento. ``first_attempt=1`` indica que as faixas já
+    foram aplicadas (layout_with_instrument_labels): qualquer problema restante é definitivo."""
     labels=report.get('instrument_labels',[])
     if not labels:return
-    history=[]
-    for attempt in range(2):
-        pages=[core.instrument_label_geometry(path) for path in sorted(out.glob('qa-*.svg'),key=core.page_order)]
-        if sum(len(page['labels']) for page in pages)!=len(labels):
-            raise core.NeedsReview('Não foi possível conferir todos os nomes dos instrumentos na prévia.',kind='instrument_label_layout')
-        problems=sum(len(page['overlaps'])+len(page['clipped']) for page in pages)
-        history.append({'pass':attempt,'overlaps':sum(len(page['overlaps']) for page in pages),
-                        'margin_overflows':sum(len(page['clipped']) for page in pages)})
-        report['instrument_label_layout_qa']={'passed':not problems,'passes':history,'pages':len(pages)}
-        (out/'instrumentos_verificados.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
+    history=[] if history is None else history
+    for attempt in range(first_attempt,2):
+        pages=_label_pages(out)
+        problems=_label_problems(pages,labels)
+        _record_label_pass(pages,report,out,history,problems)
         if not problems:return
-        offset=0;affected=set()
-        for page in pages:
-            for problem in page['overlaps']+page['clipped']:
-                affected.add(offset+problem['index'])
-                if 'other_label' in problem:affected.add(offset+problem['other_label'])
-            offset+=len(page['labels'])
         planned=core._instrument_label_lanes(pages) if not attempt else None
-        if planned is None:
-            quarters=[labels[index]['original_quarter'] for index in sorted(affected)]
-            message='As trocas de instrumento estão muito próximas para exibir todos os nomes sem sobreposição. Ajuste os trechos das pistas ou o espaçamento da partitura.'
-            error=core.NeedsReview(message,quarters,kind='instrument_label_layout')
-            error.review_points=[point for quarter in quarters if (point:=core.locate_review_point(
-                quarter,round(report['origin_removed_quarters']*core.DIV),report['bars'],error.kind,message,True)) is not None]
-            raise error
-        with zipfile.ZipFile(final) as archive:contents={name:archive.read(name) for name in archive.namelist()}
-        name=next(name for name in contents if name.endswith('.mscx'));root=E.fromstring(contents[name])
-        shifts,extra=planned
-        for index,text in enumerate(root.findall('Score/Staff/Measure/voice/StaffText')):
-            if index not in shifts:continue
-            off=text.find('offset')
-            if off is None:off=E.SubElement(text,'offset',x='0',y='0')
-            off.set('x',str(float(off.get('x','0'))+shifts[index]['x']))
-            off.set('y',str(float(off.get('y','0'))+shifts[index]['y']))
-        # Tempo text occupies the row immediately above the original names.
-        # Lift it with the new stack; its musical time/value is unchanged.
-        for tempo in root.findall('Score/Staff/Measure/voice/Tempo'):
-            off=tempo.find('offset')
-            if off is None:off=E.SubElement(tempo,'offset',x='0',y='0')
-            off.set('y',str(float(off.get('y','0'))-extra-3))
-        for frame in root.findall('Score/Staff/VBox'):
-            gap=frame.find('bottomGap')
-            if gap is None:gap=E.SubElement(frame,'bottomGap')
-            gap.text=str(float(gap.text or '0')+extra+3)
-        # MuseScore 4 keeps style in a separate archive member; an inline Style
-        # alone is silently discarded when that member is present.
-        style_name=next((name for name in contents if name.endswith('score_style.mss')),None)
-        style_root=E.fromstring(contents[style_name]) if style_name else root
-        style=style_root.find('Style') if style_name else root.find('Score/Style')
-        if style is None:style=E.SubElement(style_root if style_name else root.find('Score'),'Style')
-        # Text offsets do not reserve skyline space with autoplace disabled.
-        # Allow the complete label stack plus the previous system's stems/notes.
-        for tag,minimum in (('minSystemDistance',28+extra),('maxSystemDistance',36+extra),
-                            ('minSystemSpread',28+extra),('maxSystemSpread',36+extra),('staffUpperBorder',18+extra)):
-            element=style.find(tag)
-            if element is None:element=E.SubElement(style,tag)
-            element.text=str(max(float(element.text or '0'),minimum))
-        if style_name:contents[style_name]=E.tostring(style_root,encoding='utf-8',xml_declaration=True)
-        # Fixed page breaks would compress the enlarged systems back into their
-        # old pages. Keep all line boundaries and let the native renderer paginate.
-        released=0
-        for element in root.findall('.//LayoutBreak/subtype'):
-            if element.text=='page':element.text='line';released+=1
-        report['instrument_label_lanes']={'count':1+max((value['lane'] for value in shifts.values()),default=0),
-                                         'extra_spatium':extra,'anchors_preserved':True,'page_breaks_released':released}
-        contents[name]=E.tostring(root,encoding='utf-8',xml_declaration=True)
-        prepared=out/'instrumentos_preparados.mscz'
-        with zipfile.ZipFile(prepared,'w',zipfile.ZIP_DEFLATED) as archive:
-            for name,data in contents.items():archive.writestr(name,data)
-        core.call_musescore(['-o',str(final),str(prepared)],out/'ajuste_instrumentos.log')
-        for pattern in ('pagina-*.png','qa-*.svg'):
-            for old in out.glob(pattern):old.unlink()
-        core.call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
+        if planned is None:raise _label_failure(pages,labels,report)
+        _apply_label_lanes(final,report,out,planned)
         # A new native save may alter pagination and line wrapping; recertify both.
         core.repair_orphan_pages(final,report,out)
         core.repair_spacing(final,report,out)
+
+def layout_with_instrument_labels(final,report,out):
+    """Ajustes do layout renderizado numa ordem só: nomes dos instrumentos, paginação, espaçamento.
+
+    Os nomes são medidos logo após o primeiro render (só SVG). Se já cabem, nada muda e a
+    ordem antiga fica idêntica: paginação, espaçamento e a conferência dos nomes. Se colidem,
+    as faixas são planejadas já aqui: paginação e espaçamento rodam uma vez (não antes e de
+    novo depois das faixas) e um layout sem solução falha antes de qualquer passe de
+    espaçamento, para prepare() passar mais cedo a uma pauta por instrumento."""
+    labels=report.get('instrument_labels',[])
+    history=[];first_attempt=0
+    if labels:
+        pages=_label_pages(out)
+        if _label_problems(pages,labels):
+            _record_label_pass(pages,report,out,history,True)
+            planned=core._instrument_label_lanes(pages)
+            if planned is None:raise _label_failure(pages,labels,report)
+            _apply_label_lanes(final,report,out,planned)
+            pages=_label_pages(out)
+            problems=_label_problems(pages,labels)
+            _record_label_pass(pages,report,out,history,problems)
+            if problems:raise _label_failure(pages,labels,report)
+            first_attempt=1
+    core.repair_orphan_pages(final,report,out)
+    core.repair_spacing(final,report,out)
+    core.verify_instrument_label_layout(final,report,out,history,first_attempt)
 
 
 def compact_instrument_label_layout(final,report,out):
@@ -192,26 +236,22 @@ def compact_instrument_label_layout(final,report,out):
         with zipfile.ZipFile(input_path,'w',zipfile.ZIP_DEFLATED) as archive:
             for name,data in contents.items():archive.writestr(name,data)
         core.progress('Otimizando o espaço entre as pautas, mantendo o tamanho das notas…')
-        core.call_musescore(['-o',str(candidate),str(input_path)],candidate_dir/'ajuste_compactacao.log')
-        for pattern in ('pagina-*.png','qa-*.svg'):
-            for old in candidate_dir.glob(pattern):old.unlink()
-        job=[{'in':str(candidate),'out':[str(candidate_dir/'pagina.png'),str(candidate_dir/'qa.svg'),str(candidate_dir/'reaberto.musicxml')]}]
-        (candidate_dir/'render.json').write_text(json.dumps(job),encoding='utf8')
-        core.call_musescore(['-r','120','-j',str(candidate_dir/'render.json')],candidate_dir/'render.log',150)
+        # Um job grava a candidata e renderiza os SVG e o MusicXML; as páginas PNG da partitura
+        # publicada vêm depois, quando render_final_pages reabre o arquivo salvo.
+        core.save_and_render(input_path,candidate,candidate_dir,candidate_dir/'ajuste_compactacao.log',
+                             [candidate_dir/'reaberto.musicxml'])
         paths=sorted(candidate_dir.glob('qa-*.svg'),key=core.page_order)
         result['candidate_pages']=len(paths)
         if not paths or len(paths)>=before_pages:result['reason']='no_page_reduction';return
-        if len(list(candidate_dir.glob('pagina-*.png')))!=len(paths):result['reason']='incomplete_preview';return
         with zipfile.ZipFile(candidate) as archive:after={name:archive.read(name) for name in archive.namelist()}
         if not core.compact_score_layout.content_preserved(before,after):result['reason']='content_or_typography_changed';return
-        reopened=E.parse(candidate_dir/'reaberto.musicxml')
-        original_xml=E.parse(out/'reaberto.musicxml')
-        if (reopened.getroot().tag!='score-partwise'
-            or len(reopened.findall('part/measure'))!=len(original_xml.findall('part/measure'))):
+        reopened=E.parse(candidate_dir/'reaberto.musicxml');parts=reopened.findall('part')
+        if (reopened.getroot().tag!='score-partwise' or not parts
+            or any(len(part.findall('measure'))!=report.get('measures') for part in parts)):
             result['reason']='incomplete_native_reopen';return
         labels=[core.instrument_label_geometry(path) for path in paths]
         diagrams=[core.analyze_svg(path) for path in paths]
-        ink=[core.compact_score_layout.page_quality(path) for path in paths]
+        with core.timed('svg_analysis'):ink=[core.compact_score_layout.page_quality(path) for path in paths]
         checks={'content_preserved':True,
                 'label_count':sum(len(page['labels']) for page in labels),
                 'diagram_count':sum(len(page['diagrams']) for page in diagrams),
@@ -226,9 +266,8 @@ def compact_instrument_label_layout(final,report,out):
             result['reason']='candidate_geometry_not_safe';return
         # Stage every replacement before changing the validated set. A disk
         # error restores the previous set; no mixed page count reaches output.
-        replacements={final:candidate.read_bytes(),out/'reaberto.musicxml':(candidate_dir/'reaberto.musicxml').read_bytes()}
-        for pattern in ('pagina-*.png','qa-*.svg'):
-            replacements.update({out/path.name:path.read_bytes() for path in candidate_dir.glob(pattern)})
+        replacements={final:candidate.read_bytes()}
+        replacements.update({out/path.name:path.read_bytes() for path in candidate_dir.glob('qa-*.svg')})
         for pages,key in ((labels,'path'),(diagrams,'svg_path'),(ink,'path')):
             for page in pages:page[key]=str(out/Path(page[key]).name)
         replacements[out/'instrumentos_verificados.json']=json.dumps(labels,ensure_ascii=False).encode('utf8')

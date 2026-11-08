@@ -1,7 +1,7 @@
 """Automatic pagination repairs only interior orphan pages in generated scores."""
 from pathlib import Path
 from unittest.mock import patch
-import os, shutil, sys, tempfile, unittest, zipfile
+import json, os, shutil, sys, tempfile, unittest, zipfile
 import xml.etree.ElementTree as E
 
 sys.dont_write_bytecode = True
@@ -73,18 +73,20 @@ class PageFlowTests(unittest.TestCase):
             originals = {name: archive.read(name) for name in archive.namelist()}
 
         def render(args, log, timeout=90):
-            if args[0] == '-o':
-                shutil.copyfile(args[2], args[1])
-            else:
-                # Stale pages must not survive when the renderer produces fewer pages.
-                self.assertEqual(list(self.out.glob('qa-*.svg')), [])
-                self.assertEqual(list(self.out.glob('pagina-*.png')), [])
-                for page in range(1, 3):
-                    (self.out / f'qa-{page}.svg').write_text('fresh SVG')
-                    (self.out / f'pagina-{page}.png').write_bytes(b'fresh PNG')
+            # Um único job do MuseScore grava a partitura e renderiza só os SVG de conferência.
+            self.assertEqual(args[:3], ['-r', '120', '-j'])
+            job = json.loads(Path(args[3]).read_text(encoding='utf8'))
+            self.assertEqual(len(job), 1)
+            self.assertEqual(job[0]['out'], [str(self.final), str(self.out / 'qa.svg')])
+            shutil.copyfile(job[0]['in'], job[0]['out'][0])
+            # Stale pages must not survive when the renderer produces fewer pages.
+            self.assertEqual(list(self.out.glob('qa-*.svg')), [])
+            self.assertEqual(list(self.out.glob('pagina-*.png')), [])
+            for page in range(1, 3):
+                (self.out / f'qa-{page}.svg').write_text('fresh SVG')
 
         renderer = self.repair([8, 1, 7], render)
-        self.assertEqual(renderer.call_count, 2)
+        self.assertEqual(renderer.call_count, 1)
         self.assertEqual(self.report['page_flow_adjustment'],
             {'pages_before': 3, 'page_breaks_released': 2})
         with zipfile.ZipFile(self.final) as archive:

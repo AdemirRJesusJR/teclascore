@@ -57,9 +57,10 @@ public sealed class EngineClient(string python,string engineDirectory)
         if(process.ExitCode!=0 || result is null)
         {
             string failureMessage=failure??($"Falha no motor musical. {error}".Trim());
-            if(failureDetails is not null)throw new EngineOperationException(failureMessage,failureDetails);
+            if(failureDetails is not null){RecordTimings(measurement,failureDetails["timings"]);throw new EngineOperationException(failureMessage,failureDetails);}
             throw new InvalidOperationException(failureMessage);
         }
+        RecordTimings(measurement, result["timings"]);
         if (result["pages"] is JsonValue pages && pages.TryGetValue<int>(out var pageCount)) measurement.SetCount(PerformanceCount.Pages, pageCount);
         if (result["chords"] is JsonArray chords) measurement.SetCount(PerformanceCount.Chords, chords.Count);
         measurement.Success();
@@ -69,4 +70,51 @@ public sealed class EngineClient(string python,string engineDirectory)
         catch (TimeoutException) { measurement.TimedOut(); throw; }
         finally { measurement.Dispose(); process?.Dispose(); }
     }
+
+    private static readonly IReadOnlyDictionary<string, PerformanceStage> Stages = new Dictionary<string, PerformanceStage>
+    {
+        ["midi_read"] = PerformanceStage.MidiRead, ["analysis"] = PerformanceStage.Analysis, ["musicxml"] = PerformanceStage.MusicXml,
+        ["musescore"] = PerformanceStage.MuseScore, ["svg_analysis"] = PerformanceStage.SvgAnalysis, ["preview"] = PerformanceStage.Preview,
+        ["total"] = PerformanceStage.EngineTotal,
+    };
+    private static readonly IReadOnlyDictionary<string, PerformanceStage> MuseScoreKinds = new Dictionary<string, PerformanceStage>
+    {
+        ["importacao"] = PerformanceStage.MuseScoreImport, ["gravacao"] = PerformanceStage.MuseScoreSave,
+        ["ajuste_paginacao"] = PerformanceStage.MuseScorePagination, ["ajuste_espacamento"] = PerformanceStage.MuseScoreSpacing,
+        ["ajuste_instrumentos"] = PerformanceStage.MuseScoreLabels, ["save"] = PerformanceStage.MuseScoreDiagramLanes,
+        ["ajuste_compactacao"] = PerformanceStage.MuseScoreCompact, ["render"] = PerformanceStage.MuseScoreRender,
+    };
+
+    /// <summary>Copies the engine's per-stage seconds ("timings" in validacao.json) into the local
+    /// performance record. Only known stage names and numbers are kept; anything else is ignored.</summary>
+    internal static void RecordTimings(PerformanceMeasurement measurement, JsonNode? timings)
+    {
+        if (timings is not JsonObject document) return;
+        try
+        {
+            if (document["stages"] is JsonObject stages)
+                foreach (var (name, value) in stages)
+                    if (Stages.TryGetValue(name, out var stage) && Seconds(value) is { } seconds) measurement.AddStage(stage, seconds);
+            if (document["musescore_calls"] is JsonArray calls)
+            {
+                int count = 0;
+                foreach (var call in calls)
+                {
+                    if (call is not JsonObject item || Seconds(item["seconds"]) is not { } seconds) continue;
+                    string kind = item["kind"] is JsonValue text && text.TryGetValue<string>(out var value) ? value : "";
+                    measurement.AddStage(MuseScoreKinds.GetValueOrDefault(kind, PerformanceStage.MuseScoreOther), seconds);
+                    count++;
+                }
+                measurement.SetCount(PerformanceCount.MuseScoreCalls, count);
+            }
+            if (Integer(document["spacing_passes"]) is { } passes) measurement.SetCount(PerformanceCount.LayoutPasses, passes);
+            if (Integer(document["conversions"]) is { } conversions) measurement.SetCount(PerformanceCount.Conversions, conversions);
+        }
+        catch (Exception error) when (error is InvalidOperationException or FormatException) { }
+    }
+
+    private static double? Seconds(JsonNode? node) =>
+        node is JsonValue value && value.TryGetValue<double>(out var seconds) && LocalPerformanceRecorder.ValidSeconds(seconds) ? seconds : null;
+    private static long? Integer(JsonNode? node) =>
+        node is JsonValue value && value.TryGetValue<long>(out var number) && number >= 0 ? number : null;
 }

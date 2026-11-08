@@ -24,10 +24,8 @@ def repair_orphan_pages(final,report,out):
     pre=out/'paginacao_preparada.mscz'
     with zipfile.ZipFile(pre,'w',zipfile.ZIP_DEFLATED) as archive:
         for name,data in contents.items():archive.writestr(name,data)
-    core.call_musescore(['-o',str(final),str(pre)],out/'ajuste_paginacao.log')
-    for pattern in ('pagina-*.png','qa-*.svg'):
-        for old in out.glob(pattern):old.unlink()
-    core.call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
+    # Um único job do MuseScore grava a partitura e renderiza só os SVG de conferência (PNG no fim).
+    core.save_and_render(pre,final,out,out/'ajuste_paginacao.log')
     report['page_flow_adjustment']={'pages_before':len(pages),'page_breaks_released':len(breaks)}
 
 def _compact_diagram_offsets(page,offset,compacted):
@@ -61,26 +59,24 @@ def repair_diagram_lanes(final,report,out,pages,history):
         folder=Path(temporary);candidate=folder/'score.mscz'
         with zipfile.ZipFile(folder/'prepared.mscz','w',zipfile.ZIP_DEFLATED) as archive:
             for name,data in native.items():archive.writestr(name,data)
-        core.call_musescore(['-o',str(candidate),str(folder/'prepared.mscz')],folder/'save.log')
-        (folder/'render.json').write_text(json.dumps([{'in':str(candidate),'out':[str(folder/'pagina.png'),str(folder/'qa.svg'),str(folder/'reaberto.musicxml')]}]),encoding='utf8')
-        core.call_musescore(['-r','120','-j',str(folder/'render.json')],folder/'render.log',150)
+        core.save_and_render(folder/'prepared.mscz',candidate,folder,folder/'save.log')
         paths=sorted(folder.glob('qa-*.svg'),key=core.page_order)
         verified=[core.analyze_svg(path) for path in paths]
         if not verified or sum(len(p['diagrams']) for p in verified)!=report['chord_symbols']:return False
         if any(p['warnings'] or p['overlaps'] or p['clipped'] for p in verified):return False
         # Include notes, tempo, labels and adjacent staves in the new stack's clearance.
         for path in paths:
-            ink=core.compact_score_layout.page_quality(path)
+            with core.timed('svg_analysis'):ink=core.compact_score_layout.page_quality(path)
             if any('Image' in problem['kinds'] or problem['cross_system'] for problem in ink['overlaps']):return False
             if any(item['kind']=='Image' for item in ink['clipped']):return False
         with zipfile.ZipFile(candidate) as archive:
             after={name:archive.read(name) for name in archive.namelist()}
         if not core.diagram_lanes.music_preserved(contents,after):return False
         shutil.copyfile(candidate,final)
+        # As páginas PNG e o MusicXML finais saem da reabertura da partitura publicada.
         for pattern in ('pagina-*.png','qa-*.svg'):
             for old in out.glob(pattern):old.unlink()
-            for page in folder.glob(pattern):shutil.copyfile(page,out/page.name)
-        shutil.copyfile(folder/'reaberto.musicxml',out/'reaberto.musicxml')
+        for page in folder.glob('qa-*.svg'):shutil.copyfile(page,out/page.name)
         for page in verified:page['svg_path']=str((out/Path(page['svg_path']).name).resolve())
         report['diagram_lane_layout']=dict(details,validated=True)
         report['geometric_layout_qa']={'passed':True,'passes':history,'pages':len(verified),'fallback':'full_size_lanes'}
@@ -88,11 +84,29 @@ def repair_diagram_lanes(final,report,out,pages,history):
         return True
 
 
+def _layout_excess(pages):
+    """Largura das sobreposições mais estouros de margem, em espaços de pauta (diagramas têm 14)."""
+    total=0.
+    for page in pages:
+        widths=sorted(d['bbox'][2]-d['bbox'][0] for d in page['diagrams'])
+        scale=widths[len(widths)//2]/14 if widths and widths[len(widths)//2]>0 else 1
+        total+=sum(item.get('width',0) for item in page['overlaps'])/scale
+        total+=sum(item.get('overflow',0) for item in page['clipped'])/scale
+    return total
+
+# Passes seguidos sem progresso antes de desistir do espaçamento incremental. Um passe progride
+# quando o número de problemas ou o tamanho somado deles (em espaços de pauta) cai abaixo do
+# melhor já visto: partituras reais convergem depois de um platô na contagem (11, 2, 2, 2, 0)
+# enquanto as sobreposições restantes encolhem; um layout que oscila (137 … 78, 90, 78, 84, 84)
+# vai antes para as faixas alternadas de diagramas ou para o mesmo erro diagram_layout.
+SPACING_STALL_LIMIT=2
+
 def repair_spacing(final,report,out):
     """Use the rendered geometry to reserve space, preserving musical content."""
-    history=[];compacted=set()
+    history=[];compacted=set();best=None;stalled=0
     for attempt in range(10):
         core.progress(f'Conferindo margens e diagramas — verificação {attempt+1} de até 10…')
+        core.count_timing('spacing_passes')
         pages=[core.analyze_svg(p) for p in sorted(out.glob('qa-*.svg'),key=core.page_order)]
         offset=0;image_add=defaultdict(float);end_add=defaultdict(float);move_image=defaultdict(float);problems=0
         for page in pages:
@@ -129,7 +143,11 @@ def repair_spacing(final,report,out):
             report['geometric_layout_qa']={'passed':True,'passes':history,'pages':len(pages)}
             (out/'geometria_verificada.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
             return
-        if attempt==9:
+        excess=_layout_excess(pages)
+        if best is None or problems<best[0] or excess<best[1]-.05:stalled=0
+        else:stalled+=1
+        best=(problems,excess) if best is None else (min(best[0],problems),min(best[1],excess))
+        if attempt==9 or stalled>=SPACING_STALL_LIMIT:
             if core.repair_diagram_lanes(final,report,out,pages,history):return
             report['geometric_layout_qa']={'passed':False,'passes':history,'pages':len(pages)}
             (out/'geometria_verificada.json').write_text(json.dumps(pages,ensure_ascii=False),encoding='utf8')
@@ -160,7 +178,4 @@ def repair_spacing(final,report,out):
         pre=out/'espacamento_preparado.mscz'
         with zipfile.ZipFile(pre,'w',zipfile.ZIP_DEFLATED) as z:
             for name,data in contents.items():z.writestr(name,data)
-        core.call_musescore(['-o',str(final),str(pre)],out/'ajuste_espacamento.log')
-        for pattern in ('pagina-*.png','qa-*.svg'):
-            for old in out.glob(pattern):old.unlink()
-        core.call_musescore(['-r','120','-j',str(out/'render.json')],out/'render.log',150)
+        core.save_and_render(pre,final,out,out/'ajuste_espacamento.log')
