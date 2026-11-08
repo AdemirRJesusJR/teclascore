@@ -38,6 +38,7 @@ public partial class MainWindow
         ["Salvar PDF da partitura"] = "\uE74E",
         ["Transpor"] = "\uE8CB",
         ["Cifra em texto"] = "\uEA37",
+        ["Letra…"] = "",
         ["Professor com IA"] = "\uEA80",
         ["Praticar"] = "\uEC58",
         ["Notas caindo"] = "\uE896",
