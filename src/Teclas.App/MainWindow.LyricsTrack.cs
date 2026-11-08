@@ -42,7 +42,8 @@ public partial class MainWindow
     /// <summary>The source that follows the lyrics, when it is clearly better than the current melody choice.</summary>
     internal LyricsCoverage? SuggestedLyricsTrack(MidiRow row)
     {
-        if (row.ChordsOnly || LyricsMelodyOf(row) is not { } best) return null;
+        // Lyrics off, or written by lines on purpose: the chosen melody does not have to carry the words.
+        if (row.ChordsOnly || !row.IncludeLyrics || row.LyricsMode == "lines" || LyricsMelodyOf(row) is not { } best) return null;
         var chosen = row.Tracks.Where(t => t.IsMelody).Select(t => t.Source.Key).ToHashSet();
         if (chosen.Contains(best.Source)) return null;
         double current = ChosenLyricsShare(row) ?? 0;
@@ -63,13 +64,15 @@ public partial class MainWindow
     {
         get
         {
-            if (selectedFile is not { } row) return "";
+            if (selectedFile is not { IncludeLyrics: true } row) return "";
+            if (row.LyricsMode == "lines" && !row.ChordsOnly && LyricsMelodyOf(row) is { } sung && !row.Tracks.Any(t => t.IsMelody && t.Source.Key == sung.Source))
+                return $"Letra por versos: cada verso entra sob o primeiro compasso em que é cantado, sem depender da melodia escolhida. A pista que acompanha o canto é {LyricsTrackName(row, sung)}.";
             if (SuggestedLyricsTrack(row) is not { } best) return GuideOnlyLyrics(row) ? MelodySourceAdvisor.GuideOnlyMessage + " Sem a voz, a letra entra por versos sob os compassos; escolha a melodia de outra pista só se ela for a do canto." : "";
             bool chosen = row.Tracks.Any(t => t.IsMelody);
             int current = (int)Math.Round((ChosenLyricsShare(row) ?? 0) * best.Syllables);
             string kept = row.UseReviewedProfile ? " A música usa o perfil revisado e não muda sozinha: troque só se quiser." : "";
             return $"Este MIDI tem letra, e ela acompanha {LyricsTrackName(row, best)}: {best.Hits} de {best.Syllables} sílabas caem nas notas dessa pista" +
-                (chosen ? $", contra {current} na melodia escolhida. Sem trocar, a maior parte da letra fica de fora da partitura." : ".") + kept;
+                (chosen ? $", contra {current} na melodia escolhida. Sem trocar, a maior parte da letra fica de fora da partitura; para manter esta melodia, escolha Letra por versos ou desligue a letra." : ".") + kept;
         }
     }
 
@@ -100,5 +103,5 @@ public partial class MainWindow
             track.LyricsBadge = best is not null && track.Source.Key == best.Source ? $"🎤 {best.Share:P0}" : "";
     }
 
-    private void NotifyLyricsTrack() { Notify(nameof(LyricsTrackHint)); Notify(nameof(LyricsTrackVisibility)); NotifyCollectionRule(); NotifyFlow(); }
+    private void NotifyLyricsTrack() { Notify(nameof(LyricsTrackHint)); Notify(nameof(LyricsTrackVisibility)); Notify(nameof(LyricsTrackActionVisibility)); Notify(nameof(LyricsOptionsVisibility)); NotifyCollectionRule(); NotifyFlow(); }
 }

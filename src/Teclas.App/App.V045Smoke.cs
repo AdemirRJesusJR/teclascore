@@ -67,7 +67,27 @@ public partial class App
             Invoke(window, "RefreshSelection"); Flush();
             var voice = sung.Tracks.SingleOrDefault(t => t.Source.Key.Track == 2) ?? throw new InvalidOperationException("tracks " + sung.Status + " " + string.Join(",", sung.Tracks.Select(t => t.Source.Key)));
             Check(voice.LyricsBadge == "🎤 100%" && sung.Tracks.Where(t => t != voice).All(t => t.LyricsBadge == "") && voice.LyricsToolTip.Contains("acompanha o canto"), "lyrics-part-is-marked " + voice.LyricsBadge);
-            Check(window.LyricsTrackVisibility == Visibility.Visible && window.LyricsTrackHint.Contains("16 de 16"), "hint-offers-the-sung-part " + window.LyricsTrackHint);
+            Check(window.LyricsTrackVisibility == Visibility.Visible && window.LyricsTrackHint.Contains("16 de 16") && window.LyricsTrackHint.Contains("Letra por versos"), "hint-offers-the-sung-part " + window.LyricsTrackHint);
+
+            // Lyrics on the Melody step: switch and placement without choosing the sung part as the melody.
+            Check(window.LyricsOptionsVisibility == Visibility.Visible && window.FindName("MelodyLyricsCheckBox") is CheckBox { IsChecked: true }
+                && window.FindName("LyricsModeCombo") is ComboBox { SelectedValue: "auto", IsEnabled: true }, "melody-step-shows-the-lyric-options");
+            window.SelectPageForSmoke("library", 0); Flush();
+            CaptureFolderWindow(window, Path.Combine(reports, "melody-lyrics.png"));
+            window.LyricsMode = "lines"; Flush();
+            CaptureFolderWindow(window, Path.Combine(reports, "melody-lyrics-by-lines.png"));
+            Check(sung.LyricsMode == "lines" && sung.Tracks.Single(t => t.IsMelody).Source.Key.Track == 1 && window.LyricsTrackActionVisibility == Visibility.Collapsed
+                && window.LyricsTrackHint.StartsWith("Letra por versos") && !window.FlowCheckList.Any(c => c.Id == "melody-lyrics"), "lyrics-by-lines-keep-the-chosen-melody " + window.LyricsTrackHint);
+            var byLines = (JsonObject)typeof(MainWindow).GetMethod("QueueGenerationOptions", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [sung])!;
+            Check(byLines["lyricsMode"]?.GetValue<string>() == "lines" && byLines["includeLyrics"] is null, "lyrics-mode-goes-to-the-generation");
+            window.IncludeLyrics = false; Flush();
+            Check(window.LyricsTrackVisibility == Visibility.Collapsed && window.FindName("LyricsModeCombo") is ComboBox { IsEnabled: false }
+                && window.FindName("IncludeLyricsCheckBox") is CheckBox { IsChecked: false }, "lyrics-off-asks-for-no-part");
+            window.SaveSessionForSmoke();
+            var savedLyrics = Settings.Load(settingsPath).Library.Single(s => s.FullPath == sung.FullPath);
+            Check(!savedLyrics.IncludeLyrics && savedLyrics.LyricsMode == "lines", "lyric-choices-are-saved");
+            window.IncludeLyrics = true; window.LyricsMode = "auto"; Flush();
+            Check(window.LyricsTrackActionVisibility == Visibility.Visible && window.LyricsTrackHint.Contains("16 de 16"), "auto-lyrics-offer-the-sung-part-again");
             Invoke(window, "UseLyricsTrackClick", window, new RoutedEventArgs()); Flush();
             Check(voice.IsMelody && sung.Tracks.Count(t => t.IsMelody) == 1 && window.LyricsTrackVisibility == Visibility.Collapsed, "use-this-part-switches-the-melody");
 

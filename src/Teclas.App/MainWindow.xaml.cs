@@ -121,7 +121,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
         NotifyFlow();
-        foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText),nameof(FoldRepeats),nameof(SimplifiedChords),nameof(ChordsOnly),nameof(IncludeLyrics),nameof(CanShowChordSheetText),nameof(CanAskTeacher),nameof(CanShowSimilarSongs),nameof(CanExportStudyAudio),nameof(KeyboardFitMessage),nameof(KeyboardFitVisibility),nameof(ChordStaff),nameof(CanExportBooklet),nameof(LyricsTrackHint),nameof(LyricsTrackVisibility),nameof(CollectionRuleHint),nameof(CollectionRuleVisibility),nameof(RecordedMelodyHint),nameof(RecordedMelodyVisibility)})Notify(name);
+        foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText),nameof(FoldRepeats),nameof(SimplifiedChords),nameof(ChordsOnly),nameof(IncludeLyrics),nameof(LyricsMode),nameof(LyricsOptionsVisibility),nameof(CanShowChordSheetText),nameof(CanAskTeacher),nameof(CanShowSimilarSongs),nameof(CanExportStudyAudio),nameof(KeyboardFitMessage),nameof(KeyboardFitVisibility),nameof(ChordStaff),nameof(CanExportBooklet),nameof(LyricsTrackHint),nameof(LyricsTrackVisibility),nameof(CollectionRuleHint),nameof(CollectionRuleVisibility),nameof(RecordedMelodyHint),nameof(RecordedMelodyVisibility)})Notify(name);
         RefreshDashboard();
         // The page image is decoded only when something reads Preview (selecting a card no longer decodes a PNG).
         preview=null;previewPendingPath=selectedFile?.PreviewPath;Notify(nameof(Preview));
@@ -372,6 +372,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         request["transposeSemitones"]=row.TransposeSemitones;
         if(row.FoldRepeats)request["foldRepeats"]=true;
         if(!row.IncludeLyrics)request["includeLyrics"]=false;
+        else if(row.LyricsMode!="auto")request["lyricsMode"]=row.LyricsMode;
         if(row.ChordStaff && !row.ChordsOnly)request["chordStaff"]=true;
         if(settings.NoteNames=="solfejo")request["noteNames"]="solfejo";
         AddPresentation(request);

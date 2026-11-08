@@ -363,7 +363,7 @@ public partial class MainWindow
             if (selectedFile is not { } row) return [];
             var items = ProgressItems.Take(3).Select(i => i with { Number = i.IsDone ? "" : i.Number }).ToList();
             var options = new List<string>();
-            if (row.IncludeLyrics) options.Add("letra do MIDI");
+            if (row.IncludeLyrics) options.Add(row.LyricsMode switch { "lines" => "letra do MIDI por versos", "notes" => "letra do MIDI sob as notas", _ => "letra do MIDI" });
             if (row.SimplifiedChords) options.Add("cifras simplificadas");
             if (row.FoldRepeats) options.Add("repetições");
             if (row.ChordStaff) options.Add("pauta dos acordes");

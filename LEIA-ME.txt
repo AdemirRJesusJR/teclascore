@@ -1,3 +1,7 @@
+TECLASCORE 1.5.4
+
+Na etapa Melodia, a chave Letra do MIDI liga ou desliga a letra do karaokê, e a escolha Automática, Sob as notas ou Por versos define onde ela entra. Por versos mantém a melodia escolhida e escreve cada verso sob o primeiro compasso em que é cantado, sem usar a pista do canto.
+
 TECLASCORE 1.5.3
 
 Ao concluir uma etapa, a música continua aberta mesmo quando muda de grupo na lista (de Prontas para Para conferir, por exemplo). Antes a tela ficava vazia até a música ser clicada de novo.

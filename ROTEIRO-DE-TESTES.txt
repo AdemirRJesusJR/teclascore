@@ -1,3 +1,11 @@
+TECLASCORE 1.5.4 · LETRA NA ETAPA MELODIA
+
+1. Em Sobre, confira que a versão é 1.5.4.
+2. Abra um MIDI de karaokê: ao lado de "Só cifras" aparecem Letra do MIDI e a escolha Automática. Num MIDI sem letra, elas não aparecem.
+3. Marque como melodia uma pista que não é a do canto e escolha Por versos: a melodia continua marcada, o aviso não pede mais a troca e, ao gerar, cada verso fica sob o primeiro compasso em que é cantado.
+4. Desligue Letra do MIDI: o aviso da pista da letra some, a chave em 2 · Cifras também fica desligada e a partitura sai sem letra.
+5. Feche e reabra o app: as escolhas da música continuam.
+
 TECLASCORE 1.5.3 · MÚSICA ABERTA ENTRE AS ETAPAS
 
 1. Em Sobre, confira que a versão é 1.5.3.

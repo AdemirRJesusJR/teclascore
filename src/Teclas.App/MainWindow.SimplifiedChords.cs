@@ -43,10 +43,42 @@ public partial class MainWindow
             RememberVersion(row);
             row.IncludeLyrics = value;
             if (row.ScorePath is not null) row.HasPendingScoreProperties = true;
-            Notify(); RefreshSelection(); PersistPreferences();
-            Status = value ? "Letra ligada: as sílabas do MIDI entram sob a melodia. Gere de novo." : "Letra desligada: a partitura sai só com melodia e cifras. Gere de novo.";
+            Notify(); RefreshSelection(); NotifyLyricsTrack(); PersistPreferences();
+            Status = value ? "Letra ligada: as sílabas do MIDI entram na partitura. Gere de novo." : "Letra desligada: a partitura sai só com melodia e cifras. Gere de novo.";
         }
     }
+
+    public IReadOnlyList<object> LyricsModeOptions { get; } =
+    [
+        new { Value = "auto", Label = "Automática", Hint = "Sob as notas quando a melodia escolhida acompanha o canto; senão, por versos." },
+        new { Value = "notes", Label = "Sob as notas", Hint = "Cada sílaba na nota da melodia em que cai; sílabas sem nota próxima ficam de fora." },
+        new { Value = "lines", Label = "Por versos", Hint = "Cada verso inteiro sob o primeiro compasso em que é cantado, seja qual for a melodia." },
+    ];
+
+    /// <summary>Where the karaoke lyrics go in the score (engine lyrics_mode); per song.</summary>
+    public string LyricsMode
+    {
+        get => selectedFile?.LyricsMode ?? "auto";
+        set
+        {
+            string mode = value is "notes" or "lines" ? value : "auto";
+            if (selectedFile is not { UsesNativeScoreWorkflow: false } row || row.LyricsMode == mode) return;
+            RememberVersion(row);
+            row.LyricsMode = mode;
+            if (row.ScorePath is not null && row.IncludeLyrics) row.HasPendingScoreProperties = true;
+            Notify(); RefreshSelection(); NotifyLyricsTrack(); PersistPreferences();
+            Status = mode switch
+            {
+                "lines" => "Letra por versos: cada verso entra sob o primeiro compasso em que é cantado, sem depender da melodia escolhida. Gere de novo.",
+                "notes" => "Letra sob as notas: cada sílaba vai para a nota da melodia em que cai. Gere de novo.",
+                _ => "Letra automática: sob as notas quando a melodia acompanha o canto, senão por versos. Gere de novo."
+            };
+        }
+    }
+
+    /// <summary>The lyric switch and placement on the Melody step: only for MIDIs with karaoke lyrics and a melody score.</summary>
+    public System.Windows.Visibility LyricsOptionsVisibility =>
+        selectedFile is { ChordsOnly: false } row && LyricsCoverageOf(row).Count > 0 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
     /// <summary>Chord staff below the melody (the diagram notes of each chord); per song.</summary>
     public bool ChordStaff

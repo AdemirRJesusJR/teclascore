@@ -356,6 +356,7 @@ public sealed class SavedMidi
     public bool FoldRepeats { get; set; }
     public bool ChordsOnly { get; set; }
     public bool IncludeLyrics { get; set; } = true;
+    public string LyricsMode { get; set; } = "auto";
     public bool ChordStaff { get; set; }
     public List<SavedSource> SecondVoiceSources { get; set; } = [];
     public string Tags { get; set; } = "";

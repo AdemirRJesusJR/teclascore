@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 1.5.4 — 08/11/2026
+
+Letra do karaokê sem precisar usar como melodia a pista que acompanha o canto.
+
+- **Letra na etapa Melodia.** Ao lado de "Só cifras" aparecem a chave **Letra do MIDI** e onde a letra entra: **Automática**, **Sob as notas** ou **Por versos**. Elas só aparecem quando o MIDI tem letra e valem para cada música.
+- **Por versos.** Cada verso inteiro entra sob o primeiro compasso em que é cantado, seja qual for a melodia escolhida. Assim você mantém, por exemplo, o acordeom como melodia sem perder a letra, e a etapa deixa de pedir a troca para a pista do canto.
+- **Letra desligada.** A partitura sai só com melodia e cifras, e o aviso da pista da letra some. A mesma chave continua em 2 · Cifras.
+
 ## 1.5.3 — 08/11/2026
 
 Correção da música aberta ao avançar as etapas.

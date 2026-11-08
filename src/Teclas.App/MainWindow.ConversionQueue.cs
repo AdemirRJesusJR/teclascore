@@ -65,6 +65,7 @@ public partial class MainWindow
         if (row.SimplifiedChords && row.Chords.Count == 0) options["simplifyChords"] = true;
         if (row.FoldRepeats) options["foldRepeats"] = true;
         if (!row.IncludeLyrics) options["includeLyrics"] = false;
+        else if (row.LyricsMode != "auto") options["lyricsMode"] = row.LyricsMode;
         if (row.ChordStaff && !row.ChordsOnly) options["chordStaff"] = true;
         if (settings.NoteNames == "solfejo") options["noteNames"] = "solfejo";
         AddPresentation(options);
