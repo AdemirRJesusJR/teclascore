@@ -226,6 +226,97 @@ using (var queue = new ConversionQueueService(Path.Combine(work, "queue-concurre
     Check(ConversionQueueService.SuggestedParallel is 1 or 2, "Suggested lanes depend on the processor threads");
 }
 
+// Automatic parallelism: one conversion per four threads and per 2 GB free, between 1 and 6; the user may choose 1 to 8.
+{
+    Check(ConversionParallelism.Recommended(16, 32) == 4 && ConversionParallelism.Recommended(8, 16) == 2, "Threads limit the automatic lanes");
+    Check(ConversionParallelism.Recommended(32, 5.9) == 2 && ConversionParallelism.Recommended(16, 1.5) == 1, "Free memory limits the automatic lanes");
+    Check(ConversionParallelism.Recommended(64, 128) == 6 && ConversionParallelism.Recommended(2, 64) == 1 && ConversionParallelism.Recommended(0, double.NaN) == 1,
+        "Automatic lanes stay between 1 and 6");
+    Check(ConversionParallelism.Normalize(9) == 0 && ConversionParallelism.Normalize(-1) == 0 && ConversionParallelism.Normalize(8) == 8, "Saved choice is automatic or 1 to 8");
+    Check(ConversionParallelism.Resolve(3) == 3 && ConversionParallelism.Resolve(0) is >= 1 and <= 6, "A fixed choice wins; automatic measures this computer");
+    int running = 0, peak = 0; var wide = new FakeWorker();
+    wide.Before = async (_, _, token) =>
+    {
+        int now = Interlocked.Increment(ref running); lock (wide) peak = Math.Max(peak, now);
+        try { await Task.Delay(200, token); } finally { Interlocked.Decrement(ref running); }
+    };
+    using var lanes = new ConversionQueueService(Path.Combine(work, "queue-wide"), wide) { MaxParallel = 3 };
+    await lanes.EnqueueManyAsync(Enumerable.Range(0, 6).Select(i => Recipe("larga-" + i)).ToArray());
+    await lanes.RunAsync();
+    Check(peak == 3 && lanes.Items.All(item => item.Status == ConversionQueueStatus.Completed), $"Three lanes run three at a time (peak {peak})");
+}
+
+// Adding many songs writes the queue file once; one bad recipe does not stop the others.
+{
+    using var many = new ConversionQueueService(Path.Combine(work, "queue-many"), new FakeWorker());
+    var recipes = Enumerable.Range(0, 5).Select(i => Recipe("lote-" + i)).ToList();
+    recipes[2] = recipes[2] with { SourceSha256 = new string('0', 64) };
+    int notified = 0; many.Changed += (_, _) => notified++;
+    long before = many.Saves;
+    var batch = await many.EnqueueManyAsync(recipes);
+    Check(many.Saves - before == 1 && batch.Added == 4 && many.Items.Count == 4, "EnqueueMany adds the batch with a single save");
+    Check(batch.Items[2] is null && batch.Errors[2] is IOException && batch.Errors.Count(e => e is not null) == 1, "The rejected recipe is reported in its position");
+    Check(notified == 1, "One change notification for the whole batch");
+    Check(many.Summaries.Count == 4 && many.Summaries.All(s => s.Status == ConversionQueueStatus.Pending && s.ScorePath is null), "Light summaries list the pending songs");
+}
+
+// The library card travels beside the job, not inside the queue file or the engine request.
+{
+    var attachmentWorker = new FakeWorker();
+    using var attached = new ConversionQueueService(Path.Combine(work, "queue-attachment"), attachmentWorker);
+    var recipe = Recipe("anexo") with { Attachment = new JsonObject { ["librarySnapshot"] = new JsonObject { ["ScoreTitle"] = "Cartão-da-biblioteca" } } };
+    var item = await attached.EnqueueAsync(recipe);
+    Check(attached.ReadAttachment(item.Id)?["librarySnapshot"]?["ScoreTitle"]?.GetValue<string>() == "Cartão-da-biblioteca", "The attachment is read back by job");
+    Check(!File.ReadAllText(Path.Combine(work, "queue-attachment", "queue.json")).Contains("Cartão-da-biblioteca", StringComparison.Ordinal), "The attachment stays out of the queue file");
+    await attached.RunAsync();
+    Check(item.Recipe.Attachment is not null && attachmentWorker.Requests.All(r => !r.ToJsonString().Contains("Cartão-da-biblioteca", StringComparison.Ordinal)) &&
+        attached.Items.Single().Status == ConversionQueueStatus.Completed, "The attachment is not sent to the engine and the frozen recipe still verifies");
+    Check(attached.ReadAttachment(Guid.NewGuid().ToString("N")) is null, "Unknown jobs have no attachment");
+}
+
+// The engine's cause of a failure is kept with the item; results without it stay readable.
+{
+    string diagnostic = Path.Combine(work, "diagnostic-error.json");
+    File.WriteAllText(diagnostic, "{\"kind\":\"diagram_layout\",\"message\":\"x\"}");
+    var kinds = new Queue<JsonObject>([
+        new JsonObject { ["kind"] = "error", ["message"] = "Repetições", ["errorKind"] = "repeat_jump" },
+        new JsonObject { ["kind"] = "error", ["message"] = "Diagramas", ["diagnosticPath"] = diagnostic },
+        new JsonObject { ["kind"] = "error", ["message"] = "Sem causa" }]);
+    var failing = new FakeWorker();
+    failing.Before = (request, _, _) => request["mode"]!.GetValue<string>() == "generate"
+        ? throw new EngineOperationException("falha", kinds.Dequeue()) : Task.CompletedTask;
+    using var kindQueue = new ConversionQueueService(Path.Combine(work, "queue-kinds"), failing);
+    await kindQueue.EnqueueManyAsync([Recipe("tipo-1"), Recipe("tipo-2"), Recipe("tipo-3")]);
+    await kindQueue.RunAsync();
+    var failed = kindQueue.Items;
+    Check(failed[0].ErrorKind == "repeat_jump" && failed[1].ErrorKind == "diagram_layout" && failed[2].ErrorKind is null && failed.All(i => i.Status == ConversionQueueStatus.Failed),
+        "Failure kinds come from the message or the diagnostic file; none stays unknown");
+    Check(kindQueue.Summaries[0].ErrorKind == "repeat_jump", "Summaries carry the failure kind");
+    Check(EngineErrorKind.IsRepeatOrLayout("repeat_jump") && EngineErrorKind.IsRepeatOrLayout("repeat_volta") && EngineErrorKind.IsRepeatOrLayout("diagram_layout") &&
+        EngineErrorKind.IsRepeatOrLayout("instrument_label_layout") && !EngineErrorKind.IsRepeatOrLayout("transpose_range") && !EngineErrorKind.IsRepeatOrLayout(null),
+        "Only repeats and layout causes are worth a retry without folded repeats");
+    await kindQueue.ResumeAsync(failed[0].Id);
+    Check(kindQueue.Items[0].ErrorKind is null, "Resuming clears the old cause");
+}
+
+// Engine progress notifies at most about five times per second, and the last stage always arrives.
+{
+    var chatty = new FakeWorker();
+    chatty.Before = async (request, progress, token) =>
+    {
+        if (request["mode"]!.GetValue<string>() != "generate") return;
+        for (int i = 0; i < 200; i++) { progress?.Report("etapa " + i); if (i % 20 == 0) await Task.Delay(10, token); }
+    };
+    using var throttled = new ConversionQueueService(Path.Combine(work, "queue-throttle"), chatty);
+    await throttled.EnqueueAsync(Recipe("ruidosa"));
+    int heard = 0; throttled.Changed += (_, _) => Interlocked.Increment(ref heard);
+    var watch = System.Diagnostics.Stopwatch.StartNew();
+    await throttled.RunAsync();
+    await Task.Delay(400);
+    Check(heard < 40 && heard <= 12 + watch.Elapsed.TotalSeconds * 6, $"Progress notifications are limited ({heard} in {watch.Elapsed.TotalMilliseconds:0} ms for 200+ messages)");
+    Check(throttled.Items.Single().Status == ConversionQueueStatus.Completed, "Throttling never drops the final state");
+}
+
 File.WriteAllText(Path.Combine(work, "report.json"), JsonSerializer.Serialize(new { checks = passed.Count, passed }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"PASS: {passed.Count} durable queue checks.");
 
