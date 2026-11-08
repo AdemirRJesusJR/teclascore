@@ -80,7 +80,10 @@ def metric_structure(bar):
 def _metric_allowed(rel,d,full,beat,bounds):
     """Uma figura de duração d começando em rel cabe sem ligadura pela estrutura do compasso."""
     if rel+d>full:return False
-    if rel==0:return True
+    # No início do compasso qualquer figura serve (mínima pontuada no 4/4), exceto nos compassos de grupos
+    # desiguais (5/8, 7/8), em que a figura não atravessa o primeiro grupo.
+    sizes={b-a for a,b in zip(bounds,bounds[1:])}
+    if rel==0 and len(sizes)==1:return True
     group_end=min(b for b in bounds if b>rel)
     if rel+d>group_end:return False
     if rel//beat==(rel+d-1)//beat or rel%beat==0:return True

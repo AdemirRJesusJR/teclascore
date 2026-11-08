@@ -295,9 +295,13 @@ def choose_grids(bybeat, tempo, meter_map=None):
         pair_start_ok = (not is_compound and position + 2 <= length + 1e-9 and
                          (position % 2 == 0 if numerator % 3 else position in (0, 1)))
         error = _pair_error(phases, (0, 2 / 3), quarter_ms, sigma) if pair_start_ok else None
-        costs['P1'] = INFEASIBLE if error is None else error + PAIR_COMPLEXITY
+        # Num MIDI quantizado, as posições exatas do par recebem o mesmo bônus da grade exata: sem ele, duas tercinas
+        # de colcheia com ligadura sobre o tempo venceriam a tercina de semínimas.
+        exact_pair = bool(inner) and all(abs(p - 2 / 3) < 1e-6 for p in inner)
+        costs['P1'] = INFEASIBLE if error is None else error + PAIR_COMPLEXITY - (EXACT_BONUS if exact_pair else 0)
         error = _pair_error(phases, (1 / 3,), quarter_ms, sigma)
-        costs['P2'] = INFEASIBLE if error is None else error + PAIR_COMPLEXITY
+        exact_pair = bool(phases) and all(abs(p - 1 / 3) < 1e-6 for p in phases)
+        costs['P2'] = INFEASIBLE if error is None else error + PAIR_COMPLEXITY - (EXACT_BONUS if exact_pair else 0)
         emissions.append((phases, costs, errors, best_binary))
     # Viterbi.
     score = {s: emissions[0][1][s] for s in states}
@@ -408,16 +412,24 @@ def meter_scores(notes, ppq, limit_quarters=1200):
         if len(chords[slot]) >= 3:
             if chords[slot] != previous: accent[slot] += 1.5
             previous = chords[slot]
+    def scored(centered):
+        energy = sum(c * c for c in centered)
+        if energy <= 0: return None
+        def r(lag): return sum(centered[k] * centered[k + lag] for k in range(size - lag)) / energy
+        lags = {lag: r(lag) for lag in (2, 3, 4, 6, 8, 12)}
+        return {'2/4': lags[4] + .5 * lags[2], '4/4': lags[8] + .5 * lags[4] + .25 * lags[2],
+                '3/4': lags[6] + .5 * lags[2] + .25 * lags[12], '6/8': lags[6] + .5 * lags[3] + .25 * lags[12]}
+    # Família (binária x ternária): cada posição (tempo ou contratempo de semínima) é centralizada pela própria
+    # média, para que o pulso de semínima, comum a todos os compassos, não pese na comparação entre eles.
+    means = [sum(accent[parity::2]) / len(accent[parity::2]) for parity in (0, 1)]
+    scores = scored([a - means[k % 2] for k, a in enumerate(accent)])
+    # 3/4 x 6/8: aí o pulso de semínima decide (tempos em colcheias 0-2-4 ou 0-3), com a centralização simples.
     mean = sum(accent) / size
-    centered = [a - mean for a in accent]
-    energy = sum(c * c for c in centered)
-    if energy <= 0: return None
-    def r(lag): return sum(centered[k] * centered[k + lag] for k in range(size - lag)) / energy
-    lags = {lag: r(lag) for lag in (2, 3, 4, 6, 8, 12)}
-    scores = {'2/4': lags[4] + .5 * lags[2], '4/4': lags[8] + .5 * lags[4] + .25 * lags[2],
-              '3/4': lags[6] + .5 * lags[2] + .25 * lags[12], '6/8': lags[6] + .5 * lags[3] + .25 * lags[12]}
-    best = max(scores, key=scores.get)
+    plain = scored([a - mean for a in accent])
+    if scores is None or plain is None: return None
     binary = max(scores['2/4'], scores['4/4']); ternary = max(scores['3/4'], scores['6/8'])
+    if ternary > binary: best = '3/4' if plain['3/4'] >= plain['6/8'] else '6/8'
+    else: best = max(('2/4', '4/4'), key=scores.get)
     # Fase do primeiro tempo no compasso escolhido: a posição que concentra os acentos.
     bar = {'2/4': 4, '4/4': 8, '3/4': 6, '6/8': 6}[best]
     sums = [sum(accent[k] for k in range(phase, size, bar)) for phase in range(bar)]

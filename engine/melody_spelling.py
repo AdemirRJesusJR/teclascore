@@ -14,6 +14,7 @@ STEP_PC = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
 INTERVAL_LOF = {0: 0, 1: -5, 2: 2, 3: -3, 4: 4, 5: -1, 6: -6, 7: 1, 8: -4, 9: 3, 10: -2, 11: 5}
 QUALITY_LOF = {'aug': {8: 8}, 'dim7': {9: -9}}
 UNUSUAL = {11, 12, -7, -8}          # E#, B#, Cb, Fb
+CHROMATIC = 4.0                     # condução cromática contrária (Ré-Dó#-Dó descendo); vence a proximidade da armadura
 
 
 def lof_of(letter, alter):
@@ -104,8 +105,8 @@ def spell_notes(notes, chords, key_at, key_map_at, intervals_of, window=8 * 960)
                          (following is not None and following['pitch'] - note['pitch'] == 1)
                 falling = (previous is not None and previous['pitch'] - note['pitch'] == 1) or \
                           (following is not None and note['pitch'] - following['pitch'] == 1)
-                if rising and not falling: cost += 0 if q >= fixed and q > 0 else 1.5
-                if falling and not rising: cost += 0 if q <= fixed and q < 6 else 1.5
+                if rising and not falling: cost += 0 if q >= fixed and q > 0 else CHROMATIC
+                if falling and not rising: cost += 0 if q <= fixed and q < 6 else CHROMATIC
                 costs.append((cost, abs(q - fixed), q))
             choice = min(costs)[2] if costs else fixed
         note['spelling'] = name_of(choice)
