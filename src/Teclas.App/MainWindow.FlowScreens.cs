@@ -247,8 +247,19 @@ public partial class MainWindow
     {
         var track = row.Tracks.FirstOrDefault(t => t.IsMelody) ?? SuggestedTrack ?? row.Tracks.FirstOrDefault();
         if (track is null) { Status = "Esta música não tem pistas para ouvir."; return; }
-        try { Status = await PlayReviewMeasure(row, point, track, settings.TrackAuditionSpeed, CancellationToken.None); }
+        // Chord and key points are judged by the accompaniment; a measure where the melody rests would be silent.
+        bool whole = point.Kind.StartsWith("chord", StringComparison.Ordinal) || point.Kind.StartsWith("harmony", StringComparison.Ordinal)
+            || point.Kind.StartsWith("key", StringComparison.Ordinal) || !HasNotesIn(row, track, point);
+        try { Status = await PlayReviewMeasure(row, point, track, settings.TrackAuditionSpeed, whole, CancellationToken.None); }
         catch (OperationCanceledException) { }
+    }
+
+    private static bool HasNotesIn(MidiRow row, TrackRow track, ScoreReviewPoint point)
+    {
+        if (row.Document is not { } document) return false;
+        double ppq = Math.Max(1, document.Ppq), start = point.MeasureStartQuarter * ppq, end = point.MeasureEndQuarter * ppq;
+        var key = track.Source.Key;
+        return document.Notes.Any(note => note.Start < end && note.End > start && new SourceKey(note.Track, note.Channel, note.Program) == key);
     }
 
     private void RhythmFixClick(object sender, RoutedEventArgs e) => ReviewScoreClick(sender, e);
@@ -272,8 +283,11 @@ public partial class MainWindow
     private async void RhythmTimelineClick(object? sender, int measure)
     {
         if (selectedFile is not { Meter: { } meter } row) return;
-        var point = row.ReviewPoints.FirstOrDefault(p => meter.MeasureAt(p.Quarter).Number - 1 == measure);
-        if (point is null) { Status = $"Compasso {measure + 1}: sem pontos de atenção."; return; }
+        if (measure < 0 || measure >= meter.Measures.Count) return;
+        // Every bar plays its measure; a bar with a point to check plays it the same way as "Ouvir trecho".
+        var bar = meter.Measures[measure];
+        var point = row.ReviewPoints.FirstOrDefault(p => meter.MeasureAt(p.Quarter).Number - 1 == measure)
+            ?? new ScoreReviewPoint { Quarter = bar.StartQuarter, Measure = bar.Number, Beat = 1, MeasureStartQuarter = bar.StartQuarter, MeasureEndQuarter = bar.EndQuarter };
         await ListenPoint(row, point);
     }
 

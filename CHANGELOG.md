@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 1.5.5 — 08/11/2026
+
+Correção do som na linha do tempo da etapa Ritmo.
+
+- **Toda barra toca o seu compasso.** Na etapa Ritmo, clicar numa barra só tocava quando o compasso tinha um ponto para conferir; nos outros, nada acontecia. Agora qualquer barra toca o compasso correspondente.
+- **Compassos sem melodia e cifras tocam o arranjo.** A escuta usava só a pista da melodia, que fica em silêncio na introdução e nos trechos instrumentais. Quando a melodia não tem notas no compasso, e nos pontos de cifra ou tonalidade (que pedem para conferir ouvindo o acompanhamento), passam a tocar todas as pistas do MIDI. Os pontos de ritmo continuam tocando só a melodia.
+
 ## 1.5.4 — 08/11/2026
 
 Letra do karaokê sem precisar usar como melodia a pista que acompanha o canto.

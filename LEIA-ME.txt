@@ -1,3 +1,7 @@
+TECLASCORE 1.5.5
+
+Na etapa Ritmo, clicar em qualquer barra da linha do tempo toca aquele compasso. Quando a melodia não tem notas no compasso, e nos pontos de cifra, tocam todas as pistas do MIDI, para que o trecho não fique em silêncio.
+
 TECLASCORE 1.5.4
 
 Na etapa Melodia, a chave Letra do MIDI liga ou desliga a letra do karaokê, e a escolha Automática, Sob as notas ou Por versos define onde ela entra. Por versos mantém a melodia escolhida e escreve cada verso sob o primeiro compasso em que é cantado, sem usar a pista do canto.

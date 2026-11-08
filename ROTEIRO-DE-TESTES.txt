@@ -1,3 +1,10 @@
+TECLASCORE 1.5.5 · SOM NAS BARRAS DA ETAPA RITMO
+
+1. Em Sobre, confira que a versão é 1.5.5.
+2. Abra uma música na etapa Ritmo e clique numa barra cinza (sem ponto para conferir): o compasso toca e a situação mostra "Ouvindo compasso N".
+3. Clique numa barra da introdução, em que a melodia ainda não entrou: tocam todas as pistas ("todas as pistas" na situação).
+4. Num ponto de cifra (por exemplo "outra leitura possível"), use Ouvir trecho: toca o acompanhamento. Num ponto de ritmo, toca só a melodia.
+
 TECLASCORE 1.5.4 · LETRA NA ETAPA MELODIA
 
 1. Em Sobre, confira que a versão é 1.5.4.

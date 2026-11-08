@@ -109,6 +109,18 @@ public partial class App
             Check(tabs.SelectedIndex == 3 && window.FlowCurrentStep == ScoreFlowStep.Analysis && Pending("analysis-review"), "review-points-come-first");
             Check(window.RhythmPoints.Count == 1 && window.RhythmMarkers.Count == 1 && window.RhythmDensities.Count > 0 && !window.CanFlowNext, "ritmo-lists-the-point-on-the-timeline");
             Snapshot("score-flow-3-ritmo");
+            // Every bar of the timeline plays its measure, not only the bars with a point to check.
+            Call("RhythmTimelineClick", null, 0);
+            clock.Restart(); while (!window.Status.StartsWith("Ouvindo compasso 1 ·", StringComparison.Ordinal) && clock.Elapsed < TimeSpan.FromSeconds(8)) { await Task.Delay(20); Flush(); }
+            Check(window.Status.StartsWith("Ouvindo compasso 1 · pista", StringComparison.Ordinal), "a-bar-without-points-plays-its-measure");
+            Click("StopTrackAuditionClick"); Flush();
+            bool HasNotes(TrackRow track, double start, double end) => (bool)typeof(MainWindow).GetMethod("HasNotesIn", BindingFlags.Static | BindingFlags.NonPublic)!
+                .Invoke(null, [row, track, new ScoreReviewPoint { Quarter = start, Measure = 1, Beat = 1, MeasureStartQuarter = start, MeasureEndQuarter = end }])!;
+            Check(HasNotes(piano, 12, 16) && !HasNotes(row.Tracks[1], 12, 16), "a-measure-where-the-melody-rests-plays-every-track");
+            await (Task)typeof(MainWindow).GetMethod("ListenPoint", flags)!.Invoke(window, [row, new ScoreReviewPoint { Quarter = 8, Measure = 3, Beat = 1, MeasureStartQuarter = 8, MeasureEndQuarter = 12, Kind = "chord_ambiguity" }])!;
+            Flush();
+            Check(window.Status.StartsWith("Ouvindo compasso 3 · todas as pistas", StringComparison.Ordinal), "a-chord-point-plays-the-accompaniment");
+            Click("StopTrackAuditionClick"); Flush();
             Call("RhythmOkClick", new Button { Tag = window.RhythmPoints[0] }, new RoutedEventArgs()); Flush();
             Check(!Pending("analysis-review") && window.RhythmPoints[0].IsChecked && window.CanFlowNext && window.FlowNextLabel == "Continuar para cifras", "esta-certo-confirms-the-point");
             Click("FlowNextClick"); Flush();

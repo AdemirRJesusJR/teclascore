@@ -96,23 +96,34 @@ public partial class MainWindow
             await OpenMelodySections(melodyPoint.Measure);
     }
 
-    private async Task<string> PlayReviewMeasure(MidiRow row, ScoreReviewPoint point, TrackRow track, double speed, CancellationToken token)
+    private Task<string> PlayReviewMeasure(MidiRow row, ScoreReviewPoint point, TrackRow track, double speed, CancellationToken token) =>
+        PlayReviewMeasure(row, point, track, speed, wholeArrangement: false, token);
+
+    /// <summary>
+    /// Plays one measure of the original MIDI: only <paramref name="track"/>, or every track together when
+    /// <paramref name="wholeArrangement"/> is set (chord points, or a measure where the melody is silent).
+    /// </summary>
+    private async Task<string> PlayReviewMeasure(MidiRow row, ScoreReviewPoint point, TrackRow track, double speed, bool wholeArrangement, CancellationToken token)
     {
         if (row.UsesNativeScoreWorkflow || row.Document is not { } document || !row.Tracks.Contains(track)) return "A fonte MIDI não está disponível.";
         StopTrackAudition(); ResetPlayback();
         try
         {
-            var sequence = await Task.Run(() => MidiAuditionSequence.Create(document, track.Source.Key, trimLeadingSilence: false)
-                .Until(ReviewRegionEnd(row, point)), token);
+            var end = ReviewRegionEnd(row, point);
+            var sequence = await Task.Run(() => (wholeArrangement
+                ? MidiAuditionSequence.CreateFull(document, token)
+                : MidiAuditionSequence.Create(document, track.Source.Key, trimLeadingSilence: false)).Until(end), token);
             token.ThrowIfCancellationRequested();
             if (trackAuditionDisposed || row.UsesNativeScoreWorkflow || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
             var start = ReviewTimeAtQuarter(document, point.MeasureStartQuarter);
             if (start >= sequence.Duration) return "Esta pista já terminou antes deste compasso. Escolha outra pista.";
-            auditionMidi = row; auditionTracks.Clear(); auditionTracks.Add(track); auditionTrim = sequence.LeadingSilenceTrimmed; track.IsAuditioning = true;
+            var heard = wholeArrangement ? row.Tracks.ToList() : [track];
+            auditionMidi = row; auditionTracks.Clear(); auditionTracks.AddRange(heard); auditionTrim = sequence.LeadingSilenceTrimmed;
+            foreach (var item in heard) item.IsAuditioning = true;
             trackPlayer!.PlaybackRate = speed;
             trackPlayer.Play(sequence, start);
             trackAuditionTimer.Start(); NotifyTrackAudition();
-            return $"Ouvindo compasso {point.Measure} · pista {track.Track}, canal {track.Channel} · velocidade {speed:P0}."
+            return $"Ouvindo compasso {point.Measure} · " + (wholeArrangement ? "todas as pistas" : $"pista {track.Track}, canal {track.Channel}") + $" · velocidade {speed:P0}."
                 + (sequence.Warnings.Count == 0 ? "" : " " + string.Join(" ", sequence.Warnings));
         }
         catch (OperationCanceledException) { throw; }
