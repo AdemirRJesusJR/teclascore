@@ -179,7 +179,7 @@ public static class PdfLyricsPage
     {
         try
         {
-            string report = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(scorePath))!, Path.GetFileNameWithoutExtension(scorePath) + " - revisao", "validacao.json");
+            string report = LyricsReviewReport.ReportPath(scorePath);
             if (!File.Exists(report)) return ([], false);
             using var document = JsonDocument.Parse(File.ReadAllBytes(report));
             var root = document.RootElement;

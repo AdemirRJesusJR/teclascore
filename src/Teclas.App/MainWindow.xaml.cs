@@ -374,6 +374,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         row.ScorePath=result["scorePath"]!.GetValue<string>();row.PreviewPath=result["previewPath"]!.GetValue<string>();
         row.PageCount=result["pages"]!.GetValue<int>();row.GeneratedAt=DateTimeOffset.Now;row.HasOperationError=false;row.HasPendingScoreProperties=false;row.Approved=false;
         row.ArrangementSummary="";
+        AddLyricsReviewPoints(row);
         row.Status=$"Gerada · {row.PageCount} páginas";Status=result["message"]!.GetValue<string>();RememberVersion(row);RefreshSelection();
         if(ReferenceEquals(row,selectedFile))QueueAudioPrewarm(row.ScorePath);
     }

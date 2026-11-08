@@ -97,6 +97,14 @@ public partial class App
             Check(saved.Slots.Select(s => s.Text).SequenceEqual(new[] { "Ca", "sa", "a", "", "lu", "a" }) && saved.Slots[2].Continues == false,
                 "saved-score-has-the-edited-lyrics " + string.Join(",", saved.Slots.Select(s => s.Text)));
             Check(NativeScoreDocument.Inspect(row.ScorePath!).NoteCount == NativeScoreDocument.Inspect(source).NoteCount, "notes-unchanged");
+            // 3. The engine report on the lyrics joins the guided review of a generated MIDI score, without repeating points.
+            string generated = Path.Combine(work, "Gerada.mscz"); LyricsScore(generated);
+            Directory.CreateDirectory(Path.Combine(work, "Gerada - revisao"));
+            File.WriteAllText(Path.Combine(work, "Gerada - revisao", "validacao.json"), "{\"origin_removed_quarters\": 0, \"bars\": [{\"start\": 0, \"end\": 3840, \"meter\": [4,4]}, {\"start\": 3840, \"end\": 7680, \"meter\": [4,4]}], \"melody_analysis\": {\"lyrics\": {\"mode\": \"notes\", \"dropped\": [{\"quarter\": 5, \"measure\": 2, \"text\": \"meu\"}]}}}");
+            var midiRow = new MidiRow { FullPath = Path.Combine(work, "Gerada.mid"), ScorePath = generated, ScoreTitle = "Gerada" };
+            int added = window.AddLyricsReviewPoints(midiRow), again = window.AddLyricsReviewPoints(midiRow);
+            Check(added == 1 && again == 0 && midiRow.ReviewPoints.Single() is { Kind: "lyrics_dropped", Measure: 2, Blocking: false, KindLabel: "Letra" } point && point.Message.Contains("“meu”"),
+                "lyrics-report-becomes-a-guided-review-point");
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, enginesRun = 0 }, new JsonSerializerOptions { WriteIndented = true }));
             window.Close(); window = null; Shutdown(0);
         }
