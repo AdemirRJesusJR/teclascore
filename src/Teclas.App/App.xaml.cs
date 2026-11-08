@@ -23,6 +23,8 @@ public partial class App : Application
         { VerifyFolderWatchUi(e.Args[1]); return; }
         // Automated checks report their own failures; only real sessions keep crash files.
         if (!e.Args.Any(arg => arg.StartsWith("--verify", StringComparison.Ordinal) || arg.StartsWith("--", StringComparison.Ordinal) && arg.Contains("smoke", StringComparison.OrdinalIgnoreCase))) InstallCrashLog();
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-lyrics-editor-ui")
+        { VerifyLyricsEditorUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-recorded-melody-ui")
         { VerifyRecordedMelodyUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v052-ui")

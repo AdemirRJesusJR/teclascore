@@ -90,6 +90,7 @@ public partial class MainWindow
             Act("Salvar PDF da partitura", "pdf exportar imprimir", () => ExportPdfClick(this, e), () => CanExportPdf),
             Act("Transpor", "tom voz semitom", () => TransposeScoreClick(this, e)),
             Act("Cifra em texto", "cifra copiar whatsapp chordpro", () => ChordSheetTextClick(this, e), () => CanShowChordSheetText),
+            Act("Letra…", "letra silabas karaoke corrigir colar", () => LyricsEditorClick(this, e), () => CanEditLyrics),
             Act("Professor com IA", "pergunta claude ajuda", () => TeacherClick(this, e), () => CanAskTeacher),
             Act("Praticar", "estudo teclado treinar", () => PracticeClick(this, e), () => CanExportPdf),
             Act("Notas caindo", "estudo visual", () => FallingNotesClick(this, e), () => CanExportPdf),

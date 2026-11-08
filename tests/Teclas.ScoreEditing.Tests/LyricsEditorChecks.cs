@@ -99,6 +99,8 @@ internal static class LyricsEditorChecks
             "The pasted lyric reads back from the saved score with its hyphens");
         check(pasted.Metadata.NoteCount == plainModel.Metadata.NoteCount, "Pasting a lyric keeps the notes");
         check(LyricsEditorDocument.FromModel(plainModel).Paste("um dois três quatro cinco seis sete oito nove dez onze doze") > 0, "Syllables without notes are reported, never added as notes");
+        var tail = LyricsEditorDocument.FromModel(model); tail.Paste("lu", 3);
+        check(tail.Slots[3].Text == "lu" && !tail.Slots[2].Continues && tail.ToEdits().Lyrics.All(l => l.Syllabic == "single"), "Pasting in the middle closes the word before it");
 
         // Protections: rests, unknown ids, mixed edits and the duration lock of notes with lyrics.
         var restId = plainModel.Measures[1].Events.Single(e => e.Kind == "Rest").Id;

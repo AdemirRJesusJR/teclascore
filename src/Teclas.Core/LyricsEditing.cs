@@ -174,6 +174,8 @@ public sealed class LyricsEditorDocument
         var syllables = PortugueseSyllables.FromLyrics(lyrics);
         if (syllables.Count == 0) throw new InvalidOperationException("Cole uma letra com pelo menos uma palavra.");
         for (int i = from; i < slots.Count; i++) { slots[i].Text = ""; slots[i].Continues = false; }
+        // The pasted lyric starts a new word: the syllable before it no longer continues.
+        if (from > 0 && PreviousSyllable(from) is int before) slots[before].Continues = false;
         int note = from, placed = 0;
         foreach (var syllable in syllables)
         {
