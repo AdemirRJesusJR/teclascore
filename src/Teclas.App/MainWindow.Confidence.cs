@@ -20,13 +20,30 @@ public partial class MainWindow
             var chosen = row.Tracks.Where(t => t.IsMelody).Select(t => t.Source.Key).ToHashSet();
             if (coverage.Count > 0) lyrics = coverage.Where(c => chosen.Contains(c.Source)).Select(c => c.Share).DefaultIfEmpty(0).Max();
         }
+        var notation = NotationQualityOf(row.ScorePath);
         return ScoreConfidence.Rate(new ConfidenceInput(
             row.Chords.Select(c => c.Confidence).ToArray(), row.Chords.Count(c => !string.IsNullOrWhiteSpace(c.Alternatives)),
             row.ReviewPoints.Count, row.ReviewPoints.Count(p => p.Blocking),
             row.AutoMelody, row.AutoMelodyConfident, lyrics, row.IncludeLyrics, row.HasOperationError, row.PageCount,
             row.CatalogLacksMelody && !row.ChordsOnly && !row.UseReviewedProfile,
-            NotationQualityOf(row.ScorePath) is { } quality ? quality.Score : null,
-            NotationQualityOf(row.ScorePath)?.Issues, row.MelodyFromRecording));
+            notation?.Score, notation?.Issues, row.MelodyFromRecording));
+    }
+
+    /// <summary>The last rating of each card and the state it was computed from; it is reused until the song changes.</summary>
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<MidiRow, Tuple<string, ConfidenceRating?>> confidenceCache = new();
+    internal int ConfidenceComputations { get; private set; }
+
+    /// <summary>Everything the rating reads from a card (score, chords, review points, melody, lyrics, errors).</summary>
+    private static string ConfidenceKey(MidiRow row)
+    {
+        var hash = new HashCode();
+        foreach (var chord in row.Chords) { hash.Add(chord.Confidence); hash.Add(string.IsNullOrWhiteSpace(chord.Alternatives)); }
+        foreach (var point in row.ReviewPoints) hash.Add(point.Blocking);
+        foreach (var track in row.Tracks) if (track.IsMelody) hash.Add(track.Source.Key);
+        string? score = row.ScorePath;
+        return string.Join("|", score, score is not null && File.Exists(score), row.GeneratedAt?.UtcTicks, row.PageCount, row.Chords.Count, row.ReviewPoints.Count,
+            row.AutoMelody, row.AutoMelodyConfident, row.IncludeLyrics, row.HasOperationError, row.CatalogLacksMelody, row.ChordsOnly,
+            row.UseReviewedProfile, row.MelodyFromRecording, row.Document?.Sha256, hash.ToHashCode());
     }
 
     private readonly Dictionary<string, (DateTime Stamp, NotationQuality? Quality)> notationQuality = new(StringComparer.OrdinalIgnoreCase);
@@ -51,7 +68,14 @@ public partial class MainWindow
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException) { return null; }
     }
 
-    internal void RefreshConfidence(MidiRow row) => row.Confidence = RateScore(row);
+    internal void RefreshConfidence(MidiRow row)
+    {
+        string key = ConfidenceKey(row);
+        if (confidenceCache.TryGetValue(row, out var cached) && cached.Item1 == key) { row.Confidence = cached.Item2; return; }
+        var rating = RateScore(row); ConfidenceComputations++;
+        confidenceCache.AddOrUpdate(row, Tuple.Create(key, rating));
+        row.Confidence = rating;
+    }
 
     internal void RefreshAllConfidence() { foreach (var row in Files) RefreshConfidence(row); }
 
