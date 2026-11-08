@@ -60,32 +60,43 @@ public partial class App
             ((ListBox)window.FindName("Library")).SelectedItem = row;
             window.SelectPageForSmoke("library", 0); Flush();
             Check(row.Tracks.Count == 2 && window.CombineTrackAudition, "two-tracks-and-combine-on-by-default");
-            Check(window.FindName("CombineTracksCheckBox") is CheckBox && window.FindName("PlayMarkedTracksButton") is Button { IsEnabled: false }, "mix-controls-exist");
+            Check(window.FindName("CombineTracksCheckBox") is CheckBox && window.FindName("PlayMarkedTracksButton") is null, "mix-controls-exist-without-play-marked-button");
             var click = typeof(MainWindow).GetMethod("TrackAuditionClick", BindingFlags.Instance | BindingFlags.NonPublic)!;
             void Listen(TrackRow track) => click.Invoke(window, [new Button { Tag = track }, new RoutedEventArgs()]);
             var player = (MidiAuditionPlayer)typeof(MainWindow).GetField("trackPlayer", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
             TrackRow piano = row.Tracks[0], flute = row.Tracks[1];
+            int Index(TrackRow track) => player.Sequence!.MixedSources.ToList().IndexOf(track.Source.Key);
+            bool Audible(TrackRow track) => player.Sequence is { IsLiveMix: true } && Index(track) >= 0 && !player.MutedSources.Contains(Index(track));
 
             Listen(piano); await Wait(() => window.IsIdle && piano.IsAuditioning && player.IsPlaying, "first track did not start");
+            Check(Audible(piano) && !Audible(flute) && player.Sequence!.MixedSources.Count == 2, "first-play-prepares-every-track-and-mutes-the-others");
             await Task.Delay(300);
-            Listen(flute); await Wait(() => window.IsIdle && flute.IsAuditioning && piano.IsAuditioning && player.Sequence?.MixedSources.Count == 2, "second track was not added");
+            var mix = player.Sequence; long generation = player.PlaybackGeneration; var before = player.Position;
+            Listen(flute);
+            // Dynamic mixer: the click switches the flute on at once, with no preparation, busy state or restart.
+            Check(window.IsIdle && flute.IsAuditioning && piano.IsAuditioning && Audible(flute) && Audible(piano), "second-track-joins-immediately");
+            Check(ReferenceEquals(player.Sequence, mix) && player.IsPlaying && player.Position >= before && window.CanAuditionTracks, "adding-a-track-never-stops-or-restarts-the-music");
             Check(window.TrackAuditionTitle.StartsWith("2 pistas juntas", StringComparison.Ordinal) && player.Position >= TimeSpan.FromSeconds(0.25),
                 "adding-a-track-keeps-both-and-the-place-in-the-song");
-            Listen(piano); await Wait(() => window.IsIdle && !piano.IsAuditioning && flute.IsAuditioning, "removing a track failed");
-            Check(player.IsPlaying && player.Sequence?.MixedSources.Count == 0 && window.CanStopTrackAudition, "stop-on-one-track-removes-only-it");
-            Listen(flute); await Wait(() => window.IsIdle && !flute.IsAuditioning && !window.CanStopTrackAudition, "removing the last track did not stop");
+            Listen(piano);
+            Check(window.IsIdle && !piano.IsAuditioning && flute.IsAuditioning && !Audible(piano) && Audible(flute), "stop-on-one-track-removes-only-it");
+            Check(player.IsPlaying && ReferenceEquals(player.Sequence, mix) && window.CanStopTrackAudition, "removing-a-track-keeps-the-others-playing");
+            Listen(piano); Check(Audible(piano) && Audible(flute) && player.IsPlaying, "a-removed-track-can-come-back-while-playing");
+            Listen(piano); Listen(flute); Flush();
+            Check(!flute.IsAuditioning && !window.CanStopTrackAudition && !player.IsPlaying, "removing-the-last-track-stops");
 
             window.CombineTrackAudition = false;
             Listen(piano); await Wait(() => window.IsIdle && piano.IsAuditioning, "solo play failed");
-            Listen(flute); await Wait(() => window.IsIdle && flute.IsAuditioning && !piano.IsAuditioning, "solo mode did not replace");
+            Listen(flute); await Wait(() => window.IsIdle && flute.IsAuditioning && !piano.IsAuditioning && Audible(flute) && !Audible(piano), "solo mode did not replace");
             Check(true, "combine-off-keeps-the-solo-behaviour");
             Check(!Settings.Load(settingsPath).TrackAuditionCombine, "combine-choice-is-remembered");
+            ((Button)window.FindName("TrackStopButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); Flush();
 
             piano.IsMelody = true; flute.IsMelody = true; Flush();
-            Check(window.CanPlayMarkedTracks, "marked-tracks-enable-the-button");
-            typeof(MainWindow).GetMethod("PlayMarkedTracksClick", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [window, new RoutedEventArgs()]);
-            await Wait(() => window.IsIdle && piano.IsAuditioning && flute.IsAuditioning && player.Sequence?.MixedSources.Count == 2, "marked tracks did not play together");
-            Check(true, "play-marked-plays-the-selected-tracks-together");
+            Check(window.CanPlayMarkedTracks && window.CanUseTrackMainButton, "marked-tracks-enable-the-main-button");
+            ((Button)window.FindName("TrackPauseButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            await Wait(() => window.IsIdle && piano.IsAuditioning && flute.IsAuditioning && Audible(piano) && Audible(flute), "marked tracks did not play together");
+            Check(true, "main-button-plays-the-marked-tracks-together");
             ((Button)window.FindName("TrackStopButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); Flush();
             Check(!row.Tracks.Any(track => track.IsAuditioning) && !player.IsPlaying, "stop-ends-the-whole-mix");
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, realSynthesizerUsed = false }, new JsonSerializerOptions { WriteIndented = true }));

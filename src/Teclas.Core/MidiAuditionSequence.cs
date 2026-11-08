@@ -1,6 +1,7 @@
 namespace Teclas.Core;
 
-public sealed record MidiAuditionEvent(TimeSpan At, uint Message);
+/// <param name="Source">Index into MixedSources for a live mix; -1 when the event is not tied to a mutable source.</param>
+public sealed record MidiAuditionEvent(TimeSpan At, uint Message, int Source = -1);
 
 public sealed partial class MidiAuditionSequence
 {

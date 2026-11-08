@@ -97,7 +97,7 @@ public partial class MainWindow
                         TrackAuditionFailed(error.Message);
                 });
         };
-        trackAuditionTimer.Tick += (_, _) => NotifyTrackAudition();
+        trackAuditionTimer.Tick += (_, _) => { StopFinishedLiveTracks(); NotifyTrackAudition(); };
         EditorTabs.SelectionChanged += (_, e) =>
         {
             Notify(nameof(ScoreEditorMinimumHeight));
@@ -148,64 +148,98 @@ public partial class MainWindow
             || sender is not FrameworkElement { Tag: TrackRow track } || !row.Tracks.Contains(track)) return;
         if (CombineTrackAudition && auditionTracks.Count > 0 && ReferenceEquals(auditionMidi, row))
         {
-            // Mixer behaviour: ▶ adds this track to what is playing, ■ removes it; the music keeps its place.
+            // Mixer behaviour: ▶ adds this track to what is playing, ■ removes it; the music never stops.
             var next = auditionTracks.Contains(track) ? auditionTracks.Where(item => !ReferenceEquals(item, track)).ToList()
                 : row.Tracks.Where(item => auditionTracks.Contains(item) || ReferenceEquals(item, track)).ToList();
             if (next.Count == 0) { StopTrackAudition(); return; }
+            if (TrySwitchLiveTracks(row, next)) return;
             await PlayTracksAsync(row, next, CurrentAuditionMoment(), trackPlayer?.IsPaused == true);
             return;
         }
         if (auditionTracks.Count == 1 && ReferenceEquals(track, auditionTrack)) { StopTrackAudition(); return; }
-        await PlayTracksAsync(row, [track], TimeSpan.Zero, keepPaused: false);
+        await PlayTracksAsync(row, [track], moment: null, keepPaused: false);
     }
 
+    /// <summary>Plays the tracks marked as melody together (the fixed player's main button when nothing is playing).</summary>
     private async void PlayMarkedTracksClick(object sender, RoutedEventArgs e)
     {
         if (!CanPlayMarkedTracks || selectedFile is not { Document: not null } row) return;
-        await PlayTracksAsync(row, row.Tracks.Where(track => track.IsMelody).ToList(), TimeSpan.Zero, keepPaused: false);
+        await PlayTracksAsync(row, row.Tracks.Where(track => track.IsMelody).ToList(), moment: null, keepPaused: false);
     }
 
     /// <summary>Original-time moment of the current audition, so a new mix resumes at the same place in the song.</summary>
     private TimeSpan CurrentAuditionMoment() => (trackPlayer?.Position ?? TimeSpan.Zero) + auditionTrim;
 
-    private async Task PlayTracksAsync(MidiRow row, IReadOnlyList<TrackRow> tracks, TimeSpan moment, bool keepPaused)
+    /// <summary>
+    /// The song's tracks prepared once on one timeline. Turning a track on or off only mutes or unmutes it in
+    /// the player, so the other tracks keep sounding and the grid never waits for a new preparation.
+    /// </summary>
+    private MidiAuditionSequence? liveMix;
+    private MidiDocument? liveMixDocument;
+
+    private MidiAuditionSequence? LiveMixFor(MidiRow row, IReadOnlyList<TrackRow> tracks) =>
+        liveMix is { } mix && row.Document is { } document && ReferenceEquals(liveMixDocument, document)
+        && tracks.All(track => mix.MixedSources.Contains(track.Source.Key)) ? mix : null;
+
+    private bool PlayingLiveMix(MidiRow row) =>
+        ReferenceEquals(auditionMidi, row) && liveMix is not null && ReferenceEquals(trackPlayer?.Sequence, liveMix);
+
+    private IEnumerable<int> MutedIndexes(MidiAuditionSequence mix, IReadOnlyList<TrackRow> tracks)
+    {
+        var audible = tracks.Select(track => track.Source.Key).ToHashSet();
+        return Enumerable.Range(0, mix.MixedSources.Count).Where(index => !audible.Contains(mix.MixedSources[index]));
+    }
+
+    /// <summary>Changes which tracks sound without stopping, restarting or waiting. False when the live mix cannot do it.</summary>
+    private bool TrySwitchLiveTracks(MidiRow row, IReadOnlyList<TrackRow> tracks)
+    {
+        if (!PlayingLiveMix(row) || LiveMixFor(row, tracks) is not { } mix) return false;
+        try { trackPlayer!.SetMutedSources(MutedIndexes(mix, tracks)); }
+        catch (Exception error) { TrackAuditionFailed(error.Message); return true; }
+        foreach (var track in auditionTracks.Except(tracks)) track.IsAuditioning = false;
+        foreach (var track in tracks) track.IsAuditioning = true;
+        auditionTracks.Clear(); auditionTracks.AddRange(tracks);
+        MarkFlowHeard(row, tracks);
+        TrackAuditionStatus = LiveStatus(mix);
+        NotifyTrackAudition();
+        return true;
+    }
+
+    private string LiveStatus(MidiAuditionSequence mix) =>
+        (auditionTracks.Count == 1 ? "Ouvindo esta pista. ▶ em outra pista soma na hora, sem parar a música."
+            : $"Ouvindo {auditionTracks.Count} pistas juntas. ▶ em outra pista soma; ■ em uma delas tira só ela.")
+        + (mix.Warnings.Count == 0 ? "" : " " + string.Join(" ", mix.Warnings));
+
+    /// <summary>When the audible tracks have all finished, the rest of the song would only be silence.</summary>
+    private void StopFinishedLiveTracks()
+    {
+        if (auditionMidi is not { } row || !PlayingLiveMix(row) || trackPlayer is not { IsPlaying: true } player || liveMix is not { } mix) return;
+        var end = auditionTracks.Select(track => mix.MixedSources.ToList().IndexOf(track.Source.Key)).Where(index => index >= 0)
+            .Select(index => mix.SourceEnds[index]).DefaultIfEmpty(mix.Duration).Max();
+        if (player.Position >= end) StopTrackAudition(auditionTracks.Count == 1 ? "Pista concluída. Ouça outra pista ou marque a melodia." : "Pistas concluídas. Ouça outra pista ou marque a melodia.");
+    }
+
+    /// <param name="moment">Original-time place in the song; null starts at the first note of these tracks.</param>
+    private async Task PlayTracksAsync(MidiRow row, IReadOnlyList<TrackRow> tracks, TimeSpan? moment, bool keepPaused)
     {
         if (row.Document is not { } document || tracks.Count == 0) return;
+        if (LiveMixFor(row, tracks) is { } ready) { StartLiveMix(row, ready, tracks, moment, keepPaused); return; }
         StopTrackAudition();
-        ResetPlayback();
-        PlaybackStatus = SelectedScoreExists ? "Ouça esta partitura sem abrir o editor do MuseScore." : "Gere uma partitura para ouvir aqui no aplicativo.";
-        NotifyPlaybackState();
         string label = tracks.Count == 1 ? $"Pista {tracks[0].Track} · Canal {tracks[0].Channel} · {tracks[0].Instrument}" : $"{tracks.Count} pistas juntas";
         await RunAudioOperation(async () =>
         {
             var token = cancellation!.Token;
-            Status = tracks.Count == 1 ? "Separando as notas e preparando o andamento da pista…" : "Juntando as pistas escolhidas no mesmo andamento…";
-            TrackAuditionStatus = tracks.Count == 1 ? "Preparando esta pista para ouvir…" : "Preparando as pistas para ouvir juntas…";
+            Status = "Preparando as pistas desta música para ouvir e misturar…";
+            TrackAuditionStatus = "Preparando as pistas para ouvir…";
             try
             {
-                var keys = tracks.Select(track => track.Source.Key).ToArray();
-                var sequence = keys.Length == 1
-                    ? await midiPreparationCache.GetOrCreateAsync(document, keys[0],
-                        cancellationToken => Task.Run(() => MidiAuditionSequence.Create(document, keys[0]), cancellationToken), token)
-                    : await Task.Run(() => MidiAuditionSequence.CreateMix(document, keys, token), token);
+                var all = row.Tracks.Select(track => track.Source.Key).ToArray();
+                var required = tracks.Select(track => track.Source.Key).ToHashSet();
+                var mix = await Task.Run(() => MidiAuditionSequence.CreateLiveMix(document, all, required, token), token);
                 token.ThrowIfCancellationRequested();
                 if (trackAuditionDisposed || row.UsesNativeScoreWorkflow || !ReferenceEquals(row, selectedFile)) throw new OperationCanceledException();
-                auditionMidi = row; auditionTracks.AddRange(tracks); auditionTrim = sequence.LeadingSilenceTrimmed;
-                foreach (var track in tracks) track.IsAuditioning = true;
-                var start = moment - sequence.LeadingSilenceTrimmed;
-                trackPlayer!.Play(sequence, start < TimeSpan.Zero || start >= sequence.Duration ? TimeSpan.Zero : start);
-                if (keepPaused) trackPlayer.Pause();
-                MarkFlowHeard(row, tracks);
-                TrackAuditionStatus = (tracks.Count == 1 ? "Ouvindo somente esta pista, a partir da primeira nota."
-                        : $"Ouvindo {tracks.Count} pistas juntas. ▶ em outra pista soma; ■ em uma delas tira só ela.")
-                    + (sequence.Warnings.Count == 0 ? "" : " " + string.Join(" ", sequence.Warnings));
-                Status = tracks.Count == 1 ? "Pista pronta. A reprodução acontece aqui no aplicativo." : "Pistas prontas. A reprodução acontece aqui no aplicativo.";
-                if (!keepPaused) trackAuditionTimer.Start();
-                NotifyTrackAudition();
-                _ = Dispatcher.InvokeAsync(() =>
-                {
-                    if (!trackAuditionDisposed && auditionTracks.Count > 0) TrackAuditionPanel.BringIntoView();
-                }, DispatcherPriority.Loaded);
+                liveMix = mix; liveMixDocument = document;
+                Status = "Pistas prontas. A reprodução acontece aqui no aplicativo.";
             }
             catch (OperationCanceledException)
             {
@@ -215,6 +249,39 @@ public partial class MainWindow
             }
             catch (Exception error) { TrackAuditionFailed(error.Message); throw; }
         }, operationTitle: tracks.Count == 1 ? "Preparando pista para ouvir" : "Preparando pistas para ouvir juntas", operationItem: $"{row.Name} · {label}");
+        // Started after the operation releases the busy state, which would otherwise stop the audition again.
+        if (LiveMixFor(row, tracks) is { } prepared && ReferenceEquals(row, selectedFile) && !trackAuditionDisposed)
+            StartLiveMix(row, prepared, tracks, moment, keepPaused);
+    }
+
+    private void StartLiveMix(MidiRow row, MidiAuditionSequence mix, IReadOnlyList<TrackRow> tracks, TimeSpan? moment, bool keepPaused)
+    {
+        StopLibraryPlayback();
+        foreach (var track in auditionTracks) track.IsAuditioning = false;
+        auditionTracks.Clear();
+        ResetPlayback();
+        PlaybackStatus = SelectedScoreExists ? "Ouça esta partitura sem abrir o editor do MuseScore." : "Gere uma partitura para ouvir aqui no aplicativo.";
+        NotifyPlaybackState();
+        try
+        {
+            var sources = mix.MixedSources.ToList();
+            var start = moment is { } at ? at - mix.LeadingSilenceTrimmed
+                : tracks.Select(track => mix.SourceStarts[sources.IndexOf(track.Source.Key)]).Min();
+            if (start < TimeSpan.Zero || start >= mix.Duration) start = TimeSpan.Zero;
+            auditionMidi = row; auditionTracks.AddRange(tracks); auditionTrim = mix.LeadingSilenceTrimmed;
+            foreach (var track in tracks) track.IsAuditioning = true;
+            trackPlayer!.Play(mix, start, MutedIndexes(mix, tracks));
+            if (keepPaused) trackPlayer.Pause();
+            MarkFlowHeard(row, tracks);
+            TrackAuditionStatus = LiveStatus(mix);
+            if (!keepPaused) trackAuditionTimer.Start();
+            NotifyTrackAudition();
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                if (!trackAuditionDisposed && auditionTracks.Count > 0) TrackAuditionPanel.BringIntoView();
+            }, DispatcherPriority.Loaded);
+        }
+        catch (Exception error) { TrackAuditionFailed(error.Message); }
     }
 
     private void PauseTrackAuditionClick(object sender, RoutedEventArgs e)
