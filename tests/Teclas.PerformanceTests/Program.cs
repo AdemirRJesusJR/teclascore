@@ -16,6 +16,19 @@ if (args.Length >= 3 && args[0] == "-u")
         Console.WriteLine("{\"kind\":\"error\",\"message\":\"Revisão rítmica necessária\",\"reviewPoints\":[{\"quarter\":110.875,\"measure\":28,\"beat\":3.875,\"measureStartQuarter\":108,\"measureEndQuarter\":112,\"blocking\":true,\"kind\":\"rhythm_collision\"}],\"diagnosticPath\":\"local-diagnostic.json\"}");
         return 1;
     }
+    if (testCase == "timed")
+    {
+        // Tempos por etapa do motor, com nomes desconhecidos e valores inválidos que precisam ser ignorados.
+        Console.WriteLine("{\"kind\":\"result\",\"data\":{\"pages\":3,\"timings\":{\"version\":1,\"stages\":{\"midi_read\":0.05,\"analysis\":0.4,\"musicxml\":0.3,\"musescore\":4.5,\"svg_analysis\":0.6,\"preview\":0.2,\"total\":6.5,\"PRIVATE source-path\":9,\"verification\":-1},"
+            + "\"musescore_calls\":[{\"kind\":\"importacao\",\"seconds\":0.8},{\"kind\":\"gravacao\",\"seconds\":1.1},{\"kind\":\"ajuste_espacamento\",\"seconds\":1.0},{\"kind\":\"ajuste_espacamento\",\"seconds\":1.2},{\"kind\":\"render\",\"seconds\":0.4},{\"kind\":\"PRIVATE music-title\",\"seconds\":0.2},{\"kind\":\"render\",\"seconds\":\"PRIVATE\"}],"
+            + "\"spacing_passes\":3,\"conversions\":1}}}");
+        return 0;
+    }
+    if (testCase == "timed-failure")
+    {
+        Console.WriteLine("{\"kind\":\"error\",\"message\":\"Diagramas\",\"errorKind\":\"diagram_layout\",\"reviewPoints\":[],\"timings\":{\"stages\":{\"musescore\":9.5,\"total\":12},\"musescore_calls\":[{\"kind\":\"ajuste_espacamento\",\"seconds\":9.5}],\"spacing_passes\":10,\"conversions\":1}}");
+        return 1;
+    }
     BurnCpu();
     Console.WriteLine("{\"kind\":\"result\",\"data\":{\"pages\":7,\"chords\":[{},{}],\"title\":\"PRIVATE music-title\"}}");
     return 0;
@@ -132,6 +145,31 @@ Check(workerRecords[1].Operation == PerformanceOperation.EngineOther, "unknown r
 Check(workerRecords[0].Counts[PerformanceCount.Pages] == 7 && workerRecords[0].Counts[PerformanceCount.Chords] == 2, "worker only logs approved result counts");
 Check(workerRecords[0].CpuMilliseconds is > 0 && workerRecords[0].ResourceSamples > 0, "worker CPU measured independently");
 Check(workerRecords[4].CpuMilliseconds is null && workerRecords[4].PeakWorkingSetBytes is null, "start failure does not invent process metrics");
+
+var timedRecorder = new LocalPerformanceRecorder(Folder("timed-records"));
+var timedEngine = new EngineClient(executable, processDirectory, timedRecorder);
+await timedEngine.RunAsync(new JsonObject { ["mode"] = "generate", ["syntheticCase"] = "timed" }, Folder("worker-timed"), null, CancellationToken.None);
+try { await timedEngine.RunAsync(new JsonObject { ["mode"] = "generate", ["syntheticCase"] = "timed-failure" }, Folder("worker-timed-failure"), null, CancellationToken.None); throw new Exception("timed failure accepted"); }
+catch (EngineOperationException error) { Check(error.Details["errorKind"]!.GetValue<string>() == "diagram_layout", "structured failure forwards the engine error kind"); }
+var timedRecords = timedRecorder.ReadReport().Records;
+Check(timedRecords.Count == 2 && timedRecords[0].Outcome == PerformanceOutcome.Success && timedRecords[1].Outcome == PerformanceOutcome.Failure, "timed generation records success and failure");
+var timedStages = timedRecords[0].StageSeconds!;
+Check(timedStages[PerformanceStage.MusicXml] == 0.3 && timedStages[PerformanceStage.EngineTotal] == 6.5 && timedStages[PerformanceStage.Preview] == 0.2, "engine stage seconds are recorded");
+Check(Math.Abs(timedStages[PerformanceStage.MuseScoreSpacing] - 2.2) < 1e-9 && timedStages[PerformanceStage.MuseScoreImport] == 0.8 && timedStages[PerformanceStage.MuseScoreRender] == 0.4, "MuseScore calls add up by fixed call type");
+Check(timedStages[PerformanceStage.MuseScoreOther] == 0.2 && timedStages.Count == 12, "unknown stage names and invalid seconds are ignored; unknown call types become Other");
+Check(timedRecords[0].Counts[PerformanceCount.MuseScoreCalls] == 6 && timedRecords[0].Counts[PerformanceCount.LayoutPasses] == 3 && timedRecords[0].Counts[PerformanceCount.Conversions] == 1, "MuseScore calls, layout passes and conversions are counted");
+Check(timedRecords[1].StageSeconds![PerformanceStage.MuseScoreSpacing] == 9.5 && timedRecords[1].Counts[PerformanceCount.LayoutPasses] == 10, "failed generation keeps its stage times");
+Check(timedRecords.Take(1).All(record => record.StageSeconds is not null) && workerRecords.All(record => record.StageSeconds is null), "records without engine timings keep no stage map");
+string timedExport = Path.Combine(directory, "timed-report.json");
+Check(timedRecorder.ExportReport(timedExport) && !File.ReadAllText(timedExport).Contains("PRIVATE") && File.ReadAllText(timedExport).Contains("MuseScoreSpacing"), "stage times export only fixed vocabulary");
+string legacyDirectory = Folder("legacy-records"); Directory.CreateDirectory(legacyDirectory);
+File.WriteAllText(Path.Combine(legacyDirectory, "performance-0.json"), "[{\"StartedUtc\":\"2026-10-01T10:00:00+00:00\",\"Operation\":\"EngineGenerate\",\"Phase\":\"Process\",\"ProcessKind\":\"Worker\",\"Outcome\":\"Success\",\"DurationMilliseconds\":7800,\"CpuMilliseconds\":null,\"PeakWorkingSetBytes\":null,\"ResourceSamples\":0,\"Counts\":{}}]");
+Check(new LocalPerformanceRecorder(legacyDirectory).ReadReport() is { UnreadableFiles: 0 } legacy && legacy.Records.Count == 1 && legacy.Records[0].StageSeconds is null, "records written before stage times are still readable");
+var tampered = JsonNode.Parse(File.ReadAllText(Path.Combine(Path.GetDirectoryName(timedExport)!, "timed-report.json")))!;
+string tamperedDirectory = Folder("tampered-stages"); Directory.CreateDirectory(tamperedDirectory);
+var tamperedRecords = tampered["Records"]!.AsArray(); tamperedRecords[0]!["StageSeconds"]!["MusicXml"] = -5;
+File.WriteAllText(Path.Combine(tamperedDirectory, "performance-0.json"), tamperedRecords.ToJsonString());
+Check(new LocalPerformanceRecorder(tamperedDirectory).ReadReport().UnreadableFiles == 1, "negative stage seconds are rejected on read");
 
 var exporter = new ScoreExporter(executable, Folder("audio-cache"), processRecorder);
 string input = Path.Combine(processDirectory, "PRIVATE score-title.mscz");
