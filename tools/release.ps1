@@ -31,6 +31,12 @@ function Step([string]$name, [scriptblock]$action) {
     Write-Host ("   concluído em {0:n0} s" -f ((Get-Date) - $started).TotalSeconds)
 }
 
+# Runs tools/<script>.py with tools/ on sys.path: an embedded Python (._pth) ignores the script's own folder.
+function Invoke-Tool([string]$script, [string[]]$arguments = @()) {
+    $code = "import runpy, sys; sys.path.insert(0, 'tools'); sys.argv = sys.argv[1:]; runpy.run_path(sys.argv[0], run_name='__main__')"
+    & $PythonPath -c $code "tools/$script" @arguments
+}
+
 Push-Location $root
 try {
     $dirty = git status --porcelain --untracked-files=no
@@ -42,10 +48,10 @@ try {
     }
     if (-not $PythonPath) { $PythonPath = Join-Path $root 'Aplicativo\runtime\python.exe' }
     if (-not (Test-Path -LiteralPath $PythonPath)) { throw "Python não encontrado em $PythonPath." }
-    Step 'Preparar distribuição' { & $PythonPath tools/prepare_distribution.py }
+    Step 'Preparar distribuição' { Invoke-Tool prepare_distribution.py }
     Step 'Instaladores oficial e completo' { & (Join-Path $PSScriptRoot 'build_installer.ps1') -CompilerPath $CompilerPath }
-    Step 'Pacote ZIP e checksums' { & $PythonPath tools/package_app.py --installer }
-    Step 'Conferir entrega' { & $PythonPath tools/verify_delivery.py }
+    Step 'Pacote ZIP e checksums' { Invoke-Tool package_app.py @('--installer') }
+    Step 'Conferir entrega' { Invoke-Tool verify_delivery.py }
 
     if ($Tag) {
         $tagName = "v$version"
