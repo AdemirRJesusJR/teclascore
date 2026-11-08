@@ -38,8 +38,12 @@ def default_work():
 
 
 def git_commit():
+    """Último commit que mudou o motor (engine/), com '+' se houver mudanças não gravadas nele."""
     try:
-        result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], cwd=ROOT, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(['git', 'log', '-1', '--format=%h', '--', 'engine'], cwd=ROOT, capture_output=True, text=True, timeout=10)
+        dirty = subprocess.run(['git', 'status', '--porcelain', '--', 'engine'], cwd=ROOT, capture_output=True, text=True, timeout=10)
+        if result.stdout.strip() and dirty.stdout.strip():
+            return result.stdout.strip() + '+'
         return result.stdout.strip() or None
     except (OSError, subprocess.SubprocessError):
         return None
@@ -169,7 +173,20 @@ def local_app_data():
     return Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData' / 'Local')) / 'TeclasPartituras'
 
 
-def real_candidates(directory, limit):
+def reference_score(item, outputs, any_reference=False):
+    """Partitura aprovada da biblioteca (ou, com any_reference, a última gerada); procura também na pasta de saída."""
+    if not item.get('Approved') and not any_reference:
+        return None, None
+    score = item.get('ScorePath')
+    if not score:
+        return None, None
+    path = Path(score)
+    if not path.is_file() and (Path(outputs) / path.name).is_file():
+        path = Path(outputs) / path.name
+    return (str(path), 'aprovada' if item.get('Approved') else 'gerada (não aprovada)') if path.is_file() else (None, None)
+
+
+def real_candidates(directory, limit, outputs=DEFAULT_OUTPUTS, any_reference=False):
     """MIDIs reais com a escolha de pistas do usuário: biblioteca do app, depois requisições de jobs antigos."""
     directory = Path(directory)
     chosen = {}
@@ -184,9 +201,10 @@ def real_candidates(directory, limit):
             if not path or item.get('ChordsOnly') or not item.get('MelodySources'):
                 continue
             versions = item.get('Versions') or []
-            approved_score = item.get('ScorePath') if item.get('Approved') else None
+            approved_score, kind = reference_score(item, outputs, any_reference)
             sources = [{'track': s['Track'], 'channel': s['Channel'], 'program': s['Program']} for s in item['MelodySources']]
             chosen[str(Path(path)).lower()] = {'midi': path, 'sources': sources, 'reference': approved_score,
+                                               'reference_kind': kind,
                                                'origin': 'biblioteca', 'versions': len(versions)}
     jobs = local_app_data() / 'jobs'
     if jobs.is_dir():
@@ -282,7 +300,7 @@ def indicators_without_reference(score, validation, analysis, midi_path):
 
 def run_real(args):
     work = Path(args.work) / 'real'
-    candidates = real_candidates(args.real, args.real_limit)
+    candidates = real_candidates(args.real, args.real_limit, args.outputs, args.any_reference)
     musescore = args.native or (DEFAULT_MUSESCORE if Path(DEFAULT_MUSESCORE).is_file() else None)
     items = {}
 
@@ -305,7 +323,7 @@ def run_real(args):
             if exported:
                 truth = truth_from_score(metrics.read_musicxml(exported), name)
                 values, details = metrics.evaluate(truth, score, 0.0)
-                entry.update(reference=str(reference), metrics=values, details=details)
+                entry.update(reference=str(reference), reference_kind=candidate.get('reference_kind'), metrics=values, details=details)
         return name, entry
 
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
@@ -347,6 +365,9 @@ def main(argv=None):
     parser.add_argument('--native', metavar='MUSESCORE', help='gera de verdade com este MuseScore (lento)')
     parser.add_argument('--real', nargs='?', const=DEFAULT_REAL, help='mede MIDIs reais do usuário (não roda no CI)')
     parser.add_argument('--real-limit', type=int, default=12, help='quantos MIDIs reais medir (0 = todos)')
+    parser.add_argument('--outputs', type=Path, default=DEFAULT_OUTPUTS, help='pasta de saída das partituras do usuário')
+    parser.add_argument('--any-reference', action='store_true',
+                        help='usa como referência também a última partitura gerada, mesmo sem aprovação')
     args = parser.parse_args(argv)
     args.work = args.work.resolve()
     if args.corpus:
