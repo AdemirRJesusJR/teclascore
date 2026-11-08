@@ -17,15 +17,33 @@ public sealed class ConversionQueueService : IDisposable
     private readonly object sync = new();
     private readonly List<Job> jobs = [];
     private bool disposed;
-    private int operations;
+    private int operations, trailingNotify;
+    private long lastNotify = long.MinValue / 2, saves;
+    /// <summary>How many times the queue file was written in this session (diagnostics and tests).</summary>
+    public long Saves => Interlocked.Read(ref saves);
+    /// <summary>Progress messages notify at most this often; state changes (added, started, finished) notify at once.</summary>
+    private const int NotifyIntervalMilliseconds = 200;
     public event EventHandler? Changed;
     public string? RecoveryMessage { get; private set; }
     public bool IsRunning { get; private set; }
-    /// <summary>How many conversions run at the same time (1 to 4); each has its own workspace, engine and MuseScore.</summary>
+    /// <summary>How many conversions run at the same time (1 to 8, see <see cref="ConversionParallelism"/>); each has its own workspace, engine and MuseScore.</summary>
     public int MaxParallel { get; set; } = 1;
     /// <summary>Two at a time on computers with four or more processor threads; one otherwise.</summary>
     public static int SuggestedParallel => Environment.ProcessorCount >= 4 ? 2 : 1;
     public IReadOnlyList<ConversionQueueItem> Items { get { lock (sync) return jobs.Select(Snapshot).ToArray(); } }
+    /// <summary>Light snapshots for lists and progress (no JSON copies), cheap enough to read on every change.</summary>
+    public IReadOnlyList<ConversionQueueSummaryItem> Summaries { get { lock (sync) return jobs.Select(Summary).ToArray(); } }
+    /// <summary>One complete item (independent copy), or null when it left the queue.</summary>
+    public ConversionQueueItem? FindItem(string id) { lock (sync) return jobs.FirstOrDefault(job => job.Id == id) is { } job ? Snapshot(job) : null; }
+
+    /// <summary>The app data saved beside the job when it was added (<see cref="ConversionQueueRecipe.Attachment"/>), or null.</summary>
+    public JsonObject? ReadAttachment(string id)
+    {
+        string path;
+        lock (sync) { if (!jobs.Any(job => job.Id == id)) return null; path = Path.Combine(JobPath(id), "attachment.json"); }
+        try { return File.Exists(path) ? JsonNode.Parse(ReadBounded(path, CancellationToken.None).GetAwaiter().GetResult()) as JsonObject : null; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or InvalidDataException) { return null; }
+    }
 
     public ConversionQueueService(string queueDirectory, IConversionQueueWorker? worker = null)
     {
@@ -39,7 +57,46 @@ public sealed class ConversionQueueService : IDisposable
 
     public async Task<ConversionQueueItem> EnqueueAsync(ConversionQueueRecipe recipe, CancellationToken token = default)
     {
+        ArgumentNullException.ThrowIfNull(recipe);
+        var batch = await EnqueueManyAsync([recipe], token).ConfigureAwait(false);
+        if (batch.Errors[0] is { } error) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
+        return batch.Items[0]!;
+    }
+
+    /// <summary>
+    /// Adds several recipes with a single save of the queue file (instead of one save per song). Each recipe is frozen
+    /// independently; one that cannot be added (changed MIDI, invalid paths…) is reported in <see cref="ConversionQueueBatch.Errors"/>
+    /// and does not stop the others. Cancellation adds none of them.
+    /// </summary>
+    public async Task<ConversionQueueBatch> EnqueueManyAsync(IReadOnlyList<ConversionQueueRecipe> recipes, CancellationToken token = default)
+    {
+        ArgumentNullException.ThrowIfNull(recipes);
         using var operation = Enter(token); token = operation.Token;
+        var prepared = new Job?[recipes.Count]; var errors = new Exception?[recipes.Count];
+        for (int index = 0; index < recipes.Count; index++)
+        {
+            token.ThrowIfCancellationRequested();
+            try { prepared[index] = await Prepare(recipes[index], token).ConfigureAwait(false); }
+            catch (Exception error) when (error is not OperationCanceledException and not OutOfMemoryException) { errors[index] = error; }
+        }
+        var added = prepared.OfType<Job>().ToList();
+        if (added.Count > 0)
+        {
+            await gate.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                token.ThrowIfCancellationRequested();
+                lock (sync) jobs.AddRange(added);
+                try { Save(); } catch { lock (sync) foreach (var job in added) jobs.Remove(job); throw; }
+            }
+            finally { gate.Release(); }
+            Notify();
+        }
+        return new(prepared.Select(job => job is null ? null : Snapshot(job)).ToArray(), errors);
+    }
+
+    private async Task<Job> Prepare(ConversionQueueRecipe recipe, CancellationToken token)
+    {
         ArgumentNullException.ThrowIfNull(recipe); ValidateRecipe(recipe); recipe = Clone(recipe);
         string id = Guid.NewGuid().ToString("N"), workspace = JobPath(id);
         Directory.CreateDirectory(Path.Combine(workspace, "source"));
@@ -52,22 +109,15 @@ public sealed class ConversionQueueService : IDisposable
         string? analysisHash = await CopyExistingAnalysis(recipe, snapshot, workspace, hash, token).ConfigureAwait(false);
         string recipePath = Path.Combine(workspace, "recipe.json");
         await WriteNew(recipePath, JsonSerializer.SerializeToUtf8Bytes(recipe), token).ConfigureAwait(false);
-        var job = new Job
+        if (recipe.Attachment is { } attachment)
+            await WriteNew(Path.Combine(workspace, "attachment.json"), Encoding.UTF8.GetBytes(attachment.ToJsonString()), token).ConfigureAwait(false);
+        return new Job
         {
             Id = id, DisplayName = string.IsNullOrWhiteSpace(recipe.DisplayName) ? Path.GetFileName(recipe.SourcePath) : recipe.DisplayName,
             Recipe = recipe, SourceSha256 = hash, RecipeSha256 = await Hash(recipePath, token).ConfigureAwait(false),
             AnalysisSha256 = analysisHash, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow,
             Status = ConversionQueueStatus.Pending, Stage = "Aguardando início"
         };
-        await gate.WaitAsync(token).ConfigureAwait(false);
-        try
-        {
-            token.ThrowIfCancellationRequested();
-            lock (sync) jobs.Add(job);
-            try { Save(); } catch { lock (sync) jobs.Remove(job); throw; }
-        }
-        finally { gate.Release(); }
-        Notify(); return Snapshot(job);
     }
 
     public async Task ResumeAsync(string id, CancellationToken token = default)
@@ -79,10 +129,10 @@ public sealed class ConversionQueueService : IDisposable
             var job = Find(id);
             if (job.Status is not (ConversionQueueStatus.Paused or ConversionQueueStatus.Failed))
                 throw new InvalidOperationException("Somente itens pausados ou com falha podem voltar para a espera.");
-            var previous = (job.Status, job.Stage, job.Error, job.UpdatedAt);
-            lock (sync) { job.Status = ConversionQueueStatus.Pending; job.Stage = "Aguardando retomada"; job.Error = null; job.UpdatedAt = DateTimeOffset.UtcNow; }
+            var previous = (job.Status, job.Stage, job.Error, job.ErrorKind, job.UpdatedAt);
+            lock (sync) { job.Status = ConversionQueueStatus.Pending; job.Stage = "Aguardando retomada"; job.Error = null; job.ErrorKind = null; job.UpdatedAt = DateTimeOffset.UtcNow; }
             try { Save(); }
-            catch { lock (sync) (job.Status, job.Stage, job.Error, job.UpdatedAt) = previous; throw; }
+            catch { lock (sync) (job.Status, job.Stage, job.Error, job.ErrorKind, job.UpdatedAt) = previous; throw; }
         }
         finally { gate.Release(); }
         Notify();
@@ -110,7 +160,7 @@ public sealed class ConversionQueueService : IDisposable
         IsRunning = true; Notify();
         try
         {
-            int lanes = Math.Clamp(MaxParallel, 1, 4);
+            int lanes = Math.Clamp(MaxParallel, 1, ConversionParallelism.Maximum);
             await Task.WhenAll(Enumerable.Range(0, lanes).Select(_ => Task.Run(() => Lane(progress, token), token))).ConfigureAwait(false);
         }
         finally { IsRunning = false; runGate.Release(); Notify(); }
@@ -127,7 +177,7 @@ public sealed class ConversionQueueService : IDisposable
                 {
                     lock (sync) job = jobs.FirstOrDefault(item => item.Status == ConversionQueueStatus.Pending);
                     if (job is null) return;
-                    lock (sync) { job.Status = ConversionQueueStatus.Running; job.Attempts++; job.Error = null; job.Stage = "Conferindo a retomada"; job.UpdatedAt = DateTimeOffset.UtcNow; }
+                    lock (sync) { job.Status = ConversionQueueStatus.Running; job.Attempts++; job.Error = null; job.ErrorKind = null; job.Stage = "Conferindo a retomada"; job.UpdatedAt = DateTimeOffset.UtcNow; }
                     Save();
                 }
                 finally { gate.Release(); }
@@ -148,7 +198,7 @@ public sealed class ConversionQueueService : IDisposable
                 }
                 catch (Exception error) when (!committed && error is not OutOfMemoryException)
                 {
-                    await SetState(job, ConversionQueueStatus.Failed, "Falha · pode tentar novamente", error.Message, null).ConfigureAwait(false);
+                    await SetState(job, ConversionQueueStatus.Failed, "Falha · pode tentar novamente", error.Message, null, EngineErrorKind.Of(error)).ConfigureAwait(false);
                     Report(job, progress);
                 }
             }
@@ -353,18 +403,34 @@ public sealed class ConversionQueueService : IDisposable
         foreach (string key in new[] { "queueReceipt", "queueJobId", "queueRecipeSha256", "analysisPath", "outputDirectory", "musescorePath" }) request.Remove(key);
         request["mode"] = mode; request["workspace"] = JobPath(job.Id); request["inputMidi"] = SnapshotPath(job);
     }
-    private async Task SetState(Job job, ConversionQueueStatus status, string stage, string? error, ConversionQueueResult? result)
+    private async Task SetState(Job job, ConversionQueueStatus status, string stage, string? error, ConversionQueueResult? result, string? errorKind = null)
     {
         await gate.WaitAsync().ConfigureAwait(false);
-        try { lock (sync) { job.Status = status; job.Stage = stage; job.Error = error; job.Result = result; job.UpdatedAt = DateTimeOffset.UtcNow; } Save(); }
+        try { lock (sync) { job.Status = status; job.Stage = stage; job.Error = error; job.ErrorKind = errorKind; job.Result = result; job.UpdatedAt = DateTimeOffset.UtcNow; } Save(); }
         finally { gate.Release(); }
         Notify();
     }
     private void Stage(Job job, string stage, IProgress<ConversionQueueProgress>? progress, int attempt, CancellationToken token)
-    { lock (sync) { if (token.IsCancellationRequested || job.Status != ConversionQueueStatus.Running || job.Attempts != attempt) return; job.Stage = stage; job.UpdatedAt = DateTimeOffset.UtcNow; } Report(job, progress); }
-    private void Report(Job job, IProgress<ConversionQueueProgress>? progress)
-    { ConversionQueueProgress value; lock (sync) value = new(job.Id, job.Stage, jobs.Count(item => item.Status == ConversionQueueStatus.Completed), jobs.Count); progress?.Report(value); Notify(); }
-    private void Notify() { try { Changed?.Invoke(this, EventArgs.Empty); } catch (Exception error) when (error is not OutOfMemoryException) { /* UI listeners cannot invalidate a committed queue. */ } }
+    { lock (sync) { if (token.IsCancellationRequested || job.Status != ConversionQueueStatus.Running || job.Attempts != attempt) return; job.Stage = stage; job.UpdatedAt = DateTimeOffset.UtcNow; } Report(job, progress, throttled: true); }
+    private void Report(Job job, IProgress<ConversionQueueProgress>? progress, bool throttled = false)
+    {
+        ConversionQueueProgress value; lock (sync) value = new(job.Id, job.Stage, jobs.Count(item => item.Status == ConversionQueueStatus.Completed), jobs.Count);
+        progress?.Report(value);
+        if (throttled) NotifyThrottled(); else Notify();
+    }
+    private void Notify()
+    {
+        Interlocked.Exchange(ref lastNotify, Environment.TickCount64);
+        try { Changed?.Invoke(this, EventArgs.Empty); } catch (Exception error) when (error is not OutOfMemoryException) { /* UI listeners cannot invalidate a committed queue. */ }
+    }
+    /// <summary>Engine progress can arrive many times a second per lane: listeners hear at most ~5 per second, and always the last one.</summary>
+    private void NotifyThrottled()
+    {
+        long wait = Interlocked.Read(ref lastNotify) + NotifyIntervalMilliseconds - Environment.TickCount64;
+        if (wait <= 0) { Notify(); return; }
+        if (Interlocked.Exchange(ref trailingNotify, 1) != 0) return;
+        _ = Task.Delay((int)Math.Min(wait, NotifyIntervalMilliseconds)).ContinueWith(_ => { Interlocked.Exchange(ref trailingNotify, 0); Notify(); }, TaskScheduler.Default);
+    }
 
     private void Load()
     {
@@ -416,6 +482,7 @@ public sealed class ConversionQueueService : IDisposable
         {
             using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { stream.Write(bytes); stream.Flush(flushToDisk: true); }
             if (File.Exists(path)) File.Replace(temp, path, path + ".bak"); else File.Move(temp, path);
+            Interlocked.Increment(ref saves);
         }
         finally { TryDelete(temp); }
     }
@@ -439,7 +506,10 @@ public sealed class ConversionQueueService : IDisposable
     }
     private ConversionQueueItem Snapshot(Job job) => new(job.Id, job.DisplayName, job.Recipe.SourcePath, SnapshotPath(job), job.SourceSha256, JobPath(job.Id),
         job.Status, job.Attempts, job.Stage, job.Error, job.CreatedAt, job.UpdatedAt,
-        job.Result is { } result ? result with { Data = (JsonObject)result.Data.DeepClone() } : null, Clone(job.Recipe));
+        job.Result is { } result ? result with { Data = (JsonObject)result.Data.DeepClone() } : null, Clone(job.Recipe), job.ErrorKind);
+    private ConversionQueueSummaryItem Summary(Job job) => new(job.Id, job.DisplayName, job.Recipe.SourcePath, job.SourceSha256, JobPath(job.Id),
+        job.Status, job.Attempts, job.Stage, job.Error, job.ErrorKind, job.CreatedAt, job.UpdatedAt,
+        job.Result?.ScorePath, job.Result?.PreviewPath, job.Result?.Pages ?? 0);
     private static ConversionQueueRecipe Clone(ConversionQueueRecipe recipe) => recipe with
         { AnalyzeOptions = (JsonObject)recipe.AnalyzeOptions.DeepClone(), GenerateOptions = (JsonObject)recipe.GenerateOptions.DeepClone() };
     private static bool SamePath(string first, string second) => string.Equals(Path.GetFullPath(first), Path.GetFullPath(second), StringComparison.OrdinalIgnoreCase);
@@ -521,6 +591,8 @@ public sealed class ConversionQueueService : IDisposable
         public int Attempts { get; set; }
         public string Stage { get; set; } = "";
         public string? Error { get; set; }
+        /// <summary>Absent in queues saved by older versions.</summary>
+        public string? ErrorKind { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public ConversionQueueResult? Result { get; set; }

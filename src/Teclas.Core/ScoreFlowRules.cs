@@ -154,6 +154,13 @@ public static class ScoreFlowRules
 
     public static bool CanGenerate(IReadOnlyList<ScoreFlowCheck> checks) => !checks.Any(c => c.Pending);
 
+    /// <summary>
+    /// What "Confirmar pendências desta etapa" may confirm at once: the pending doubts of that step that have a Confirmar
+    /// button. Blocks are never confirmed, and neither are checks that must be resolved by an action.
+    /// </summary>
+    public static IReadOnlyList<ScoreFlowCheck> Confirmable(IReadOnlyList<ScoreFlowCheck> checks, ScoreFlowStep step) =>
+        checks.Where(c => c.Step == step && c.Level == ScoreFlowLevel.Confirm && c.Pending && c.ConfirmLabel is not null).ToArray();
+
     public static int CrowdedChanges(IReadOnlyList<ScoreFlowChord> chords)
     {
         var ordered = chords.OrderBy(c => c.Quarter).ToArray();

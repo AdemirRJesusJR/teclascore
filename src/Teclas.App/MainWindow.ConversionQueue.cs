@@ -13,10 +13,11 @@ public partial class MainWindow
     private ConversionQueueService GetConversionQueue()
     {
         if (!persistenceEnabled) throw new InvalidOperationException("A fila precisa de uma sessão salva.");
-        // Two conversions at a time on computers with four or more processor threads.
-        return conversionQueue ??= new ConversionQueueService(Path.Combine(
-            persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!, "conversion-queue"))
-            { MaxParallel = ConversionQueueService.SuggestedParallel };
+        // Simultaneous conversions: Configurações › Conversões simultâneas (automatic by processor threads and free memory).
+        conversionQueue ??= new ConversionQueueService(Path.Combine(
+            persistencePath is null ? Settings.DataDirectory : Path.GetDirectoryName(Path.GetFullPath(persistencePath))!, "conversion-queue"), conversionQueueWorker);
+        if (!conversionQueue.IsRunning) conversionQueue.MaxParallel = ConversionParallelism.Resolve(settings.ConversionParallelism);
+        return conversionQueue;
     }
 
     private bool HasCurrentMelodyAnalysis(MidiRow row)
@@ -88,26 +89,36 @@ public partial class MainWindow
         ["defaultInversion"] = row.DefaultDiagramInversion, ["inversion"] = row.DiagramInversion
     };
 
-    private async Task EnqueueConversion(MidiRow row, CancellationToken token)
+    /// <summary>
+    /// Freezes the card as a queue recipe. The library snapshot and revision travel as the job's attachment (outside
+    /// queue.json and the engine request), so saving the queue stays small however many songs wait in it.
+    /// </summary>
+    private ConversionQueueRecipe BuildQueueRecipe(MidiRow row, string outputDirectory)
     {
-        RequireMidiWorkflow(row); ValidateSettings(true);
+        RequireMidiWorkflow(row);
         if (row.Document is null || (!row.UseReviewedProfile && !row.HasMelodyChoice))
             throw new InvalidOperationException("Escolha as pistas de melodia antes de adicionar à fila.");
-        string outputDirectory = await PrepareOutputDirectoryAsync(token);
-        var options = QueueGenerationOptions(row);
         var snapshot = CaptureMidi(row);
         // History is kept in the library; each queue recipe only needs the selected version.
         var snapshotJson = JsonSerializer.SerializeToNode(snapshot)!.AsObject();
         snapshotJson.Remove(nameof(SavedMidi.Versions));
-        options["librarySnapshot"] = snapshotJson;
-        options["libraryRevision"] = QueueRevision(row);
-        var recipe = new ConversionQueueRecipe(row.FullPath, PythonPath, engineDirectory, MuseScorePath, outputDirectory,
-            AnalyzeOptions(row), options,
+        return new ConversionQueueRecipe(row.FullPath, PythonPath, engineDirectory, MuseScorePath, outputDirectory,
+            AnalyzeOptions(row), QueueGenerationOptions(row),
             HasCurrentMelodyAnalysis(row) && !row.ReviewPoints.Any(point => point.Blocking) ? row.AnalysisPath : null)
-        { SourceSha256 = row.SourceSha256, DisplayName = row.ScoreTitle };
-        await GetConversionQueue().EnqueueAsync(recipe, token);
+        {
+            SourceSha256 = row.SourceSha256, DisplayName = row.ScoreTitle,
+            Attachment = new JsonObject { ["librarySnapshot"] = snapshotJson, ["libraryRevision"] = QueueRevision(row) }
+        };
     }
 
+    private async Task EnqueueConversion(MidiRow row, CancellationToken token)
+    {
+        var failures = new Dictionary<MidiRow, string>();
+        if ((await EnqueueConversionsAsync([row], token, failures)).Count == 0)
+            throw new InvalidOperationException(failures.GetValueOrDefault(row) ?? "Não foi possível adicionar à fila.");
+    }
+
+    /// <summary>Adds the song to the queue without opening it; a running background queue takes it too.</summary>
     private async void EnqueueConversionClick(object sender, RoutedEventArgs e)
     {
         if (!CanEnqueueNow || selectedFile is not { } row || !CommitEdits()) return;
@@ -115,9 +126,21 @@ public partial class MainWindow
         await RunOperation(async () =>
         {
             await EnqueueConversion(row, cancellation!.Token); added = true;
-            Status = "Partitura adicionada à fila com as opções atuais.";
         }, operationTitle: "Adicionando à fila", operationItem: row.Name);
-        if (added) ShowConversionQueue();
+        if (!added) return;
+        int pending = conversionQueue?.Summaries.Count(item => item.Status == ConversionQueueStatus.Pending) ?? 1;
+        if (IsBackgroundQueueRunning) { StartBackgroundQueue(); Status = $"{row.Name} entrou na fila em segundo plano."; }
+        else Status = $"{row.Name} adicionada à fila ({pending} pendente(s)). Inicie em Gerar › Fila de conversões, ou use Gerar e próxima para gerar em segundo plano.";
+        PersistPreferences();
+    }
+
+    /// <summary>Puts the rows in the queue with one save and starts the background queue (Lote, Melodias em lote, músicas marcadas).</summary>
+    private async Task<int> EnqueueRowsAsync(IReadOnlyList<MidiRow> rows, CancellationToken token, List<string> failed)
+    {
+        var failures = new Dictionary<MidiRow, string>();
+        var added = await EnqueueConversionsAsync(rows, token, failures);
+        foreach (var (row, error) in failures) failed.Add((string.IsNullOrWhiteSpace(row.ScoreTitle) ? row.Name : row.ScoreTitle) + ": " + error);
+        return added.Count;
     }
 
     private void ConversionQueueClick(object sender, RoutedEventArgs e)
@@ -146,15 +169,19 @@ public partial class MainWindow
     {
         if (conversionQueue is null) return;
         bool changed = false;
-        foreach (var item in conversionQueue.Items.Where(item => item.Status == ConversionQueueStatus.Completed && item.Result is not null))
+        // The light summaries say what finished; the full item and its attachment are read only for new results.
+        foreach (var summary in conversionQueue.Summaries.Where(item => item.Status == ConversionQueueStatus.Completed && item.ScorePath is not null && !reconciledQueueItems.Contains(item.Id)))
         {
-            var row = Files.FirstOrDefault(row => string.Equals(row.FullPath, item.OriginalSourcePath, StringComparison.OrdinalIgnoreCase));
-            var result = item.Result!;
-            if (row is null || row.Versions.Any(version => string.Equals(version.ScorePath, result.ScorePath, StringComparison.OrdinalIgnoreCase))) continue;
+            var row = Files.FirstOrDefault(row => string.Equals(row.FullPath, summary.OriginalSourcePath, StringComparison.OrdinalIgnoreCase));
+            if (row is null) continue;
+            if (row.Versions.Any(version => string.Equals(version.ScorePath, summary.ScorePath, StringComparison.OrdinalIgnoreCase))) { reconciledQueueItems.Add(summary.Id); continue; }
+            if (conversionQueue.FindItem(summary.Id) is not { Result: { } result } item) continue;
             try
             {
                 if (!File.Exists(result.ScorePath)) continue;
-                var snapshot = item.Recipe.GenerateOptions["librarySnapshot"]?.Deserialize<SavedMidi>();
+                var attachment = conversionQueue.ReadAttachment(item.Id);
+                var snapshot = (attachment?["librarySnapshot"] ?? item.Recipe.GenerateOptions["librarySnapshot"])?.Deserialize<SavedMidi>();
+                var revision = attachment?["libraryRevision"] ?? item.Recipe.GenerateOptions["libraryRevision"];
                 if (snapshot is null) continue;
                 var analysis = File.Exists(result.AnalysisPath) ? JsonNode.Parse(File.ReadAllText(result.AnalysisPath!)) : null;
                 var chords = snapshot.Chords;
@@ -185,9 +212,9 @@ public partial class MainWindow
                     AnalysisPath = result.AnalysisPath, Workspace = item.Workspace
                 };
                 bool activate = !row.UsesNativeScoreWorkflow && string.Equals(row.SourceSha256, item.SourceSha256, StringComparison.OrdinalIgnoreCase) &&
-                    JsonNode.DeepEquals(QueueRevision(row), item.Recipe.GenerateOptions["libraryRevision"]);
+                    JsonNode.DeepEquals(QueueRevision(row), revision);
                 RememberVersion(row);
-                row.Versions.Add(version); changed = true;
+                row.Versions.Add(version); changed = true; reconciledQueueItems.Add(item.Id);
                 if (activate)
                 {
                     RestoreVersion(row, version);

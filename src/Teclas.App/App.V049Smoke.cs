@@ -146,6 +146,23 @@ public partial class App
                 "failures-are-retried-with-adjustments " + string.Join(" ", attempts) + " | " + window.Status);
             Check(!b.ChordsOnly && !c.ChordsOnly && attempts.All(at => !at.EndsWith(":True")), "retry-never-drops-the-melody " + string.Join(" ", attempts));
             Check(window.Status.Contains("1 de 3") && window.Status.Contains("Continuam falhando"), "retry-reports-what-changed");
+            // Retry by cause: a repeat failure is retried without folding; a transposition failure is grouped for a decision.
+            var byKind = new List<string>();
+            window.generationAttempt = (rows, _) =>
+            {
+                var failed = new Dictionary<MidiRow, string>();
+                foreach (var row in rows)
+                {
+                    byKind.Add($"{Path.GetFileNameWithoutExtension(row.FullPath)}:{row.FoldRepeats}");
+                    if (row == c && !row.FoldRepeats) { row.ScorePath = score; continue; }
+                    failed[row] = "recusada"; window.generationFailureKinds[row] = row == b ? "transpose_range" : "repeat_jump";
+                }
+                return Task.FromResult<IReadOnlyDictionary<MidiRow, string>>(failed);
+            };
+            var stillFailing = await window.RetryFailuresAsync([b, c]); Flush();
+            Check(stillFailing.Keys.SequenceEqual(new[] { b }) && byKind.SequenceEqual(new[] { "falha-b:True", "falha-c:True", "falha-c:False" })
+                && window.Status.Contains("transposição fora da extensão (1)"), "retry-follows-the-failure-cause " + string.Join(" ", byKind) + " | " + window.Status);
+            window.generationAttempt = null;
 
             // 0.50.0: a pending change withdraws the approval, which belonged to the score already on disk.
             a.Approved = true; a.HasPendingScoreProperties = false;

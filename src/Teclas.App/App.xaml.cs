@@ -27,6 +27,8 @@ public partial class App : Application
         { VerifyRecordedMelodyUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v052-ui")
         { VerifyV052Ui(e.Args[1]); return; }
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-background-queue-ui")
+        { VerifyBackgroundQueueUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v049-ui")
         { VerifyV049Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v048-ui")

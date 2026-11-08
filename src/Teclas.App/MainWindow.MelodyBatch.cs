@@ -22,7 +22,9 @@ public partial class MainWindow
         await RunOperation(async () =>
         {
             var token = cancellation!.Token;
-            foreach (var item in chosen)
+            // One save of the queue for the whole batch; the hook (smokes) keeps the one-by-one path.
+            if (melodyBatchEnqueue is null) added = await EnqueueRowsAsync(chosen.Select(item => item.Row).ToList(), token, failed);
+            else foreach (var item in chosen)
             {
                 token.ThrowIfCancellationRequested();
                 SetOperationItems(added + failed.Count, chosen.Count, item.Song);
@@ -31,6 +33,6 @@ public partial class MainWindow
             }
             Status = $"{added} músicas com melodia escolhida foram para a fila." + (failed.Count > 0 ? $" {failed.Count} não entraram: " + string.Join(" · ", failed) : "");
         }, operationTitle: "Enfileirando as melodias escolhidas");
-        if (added > 0 && melodyBatchEnqueue is null) ShowConversionQueue();
+        if (added > 0 && melodyBatchEnqueue is null) { StartBackgroundQueue(); Status += " A fila está gerando em segundo plano."; }
     }
 }

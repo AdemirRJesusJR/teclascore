@@ -32,9 +32,9 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public bool IsBusy=>busy;
     public bool IsIdle=>!busy;
     public bool HasReviewedProfile=>selectedFile is { UsesNativeScoreWorkflow:false, HasReviewedProfile:true };
-    public bool CanEditMidi=>IsIdle && selectedFile is { UsesNativeScoreWorkflow:false, Document:not null };
+    public bool CanEditMidi=>IsIdle && selectedFile is { UsesNativeScoreWorkflow:false, Document:not null, IsQueued:false };
     public bool CanSelectTracks=>CanEditMidi && !UseReviewedProfile;
-    public bool CanGenerate=>IsIdle && (selectedFile is { UsesNativeScoreWorkflow:true, ScorePath:{} score } && File.Exists(score)
+    public bool CanGenerate=>IsIdle && selectedFile is { IsQueued:false } && (selectedFile is { UsesNativeScoreWorkflow:true, ScorePath:{} score } && File.Exists(score)
         || selectedFile is { UsesNativeScoreWorkflow:false, Document:not null } row && (row.UseReviewedProfile || row.HasMelodyChoice));
     public string? PreviewSourcePath=>selectedFile?.PreviewPath;
     public bool UseReviewedProfile
@@ -55,7 +55,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     public string SelectionMessage=>selectedFile is null?"Escolha um MIDI na biblioteca para preparar a melodia, conferir os acordes e gerar sua partitura.":selectedFile is { HasMusicalEdits:true, IsNativeScore:false }?"Partitura com edições musicais: continue no Editor musical. Para voltar à geração pelo MIDI, restaure uma versão anterior às edições no Histórico.":selectedFile.IsNativeScore?"Partitura MuseScore: use o Editor musical ou melhore a apresentação em uma nova cópia.":selectedFile.Document is null?"Este arquivo não pôde ser lido. Substitua-o por uma cópia completa do MIDI.":selectedFile.HasReviewedProfile?"Este MIDI tem uma revisão pronta de melodia, solos e acordes. Você pode aplicá-la ou escolher as pistas manualmente.":selectedFile.Profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Este arquivo foi identificado como acompanhamento, sem a melodia completa. Para transcrever a canção inteira, use um MIDI que contenha a voz principal.","partial_melody"=>"Este MIDI contém apenas parte da melodia ou solos. A seleção manual permite preparar esses trechos; a canção completa precisa de outra fonte.",_=>"MIDI novo: selecione uma ou mais pistas para reunir introdução e melodia; confira a prioridade e os acordes antes de gerar."};
     public string FileCountText=>$"{Files.Count} arquivos · {Files.Count(f=>f.ScorePath is not null)} partituras geradas";
     public string Status{get=>status;private set{status=value;RememberMessage(value);Notify();}}
-    public ImageSource? Preview{get=>preview;private set{preview=value;Notify();}}
+    public ImageSource? Preview{get{if(previewPendingPath is not null)LoadPendingPreview();return preview;}private set{previewPendingPath=null;preview=value;Notify();}}
     public string PreviewMessage=>selectedFile?.HasPendingScoreProperties == true?selectedFile.UsesNativeScoreWorkflow?"Alterações pendentes · atualize a partitura pelo Editor musical ou pelas Propriedades.":"Alterações pendentes · gere novamente para atualizar esta prévia.":selectedFile?.ScorePath is null?"A prévia aparecerá depois da geração.":"Todas as páginas · use as miniaturas, o zoom ou a tela cheia para estudar.";
     public string GenerationHint=>selectedFile is { HasMusicalEdits:true, IsNativeScore:false }?"Continue as alterações no Editor musical. Para gerar a partir do MIDI, restaure uma versão anterior às edições no Histórico.":selectedFile?.IsNativeScore==true?"Melhore a apresentação em uma nova cópia e compare as versões no Histórico.":selectedFile?.AnalysisPath is null?selectedFile is { Document:not null } row && (row.UseReviewedProfile || row.HasMelodyChoice)?row.ChordsOnly?"Ao gerar, os acordes serão analisados em todas as pistas, para uma partitura só de cifras.":"Ao gerar, os acordes serão analisados para a melodia selecionada. Confira as cifras sugeridas.":"Escolha a pista de melodia para gerar a partitura.":UseReviewedProfile?"Perfil revisado carregado. Ajustes feitos na tabela de cifras serão aplicados.":"Confira a fonte de melodia e as cifras: uma análise automática precisa de revisão musical.";
     public MainWindow(bool smoke=false,string? settingsPath=null,Func<IMidiOutputTransport>? midiOutputFactory=null)
@@ -122,16 +122,20 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         NotifyFlow();
         foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText),nameof(FoldRepeats),nameof(SimplifiedChords),nameof(ChordsOnly),nameof(IncludeLyrics),nameof(CanShowChordSheetText),nameof(CanAskTeacher),nameof(CanShowSimilarSongs),nameof(CanExportStudyAudio),nameof(KeyboardFitMessage),nameof(KeyboardFitVisibility),nameof(ChordStaff),nameof(CanExportBooklet),nameof(LyricsTrackHint),nameof(LyricsTrackVisibility),nameof(CollectionRuleHint),nameof(CollectionRuleVisibility),nameof(RecordedMelodyHint),nameof(RecordedMelodyVisibility)})Notify(name);
         RefreshDashboard();
-        Preview=null;
-        if(selectedFile?.PreviewPath is { } path && File.Exists(path))
+        // The page image is decoded only when something reads Preview (selecting a card no longer decodes a PNG).
+        preview=null;previewPendingPath=selectedFile?.PreviewPath;Notify(nameof(Preview));
+    }
+    private string? previewPendingPath;
+    private void LoadPendingPreview()
+    {
+        string? path=previewPendingPath;previewPendingPath=null;
+        if(path is null || !File.Exists(path))return;
+        try
         {
-            try
-            {
-                var image=new BitmapImage();image.BeginInit();image.CacheOption=BitmapCacheOption.OnLoad;image.UriSource=new Uri(path);image.EndInit();image.Freeze();Preview=image;
-            }
-            catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or InvalidOperationException)
-            {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
+            var image=new BitmapImage();image.BeginInit();image.CacheOption=BitmapCacheOption.OnLoad;image.UriSource=new Uri(path);image.EndInit();image.Freeze();preview=image;
         }
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or InvalidOperationException)
+        {Status="Não foi possível abrir a prévia. Sua partitura e suas edições continuam salvas. "+ex.Message;}
     }
     private void SetBusy(bool value){busy=value;NotifyFlow();Notify(nameof(CanExportBatchPdf));Notify(nameof(CanRecoverDrafts));Notify(nameof(CanOpenPresentation));Notify(nameof(CanSelectTracks));NotifyMelodyPriority();Notify(nameof(CanEnqueueConversion));Notify(nameof(CanOpenMusicEditor));Notify(nameof(CanArrangeScore));Notify(nameof(CanReviewVisualScore));NotifyDiagnostics();if(value)StopTrackAudition();Notify(nameof(IsBusy));Notify(nameof(IsIdle));Notify(nameof(CanGenerate));Notify(nameof(CanBatch));NotifyPlaybackState();NotifyLibraryActions();NotifyTrackAudition();Notify(nameof(CanEditScoreProperties));Notify(nameof(CanEditMidi));Notify(nameof(CanReviewScore));Notify(nameof(CanTransposeScore));Notify(nameof(CanShiftOctave));Notify(nameof(CanShowHistory));Notify(nameof(CanCustomizeDiagrams));Notify(nameof(CanSyncLibrary));}
     private void InvalidateAnalysis(MidiRow row)
@@ -204,6 +208,9 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         int processed=0;
         SetOperationItems(0,list.Length);
         MidiRow? firstImported=null,firstExisting=null;
+        // The new MIDIs are read on several cores first; the loop below finds them ready.
+        await PrefetchForImportAsync(list,cancellation!.Token);
+        try{
         foreach(var path in list)
         {
             cancellation!.Token.ThrowIfCancellationRequested();
@@ -225,6 +232,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             imported++;
             SetOperationItems(++processed,list.Length);
         }
+        }finally{prefetchedMidis=null;}
         Status=imported>0?$"{imported} arquivos importados. Abra a prévia das partituras ou prepare os MIDIs.":firstExisting is not null?"Este arquivo já está na biblioteca.":"Nenhum MIDI ou arquivo MuseScore foi selecionado.";
         Notify(nameof(FileCountText));
         return firstImported??firstExisting;
@@ -435,18 +443,13 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(!IsIdle || !CommitEdits())return;
         var rows=Files.Where(f=>!f.UsesNativeScoreWorkflow && f.Category==DashboardCategory.Ready).ToArray();
         if(rows.Length==0){Status="Não há MIDIs revisados prontos para adicionar à fila.";return;}
-        int added=0;
+        int added=0;var failed=new List<string>();
         await RunOperation(async()=>{
-            SetOperationItems(0,rows.Length);
-            foreach(var row in rows)
-            {
-                cancellation!.Token.ThrowIfCancellationRequested();
-                SetOperationItems(added,rows.Length,row.Name);
-                await EnqueueConversion(row,cancellation.Token);added++;
-            }
-            Status=$"{added} partituras adicionadas à fila. Clique em Iniciar pendentes para converter.";
+            // One save of the queue for the whole batch; the songs are generated in the background.
+            added=await EnqueueRowsAsync(rows,cancellation!.Token,failed);
+            Status=$"{added} partituras adicionadas à fila; gerando em segundo plano."+(failed.Count>0?$" {failed.Count} não entraram: "+string.Join(" · ",failed):"");
         },operationTitle:"Adicionando lote à fila");
-        if(added>0)ShowConversionQueue();
+        if(added>0)StartBackgroundQueue();
     }
     private async void ZipClick(object sender,RoutedEventArgs e)
     {

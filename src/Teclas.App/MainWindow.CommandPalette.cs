@@ -35,6 +35,10 @@ public partial class MainWindow
         ["Apresentação (palco)"] = "\uE786",
         ["Analisar a música selecionada"] = "\uE9D9",
         ["Gerar a partitura selecionada"] = "\uE9F9",
+        ["Continuar para a pr\u00F3xima etapa"] = "\uE72A",
+        ["Gerar em segundo plano e abrir a pr\u00F3xima"] = "\uE895",
+        ["Confirmar pend\u00EAncias desta etapa"] = "\uE73E",
+        ["Pausar a fila em segundo plano"] = "\uE769",
         ["Salvar PDF da partitura"] = "\uE74E",
         ["Transpor"] = "\uE8CB",
         ["Cifra em texto"] = "\uEA37",
@@ -56,8 +60,8 @@ public partial class MainWindow
     internal IReadOnlyList<PaletteItem> PaletteItems()
     {
         var e = new RoutedEventArgs();
-        PaletteItem Act(string label, string keywords, Action action, Func<bool>? can = null) =>
-            new(label, "", keywords, () => { if (can?.Invoke() ?? IsIdle) action(); else Status = $"\"{label}\" não está disponível agora."; })
+        PaletteItem Act(string label, string keywords, Action action, Func<bool>? can = null, string keys = "") =>
+            new(label, keys, keywords, () => { if (can?.Invoke() ?? IsIdle) action(); else Status = $"\"{label}\" não está disponível agora."; })
                 { Glyph = PaletteGlyphs.TryGetValue(label, out var glyph) ? glyph : "\uE756" };
         var items = new List<PaletteItem>
         {
@@ -87,6 +91,10 @@ public partial class MainWindow
             Act("Apresentação (palco)", "palco show culto tocar", () => OpenPresentationClick(this, e)),
             Act("Analisar a música selecionada", "acordes analise", () => AnalyzeClick(this, e)),
             Act("Gerar a partitura selecionada", "gerar mscz", () => GenerateClick(this, e)),
+            Act("Continuar para a próxima etapa", "proxima etapa avancar continuar gerar", () => FlowNextClick(this, e), () => CanFlowNext, "Ctrl+Enter"),
+            Act("Gerar em segundo plano e abrir a próxima", "fila fundo proxima musica gerar", () => _ = GenerateInBackgroundAndOpenNextAsync(), () => CanGenerateInBackground, "Ctrl+Shift+Enter"),
+            Act("Confirmar pendências desta etapa", "confirmar conferir etapa pendencias", () => ConfirmCurrentFlowStep(), () => CanConfirmFlowStep),
+            Act("Pausar a fila em segundo plano", "fila pausar parar fundo", PauseBackgroundQueue, () => CanPauseBackgroundQueue),
             Act("Salvar PDF da partitura", "pdf exportar imprimir", () => ExportPdfClick(this, e), () => CanExportPdf),
             Act("Transpor", "tom voz semitom", () => TransposeScoreClick(this, e)),
             Act("Cifra em texto", "cifra copiar whatsapp chordpro", () => ChordSheetTextClick(this, e), () => CanShowChordSheetText),

@@ -281,10 +281,10 @@ public partial class MainWindow
     /// </summary>
     internal const string AlreadyInLibrary = "já estava na biblioteca";
 
-    internal async Task<IReadOnlyList<QuietImport>> ImportQuietlyAsync(IEnumerable<string> paths)
+    private async Task<IReadOnlyList<QuietImport>> ImportQuietlyCoreAsync(IReadOnlyList<string> paths)
     {
         var results = new List<QuietImport>();
-        foreach (var path in paths.Where(MidiFolderScanner.IsMidi).Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var path in paths)
         {
             if (FindCard(path) is { } existing) { results.Add(new(path, existing, false, AlreadyInLibrary)); continue; }
             MidiRow row;

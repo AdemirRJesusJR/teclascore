@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using Teclas.Core;
 
@@ -22,7 +23,7 @@ public partial class MainWindow
         if (!IsIdle || !CommitEdits()) return;
         var rows = ReviewSequenceRows();
         if (rows.Count == 0) { Status = "Nada para revisar: todas as partituras geradas já foram aprovadas."; return; }
-        var window = new ReviewSequenceWindow(rows, row => { row.Approved = true; PersistPreferences(); }, RedoWithNextMelodyAsync) { Owner = this };
+        var window = new ReviewSequenceWindow(rows, row => { row.Approved = true; PersistPreferences(); }, RedoWithNextMelodyAsync, PrepareReviewAudioAsync) { Owner = this };
         reviewSequenceDialog(window);
         libraryDirty = true; RefreshDashboard(); PersistPreferences();
         Status = window.Approved > 0 ? $"{window.Approved} partitura(s) aprovada(s) na revisão." : Status;
@@ -31,6 +32,15 @@ public partial class MainWindow
             SetCurrentPage("library"); Library.SelectedItem = edit; Library.ScrollIntoView(edit); RefreshSelection();
             OpenMusicEditorClick(this, new RoutedEventArgs());
         }
+    }
+
+    /// <summary>The audio of a score for the review in sequence (Space), from the playback cache when already prepared.</summary>
+    private Task<string> PrepareReviewAudioAsync(MidiRow row, CancellationToken token)
+    {
+        string? score = row.ScorePath; string museScore = MuseScorePath, cache = PlaybackCacheDirectory;
+        if (score is null || !File.Exists(score)) return Task.FromException<string>(new InvalidOperationException("a partitura não está no disco"));
+        if (!File.Exists(museScore)) return Task.FromException<string>(new InvalidOperationException("o MuseScore não foi encontrado"));
+        return Task.Run(async () => (await new ScoreStudyAudio(museScore, cache).PrepareAsync(score, 1.0, null, token)).Path, token);
     }
 
     /// <summary>The next melody candidate (by the advisor's ranking) replaces the current choice and the score is made again.</summary>
@@ -45,6 +55,14 @@ public partial class MainWindow
         foreach (var track in row.Tracks) track.IsMelody = track == next;
         row.AutoMelody = false; row.Approved = false;
         string name = $"{next.Instrument} (pista {next.Track}, canal {next.Channel})";
+        if (reviewRegenerate is null && !IsAutopilotRunning)
+        {
+            // Through the background queue: the review goes on while the new version is generated.
+            PersistPreferences();
+            await EnqueueConversion(row, CancellationToken.None);
+            StartBackgroundQueue();
+            return $"Na fila para gerar de novo com a melodia em {name}. Continue a revisão; a nova versão aparece no card quando ficar pronta.";
+        }
         bool ok = false;
         await RunOperation(async () =>
         {

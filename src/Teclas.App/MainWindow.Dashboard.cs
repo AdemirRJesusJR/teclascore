@@ -64,7 +64,8 @@ public partial class MainWindow
     public string SearchText
     {
         get => searchText;
-        set { if (searchText == value) return; searchText = value ?? ""; Notify(); libraryDirty = true; RefreshDashboard(); }
+        // Typing only filters the cards: the ratings did not change, so they are not computed again.
+        set { if (searchText == value) return; searchText = value ?? ""; Notify(); libraryDirty = true; RefreshDashboard(rateScores: false); }
     }
     public string CurrentFilter
     {
@@ -167,13 +168,13 @@ public partial class MainWindow
                 : compare.IndexOf(text, word, loose) >= 0 || compare.IndexOf(keyText, word, loose) >= 0);
     }
 
-    private void RefreshDashboard()
+    private void RefreshDashboard(bool rateScores = true)
     {
         if (!dashboardInitialized || dashboardRefreshing) return;
         dashboardRefreshing = true;
         try
         {
-            RefreshAllConfidence();
+            if (rateScores) RefreshAllConfidence();
             dashboardMetrics = DashboardMetrics.Calculate(Files.Select(row => row.DashboardFacts));
             ReplaceRows(RecentFiles, Files.Reverse().Take(4));
             ReplaceRows(GeneratedFiles, Files.Where(row => row.Category == DashboardCategory.Generated)

@@ -12,9 +12,10 @@ namespace Teclas.App;
 
 public sealed class ConversionQueueWindow : Window
 {
-    private sealed class QueueRow(ConversionQueueItem item) : Observable
+    // Rows show the light summaries: the full recipes are read only for the selected item or the summary.
+    private sealed class QueueRow(ConversionQueueSummaryItem item) : Observable
     {
-        public ConversionQueueItem Item { get; private set; } = item;
+        public ConversionQueueSummaryItem Item { get; private set; } = item;
         public string Name => Item.DisplayName;
         public string Source => Item.OriginalSourcePath;
         public string Status => Item.Status switch
@@ -26,7 +27,7 @@ public sealed class ConversionQueueWindow : Window
         public int Attempts => Item.Attempts;
         public string Stage => Item.Stage;
         public string Error => Item.Error ?? "";
-        public void Update(ConversionQueueItem value)
+        public void Update(ConversionQueueSummaryItem value)
         {
             Item = value;
             foreach (string name in new[] { nameof(Name), nameof(Source), nameof(Status), nameof(Attempts), nameof(Stage), nameof(Error) }) Notify(name);
@@ -44,7 +45,7 @@ public sealed class ConversionQueueWindow : Window
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private readonly Stopwatch elapsed = new();
     private CancellationTokenSource? operation;
-    private bool runningQueue, closed, pendingClose;
+    private bool runningQueue, closed, pendingClose, refreshPosted;
     private string stage = "";
 
     /// <summary>Song chosen in the summary to open in the editor; the queue window closes after it.</summary>
@@ -126,21 +127,24 @@ public sealed class ConversionQueueWindow : Window
     private void ServiceChanged(object? sender, EventArgs e)
     {
         if (closed || Dispatcher.HasShutdownStarted) return;
+        // Many notifications in a row (several lanes reporting stages) become one refresh.
+        lock (rows) { if (refreshPosted) return; refreshPosted = true; }
         try
         {
             Dispatcher.InvokeAsync(() =>
             {
+                lock (rows) refreshPosted = false;
                 if (closed) return;
                 RefreshItems();
                 ReconcileCompleted();
-            });
+            }, DispatcherPriority.Background);
         }
         catch (InvalidOperationException) { /* The UI dispatcher is shutting down. */ }
     }
 
     private void RefreshItems()
     {
-        var snapshots = service.Items;
+        var snapshots = service.Summaries;
         var ids = snapshots.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
         foreach (var row in rows.Where(row => !ids.Contains(row.Item.Id)).ToArray()) rows.Remove(row);
         foreach (var item in snapshots)
@@ -159,7 +163,7 @@ public sealed class ConversionQueueWindow : Window
 
     private void ReconcileCompleted()
     {
-        var completed = service.Items.Where(item => item.Status == ConversionQueueStatus.Completed && item.Result is not null &&
+        var completed = service.Summaries.Where(item => item.Status == ConversionQueueStatus.Completed && item.ScorePath is not null &&
             !reconciled.Contains(item.Id)).Select(item => item.Id).ToArray();
         if (completed.Length == 0) return;
         try
@@ -182,7 +186,7 @@ public sealed class ConversionQueueWindow : Window
         resumeSelected.IsEnabled = idle && selected?.Status is ConversionQueueStatus.Paused or ConversionQueueStatus.Failed;
         resumeAll.IsEnabled = idle && rows.Any(row => row.Item.Status is ConversionQueueStatus.Paused or ConversionQueueStatus.Failed);
         remove.IsEnabled = idle && selected is not null && selected.Status != ConversionQueueStatus.Running;
-        openFolder.IsEnabled = selected?.Status == ConversionQueueStatus.Completed && ResultDirectory(selected) is not null;
+        openFolder.IsEnabled = selected?.Status == ConversionQueueStatus.Completed && ResultDirectory(service.FindItem(selected.Id)) is not null;
         details.Text = selected is null ? "A fila está vazia. Adicione uma partitura pela biblioteca." :
             "Origem: " + selected.OriginalSourcePath + (string.IsNullOrWhiteSpace(selected.Error) ? "" : "\n" + selected.Error);
         progressPanel.Visibility = operation is null ? Visibility.Collapsed : Visibility.Visible;
@@ -277,9 +281,9 @@ public sealed class ConversionQueueWindow : Window
         RefreshControls();
     }
 
-    private static string? ResultDirectory(ConversionQueueItem item)
+    private static string? ResultDirectory(ConversionQueueItem? item)
     {
-        if (item.Result is not { } result) return null;
+        if (item?.Result is not { } result) return null;
         if (Directory.Exists(result.ReviewDirectory)) return result.ReviewDirectory;
         string? folder = Path.GetDirectoryName(result.ScorePath);
         return !string.IsNullOrWhiteSpace(folder) && Directory.Exists(folder) ? folder : null;
@@ -287,7 +291,7 @@ public sealed class ConversionQueueWindow : Window
 
     private void OpenFolder()
     {
-        if (grid.SelectedItem is not QueueRow row || ResultDirectory(row.Item) is not { } path) return;
+        if (grid.SelectedItem is not QueueRow row || ResultDirectory(service.FindItem(row.Item.Id)) is not { } path) return;
         try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
         catch (Exception error) { message.Text = "Não foi possível abrir a pasta: " + error.Message; }
     }

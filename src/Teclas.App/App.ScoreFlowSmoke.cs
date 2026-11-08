@@ -88,8 +88,9 @@ public partial class App
             Check(!Pending("melody-listen"), "playing-the-marked-tracks-confirms-listening");
             Click("StopTrackAuditionClick"); Flush();
             clock.Restart(); while (!window.IsIdle && clock.Elapsed < TimeSpan.FromSeconds(8)) { await Task.Delay(20); Flush(); }
-            foreach (var check in window.FlowCheckList.Where(c => c.Step == ScoreFlowStep.Melody && c.Pending && c.Level == ScoreFlowLevel.Confirm).ToArray())
-                Call("ConfirmFlow", row, check.Id);
+            // "Confirmar etapa" confirms the simple doubts of the step at once.
+            int melodyConfirms = window.FlowCheckList.Count(c => c.Step == ScoreFlowStep.Melody && c.Pending && c.Level == ScoreFlowLevel.Confirm);
+            Check(window.CanConfirmFlowStep == melodyConfirms > 0 && window.ConfirmCurrentFlowStep() == melodyConfirms, "confirm-step-takes-the-melody-confirmations");
             Flush();
             Check(window.CanFlowNext && window.FlowReachable == ScoreFlowStep.Analysis && !window.CanGenerateNow, "melody-step-clears-but-analysis-is-next");
             Snapshot("score-flow-2-melodia-pronta");
@@ -115,6 +116,12 @@ public partial class App
             Check(window.FlowCheckList.Any(c => c.Id == "chords-duplicate" && c.Level == ScoreFlowLevel.Block) && Pending("chords-doubtful") && Pending("chords-key"), "chord-locks-are-listed");
             Check(window.ChordTiles.Count == 5 && window.ChordTiles.Any(c => c.IsDoubtful) && window.KeyConfirmVisibility == Visibility.Visible && window.KeyTitle.Contains("Ré maior", StringComparison.Ordinal), "cifras-shows-key-and-tiles");
             Snapshot("score-flow-4-cifras");
+            Check(window.CanConfirmFlowStep && window.ConfirmFlowStepVisibility == Visibility.Visible && window.ConfirmFlowStepToolTip.Contains("bloqueio"), "confirm-step-offers-the-chord-confirmations");
+            Check(window.ConfirmCurrentFlowStep() >= 1 && !window.CanFlowNext && window.FlowCheckList.Any(c => c.Id == "chords-duplicate" && c.Pending), "confirm-step-never-clears-a-block");
+            // Alt+← goes back a step and Alt+→ returns to the step already unlocked; Ctrl+Enter is a flow shortcut.
+            Check(window.HandleShortcut(System.Windows.Input.Key.Left, System.Windows.Input.ModifierKeys.Alt, null) && window.FlowCurrentStep == ScoreFlowStep.Analysis, "alt-left-goes-back-a-step");
+            Check(window.HandleShortcut(System.Windows.Input.Key.Right, System.Windows.Input.ModifierKeys.Alt, null) && window.FlowCurrentStep == ScoreFlowStep.Chords, "alt-right-returns-to-the-unlocked-step");
+            Check(window.HandleShortcut(System.Windows.Input.Key.Enter, System.Windows.Input.ModifierKeys.Control, null) && window.FlowCurrentStep == ScoreFlowStep.Chords, "ctrl-enter-respects-the-lock");
             row.Chords.Remove(row.Chords.Single(c => c.Quality == "7")); Flush();
             Call("ConfirmFlow", row, "chords-doubtful"); Click("KeyConfirmClick"); Flush();
             Check(window.CanFlowNext && window.CanGenerateNow && window.KeyConfirmedVisibility == Visibility.Visible, "everything-confirmed-unlocks-generation");

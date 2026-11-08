@@ -23,6 +23,9 @@ public partial class MainWindow
         ("Ctrl+P", "Salvar a partitura em PDF"),
         ("Ctrl+F", "Buscar na biblioteca"),
         ("Ctrl+K", "Comandos: digite o nome de qualquer ação ou música"),
+        ("Ctrl+Enter", "Continuar para a próxima etapa; na etapa Gerar, gerar a partitura"),
+        ("Ctrl+Shift+Enter", "Gerar em segundo plano e abrir a próxima música pendente"),
+        ("Alt+← / Alt+→", "Etapa anterior ou seguinte (Melodia, Ritmo, Cifras, Gerar)"),
         ("Ctrl+1 / Ctrl+2 / Ctrl+3", "Visão geral, Biblioteca, Produção"),
         ("Ctrl+,", "Configurações"),
         ("F11", "Partitura em tela cheia (com a prévia em foco)"),
@@ -43,6 +46,7 @@ public partial class MainWindow
     internal bool HandleShortcut(Key key, ModifierKeys modifiers, IInputElement? focus)
     {
         const ModifierKeys ctrl = ModifierKeys.Control, ctrlShift = ModifierKeys.Control | ModifierKeys.Shift;
+        if (HandleFlowShortcut(key, modifiers, focus)) return true;
         switch (modifiers, key)
         {
             case (ModifierKeys.None, Key.F1): ShortcutsClick(this, new RoutedEventArgs()); return true;

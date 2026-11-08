@@ -83,15 +83,21 @@ public partial class MainWindow
         var newItems = data.Library.Where(row => !existing.Contains(row.FullPath) && (string.IsNullOrEmpty(row.Sha256) || !known.Contains(row.Sha256)))
             .GroupBy(row => string.IsNullOrEmpty(row.Sha256) ? row.FullPath : row.Sha256, StringComparer.OrdinalIgnoreCase).Select(group => group.First()).ToArray();
         var loaded = new List<(SavedMidi Saved, MidiRow Row)>();
-        foreach (var saved in newItems)
+        // The restored MIDIs are read on several cores first; the loop below finds them ready.
+        await PrefetchForImportAsync(newItems.Select(item => item.FullPath).ToArray(), token);
+        try
         {
-            token.ThrowIfCancellationRequested(); Status = $"Abrindo música {loaded.Count + 1} de {newItems.Length}…";
-            MidiRow row;
-            try { row = await Task.Run(() => LoadMidi(saved.FullPath), token); }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException or OverflowException or ArgumentException or NotSupportedException)
-            { row = new MidiRow { FullPath = saved.FullPath, Status = "Origem indisponível no backup · cópias salvas preservadas" }; }
-            loaded.Add((saved, row));
+            foreach (var saved in newItems)
+            {
+                token.ThrowIfCancellationRequested(); Status = $"Abrindo música {loaded.Count + 1} de {newItems.Length}…";
+                MidiRow row;
+                try { row = await Task.Run(() => LoadMidi(saved.FullPath), token); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException or OverflowException or ArgumentException or NotSupportedException)
+                { row = new MidiRow { FullPath = saved.FullPath, Status = "Origem indisponível no backup · cópias salvas preservadas" }; }
+                loaded.Add((saved, row));
+            }
         }
+        finally { prefetchedMidis = null; }
         token.ThrowIfCancellationRequested();
         bool oldLoading = loading; loading = true;
         try
@@ -118,6 +124,8 @@ public partial class MainWindow
         finally { loading = oldLoading; }
         token.ThrowIfCancellationRequested();
         // Publish the merged session atomically before adding rows; cancellation after this point is successful restoration.
+        // A coalesced save still pending or being written reaches the disk first, so it cannot overwrite this one.
+        settingsAutosave?.Flush();
         CaptureSession(); var previous = settings.Library;
         settings.Library = previous.Concat(newItems).ToList();
         try { if (persistenceEnabled) settings.Save(persistencePath); }
