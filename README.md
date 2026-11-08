@@ -6,6 +6,8 @@ Versão 1.2.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artist
 
 **Pasta de MIDIs (Ctrl+L):** em vez de importar tudo, escolha uma pasta e marque, dentro do app, os MIDIs que entram na biblioteca. A lista mostra subpasta, tamanho, data e se o arquivo já está na biblioteca; filtre por nome (sem diferenciar acentos) e use ▶ para ouvir antes. Nada é copiado: os cards apontam para os arquivos na própria pasta, e a pasta escolhida fica lembrada. É o botão principal do cabeçalho; para arquivos avulsos use Escolher arquivos… na mesma janela, arraste-os para o app ou Ctrl+O.
 
+**Pasta acompanhada (opcional, desligada por padrão):** marque **Acompanhar esta pasta** na janela Pasta de MIDIs ou em Configurações › Pasta acompanhada. A partir daí, cada MIDI novo (.mid, .midi, .kar) que chegar à pasta vira um card quando termina de ser gravado ou baixado, como na importação normal (mesmo título e artista, sem copiar e sem repetir um arquivo que já está na biblioteca, nem com outro nome), e o rodapé avisa. Os MIDIs que já estavam na pasta ao ligar continuam de fora até você marcá-los. Ao abrir o app, entram também os que chegaram com ele fechado. **Gerar sozinho com o Piloto automático** (só com a primeira opção ligada) envia os cards novos ao Piloto, que segue as mesmas regras: melodias duvidosas e MIDIs sem melodia completa ficam esperando a sua escolha. O Piloto espera você terminar o que está fazendo (uma janela aberta, a música tocando, a edição de cifras) e mostra o progresso no rodapé, sem a janela de resultado. A lista do que a pasta já tinha fica em `pasta-acompanhada.json`, ao lado das configurações.
+
 **Posições na biblioteca inteira:** em Posições dos diagramas, deixe marcada a opção Aplicar também às outras músicas. As cifras alteradas passam a valer nas músicas com o mesmo acorde tocado (nota e tipo, já com a transposição), e as partituras já geradas são atualizadas em seguida, com a versão anterior no Histórico. As outras cifras de cada música não mudam.
 
 **Instalador completo:** cada entrega gera `debug/TeclaScore-Completo.iss` com a versão atual e o compila em `debug/saida/TeclaScore-X-Completo-Setup-x64.exe`, que instala o aplicativo e, se faltar, o MuseScore Studio 4 do kit. O script é gerenciado e refeito a cada versão; para personalizar, copie-o com outro nome.
@@ -111,6 +113,15 @@ Em **Produção**, cada partitura tem **Remover**, com **Desfazer remoção** no
 O importador considera nomes tanto em **título – intérprete** quanto em **intérprete – título**, priorizando os campos declarados no MIDI. A inferência pelo texto é uma sugestão; nomes ambíguos ficam inteiros no título, com artista vazio, para conferência. Em arquivos já importados, abra **Propriedades da partitura → Usar sugestões**, ou **Trocar título e intérprete**, e confira antes de **Aplicar e atualizar**. A autoria preenchida é preservada; não se presume que o intérprete seja o compositor.
 
 Em **Sobre → Desempenho**, confira as operações recentes, exporte o relatório JSON ou limpe os registros. O histórico é local, rotativo e limitado a 512 registros; não guarda títulos, nomes de arquivos, caminhos ou mensagens de erro. Duração é tempo decorrido. CPU é a diferença observada no processo, pode ser parcial e inclui outras tarefas simultâneas do aplicativo; processos filhos ficam separados. Memória mostra o maior pico observado desde o início do processo, não a alocação exclusiva de uma operação. Não some durações sobrepostas.
+
+## Geração pela linha de comando
+
+```powershell
+Teclas.Partituras.exe --gerar "C:\MIDIs\Novos" --pdf "C:\Partituras\PDF" --relatorio "C:\Partituras\relatorio.json" | Out-Host
+$LASTEXITCODE
+```
+
+`--gerar` aceita uma pasta (todos os .mid, .midi e .kar dela; com `--recursivo`, também os das subpastas) ou um ou mais arquivos. Os MIDIs entram na biblioteca como na importação normal, sem repetir arquivos, e passam pelo mesmo fluxo do Piloto automático, sem confirmações e sem janela. `--pdf <pasta>` salva o PDF de cada partitura gerada (e das que já existiam), `--saida <pasta>` grava os .mscz em outra pasta só nesta execução, `--relatorio <arquivo.json>` grava por arquivo a situação (`pronta`, `para-revisar`, `precisa-de-voce`, `falhou`, `ja-gerada`), a partitura, o PDF e o motivo, e `--configuracoes <settings.json>` usa outra biblioteca. `--ajuda` mostra o uso. Código de saída: **0** tudo pronto, **2** algo ficou para revisar ou precisa de você, **1** erro ou falha (inclusive um arquivo que não é MIDI ou um PDF que não saiu). Feche o TeclaScore antes, pois os dois usariam a mesma biblioteca (com `--configuracoes` não é preciso). Como o app é de janela, no PowerShell redirecione a saída (`| Out-Host`) para ele esperar o fim e preencher `$LASTEXITCODE`; no Prompt de Comando use `start /wait`.
 
 ## Testes automáticos e medições
 

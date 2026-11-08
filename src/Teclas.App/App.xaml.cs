@@ -17,6 +17,10 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // Command-line generation (--gerar, --ajuda) runs without the window and reports errors without message boxes.
+        if (Teclas.Core.BatchCommandLine.IsRequest(e.Args)) { RunCommandLine(e.Args); return; }
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-folder-watch-ui")
+        { VerifyFolderWatchUi(e.Args[1]); return; }
         // Automated checks report their own failures; only real sessions keep crash files.
         if (!e.Args.Any(arg => arg.StartsWith("--verify", StringComparison.Ordinal) || arg.StartsWith("--", StringComparison.Ordinal) && arg.Contains("smoke", StringComparison.OrdinalIgnoreCase))) InstallCrashLog();
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v052-ui")

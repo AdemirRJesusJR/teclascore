@@ -79,6 +79,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeAppearance();
         InitializeWindowTheme();
         InitializePersistence(smoke,settingsPath);
+        InitializeFolderWatch(smoke,settingsPath);
         InitializeLibrarySync();
         InitializeChordAlternatives();
         InitializeAutoUpdate(smoke);
