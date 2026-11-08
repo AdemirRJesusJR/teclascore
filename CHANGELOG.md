@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 1.5.6 — 08/11/2026
+
+Escuta das pistas como um mixer.
+
+- **Pistas entram e saem sem parar a música.** Com Somar ligado, ▶ em outra pista faz ela soar na hora, no mesmo ponto da música, e ■ silencia só aquela pista. Antes, cada ▶ ou ■ preparava a mistura de novo: a música parava por um instante e os botões das pistas ficavam bloqueados até a preparação terminar. Agora todas as pistas são preparadas juntas no primeiro ▶, e as seguintes só ligam ou desligam o som de cada uma, inclusive com a escuta pausada.
+- **Sem o botão Ouvir marcadas.** As pistas marcadas como melodia continuam tocando juntas pelo botão principal do player das pistas (▶ redondo), quando nada está tocando.
+
 ## 1.5.5 — 08/11/2026
 
 Correção do som na linha do tempo da etapa Ritmo.

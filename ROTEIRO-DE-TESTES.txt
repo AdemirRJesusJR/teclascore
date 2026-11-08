@@ -1,3 +1,12 @@
+TECLASCORE 1.5.6 · PISTAS COMO MIXER
+
+1. Em Sobre, confira que a versão é 1.5.6.
+2. Na etapa Melodia, com Somar ligado no player das pistas, clique ▶ numa pista: ela toca a partir da primeira nota.
+3. Com a música tocando, clique ▶ em outras pistas: cada uma entra na hora, no mesmo ponto, sem pausa nem botões bloqueados.
+4. Clique ■ numa delas: só ela silencia e as outras continuam. Clique ▶ de novo: ela volta na hora.
+5. Pause, ligue ou desligue pistas e continue: tocam só as pistas ligadas.
+6. Confira que o botão Ouvir marcadas não aparece mais e que o botão principal do player, parado, toca as pistas marcadas como melodia.
+
 TECLASCORE 1.5.5 · SOM NAS BARRAS DA ETAPA RITMO
 
 1. Em Sobre, confira que a versão é 1.5.5.
@@ -395,7 +404,7 @@ TECLASCORE 0.23.0 · POSIÇÕES LEMBRADAS, VÁRIAS PISTAS E PDFS EM MASSA
 1. Abra a música "Dois corações e uma": G e D já devem aparecer com as posições usadas nas outras músicas. Aplique e confira a partitura.
 2. Mude a posição de um acorde em qualquer música e aplique. Analise uma música nova que tenha esse acorde: a cifra deve vir com a mesma posição.
 3. Na escuta das pistas, com Somar pistas ligado, toque uma pista e clique ▶ em outra: as duas tocam juntas, no mesmo ponto. Clique ■ em uma delas: só ela sai. Desligue Somar pistas: ▶ volta a tocar só a pista clicada.
-4. Marque duas pistas como melodia e use Ouvir marcadas.
+4. Marque duas pistas como melodia e, com nada tocando, use o botão principal (▶ redondo) do player das pistas.
 5. Na Biblioteca, use PDFs em massa: só os cards gerados aparecem, já marcados. Escolha uma pasta com um PDF de mesmo nome: o existente é preservado e o novo recebe (2). Nenhuma subpasta é criada.
 
 TECLASCORE 0.22.0 · POSIÇÕES NA BIBLIOTECA E INSTALADOR COMPLETO

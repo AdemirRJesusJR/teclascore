@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 1.5.5 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 1.5.6 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Selecionar várias músicas:** clique com o botão direito num card e escolha **Selecionar** (ou use Ctrl+clique). Cada card ganha uma caixa de marcação; Shift+clique marca um intervalo, a caixa da seção marca a seção inteira e Ctrl+A marca todas. A barra flutuante embaixo da lista age sobre todas as marcadas: **PDFs**, **Repertório**, **Gerar**, **Cifras**, **Coleção**, **Favoritar**, **Títulos** e **Remover** (com Desfazer). Esc sai da seleção.
 
@@ -9,6 +9,8 @@ Versão 1.5.5 para Windows x64, em C# / WPF (.NET 10). Organiza título e artist
 **Pasta acompanhada (opcional, desligada por padrão):** marque **Acompanhar esta pasta** na janela Pasta de MIDIs ou em Configurações › Pasta acompanhada. A partir daí, cada MIDI novo (.mid, .midi, .kar) que chegar à pasta vira um card quando termina de ser gravado ou baixado, como na importação normal (mesmo título e artista, sem copiar e sem repetir um arquivo que já está na biblioteca, nem com outro nome), e o rodapé avisa. Os MIDIs que já estavam na pasta ao ligar continuam de fora até você marcá-los. Ao abrir o app, entram também os que chegaram com ele fechado. **Gerar sozinho com o Piloto automático** (só com a primeira opção ligada) envia os cards novos ao Piloto, que segue as mesmas regras: melodias duvidosas e MIDIs sem melodia completa ficam esperando a sua escolha. O Piloto espera você terminar o que está fazendo (uma janela aberta, a música tocando, a edição de cifras) e mostra o progresso no rodapé, sem a janela de resultado. A lista do que a pasta já tinha fica em `pasta-acompanhada.json`, ao lado das configurações.
 
 **Posições na biblioteca inteira:** em Posições dos diagramas, deixe marcada a opção Aplicar também às outras músicas. As cifras alteradas passam a valer nas músicas com o mesmo acorde tocado (nota e tipo, já com a transposição), e as partituras já geradas são atualizadas em seguida, com a versão anterior no Histórico. As outras cifras de cada música não mudam.
+
+**Pistas como mixer (1.5.6):** com Somar ligado, ▶ em outra pista faz ela soar na hora, no mesmo ponto da música, e ■ silencia só aquela pista; a música não para. O botão principal do player das pistas toca juntas as pistas marcadas como melodia.
 
 **Som nas barras da etapa Ritmo (1.5.5):** clicar em qualquer barra da linha do tempo toca aquele compasso. Se a melodia não tem notas ali, ou se o ponto é de cifra, tocam todas as pistas do MIDI.
 
@@ -80,7 +82,7 @@ Versão 1.5.5 para Windows x64, em C# / WPF (.NET 10). Organiza título e artist
 
 **Posições lembradas:** toda posição aplicada em Posições dos diagramas fica guardada para aquele acorde e é usada nas cifras das próximas músicas analisadas; a janela já abre com elas.
 
-**Várias pistas juntas:** na escuta das pistas, deixe Somar pistas ligado e use ▶ para acrescentar pistas à reprodução (■ tira uma delas), ou Ouvir marcadas para escutar juntas as pistas de melodia.
+**Várias pistas juntas:** na escuta das pistas, deixe Somar pistas ligado e use ▶ para acrescentar pistas à reprodução na hora, sem parar a música (■ silencia só aquela pista), ou o botão principal do player para escutar juntas as pistas marcadas como melodia.
 
 **PDFs em massa:** na Biblioteca, PDFs em massa lista os cards com partitura gerada, já marcados. Escolha a pasta e cada música vira um PDF direto nela, sem substituir arquivos existentes.
 

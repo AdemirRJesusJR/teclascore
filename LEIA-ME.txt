@@ -1,3 +1,7 @@
+TECLASCORE 1.5.6
+
+Na escuta das pistas, com Somar ligado, cada ▶ acrescenta a pista na hora e cada ■ silencia só aquela pista, sem parar a música. O botão Ouvir marcadas saiu: o botão principal do player das pistas toca juntas as pistas marcadas como melodia.
+
 TECLASCORE 1.5.5
 
 Na etapa Ritmo, clicar em qualquer barra da linha do tempo toca aquele compasso. Quando a melodia não tem notas no compasso, e nos pontos de cifra, tocam todas as pistas do MIDI, para que o trecho não fique em silêncio.
@@ -202,7 +206,7 @@ Prévia: repetir o trecho A–B virou um ícone moderno; desligar a repetição 
 TECLASCORE 0.23.0
 
 Posições dos diagramas agora ficam guardadas por acorde e são aplicadas automaticamente nas próximas músicas analisadas.
-Escuta das pistas: Somar pistas e Ouvir marcadas tocam várias pistas ao mesmo tempo.
+Escuta das pistas: com Somar pistas, ▶ e ■ ligam e desligam cada pista sem parar a música; o botão principal do player toca as pistas marcadas.
 PDFs em massa (Biblioteca): escolha os cards gerados e a pasta; os PDFs são salvos direto nela.
 
 TECLASCORE 0.22.0
