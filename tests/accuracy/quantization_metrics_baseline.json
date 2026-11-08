@@ -1,0 +1,164 @@
+{
+ "4733c7920a782c9034f0ab331551123da5558a58f9358432fa2f60eaa1fb8f35": {
+  "filename": "Aldo Jacob - Forro da Filhinha.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0288,
+  "collisions": 0
+ },
+ "7e6964fcc877990aa760f9682fa1fd756db650a4cb5524ec499de03294236b20": {
+  "filename": "BABY ELSON  FORRO.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0346,
+  "collisions": 0
+ },
+ "2e00c1a2d4573e0a1c9c5674d7f248a9ce43bce879b488ed10caee2d1f98d475": {
+  "filename": "Eu Amo versao forro zeze e luciano.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0137,
+  "collisions": 0
+ },
+ "39f7f7d8f284d8c54651b20efca304208d717b7bc5bb694e92f7aca7c0f375fb": {
+  "filename": "Ex do seu atual - Versao Forro.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0415,
+  "collisions": 0
+ },
+ "233f0055092e5ddf29e21a3b8a4a8c2c842c704cf58ae09dce327e586aa70d02": {
+  "filename": "forro-Medo-da-Chuva-Raul-S..mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0507,
+  "collisions": 0
+ },
+ "aaf4e37111f31d052c6afb852c8d896327cfbce15f39470c1c2d840228ed9df9": {
+  "filename": "forro.mid",
+  "attack_recall": 0.9932,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0271,
+  "collisions": 3
+ },
+ "4cf498844e68e6b4e3256c613b955e6d8b9b53b1fcd9468e286c7c0ae2988124": {
+  "filename": "ForrozaoFio_de_Cabelo.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0313,
+  "collisions": 0
+ },
+ "e293219e920d6de4ff103388b7bd8757a4ff36511740802de6f6339dc2b2464c": {
+  "filename": "Forró Real - Logo Eu + Solteirões do Forró - Eu Sei de Cor.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0,
+  "collisions": 0
+ },
+ "7c99fd43f7825868d3b586ae1645339f51ed15247baa05478f71f413f1a872d2": {
+  "filename": "Leandro_e_LeyltonAmor_de_Primavera_em_Forro_.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0201,
+  "collisions": 0
+ },
+ "7036f085f40f75c9255ccd816d82e884a27fdf0638dba429ee889017fdfa6004": {
+  "filename": "Mastruz_com_LeiteForro_Mastruz_com_Leite.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0288,
+  "collisions": 0
+ },
+ "c9a46ff4fccbbe6bf82fec54c731e1f6849fc328011fbab78ea8ecbfe29a94f5": {
+  "filename": "Mastruz_com_LeiteForrobodo.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0288,
+  "collisions": 0
+ },
+ "3a007bf4cda5774a21807e19e63c1d29d5c1ca82ecf63a9a7085a64f1fa0bd9f": {
+  "filename": "Norte_ForroAbertura_Show.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0406,
+  "collisions": 0
+ },
+ "d44e6c2540318dab6f46b7f08c4550b524bbaa58b72650f1536864ef3e3b0ddb": {
+  "filename": "PinducaForrobodo_Tem_Ginga.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0288,
+  "collisions": 0
+ },
+ "752e881b6140b70f675ba01225b8ac267507200987e99b311a9d4cb2cecd5ff9": {
+  "filename": "Que-tiro-foi-esse-versao-forro.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0358,
+  "collisions": 0
+ },
+ "8a266b511863cf5c853f8a97be7cf684c10f4910c564308cfe1c8eda1174e59e": {
+  "filename": "Sou Um sonhador- Forro Bxx (2).MID",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0346,
+  "collisions": 0
+ },
+ "268f586d293031c1e5ff0c81cf7654566f4ec68566223527a73a98e6dfa44278": {
+  "filename": "Teodoro_e_SampaioForro_Velho.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0027,
+  "collisions": 0
+ },
+ "82c8e1591c574d14065785036662e59ec6db15dd83c2194ad8d812981678f031": {
+  "filename": "versão bonde do forró beijo por beijo.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.019,
+  "collisions": 0
+ },
+ "105040e36c618f2eb316a711d3e57798def387dec524384b40c293a17fcc6d07": {
+  "filename": "versão forró-Aguenta Coração.mid",
+  "attack_recall": 1.0,
+  "attack_precision": 1.0,
+  "pitch_fidelity": 1.0,
+  "restored_attacks_present": 1.0,
+  "onset_error_mean": 0.0317,
+  "collisions": 0
+ }
+}
