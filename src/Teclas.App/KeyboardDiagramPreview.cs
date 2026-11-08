@@ -11,8 +11,8 @@ internal sealed class KeyboardDiagramPreview
 {
     /// <summary>Name under the C keys: "C", or "Dó" with solfège note names (Configurações).</summary>
     internal static string CLabel { get; set; } = "C";
-    /// <summary>Drawing of the diagrams (Configurações): "destacado", "cinza" or "classico".</summary>
-    internal static string Style { get; set; } = KeyboardDiagramSvg.Highlight;
+    /// <summary>Drawing of the diagrams (Configurações): "pontos", "destacado", "cinza" or "classico".</summary>
+    internal static string Style { get; set; } = KeyboardDiagramSvg.Dots;
     private readonly Dictionary<(int Root, string Quality, int Inversion, int Bass), DrawingImage> images = new();
     private static readonly Color BassColor = Color.FromRgb(37, 99, 235);
     private static readonly int[] WhiteNotes = Enumerable.Range(48, 24)
@@ -78,7 +78,7 @@ internal sealed class KeyboardDiagramPreview
         return image;
     }
 
-    /// <summary>Draws the engine's highlighted SVG (rects and texts only) so the app shows exactly what the score prints.</summary>
+    /// <summary>Draws the engine's highlighted or dotted SVG (rects, circles and texts) so the app shows exactly what the score prints.</summary>
     private static DrawingGroup DrawSvg(System.Xml.Linq.XElement svg, int bassClass)
     {
         var drawing = new DrawingGroup();
@@ -96,6 +96,13 @@ internal sealed class KeyboardDiagramPreview
                     var rect = new Rect(Number(element, "x"), Number(element, "y"), Number(element, "width"), Number(element, "height"));
                     var stroke = element.Attribute("stroke") is { } s ? new Pen(Paint(s.Value), Number(element, "stroke-width")) : null;
                     dc.DrawRectangle(Paint((string?)element.Attribute("fill")), stroke, rect);
+                }
+                else if (element.Name.LocalName == "circle")
+                {
+                    double r = Number(element, "r");
+                    var ring = element.Attribute("stroke") is { } s ? new Pen(Paint(s.Value), Number(element, "stroke-width")) : null;
+                    var fill = (string?)element.Attribute("fill") is "none" ? null : Paint((string?)element.Attribute("fill"));
+                    dc.DrawEllipse(fill, ring, new Point(Number(element, "cx"), Number(element, "cy")), r, r);
                 }
                 else if (element.Name.LocalName == "text")
                 {

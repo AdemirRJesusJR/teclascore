@@ -1003,7 +1003,7 @@ def diagram_flats(chord,report=None):
 
 def keyboard_asset(rootpc,quality,inversion=2,c_label='C',style='classico',flats=False,spelling=None):
     """(file name, SVG bytes, MIDI pitches) of one diagram. 'classico' is the original two-octave drawing
-    (byte-identical to delivered scores); 'destacado' and 'cinza' fill and name the chord's keys."""
+    (byte-identical to delivered scores); 'pontos' dots and names the chord's keys, 'destacado' and 'cinza' fill them."""
     inversion=diagram_inversion(inversion)
     style=keyboard_svg.diagram_style(style)
     intervals=CHORD_INTERVALS[quality]

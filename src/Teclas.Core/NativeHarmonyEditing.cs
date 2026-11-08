@@ -12,7 +12,7 @@ internal sealed record NativeHarmonyInfo(string Root, string Quality, bool CanEd
 {
     /// <summary>Name printed under the C keys of the diagram ("C", or "Dó" with solfège names); kept when the chord is edited.</summary>
     public string DiagramLabel { get; init; } = "C";
-    /// <summary>Drawing of the diagram ("classico", "destacado" or "cinza"); an edited chord keeps it.</summary>
+    /// <summary>Drawing of the diagram ("classico", "pontos", "destacado" or "cinza"); an edited chord keeps it.</summary>
     public string DiagramStyle { get; init; } = KeyboardDiagramSvg.Classic;
     /// <summary>Key names in flats (only when the chord root spelling did not decide them).</summary>
     public bool DiagramFlats { get; init; }
@@ -183,7 +183,7 @@ internal static class NativeHarmonyEditing
         for (int candidate = 0; candidate < 3; candidate++)
         {
             if (!KeyboardDiagramVoicing.Pitches(root, quality, candidate).SequenceEqual(marked)) continue;
-            foreach (string drawing in new[] { KeyboardDiagramSvg.Highlight, KeyboardDiagramSvg.Gray })
+            foreach (string drawing in new[] { KeyboardDiagramSvg.Dots, KeyboardDiagramSvg.Highlight, KeyboardDiagramSvg.Gray })
                 foreach (string name in DiagramLabels)
                     foreach (bool flat in new[] { false, true })
                     {

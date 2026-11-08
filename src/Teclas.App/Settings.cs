@@ -54,8 +54,8 @@ public sealed class Settings
     public int ConversionParallelism { get; set; }
     /// <summary>Names under the C keys of the keyboard diagrams: "letras" (C) or "solfejo" (Dó).</summary>
     public string NoteNames { get; set; } = "letras";
-    /// <summary>Keyboard diagram drawing: "destacado" (keys filled in color), "cinza" (for black-and-white printing) or "classico".</summary>
-    public string DiagramStyle { get; set; } = "destacado";
+    /// <summary>Keyboard diagram drawing: "pontos" (dots, names under the keys), "destacado" (keys filled in color), "cinza" (for black-and-white printing) or "classico".</summary>
+    public string DiagramStyle { get; set; } = "pontos";
     /// <summary>Title and "página X de Y" at the foot of every page of new scores.</summary>
     public bool PageFooter { get; set; } = true;
     /// <summary>PDFs end with a page of the song's chords and their keyboard diagrams.</summary>

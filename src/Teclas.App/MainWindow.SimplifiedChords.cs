@@ -113,6 +113,7 @@ public partial class MainWindow
 
     public IReadOnlyList<object> DiagramStyleOptions { get; } =
     [
+        new { Value = "pontos", Label = "Pontos com nomes" },
         new { Value = "destacado", Label = "Destacado (cores)" },
         new { Value = "cinza", Label = "Destacado em cinza (P&B)" },
         new { Value = "classico", Label = "Clássico (pontos)" }
