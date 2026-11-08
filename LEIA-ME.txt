@@ -1,3 +1,7 @@
+TECLASCORE 1.5.2
+
+Com a opção Metrônomo desmarcada, a partitura toca sem cliques, mesmo que o metrônomo esteja ligado no MuseScore. A primeira reprodução de cada música prepara o áudio de novo.
+
 TECLASCORE 1.5.1
 
 Na Pasta de MIDIs, clicar em ▶ de outro arquivo enquanto um MIDI toca passa a tocar o arquivo clicado, em vez de parar a música.

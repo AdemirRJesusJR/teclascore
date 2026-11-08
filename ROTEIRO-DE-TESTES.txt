@@ -1,3 +1,11 @@
+TECLASCORE 1.5.2 · METRÔNOMO DESMARCADO
+
+1. Em Sobre, confira que a versão é 1.5.2.
+2. No MuseScore, ligue o metrônomo (botão de metrônomo da barra de reprodução) e feche o MuseScore.
+3. No TeclaScore, desmarque Metrônomo e Contagem e reproduza uma partitura: não há cliques.
+4. Marque Metrônomo e reproduza de novo: os cliques do TeclaScore aparecem, com acento no início de cada compasso.
+5. Abra o MuseScore: o metrônomo dele continua ligado.
+
 TECLASCORE 1.5.1 · ESCUTA NA PASTA DE MIDIS
 
 1. Em Sobre, confira que a versão é 1.5.1.

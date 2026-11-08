@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 1.5.2 — 08/11/2026
+
+Correção do metrônomo na reprodução da partitura.
+
+- **Metrônomo só quando marcado.** Quando o metrônomo estava ligado dentro do próprio MuseScore, o áudio da partitura saía com cliques mesmo com a opção Metrônomo do TeclaScore desmarcada. Agora o áudio é gerado sempre sem o metrônomo do MuseScore e os cliques vêm só da opção do TeclaScore. A preferência do MuseScore volta ao que era assim que o áudio fica pronto, também se o TeclaScore for fechado no meio.
+- **Áudios antigos refeitos.** Os áudios já preparados, que podiam conter esses cliques, são gerados de novo na primeira reprodução de cada música. O mesmo vale para Exportar áudio de estudo.
+
 ## 1.5.1 — 08/11/2026
 
 Correção na escuta da Pasta de MIDIs.
