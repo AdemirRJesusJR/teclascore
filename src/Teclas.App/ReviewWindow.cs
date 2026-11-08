@@ -24,6 +24,7 @@ public sealed record ScoreReviewPoint
         "chord_ambiguity" => "Cifra ambígua",
         "harmony_gap" or "harmony_missing" => "Sem cifra",
         "key_conflict" or "key_uncertain" => "Tonalidade",
+        "key_change" or "key_change_uncertain" => "Modulação",
         "rhythm_refined" => "Ritmo refinado",
         "melody_source_overlap" => "Pistas sobrepostas",
         "instrument_label_layout" => "Instrumentos",

@@ -33,6 +33,8 @@ public static class ChordNotation
         ["7M(9)"] = "maj9", ["Δ9"] = "maj9", ["m7M"] = "mMaj7", ["mΔ"] = "mMaj7", ["m(maj7)"] = "mMaj7",
         ["m7(b5)"] = "m7b5", ["ø"] = "m7b5", ["ø7"] = "m7b5", ["°"] = "dim", ["°7"] = "dim7", ["º"] = "dim", ["º7"] = "dim7",
         ["(9)"] = "add9", ["m(9)"] = "madd9", ["add(9)"] = "add9",
+        ["7(b9)"] = "7b9", ["7(#9)"] = "7#9", ["7(#5)"] = "7#5", ["7(b5)"] = "7b5", ["aug7"] = "7#5", ["7+5"] = "7#5",
+        ["7(13)"] = "13", ["m7(11)"] = "m11", ["6/9"] = "69", ["6(9)"] = "69",
     };
 
     /// <summary>The internal name of a written suffix ("7M" → "maj7"); unknown suffixes are returned unchanged.</summary>

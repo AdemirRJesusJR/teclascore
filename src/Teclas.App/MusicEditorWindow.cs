@@ -116,7 +116,7 @@ public sealed partial class MusicEditorWindow : Window
         harmonyGrid.Columns.Add(Options("Raiz",nameof(MusicHarmonyRow.Root),nameof(MusicHarmonyRow.CanEdit),
             new[]{"C","C#","Db","D","D#","Eb","E","F","F#","Gb","G","G#","Ab","A","A#","Bb","B","B#","Cb","E#","Fb","C##","Cbb","D##","Dbb","E##","Ebb","F##","Fbb","G##","Gbb","A##","Abb","B##","Bbb"}.Select(s=>new Choice(s,s)).ToArray(),80));
         harmonyGrid.Columns.Add(Options("Tipo",nameof(MusicHarmonyRow.Quality),nameof(MusicHarmonyRow.CanEdit),
-            new[]{"","m","7","maj7","m7","dim","dim7","m7b5","aug","sus2","sus4","6","m6","9","maj9","m9","add9","madd9","mMaj7","7sus4"}.Select(s=>new Choice(s,s==""?"Maior":s)).ToArray(),100));
+            new[]{"","m","7","maj7","m7","dim","dim7","m7b5","aug","sus2","sus4","6","m6","9","maj9","m9","add9","madd9","mMaj7","7sus4","13","7b9","7#9","m11","69","7#5","7b5"}.Select(s=>new Choice(s,s==""?"Maior":s)).ToArray(),100));
         harmonyGrid.Columns.Add(Options("Diagrama",nameof(MusicHarmonyRow.Inversion),nameof(MusicHarmonyRow.CanEditDiagram),
             new[]{new Choice(0,"Fundamental"),new(1,"1ª inversão"),new(2,"2ª inversão")},155));
         harmonyGrid.Columns.Add(Text("Observação",nameof(MusicHarmonyRow.Restriction),190));

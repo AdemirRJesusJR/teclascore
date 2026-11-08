@@ -18,7 +18,8 @@ def _bar_signature(bar, notes, chords):
     start, end = bar['start'], bar['end']
     tones = tuple(sorted((n['start'] - start, n['end'] - start, n['pitch'], tuple(n.get('graces', ())))
                          for n in notes if start <= n['start'] < end))
-    harmony = tuple(sorted((c['tick'] - start, c.get('root'), c.get('quality'), c.get('diagram_inversion'))
+    harmony = tuple(sorted((c['tick'] - start, c.get('root'), c.get('quality'), c.get('diagram_inversion'),
+                            -1 if c.get('bass') is None else c['bass'])
                            for c in chords if start <= c['tick'] < end))
     return (tuple(bar['meter']), end - start, bool(bar.get('partial')), tones, harmony)
 
@@ -180,7 +181,8 @@ def _active_chord(chords, tick):
 
 
 def _chord_key(chord):
-    return None if chord is None else (chord.get('root'), chord.get('quality'), chord.get('diagram_inversion'))
+    # A slash bass (G/B) is part of the chord: G and G/B are not a literal repetition.
+    return None if chord is None else (chord.get('root'), chord.get('quality'), chord.get('diagram_inversion'), chord.get('bass'))
 
 
 def fold_jumps(bars, notes, chords, grids, tempos, key_changes, ppq, origin, div):

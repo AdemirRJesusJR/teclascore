@@ -11,7 +11,10 @@ public static class KeyboardDiagramVoicing
         ["m7"] = [0, 3, 7, 10], ["mMaj7"] = [0, 3, 7, 11], ["dim"] = [0, 3, 6], ["dim7"] = [0, 3, 6, 9],
         ["m7b5"] = [0, 3, 6, 10], ["aug"] = [0, 4, 8], ["sus2"] = [0, 2, 7], ["sus4"] = [0, 5, 7],
         ["6"] = [0, 4, 7, 9], ["m6"] = [0, 3, 7, 9], ["add9"] = [0, 2, 4, 7], ["madd9"] = [0, 2, 3, 7],
-        ["9"] = [0, 2, 4, 7, 10], ["maj9"] = [0, 2, 4, 7, 11], ["m9"] = [0, 2, 3, 7, 10], ["7sus4"] = [0, 5, 7, 10]
+        ["9"] = [0, 2, 4, 7, 10], ["maj9"] = [0, 2, 4, 7, 11], ["m9"] = [0, 2, 3, 7, 10], ["7sus4"] = [0, 5, 7, 10],
+        // Same tones as engine/batch_harmony.py CHORD_INTERVALS: m11 is 1-b3-5-b7-11 (also m7(11)), 69 is 6/9.
+        ["13"] = [0, 4, 7, 9, 10], ["7b9"] = [0, 1, 4, 7, 10], ["7#9"] = [0, 3, 4, 7, 10], ["m11"] = [0, 3, 5, 7, 10],
+        ["69"] = [0, 2, 4, 7, 9], ["7#5"] = [0, 4, 8, 10], ["7b5"] = [0, 4, 6, 10]
     };
     public static IReadOnlyList<string> Qualities => Intervals.Keys.ToArray();
     public static bool SupportsQuality(string quality) => quality is not null && Intervals.ContainsKey(quality);
@@ -22,7 +25,7 @@ public static class KeyboardDiagramVoicing
         if (inversion is < 0 or > 2) throw new ArgumentOutOfRangeException(nameof(inversion));
         if (!Intervals.TryGetValue(quality, out var intervals)) throw new ArgumentException("Tipo de acorde não suportado.", nameof(quality));
         int root = Mod12(rootPitchClass);
-        int bassInterval = inversion == 0 ? 0 : (inversion == 1 ? new[] { 3, 4, 2, 5 } : [7, 6, 8]).First(intervals.Contains);
+        int bassInterval = inversion == 0 ? 0 : (inversion == 1 ? new[] { 4, 3, 2, 5 } : [7, 6, 8]).First(intervals.Contains);
         int bass = 53 + Mod12(root + bassInterval - 53);
         int[] pitches = intervals.Select(interval => bass + Mod12(root + interval - bass)).Order().ToArray();
         if (pitches[^1] > 71) pitches = pitches.Select(p => p - 12).ToArray();

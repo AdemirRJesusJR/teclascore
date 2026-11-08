@@ -9,6 +9,7 @@ import ast, struct, math, json, zipfile, subprocess, hashlib, re, copy, os, temp
 from PIL import Image, ImageDraw
 from inspect_midi import parse_midi, summarize
 from batch_harmony import analyze_harmony, CHORD_INTERVALS, DOUBTFUL_CHORD, chord_label
+import batch_harmony
 from batch_svg_qa import analyze as analyze_svg
 import batch_svg_qa as svg_geometry
 import compact_score_layout
@@ -58,11 +59,23 @@ def transpose_harmony(harmony,semitones):
     for chord in result['events']:
         chord['root']=(chord['root']+semitones)%12
         chord['pitch_classes']=sorted((chord['root']+interval)%12 for interval in CHORD_INTERVALS[chord['quality']])
-        active=result['key']
-        for change in result['key_changes']:
-            if change['tick']<=chord['tick']:active=change
-        letter,alter=spellings(active['fifths'],active.get('minor',False))[chord['root']]
-        chord['root_spelling']=letter+('#'*alter if alter>0 else 'b'*(-alter))
+        if chord.get('bass') is not None:chord['bass']=(chord['bass']+semitones)%12
+    # New analyses spell each root by its function in the transposed key; reviewed profiles keep the key table.
+    functional=bool(harmony.get('context_advice'))
+    ordered=sorted(result['events'],key=lambda c:c['tick'])
+    for index,chord in enumerate(ordered):
+        active=batch_harmony.active_key(result['key'],result['key_changes'],chord['tick'])
+        fifths,minor=active['fifths'],active.get('minor',False)
+        if functional:
+            following=ordered[index+1] if index+1<len(ordered) else None
+            chord['root_spelling']=batch_harmony.functional_root_spelling(chord['root'],chord['quality'],fifths,minor,
+                None if following is None else (following['root'],following['quality']))
+        else:
+            letter,alter=spellings(fifths,minor)[chord['root']]
+            chord['root_spelling']=letter+('#'*alter if alter>0 else 'b'*(-alter))
+        if chord.get('bass') is not None:
+            # A slash bass moves with its chord: a chord tone keeps its degree's letter (D/F# → E/G#).
+            chord['bass_spelling']=batch_harmony.bass_spelling(chord['root_spelling'],chord['quality'],chord['bass'],fifths,minor)
     return result
 
 def locate_review_point(quarter,origin,bars,kind,message,blocking=False):
@@ -730,7 +743,8 @@ def keyboard_asset(rootpc,quality,inversion=2,c_label='C',style='classico',flats
     inversion=diagram_inversion(inversion)
     style=keyboard_svg.diagram_style(style)
     intervals=CHORD_INTERVALS[quality]
-    bass_interval=0 if inversion==0 else next(x for x in ((3,4,2,5) if inversion==1 else (7,6,8)) if x in intervals)
+    # First inversion: the major third when both thirds sound (7#9), else the third or the suspended note.
+    bass_interval=0 if inversion==0 else next(x for x in ((4,3,2,5) if inversion==1 else (7,6,8)) if x in intervals)
     bass=53+((rootpc+bass_interval-53)%12)
     pitches=sorted(bass+(rootpc+x-bass)%12 for x in intervals)
     if max(pitches)>71:pitches=[p-12 for p in pitches]

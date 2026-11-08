@@ -322,7 +322,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         row.AnalysisPath=result["analysisPath"]!.GetValue<string>();row.KeyFifths=result["keyFifths"]!.GetValue<int>();row.KeyMinor=result["keyMinor"]!.GetValue<bool>();
         var previousPositions=row.Chords.Where(c=>c.DiagramInversion is not null).ToArray();
         row.Chords.Clear();
-        foreach(var c in result["chords"]!.AsArray())row.Chords.Add(new(){Quarter=c!["quarter"]!.GetValue<double>(),Root=c["root"]!.GetValue<string>(),Quality=c["quality"]!.GetValue<string>(),Confidence=c["confidence"]!.GetValue<double>(),Recommendation=c["recommendation"]?.GetValue<string>()??"",Alternatives=c["alternatives"]?.GetValue<string>()??""});
+        foreach(var c in result["chords"]!.AsArray())row.Chords.Add(new(){Quarter=c!["quarter"]!.GetValue<double>(),Root=c["root"]!.GetValue<string>(),Quality=c["quality"]!.GetValue<string>(),Confidence=c["confidence"]!.GetValue<double>(),Recommendation=c["recommendation"]?.GetValue<string>()??"",Alternatives=c["alternatives"]?.GetValue<string>()??"",Bass=c["bass"]?.GetValue<string>()});
         foreach(var chord in row.Chords)
             chord.DiagramInversion=previousPositions.FirstOrDefault(old=>Math.Abs(old.Quarter-chord.Quarter)<.000001 && old.Root==chord.Root && old.Quality==chord.Quality)?.DiagramInversion;
         // New chords start with the positions already chosen for the same chords elsewhere in the library.
