@@ -9,6 +9,7 @@ ScoreFileNameChecks.Run(Check);
 MelodySourceAdvisorChecks.Run(Check);
 BusinessRuleChecks.Run(Check);
 ScoreFlowChecks.Run(Check);
+LyricsTextChecks.Run(Check);
 BatchCommandLineChecks.Run(Check);
 MidiFolderWatchChecks.Run(Check);
 byte[] Midi(byte[] track)

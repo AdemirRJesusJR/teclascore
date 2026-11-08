@@ -66,6 +66,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         KeyboardDiagramPreview.CLabel = settings.NoteNames == "solfejo" ? "Dó" : "C";
         KeyboardDiagramPreview.Style = KeyboardDiagramSvg.Normalize(settings.DiagramStyle);
         ScoreExporter.AppendChordPage = settings.PdfChordPage;
+        PortugueseAccents.UseEngineList(engineDirectory);
         ScoreExporter.AppendMusicMap = settings.PdfMusicMap;
         Teclas.Core.ChordNotation.Current = ToPreference(settings.ChordNotation);
         InitializeComponent();
@@ -179,7 +180,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         };
         var row=new MidiRow{FullPath=Path.GetFullPath(path),DefaultDiagramInversion=settings.DefaultDiagramInversion,Document=document,Profile=profile,UseReviewedProfile=catalogStatus=="ready",MelodyWarning=melodyWarning};
         var header=ScoreMetadataOrganizer.Suggest(row.FullPath,document.TextEvents);
-        row.ScoreTitle=header.Title;row.ScoreArtist=header.Artist;row.ScoreComposer=header.Composer;
+        row.ScoreTitle=PortugueseAccents.Restore(header.Title);row.ScoreArtist=header.Artist;row.ScoreComposer=header.Composer;
         row.MetadataOrganizationNotice=header.Explanation;
         row.Status=row.HasReviewedProfile?"Perfil musical revisado":profile?["config"]?["status"]?.GetValue<string>() switch{"no_melody"=>"Sem melodia completa","partial_melody"=>"Somente melodia parcial",_=>"Escolha a pista de melodia"};
         var keys=profile?["config"]?["melody_sources"]?.AsArray().Select(s=>new SourceKey(s!["track"]!.GetValue<int>(),s["channel"]!.GetValue<int>(),s["program"]!.GetValue<int>())).ToHashSet()??[];
