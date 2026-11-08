@@ -301,7 +301,9 @@ public partial class MainWindow
         await RunOperation(async () =>
         {
             var token = cancellation!.Token;
-            foreach (var row in ready)
+            // One save of the queue for all the marked songs; the hook (smokes) keeps the one-by-one path.
+            if (melodyBatchEnqueue is null) added = await EnqueueRowsAsync(ready, token, failed);
+            else foreach (var row in ready)
             {
                 token.ThrowIfCancellationRequested();
                 SetOperationItems(added + failed.Count, ready.Length, row.ScoreTitle);
@@ -312,7 +314,7 @@ public partial class MainWindow
                 + (left > 0 ? $" {left} ficaram de fora porque ainda não têm melodia escolhida ou são partituras importadas." : "")
                 + (failed.Count > 0 ? $" {failed.Count} não entraram: " + string.Join(" · ", failed) : "");
         }, operationTitle: "Enfileirando as músicas marcadas");
-        if (added > 0 && melodyBatchEnqueue is null) ShowConversionQueue();
+        if (added > 0 && melodyBatchEnqueue is null) { StartBackgroundQueue(); Status += " A fila está gerando em segundo plano."; }
     }
 
     internal MidiRow? LibraryContextRowForSmoke => libraryContextRow;

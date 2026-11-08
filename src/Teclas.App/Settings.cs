@@ -48,6 +48,8 @@ public sealed class Settings
     public bool CurrentChord { get; set; }
     /// <summary>Keys of the user's keyboard (49, 61, 76 or 88), to warn about melodies outside it.</summary>
     public int KeyboardKeys { get; set; } = 61;
+    /// <summary>Songs generated at the same time by the queue, Piloto, PDFs and the watched folder: 0 = automatic, or 1 to 8.</summary>
+    public int ConversionParallelism { get; set; }
     /// <summary>Names under the C keys of the keyboard diagrams: "letras" (C) or "solfejo" (Dó).</summary>
     public string NoteNames { get; set; } = "letras";
     /// <summary>Keyboard diagram drawing: "destacado" (keys filled in color), "cinza" (for black-and-white printing) or "classico".</summary>
@@ -183,6 +185,7 @@ public sealed class Settings
         CollectionFilter ??= "";
         MidiFolder ??= "";
         PracticeBpm = Math.Clamp(PracticeBpm, 30, 200);
+        ConversionParallelism = ConversionParallelism is >= 1 and <= 8 ? ConversionParallelism : 0;
         LibrarySyncFolder ??= ""; LibrarySyncSentHash ??= ""; LibrarySyncRestoreRoot ??= "";
         KnownUpdateTag ??= ""; KnownUpdateSetup ??= ""; KnownUpdateSha256 ??= "";
         DailyGoalMinutes = Math.Clamp(DailyGoalMinutes, 0, 600);

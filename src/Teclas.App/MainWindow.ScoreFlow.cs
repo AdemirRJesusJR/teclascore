@@ -221,7 +221,8 @@ public partial class MainWindow
         foreach (var name in new[] { nameof(GuidedFlow), nameof(FlowCheckList), nameof(FlowReachable), nameof(FlowAllowedTab), nameof(FlowCurrentStep), nameof(FlowSteps),
             nameof(FlowPanelChecks), nameof(FlowPanelVisibility), nameof(GenerationButtonsVisibility), nameof(SelectionMessageVisibility), nameof(FlowSummary),
             nameof(FlowNextLabel), nameof(CanFlowNext), nameof(FlowEnqueueVisibility), nameof(FlowChecksVisibility), nameof(GenerateButtonLabel), nameof(CanGenerateNow), nameof(CanEnqueueNow),
-            nameof(FlowAllowedStep), nameof(CanFlowBack), nameof(FlowFooterVisibility) }) Notify(name);
+            nameof(FlowAllowedStep), nameof(CanFlowBack), nameof(FlowFooterVisibility), nameof(CanConfirmFlowStep), nameof(ConfirmFlowStepVisibility),
+            nameof(ConfirmFlowStepToolTip), nameof(FlowNextToolTip), nameof(CanGenerateInBackground) }) Notify(name);
         NotifyFlowScreens();
         GuardFlowTab();
     }
@@ -276,13 +277,9 @@ public partial class MainWindow
     internal void CompleteFlowForSmoke(MidiRow row)
     {
         StateOf(row).HeardSignature = MelodySignature(row);
+        // The same confirmation as "Confirmar etapa", step by step (blocks are never confirmed).
         for (int pass = 0; pass < 4; pass++)
-        {
-            var checks = ScoreFlowRules.Evaluate(FlowInput(row));
-            var pending = checks.Where(c => c.Pending && c.Level == ScoreFlowLevel.Confirm).Select(c => c.Id).ToArray();
-            if (pending.Length == 0) break;
-            foreach (var id in pending) ConfirmFlow(row, id);
-        }
+            if (new[] { ScoreFlowStep.Melody, ScoreFlowStep.Analysis, ScoreFlowStep.Chords }.Sum(step => ConfirmPendingOfStep(row, step)) == 0) break;
     }
 
     private void ConfirmFlow(MidiRow row, string id)

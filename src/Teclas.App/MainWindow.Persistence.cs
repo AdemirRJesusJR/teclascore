@@ -20,6 +20,7 @@ public partial class MainWindow
         persistencePath = settingsPath;
         if (persistenceEnabled) RestoreSession();
         persistenceInitialized = true;
+        InitializeAutosave();
         StateChanged += (_, _) =>
         {
             if (WindowState != WindowState.Minimized) settings.WindowMaximized = WindowState == WindowState.Maximized;
@@ -234,9 +235,12 @@ public partial class MainWindow
     }
 
     // Theme and sidebar changes can use this hook; closing always takes a fresh complete snapshot.
+    // Coalesced and written off the UI thread (MainWindow.Autosave); the snapshot waits for operations to end.
     private void PersistPreferences()
     {
-        if (persistenceInitialized && persistenceEnabled && !restoringSession && !busy) SaveCurrentSession();
+        if (!persistenceInitialized || !persistenceEnabled || restoringSession) return;
+        if (settingsAutosave is { } autosave) autosave.Request();
+        else if (!busy) SaveCurrentSession();
     }
 
     private bool SaveCurrentSession()
@@ -250,6 +254,8 @@ public partial class MainWindow
         }
         try
         {
+            // A coalesced save still waiting or being written goes first, so an older snapshot never lands after this one.
+            settingsAutosave?.Flush();
             CaptureSession();
             settings.Save(persistencePath);
             PersistenceError = "";
@@ -272,6 +278,8 @@ public partial class MainWindow
             Status = "Cancelando. Aguarde o término antes de fechar e salvar sua sessão.";
             return;
         }
+        // The background queue stops safely: interrupted songs wait in the queue as paused.
+        autopilotCancellation?.Cancel(); PauseBackgroundQueue();
         if (!SaveCurrentSession()) { e.Cancel = true; return; }
         DeferCloseForSync(e);
     }

@@ -1,12 +1,14 @@
 using System.Windows;
+using Teclas.Core;
 
 namespace Teclas.App;
 
 /// <summary>
 /// Failed generations are tried again with adjustments instead of being investigated one by one: without folding the
-/// repeats (the most common cause of a refused score). The melody is never dropped to make a song pass: a song that
-/// still fails keeps its original options and waits for a decision (Só cifras is the user's choice, not a fallback).
-/// What had to change is reported per song.
+/// repeats (the most common cause of a refused score). Only failures whose cause (the engine's kind) is a repeat or a
+/// layout problem, or is unknown, are retried; other causes are grouped by cause in the report. The melody is never
+/// dropped to make a song pass: a song that still fails keeps its original options and waits for a decision (Só cifras
+/// is the user's choice, not a fallback). What had to change is reported per song.
 /// </summary>
 public partial class MainWindow
 {
@@ -18,6 +20,7 @@ public partial class MainWindow
     internal async Task<IReadOnlyDictionary<MidiRow, string>> GenerateWithAdjustmentsAsync(IReadOnlyList<MidiRow> rows, CancellationToken token)
     {
         var attempt = generationAttempt ?? GenerateThroughQueueAsync;
+        foreach (var row in rows) generationFailureKinds.Remove(row);
         var failures = new Dictionary<MidiRow, string>(await attempt(rows, token));
         var adjustments = new Dictionary<MidiRow, string>();
         var original = failures.Keys.ToDictionary(r => r, r => (r.FoldRepeats, r.ChordsOnly));
@@ -31,7 +34,7 @@ public partial class MainWindow
             foreach (var row in retry)
                 if (again.TryGetValue(row, out var error)) failures[row] = error; else failures.Remove(row);
         }
-        await Retry(r => r.FoldRepeats, r => r.FoldRepeats = false, "sem dobrar as repetições");
+        await Retry(r => r.FoldRepeats && EngineErrorKind.Retryable(generationFailureKinds.GetValueOrDefault(r)), r => r.FoldRepeats = false, "sem dobrar as repetições");
         foreach (var row in failures.Keys.Where(original.ContainsKey))
         {
             // Still failing: the song keeps the options it had.
@@ -61,7 +64,12 @@ public partial class MainWindow
         int fixedCount = failed.Count - failures.Count;
         Status = $"Falhas: {fixedCount} de {failed.Count} música(s) geradas." +
                  (LastAdjustments.Count > 0 ? " Ajustes: " + string.Join("; ", LastAdjustments.Select(a => $"{a.Key.Name} {a.Value}")) + "." : "") +
-                 (failures.Count > 0 ? $" Continuam falhando: {string.Join("; ", failures.Select(f => f.Key.Name + " — " + f.Value))}." : "");
+                 (failures.Count > 0 ? " Continuam falhando: " + FailuresByCause(failures) + "." : "");
         return failures;
     }
+
+    /// <summary>The failures grouped by the engine's cause: "Repetições e saltos (2): A, B; causa não informada (1): C — erro".</summary>
+    internal string FailuresByCause(IReadOnlyDictionary<MidiRow, string> failures) => string.Join("; ", failures
+        .GroupBy(f => EngineErrorKind.Describe(generationFailureKinds.GetValueOrDefault(f.Key)))
+        .Select(group => $"{group.Key} ({group.Count()}): " + string.Join(", ", group.Select(f => f.Key.Name + " — " + f.Value))));
 }

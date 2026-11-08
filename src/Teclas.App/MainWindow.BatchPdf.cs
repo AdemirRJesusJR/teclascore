@@ -57,7 +57,7 @@ public partial class MainWindow
             });
             SetOperationItems(0, selection.Length, "Preparando exportação");
             var cacheFolder = Path.Combine(PlaybackCacheDirectory, "pdf-batches");
-            var service = batchPdfExport is { } export ? new BatchPdfExportService(export, cacheFolder) : new BatchPdfExportService(MuseScorePath, cacheFolder);
+            var service = batchPdfExport is { } export ? new BatchPdfExportService(export, cacheFolder) { MaxParallel = PdfWorkers } : new BatchPdfExportService(MuseScorePath, cacheFolder) { MaxParallel = PdfWorkers };
             report = await service.ExportAsync(selection, folderName, progress, cancellation!.Token, directlyIntoDestination: true);
             if (report.SavedCount > 0) RememberExportDirectory(folderName);
             Status = report.SavedCount == report.Items.Count ? $"{report.SavedCount} PDF(s) salvos em {folderName}." : report.Summary;

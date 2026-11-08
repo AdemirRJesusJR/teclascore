@@ -59,9 +59,19 @@ public partial class MainWindow
         return "melodia sem escolha clara" + (proposal.Reason.Length > 0 ? ": " + proposal.Reason : "");
     }
 
+    private bool autopilotRunning;
+    private CancellationTokenSource? autopilotCancellation;
+    /// <summary>The autopilot is running (in the background queue, outside the busy state).</summary>
+    public bool IsAutopilotRunning => autopilotRunning;
+    /// <summary>Called on the UI thread for each song as soon as the queue brings its score back to the card.</summary>
+    private Action<MidiRow>? generationCompleted;
+    /// <summary>MuseScores used for PDFs at the same time (up to 4, never more than the simultaneous conversions).</summary>
+    private int PdfWorkers => Math.Clamp(ConversionParallelism.Resolve(settings.ConversionParallelism), 1, 4);
+
     private async void AutopilotClick(object sender, RoutedEventArgs e)
     {
         if (!IsIdle || !CommitEdits()) return;
+        if (autopilotRunning) { Status = "O Piloto automático já está rodando: acompanhe a fila no rodapé."; return; }
         var candidates = AutopilotCandidates();
         if (candidates.Count == 0) { Status = "Nenhuma música pendente: todas as MIDIs da biblioteca já têm partitura."; return; }
         var pdf = new CheckBox { Content = "Salvar também o PDF de cada partitura pronta", IsChecked = true, Margin = new Thickness(0, 10, 0, 0) };
@@ -74,7 +84,25 @@ public partial class MainWindow
     }
 
     /// <param name="quiet">Background runs (watched folder, command line): progress only in the footer, no report window.</param>
+    /// <remarks>
+    /// The songs go through the background queue, so the library stays free: the cards being generated are locked, the
+    /// ready ones can be reviewed meanwhile, and each PDF is saved as soon as its song is ready. One run at a time: a
+    /// watched-folder run waits for the one in progress.
+    /// </remarks>
     internal async Task<IReadOnlyList<AutopilotOutcome>> RunAutopilotAsync(IReadOnlyList<MidiRow> candidates, bool exportPdf, bool keepAwake, bool quiet = false)
+    {
+        while (autopilotRunning) await Task.Delay(200);
+        autopilotRunning = true; Notify(nameof(IsAutopilotRunning)); Notify(nameof(CanGenerateInBackground));
+        using var stop = autopilotCancellation = new CancellationTokenSource();
+        try { return await RunAutopilotCoreAsync(candidates, exportPdf, keepAwake, quiet, stop.Token); }
+        finally
+        {
+            autopilotRunning = false; autopilotCancellation = null;
+            Notify(nameof(IsAutopilotRunning)); Notify(nameof(CanGenerateInBackground));
+        }
+    }
+
+    private async Task<IReadOnlyList<AutopilotOutcome>> RunAutopilotCoreAsync(IReadOnlyList<MidiRow> candidates, bool exportPdf, bool keepAwake, bool quiet, CancellationToken token)
     {
         LastAdjustments = new Dictionary<MidiRow, string>();
         var outcomes = new List<AutopilotOutcome>();
@@ -90,29 +118,56 @@ public partial class MainWindow
         if (ready.Count > 0)
         {
             if (keepAwake) SetThreadExecutionState(ContinuousState | SystemRequired);
+            var exports = new List<Task<int>>(); var exported = new HashSet<MidiRow>();
+            // PDFs run beside the generations: half of the PDF workers while the queue is busy.
+            using var pdfGate = new SemaphoreSlim(Math.Max(1, PdfWorkers / 2));
             try
             {
-                await RunOperationCore(async () =>
+                Status = $"Piloto automático: gerando {ready.Count} partitura(s) em segundo plano…";
+                string? folder = null;
+                if (exportPdf)
                 {
-                    var token = cancellation!.Token;
-                    Status = $"Piloto automático: gerando {ready.Count} partitura(s)…";
-                    failures = autopilotGenerate is { } generate ? await generate(ready, token) : await GenerateWithAdjustmentsAsync(ready, token);
-                    var made = ready.Where(r => r.ScorePath is not null && !failures.ContainsKey(r)).ToList();
-                    if (exportPdf && made.Count > 0)
+                    folder = Path.Combine(await PrepareOutputDirectoryAsync(token), "PDFs do piloto automático");
+                    Directory.CreateDirectory(folder);
+                }
+                // Each song's PDF is saved as soon as the queue finishes it (the test hooks keep the single batch at the end).
+                bool perSong = folder is not null && autopilotGenerate is null && autopilotPdf is null;
+                async Task<int> ExportOne(MidiRow row)
+                {
+                    await pdfGate.WaitAsync(token);
+                    try { return await ExportAutopilotPdfsAsync([row], folder!, token); }
+                    catch (Exception error) when (error is IOException or InvalidOperationException or UnauthorizedAccessException) { return 0; }
+                    finally { pdfGate.Release(); }
+                }
+                if (perSong) generationCompleted = row => { if (exported.Add(row)) exports.Add(ExportOne(row)); };
+                try { failures = autopilotGenerate is { } generate ? await generate(ready, token) : await GenerateWithAdjustmentsAsync(ready, token); }
+                finally { generationCompleted = null; }
+                var made = ready.Where(r => r.ScorePath is not null && !failures.ContainsKey(r)).ToList();
+                if (folder is not null && made.Count > 0)
+                {
+                    Status = $"Piloto automático: salvando {made.Count} PDF(s)…";
+                    if (perSong)
                     {
-                        string folder = Path.Combine(await PrepareOutputDirectoryAsync(token), "PDFs do piloto automático");
-                        Directory.CreateDirectory(folder);
-                        Status = $"Piloto automático: salvando {made.Count} PDF(s)…";
-                        pdfs = autopilotPdf is { } export ? await export(made, folder, token) : await ExportAutopilotPdfsAsync(made, folder, token);
+                        foreach (var row in made.Where(r => exported.Add(r))) exports.Add(ExportOne(row));
+                        pdfs = (await Task.WhenAll(exports)).Sum();
                     }
-                }, null, "Piloto automático", null, useOverlay: !quiet);
+                    else pdfs = autopilotPdf is { } export ? await export(made, folder, token) : await ExportAutopilotPdfsAsync(made, folder, token);
+                }
             }
-            finally { if (keepAwake) SetThreadExecutionState(ContinuousState); }
+            catch (OperationCanceledException) { Status = "Piloto automático pausado. As partituras prontas ficaram salvas."; }
+            catch (Exception error) when (error is IOException or InvalidOperationException or UnauthorizedAccessException) { Status = "Piloto automático: " + error.Message; }
+            finally
+            {
+                if (keepAwake) SetThreadExecutionState(ContinuousState);
+                // PDFs already started finish (or are cancelled with the run) before the report.
+                try { await Task.WhenAll(exports); } catch (Exception error) when (error is OperationCanceledException or IOException or InvalidOperationException) { }
+            }
         }
         foreach (var row in ready)
         {
             RefreshConfidence(row);
-            if (failures.TryGetValue(row, out var error)) outcomes.Add(new(row, "Falharam", error));
+            if (failures.TryGetValue(row, out var error))
+                outcomes.Add(new(row, "Falharam", generationFailureKinds.TryGetValue(row, out var kind) ? $"{EngineErrorKind.Describe(kind)}: {error}" : error));
             else if (row.ScorePath is null) outcomes.Add(new(row, "Falharam", "a partitura não foi gerada (fila pausada ou cancelada)"));
             else if (LastAdjustments.TryGetValue(row, out var adjusted)) outcomes.Add(new(row, "Para revisar", $"gerada {adjusted} depois de uma falha"));
             else if (row.Confidence is { Score: >= 85 } good) outcomes.Add(new(row, "Prontas", $"{good.Score}%"));
@@ -127,31 +182,15 @@ public partial class MainWindow
         return outcomes;
     }
 
-    /// <summary>Enqueues the rows, runs the conversion queue to the end and brings the results back to the library.</summary>
-    private async Task<IReadOnlyDictionary<MidiRow, string>> GenerateThroughQueueAsync(IReadOnlyList<MidiRow> rows, CancellationToken token)
-    {
-        var failures = new Dictionary<MidiRow, string>();
-        foreach (var row in rows)
-        {
-            try { await EnqueueConversion(row, token); }
-            catch (Exception error) when (error is InvalidOperationException or IOException) { failures[row] = error.Message; }
-        }
-        var queue = GetConversionQueue();
-        int done = 0;
-        var progress = new Progress<ConversionQueueProgress>(value => { done = value.Completed; SetOperationItems(value.Completed, Math.Max(value.Total, 1), value.Stage); });
-        await queue.RunAsync(progress, token);
-        ReconcileQueueResults();
-        foreach (var row in rows.Where(r => !failures.ContainsKey(r)))
-            if (queue.Items.LastOrDefault(i => string.Equals(i.OriginalSourcePath, row.FullPath, StringComparison.OrdinalIgnoreCase)) is { Status: ConversionQueueStatus.Failed } item)
-            { failures[row] = item.Error ?? "falha na conversão"; row.HasOperationError = true; }
-        return failures;
-    }
+    /// <summary>Enqueues the rows in the background queue and waits for them; each finished song comes back to its card at once.</summary>
+    private Task<IReadOnlyDictionary<MidiRow, string>> GenerateThroughQueueAsync(IReadOnlyList<MidiRow> rows, CancellationToken token) =>
+        GenerateInBackgroundAsync(rows, token, generationCompleted);
 
     private async Task<int> ExportAutopilotPdfsAsync(IReadOnlyList<MidiRow> rows, string folder, CancellationToken token)
     {
         var sources = rows.Select(BatchPdfCandidate).Where(s => s.BlockedReason is null).ToList();
         if (sources.Count == 0) return 0;
-        var report = await new BatchPdfExportService(MuseScorePath, PlaybackCacheDirectory)
+        var report = await new BatchPdfExportService(MuseScorePath, PlaybackCacheDirectory) { MaxParallel = PdfWorkers }
             .ExportAsync(sources, folder, new Progress<BatchPdfProgress>(_ => { }), token, directlyIntoDestination: true);
         return report.SavedCount;
     }
@@ -171,10 +210,41 @@ public partial class MainWindow
         }
         var list = new TextBox { Text = text.ToString().TrimEnd(), IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinHeight = 220, Name = "AutopilotReportText" };
         AutomationProperties.SetName(list, "Resultado do piloto automático");
+        var readyRows = outcomes.Where(o => o.Group == "Prontas" && o.Row.ScorePath is not null && !o.Row.Approved).Select(o => o.Row).ToList();
+        var content = new List<UIElement> { list };
+        if (readyRows.Count > 0)
+        {
+            var approveReady = DialogUi.Button($"Aprovar as {readyRows.Count} prontas (≥85%)", (sender, _) =>
+            {
+                if (ApproveReadyScores(readyRows) > 0 && sender is Button button) { button.IsEnabled = false; button.Content = "Prontas aprovadas"; }
+            });
+            approveReady.Name = "ApproveReadyButton"; approveReady.HorizontalAlignment = HorizontalAlignment.Left; approveReady.Margin = new Thickness(0, 10, 0, 0);
+            approveReady.ToolTip = "Aprovar todas as partituras prontas (nota 85% ou mais), sem abrir uma por uma; pede confirmação";
+            AutomationProperties.SetName(approveReady, "Aprovar todas as partituras prontas");
+            content.Add(approveReady);
+        }
         var window = SimpleDialog("Resultado do piloto automático", "As partituras \"Para revisar\" aparecem primeiro na lista inteligente Revisar primeiro e na Revisão em sequência.",
-            outcomes.Any(o => o.Group == "Para revisar" || o.Group == "Prontas") ? "Revisar em sequência" : "Fechar", list);
+            outcomes.Any(o => o.Group == "Para revisar" || o.Group == "Prontas") ? "Revisar em sequência" : "Fechar", [.. content]);
         window.Height = 520;
         if (autopilotReportDialog(window) == true && outcomes.Any(o => o.Row.ScorePath is not null)) ReviewSequenceClick(this, new RoutedEventArgs());
+    }
+
+    /// <summary>Test hook: the confirmation before approving the ready scores at once.</summary>
+    internal Func<string, bool> approveReadyConfirm = message =>
+        MessageBox.Show(message, "Aprovar as prontas", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+
+    /// <summary>Approves the ready scores (85% or more) after one confirmation; returns how many were approved.</summary>
+    internal int ApproveReadyScores(IReadOnlyList<MidiRow> rows)
+    {
+        var approvable = rows.Where(r => r.ScorePath is not null && !r.Approved && r.Confidence is { Score: >= 85 }).ToList();
+        if (approvable.Count == 0) return 0;
+        if (!approveReadyConfirm($"Aprovar {approvable.Count} partitura(s) com nota 85% ou mais sem revisar uma por uma?\n\n" +
+            string.Join("\n", approvable.Take(12).Select(r => "• " + (string.IsNullOrWhiteSpace(r.ScoreTitle) ? r.Name : r.ScoreTitle))) +
+            (approvable.Count > 12 ? $"\n… e mais {approvable.Count - 12}" : ""))) return 0;
+        foreach (var row in approvable) row.Approved = true;
+        PersistPreferences(); libraryDirty = true; RefreshDashboard();
+        Status = $"{approvable.Count} partitura(s) pronta(s) aprovada(s).";
+        return approvable.Count;
     }
 
     /// <summary>A small themed dialog: title, explanation, extra content and a primary button (DialogResult true) plus Cancel.</summary>

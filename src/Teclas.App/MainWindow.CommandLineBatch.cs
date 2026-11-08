@@ -87,7 +87,7 @@ public partial class MainWindow
     {
         if (!Settings.TryValidateOutputDirectory(folder, out string destination, out string error)) throw new InvalidOperationException("--pdf: " + error);
         var sources = rows.Select(BatchPdfCandidate).ToList();
-        var service = batchPdfExport is { } export ? new BatchPdfExportService(export, PlaybackCacheDirectory) : new BatchPdfExportService(MuseScorePath, PlaybackCacheDirectory);
+        var service = batchPdfExport is { } export ? new BatchPdfExportService(export, PlaybackCacheDirectory) { MaxParallel = PdfWorkers } : new BatchPdfExportService(MuseScorePath, PlaybackCacheDirectory) { MaxParallel = PdfWorkers };
         var report = await service.ExportAsync(sources, destination, new Progress<BatchPdfProgress>(_ => { }), CancellationToken.None, directlyIntoDestination: true);
         return rows.Select(row => (row, report.Items.FirstOrDefault(i => i.Id == row.FullPath) is { } item
             ? item.Status == BatchPdfStatus.Success ? (item.PdfPath, (string?)null) : ((string?)null, (string?)item.Message)
