@@ -158,6 +158,63 @@ try
     Check(Settings.Load(watchPath) is { WatchMidiFolder: true, WatchMidiFolderAutopilot: true, MidiFolder: "Z:/midis" }, "Watching and autopilot choices persist");
     File.WriteAllText(watchPath, "{\"MidiFolder\":null,\"WatchMidiFolder\":true}");
     Check(Settings.Load(watchPath) is { MidiFolder: "", WatchMidiFolder: true }, "A null MIDI folder loads as empty");
+
+    // Coalesced background saving: many quick changes, one snapshot and one write.
+    var autoPath = Path.Combine(folder, "auto", "settings.json");
+    var live = new Settings { ThemeId = "classic", Library = [new SavedMidi { FullPath = "Z:/a.mid", Versions = [new SavedScoreVersion { ScorePath = "Z:/a.mscz" }] }] };
+    int captured = 0;
+    using (var autosave = new SettingsAutosave(autoPath, () => { captured++; return SettingsAutosave.Snapshot(live); }, delay: TimeSpan.FromMilliseconds(150)))
+    {
+        for (int i = 0; i < 25; i++) { live.SearchText = "busca " + i; autosave.Request(); }
+        Check(autosave.IsPending && !File.Exists(autoPath) && captured == 0, "Requests wait for the quiet period before taking a snapshot");
+        var wait = System.Diagnostics.Stopwatch.StartNew();
+        while (autosave.Writes == 0 && wait.ElapsedMilliseconds < 5000) Thread.Sleep(20);
+        Check(autosave.Writes == 1 && captured == 1 && autosave.Requests == 25, $"25 requests became one snapshot and one write ({captured} snapshots, {autosave.Writes} writes)");
+        Check(Settings.Load(autoPath).SearchText == "busca 24", "The coalesced write holds the latest state");
+
+        // Load flushes a pending save of the same file, so readers always see the current state.
+        live.ThemeId = "ocean"; autosave.Request();
+        Check(Settings.Load(autoPath).ThemeId == "ocean" && !autosave.IsPending, "Load writes the pending change before reading");
+
+        // Flush on closing: the pending change is written synchronously, without waiting for the delay.
+        live.ThemeId = "indigo"; autosave.Request(); autosave.Flush();
+        Check(autosave.Writes == 3 && JsonSerializer.Deserialize<Settings>(File.ReadAllText(autoPath))!.ThemeId == "indigo", "Flush on closing writes at once");
+
+        // Nothing changed: the snapshot is identical and the file is left untouched.
+        var stamp = File.GetLastWriteTimeUtc(autoPath); autosave.Request(); autosave.Flush();
+        Check(File.GetLastWriteTimeUtc(autoPath) == stamp && !File.Exists(autoPath + ".corrupt-"), "An identical save does not rewrite the file");
+
+        // A change that keeps arriving is still written within the maximum delay.
+        int before = autosave.Writes; var steady = System.Diagnostics.Stopwatch.StartNew();
+        using (var busy = new SettingsAutosave(Path.Combine(folder, "auto", "steady.json"), () => SettingsAutosave.Snapshot(live), delay: TimeSpan.FromMilliseconds(200), maximumDelay: TimeSpan.FromMilliseconds(600)))
+        {
+            while (steady.ElapsedMilliseconds < 1500) { live.SearchText = "contínua " + steady.ElapsedMilliseconds; busy.Request(); Thread.Sleep(50); }
+            Check(busy.Writes >= 1, "Continuous changes are saved within the maximum delay");
+        }
+    }
+
+    // The snapshot is independent of later changes on the UI thread.
+    var snapshot = SettingsAutosave.Snapshot(live);
+    live.Library.Add(new SavedMidi { FullPath = "Z:/b.mid" }); live.Library[0].Versions.Add(new SavedScoreVersion { ScorePath = "Z:/a2.mscz" });
+    live.Library[0].ScoreTitle = "Mudou depois"; live.TempoGoals["x"] = 90;
+    Check(snapshot.Library.Count == 1 && snapshot.Library[0].Versions.Count == 1 && snapshot.Library[0].ScoreTitle is null && snapshot.TempoGoals.Count == 0,
+        "Snapshot lists and cards do not follow later edits");
+    Check(snapshot.SearchText == live.SearchText && snapshot.ThemeId == live.ThemeId, "Snapshot copies every preference");
+
+    // A background write that fails is reported and Flush raises it; the file and its backup stay intact.
+    var failPath = Path.Combine(folder, "auto", "fail.json");
+    new Settings { ThemeId = "light" }.Save(failPath); new Settings { ThemeId = "graphite" }.Save(failPath);
+    var failBytes = File.ReadAllBytes(failPath);
+    Exception? reported = null;
+    using (var failing = new SettingsAutosave(failPath, () => SettingsAutosave.Snapshot(new Settings { ThemeId = "ocean" }), failed: error => reported = error))
+    using (var blocker = new FileStream(failPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+    {
+        failing.Request();
+        bool thrown = false; try { failing.Flush(); } catch (IOException) { thrown = true; }
+        Thread.Sleep(100);
+        Check(thrown && reported is IOException, "A failed background save is reported");
+    }
+    Check(File.ReadAllBytes(failPath).SequenceEqual(failBytes), "A failed background save preserves the file");
     Console.WriteLine($"PASS: {checks} persistence checks");
 }
 finally

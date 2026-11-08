@@ -143,6 +143,8 @@ public sealed class Settings
     public static Settings Load(string? filePath = null)
     {
         var path = filePath ?? DefaultPath;
+        // A coalesced save of this file still waiting (or being written) reaches the disk before it is read.
+        SettingsAutosave.FlushFor(path);
         Settings? settings = null;
         var warning = "";
         if (File.Exists(path))
@@ -283,21 +285,36 @@ public sealed class Settings
         if (string.IsNullOrWhiteSpace(OutputDirectory)) OutputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Partituras geradas");
     }
 
+    /// <summary>Saves of the same file never overlap (the app also saves from a background task).</summary>
+    private static readonly object SaveLock = new();
+    /// <summary>The file each save left behind (size, time and content hash): it is known to be valid while unchanged on disk.</summary>
+    private static readonly Dictionary<string, (long Length, DateTime Stamp, byte[] Hash)> SavedFiles = new(StringComparer.OrdinalIgnoreCase);
+
     public void Save(string? filePath = null)
     {
         var path = Path.GetFullPath(filePath ?? DefaultPath);
+        lock (SaveLock) SaveLocked(path);
+    }
+
+    private void SaveLocked(string path)
+    {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        SchemaVersion = 2;
+        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(this, JsonOptions), hash = System.Security.Cryptography.SHA256.HashData(bytes);
+        bool knownValid = SavedFiles.TryGetValue(path, out var saved) && FileMatches(path, saved.Length, saved.Stamp);
+        // Nothing changed since the last save: the file on disk already holds exactly these bytes.
+        if (knownValid && saved.Hash.AsSpan().SequenceEqual(hash)) return;
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            SchemaVersion = 2;
-            using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                4096, FileOptions.WriteThrough))
+            // A 64 KB buffer and one Flush(true) keep the write durable without a disk round trip per 4 KB.
+            using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024))
             {
-                JsonSerializer.Serialize(output, this, JsonOptions);
+                output.Write(bytes);
                 output.Flush(true);
             }
-            if (File.Exists(path) && ReadValid(path) is not null)
+            // The previous file is read back only when this process did not write it (or it changed since).
+            if (File.Exists(path) && (knownValid || ReadValid(path) is not null))
                 File.Replace(temporary, path, path + ".bak");
             else
             {
@@ -305,8 +322,17 @@ public sealed class Settings
                 if (File.Exists(path)) File.Copy(path, path + ".corrupt-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N"));
                 File.Move(temporary, path, true);
             }
+            var written = new FileInfo(path);
+            SavedFiles[path] = (written.Length, written.LastWriteTimeUtc, hash);
         }
+        catch { SavedFiles.Remove(path); throw; }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    private static bool FileMatches(string path, long length, DateTime stamp)
+    {
+        try { var file = new FileInfo(path); return file.Exists && file.Length == length && file.LastWriteTimeUtc == stamp; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return false; }
     }
 }
 
