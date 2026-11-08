@@ -139,4 +139,31 @@ public static partial class PortugueseAccents
         }
         return result.ToString();
     }
+
+    /// <summary>
+    /// Accents taken from a reference spelling of the same words (the engine's suggestedTitle, made from the file name
+    /// with its 12 thousand word list): each word of <paramref name="text"/> that matches a reference word except for
+    /// accents takes its accents, keeping the case of <paramref name="text"/>. Words without a match are untouched.
+    /// </summary>
+    public static string FromReference(string text, string? reference)
+    {
+        if (string.IsNullOrEmpty(text) || string.IsNullOrWhiteSpace(reference)) return text;
+        var spelled = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (Match word in Word().Matches(reference))
+        {
+            string lower = word.Value.ToLowerInvariant(), plain = Plain(lower);
+            if (lower != plain && !spelled.ContainsKey(plain)) spelled[plain] = lower;
+        }
+        var result = new StringBuilder(text);
+        var matches = Word().Matches(text);
+        for (int index = matches.Count - 1; index >= 0; index--)
+        {
+            var match = matches[index];
+            string lower = match.Value.ToLowerInvariant();
+            if (lower != Plain(lower) || !spelled.TryGetValue(lower, out var accented) || accented.Length != match.Length) continue;
+            string cased = new(match.Value.Zip(accented, (original, fixedLetter) => char.IsUpper(original) ? char.ToUpperInvariant(fixedLetter) : fixedLetter).ToArray());
+            result.Remove(match.Index, match.Length).Insert(match.Index, cased);
+        }
+        return result.ToString();
+    }
 }

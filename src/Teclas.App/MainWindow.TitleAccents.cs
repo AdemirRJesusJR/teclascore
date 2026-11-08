@@ -49,6 +49,21 @@ public partial class MainWindow
         ApplyTitleAccents(changes.Where(c => c.Selected));
     }
 
+    /// <summary>
+    /// After the analysis: the engine's suggestedTitle (file name with its accent list) gives its accents to the card's title,
+    /// while the title is still the one made automatically. A title the user wrote never changes.
+    /// </summary>
+    internal bool ApplySuggestedTitle(MidiRow row, System.Text.Json.Nodes.JsonNode? suggested)
+    {
+        if (suggested is not System.Text.Json.Nodes.JsonValue value || !value.TryGetValue<string>(out var reference) || row.Document is null) return false;
+        string automatic = ScoreMetadataOrganizer.Suggest(row.FullPath, row.Document.TextEvents).Title;
+        if (row.ScoreTitle != automatic && row.ScoreTitle != PortugueseAccents.Restore(automatic)) return false;
+        string title = PortugueseAccents.FromReference(PortugueseAccents.Restore(automatic), reference);
+        if (title == row.ScoreTitle) return false;
+        row.ScoreTitle = title;
+        return true;
+    }
+
     /// <summary>Applies the chosen titles; generated scores show them when made again. Returns how many changed.</summary>
     internal int ApplyTitleAccents(IEnumerable<TitleAccentChange> changes)
     {

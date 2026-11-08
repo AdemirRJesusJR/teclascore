@@ -26,6 +26,11 @@ internal static class LyricsTextChecks
             check(PortugueseAccents.Restore("Mamae")=="Mamãe" && PortugueseAccents.Restore("Forro")=="Forro","Without the file the base list is used");
         }
         finally { PortugueseAccents.UseEngineList(null); Directory.Delete(engine,true); }
+        // The engine's suggestedTitle (whole file name, accents restored) lends its accents word by word.
+        check(PortugueseAccents.FromReference("Forro do xodo","Os Barões - Forró do xodó")=="Forró do xodó"
+            && PortugueseAccents.FromReference("FORRO DO XODO","forró do xodó")=="FORRÓ DO XODÓ","A reference title lends its accents and the case is kept");
+        check(PortugueseAccents.FromReference("Pais e filhos","Países e filhos")=="Pais e filhos" && PortugueseAccents.FromReference("Casa","")=="Casa"
+            && PortugueseAccents.FromReference("Você vem","Voce vem")=="Você vem","Only words that differ by accents change; accents already written stay");
 
         // Rule-based syllable division used when a whole lyric is pasted over the melody.
         static string S(string word) => string.Join("-",PortugueseSyllables.Split(word));

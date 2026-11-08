@@ -320,6 +320,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         var client=new EngineClient(PythonPath,engineDirectory);
         var result=await client.RunAsync(request,row.Workspace,CreateOperationProgress(),cancellation!.Token);
         ParseReviewPoints(row,JsonSerializer.SerializeToElement(result));
+        ApplySuggestedTitle(row,result["suggestedTitle"]);
         row.AnalysisPath=result["analysisPath"]!.GetValue<string>();row.KeyFifths=result["keyFifths"]!.GetValue<int>();row.KeyMinor=result["keyMinor"]!.GetValue<bool>();
         var previousPositions=row.Chords.Where(c=>c.DiagramInversion is not null).ToArray();
         row.Chords.Clear();

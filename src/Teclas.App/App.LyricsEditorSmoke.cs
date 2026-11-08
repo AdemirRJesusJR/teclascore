@@ -97,6 +97,17 @@ public partial class App
             Check(saved.Slots.Select(s => s.Text).SequenceEqual(new[] { "Ca", "sa", "a", "", "lu", "a" }) && saved.Slots[2].Continues == false,
                 "saved-score-has-the-edited-lyrics " + string.Join(",", saved.Slots.Select(s => s.Text)));
             Check(NativeScoreDocument.Inspect(row.ScorePath!).NoteCount == NativeScoreDocument.Inspect(source).NoteCount, "notes-unchanged");
+            // 4. The engine's suggestedTitle restores accents of an automatic title; a title the user wrote stays.
+            string titled = Path.Combine(work, "Os Barões - Forro do xodo.mid");
+            File.WriteAllBytes(titled, SimpleMidiWriter.Write(100, 4, [new WrittenTrack("Voz", 0, 0, Enumerable.Range(0, 16).Select(i => new WrittenNote(i, 1, 60 + i % 5)).ToArray())]));
+            window.ImportForSmoke(titled); Flush();
+            var titledRow = window.Files.Single(r => r.FullPath == Path.GetFullPath(titled));
+            string automatic = titledRow.ScoreTitle;
+            bool applied = window.ApplySuggestedTitle(titledRow, System.Text.Json.Nodes.JsonValue.Create("Os Barões - Forró do xodó"));
+            Check(automatic == "Forro do xodo" && applied && titledRow.ScoreTitle == "Forró do xodó" && titledRow.ScoreArtist.Contains("Bar"), "suggested-title-restores-accents " + automatic + " -> " + titledRow.ScoreTitle);
+            titledRow.ScoreTitle = "Meu título";
+            Check(!window.ApplySuggestedTitle(titledRow, System.Text.Json.Nodes.JsonValue.Create("Forró do xodó")) && titledRow.ScoreTitle == "Meu título", "suggested-title-keeps-the-user-title");
+
             // 3. The engine report on the lyrics joins the guided review of a generated MIDI score, without repeating points.
             string generated = Path.Combine(work, "Gerada.mscz"); LyricsScore(generated);
             Directory.CreateDirectory(Path.Combine(work, "Gerada - revisao"));
