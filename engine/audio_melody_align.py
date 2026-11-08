@@ -288,21 +288,33 @@ def local_map(attacks, linear, duration, features=None, window=8.0, hop=4.0, rea
 
 # ---- Melody ------------------------------------------------------------------------------------------------------
 
-def without_accompaniment(notes, midi, tolerance=.12):
+def without_accompaniment(notes, midi, tolerance=.12, leap=7):
     """Recorded notes that the MIDI itself plays (same pitch, attack within 120 ms, mostly overlapping) are the
-    accompaniment heard in a full mix, not the voice. notes are (start, end, pitch, amplitude) in MIDI seconds."""
+    accompaniment heard in a full mix, not the voice. notes are (start, end, pitch, amplitude) in MIDI seconds.
+    Such a note is removed only when it also breaks the line: it lies more than `leap` semitones from the
+    neighbouring notes of the recording. Where the piano doubles the melody, the sung note stays."""
     starts, ends, pitches, _ = midi
     by_pitch = {}
     for s, e, p in zip(starts, ends, pitches): by_pitch.setdefault(int(p), []).append((s, e))
     by_pitch = {p: np.array(sorted(v)) for p, v in by_pitch.items()}
-    kept, removed = [], 0
+    flagged = []
     for note in notes:
-        same = by_pitch.get(note[2])
+        same = by_pitch.get(note[2]); doubled = False
         if same is not None:
             near = same[np.abs(same[:, 0] - note[0]) <= tolerance]
             overlap = np.minimum(near[:, 1], note[1]) - np.maximum(near[:, 0], note[0]) if len(near) else np.array([])
             shorter = np.minimum(near[:, 1] - near[:, 0], note[1] - note[0]) if len(near) else np.array([])
-            if len(near) and np.any(overlap >= .5 * shorter):
+            doubled = bool(len(near) and np.any(overlap >= .5 * shorter))
+        flagged.append(doubled)
+    order = sorted(range(len(notes)), key=lambda i: notes[i][0])
+    line = [i for i in order if not flagged[i]]
+    starts = [notes[i][0] for i in line]
+    kept, removed = [], 0
+    for index, note in enumerate(notes):
+        if flagged[index]:
+            position = bisect.bisect_left(starts, note[0])
+            neighbours = [notes[line[j]][2] for j in (position - 1, position) if 0 <= j < len(line)]
+            if not neighbours or min(abs(note[2] - p) for p in neighbours) > leap:
                 removed += 1; continue
         kept.append(note)
     return kept, removed
@@ -359,14 +371,13 @@ def window_scores(features, time_map, window=8.0, hop=4.0):
 
 
 def melody_ticks(melody, tempo, ppq, end_tick):
-    """Melody (MIDI seconds) → monophonic notes in ticks on the beat subdivisions the attacks follow (sixteenths or
-    triplets, decided beat by beat like the audio transcription). Returns (start, end, pitch, velocity)."""
+    """Melody (MIDI seconds) → monophonic notes in ticks, NOT quantized: the score generation quantizes once, with the
+    grid chosen for the whole song (batch_score.melody_events). Returns (start, end, pitch, velocity)."""
     raw = [(float(tempo.to_ticks(max(0.0, s))), float(tempo.to_ticks(max(0.0, e))), p, a) for s, e, p, a in melody]
-    grids, _ = at.beat_grids([r[0] for r in raw], ppq)
     snapped = []
     for start, end, pitch, amplitude in raw:
-        a = int(at.snap(start, grids, ppq)); b = int(at.snap(end, grids, ppq))
-        snapped.append([a, max(b, a + ppq // 4), int(pitch), max(30, min(120, int(40 + amplitude * 100)))])
+        a = int(round(start)); b = int(round(end))
+        snapped.append([a, max(b, a + ppq // 16), int(pitch), max(30, min(120, int(40 + amplitude * 100)))])
     snapped.sort(key=lambda n: (n[0], -n[2]))
     result = []
     for note in snapped:
@@ -528,7 +539,7 @@ def align(wav_path, midi_path, output_midi, output_report=None, progress=lambda 
         raise AlignmentRefused(f'A gravação cobre só {percent(coverage)} do MIDI. Use uma gravação da música inteira. Nada foi gravado.')
 
     progress('Separando a linha da melodia…')
-    events = at.build_notes(frames, onsets)
+    events = at.detect_notes(frames, onsets)
     def seconds(frame): return float(times[min(frame, len(times) - 1)])
     heard = [(seconds(a), seconds(b), pitch, amplitude) for a, b, pitch, amplitude in events]
     mapped = []
