@@ -119,7 +119,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         OnPlaybackSelectionChanged();
         OnTrackAuditionSelectionChanged();
         NotifyFlow();
-        foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText),nameof(FoldRepeats),nameof(SimplifiedChords),nameof(ChordsOnly),nameof(IncludeLyrics),nameof(CanShowChordSheetText),nameof(CanAskTeacher),nameof(CanShowSimilarSongs),nameof(CanExportStudyAudio),nameof(KeyboardFitMessage),nameof(KeyboardFitVisibility),nameof(ChordStaff),nameof(CanExportBooklet),nameof(LyricsTrackHint),nameof(LyricsTrackVisibility),nameof(CollectionRuleHint),nameof(CollectionRuleVisibility)})Notify(name);
+        foreach(var name in new[]{nameof(DoubtfulChordCount),nameof(ChordReviewLabel),nameof(SelectedFile),nameof(SelectedName),nameof(SelectionMessage),nameof(HasReviewedProfile),nameof(UseReviewedProfile),nameof(CanSelectTracks),nameof(CanGenerate),nameof(GenerationHint),nameof(PreviewMessage),nameof(FileCountText),nameof(FoldRepeats),nameof(SimplifiedChords),nameof(ChordsOnly),nameof(IncludeLyrics),nameof(CanShowChordSheetText),nameof(CanAskTeacher),nameof(CanShowSimilarSongs),nameof(CanExportStudyAudio),nameof(KeyboardFitMessage),nameof(KeyboardFitVisibility),nameof(ChordStaff),nameof(CanExportBooklet),nameof(LyricsTrackHint),nameof(LyricsTrackVisibility),nameof(CollectionRuleHint),nameof(CollectionRuleVisibility),nameof(RecordedMelodyHint),nameof(RecordedMelodyVisibility)})Notify(name);
         RefreshDashboard();
         Preview=null;
         if(selectedFile?.PreviewPath is { } path && File.Exists(path))
@@ -184,7 +184,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         var keys=profile?["config"]?["melody_sources"]?.AsArray().Select(s=>new SourceKey(s!["track"]!.GetValue<int>(),s["channel"]!.GetValue<int>(),s["program"]!.GetValue<int>())).ToHashSet()??[];
         foreach(var source in document.Sources)
         {
-            var track=new TrackRow{Source=source,InstrumentName=source.Key.Channel==10?"Percussão":instruments[source.Key.Program],IsMelody=keys.Contains(source.Key),MelodySuggestion=suggestions.GetValueOrDefault(source.Key)};
+            var track=new TrackRow{Source=source,InstrumentName=source.Key.Channel==10?"Percussão":source.Name==RecordedMelody.TrackName?RecordedMelody.TrackName:instruments[source.Key.Program],IsMelody=keys.Contains(source.Key),MelodySuggestion=suggestions.GetValueOrDefault(source.Key)};
             track.Changed=()=>{if(!loading)InvalidateAnalysis(row);};track.SecondVoiceChanged=changed=>SecondVoiceChanged(row,changed);row.Tracks.Add(track);
         }
         return row;

@@ -26,7 +26,7 @@ public partial class MainWindow
             row.AutoMelody, row.AutoMelodyConfident, lyrics, row.IncludeLyrics, row.HasOperationError, row.PageCount,
             row.CatalogLacksMelody && !row.ChordsOnly && !row.UseReviewedProfile,
             NotationQualityOf(row.ScorePath) is { } quality ? quality.Score : null,
-            NotationQualityOf(row.ScorePath)?.Issues));
+            NotationQualityOf(row.ScorePath)?.Issues, row.MelodyFromRecording));
     }
 
     private readonly Dictionary<string, (DateTime Stamp, NotationQuality? Quality)> notationQuality = new(StringComparer.OrdinalIgnoreCase);

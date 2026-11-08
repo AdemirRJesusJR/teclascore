@@ -13,6 +13,9 @@ internal static class BusinessRuleChecks
         var missing=ScoreConfidence.Rate(Input([.95,.93],incomplete:true));
         check(missing.Label=="Revisar" && missing.Reasons.Any(r=>r.Contains("falta parte da melodia")),"A MIDI diagnosed without its melody is never rated ready");
         check(ScoreConfidence.Rate(Input([.95,.93])).Label=="Pronta","A clean score stays ready");
+        var recorded=ScoreConfidence.Rate(new([.95,.93],0,0,0,false,false,null,false,false,2,MelodyFromRecording:true));
+        check(recorded.Label=="Revisar" && recorded.Score==ScoreConfidence.RecordedMelodyCeiling && recorded.Reasons.Any(r=>r.Contains("gravação")),
+            "A melody transcribed from a recording is at most Revisar and says why");
 
         ChordPositionEntry E(string root,string quality="",int? inversion=null)=>new(root,quality,inversion);
         var shapeE=DiagramPositionPropagation.Shape("E","",0)!.Value;

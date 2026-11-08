@@ -285,6 +285,12 @@ Após Analisar acordes, **Revisão guiada** lista os pontos identificados, com c
 
 **Transpor**, na Prévia de um MIDI, permite deslocar de −12 a +12 semitons. O intervalo é relativo ao MIDI original, sem acumular alterações. A nova partitura atualiza notas, armadura, modulações, cifras e diagramas. A tabela de cifras continua no tom original. O arquivo MIDI e as versões anteriores permanecem intactos. Para arquivos .mscz importados e versões editadas, Transpor oferece um fluxo separado de comparação e salvamento; o intervalo parte da versão aberta e diagramas externos exigem tratamento explícito.
 
+## Melodia de uma gravação
+
+Quando o MIDI não traz a melodia completa, a etapa Melodia oferece **Melodia de uma gravação…**. Escolha uma gravação da mesma música; de preferência só a voz, mas a mixagem completa também serve. O TeclaScore transcreve a gravação no próprio computador (Basic Pitch) e compara a harmonia dela com as notas do MIDI. Assim estima o início, o andamento e, se a gravação acelera ou desacelera, um ajuste por trechos. A melodia transcrita, já sem as notas que o próprio MIDI toca, vai para uma cópia nova em `<saída>/Melodias de gravações/`, com a pista "Melodia (gravação)" e um relatório `.alinhamento.json`. A cópia entra na biblioteca como um cartão próprio, com essa pista marcada como melodia e as propriedades do cartão original. O MIDI original não é alterado.
+
+Se a gravação não combina com o MIDI (outra música, outra versão ou um trecho que se encaixa em vários pontos), nada é gravado e o motivo aparece. A melodia não é inventada: o que a gravação não deixa ouvir fica de fora. A confiança dessas partituras vai no máximo até "Revisar", e a Revisão guiada pede para conferir a melodia ouvindo a gravação. Gravações só de voz com andamento muito livre alinham com menos precisão.
+
 ## Melhorar partituras MuseScore
 
 Use **Importar MuseScore**, no topo do app, para abrir um **.mscz do MuseScore 4** e clique em **Melhorar apresentação** ou Propriedades. Edite título, subtítulo e autor e escolha apresentação padrão, confortável ou compacta. O app ajusta margens, tamanho de pauta e cabeçalho e salva uma nova cópia. Notas, ritmos, vozes, cifras, repetições e imagens são conferidos antes da entrega. O Histórico permite comparar antes/depois. Se a preservação não puder ser confirmada, a operação informa a falha e mantém o original.
