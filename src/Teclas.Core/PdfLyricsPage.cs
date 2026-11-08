@@ -21,6 +21,9 @@ public sealed record LyricSheetLine(IReadOnlyList<LyricSheetPart> Parts, bool St
 /// <summary>A line start (score quarter from the first measure) taken from the MIDI or the engine report.</summary>
 public sealed record LyricLineStart(double Quarter, bool Stanza, string Text = "");
 
+/// <summary>A syllable of the MIDI's lyrics (score quarter) and whether its word goes on in the next syllable.</summary>
+public sealed record LyricWordMark(double Quarter, string Text, bool Continues);
+
 /// <summary>
 /// The whole lyric organized in lines and stanzas, with each chord above the syllable where it starts (Configurações ›
 /// Página "Letra e cifras" no PDF). Lines come from the engine report (validacao.json lyrics.lines), else from the
@@ -39,12 +42,15 @@ public static class PdfLyricsPage
     public static IReadOnlyList<LyricSheetLine> Read(string scorePath)
     {
         var model = NativeMusicEditor.Open(scorePath);
-        var (starts, wordLines) = ReportLines(scorePath);
-        return Build(model, starts, wordLines);
+        var (starts, wordLines, words) = Report(scorePath);
+        return Build(model, starts, wordLines, words);
     }
 
     /// <summary>Lines of the score's verse 1 with the given line starts (empty: from the rests); chords from the score.</summary>
-    public static IReadOnlyList<LyricSheetLine> Build(NativeMusicModel model, IReadOnlyList<LyricLineStart>? starts = null, bool textLinesWithoutNotes = true)
+    /// <param name="words">The MIDI's syllables: when the score writes every syllable on its own (no begin/middle/end),
+    /// they tell which syllables belong to the same word, so the page prints "tava", not "ta va".</param>
+    public static IReadOnlyList<LyricSheetLine> Build(NativeMusicModel model, IReadOnlyList<LyricLineStart>? starts = null, bool textLinesWithoutNotes = true,
+        IReadOnlyList<LyricWordMark>? words = null)
     {
         ArgumentNullException.ThrowIfNull(model);
         int top = LyricsEditorDocument.TopStaff(model);
@@ -62,6 +68,14 @@ public static class PdfLyricsPage
                 }
                 if (item.Kind == "Chord") lastEnd = at + (item.DurationQuarter ?? 0);
             }
+        if (words is { Count: > 0 } && units.Count > 1)
+        {
+            // MIDI times (line starts, syllables) follow the score's syllables when these sit a little later or earlier.
+            var ordered = words.OrderBy(w => w.Quarter).ToArray();
+            double offset = Offset(units, ordered);
+            if (units.All(u => !u.Continues)) JoinWords(units, ordered, offset);
+            if (offset != 0 && starts is { Count: > 0 }) starts = starts.Select(s => s with { Quarter = s.Quarter + offset }).ToArray();
+        }
         var harmonies = model.Measures.Where(m => m.Staff == top).SelectMany(m => m.Harmonies.Where(h => h.Quarter is not null)
             .Select(h => (Quarter: measureStart[m.Number] + h.Quarter!.Value, Label: Label(h)))).OrderBy(h => h.Quarter).ToArray();
 
@@ -109,16 +123,74 @@ public static class PdfLyricsPage
                 if (line.Text.Trim().Length == 0) continue;
                 double end = i + 1 < ordered.Length ? ordered[i + 1].Quarter : line.Quarter + 8;
                 if (units.Any(u => u.Quarter >= line.Quarter - 0.05 && u.Quarter < end - 0.05)) continue;
-                var words = line.Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                double span = Math.Min(end - line.Quarter, Math.Max(2, words.Length));
-                for (int w = 0; w < words.Length; w++)
-                    units.Add(new Unit(line.Quarter + span * w / words.Length, words[w], false, w == 0, 0) { LineStart = w == 0, StanzaStart = w == 0 && line.Stanza });
+                var spread = line.Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                double span = Math.Min(end - line.Quarter, Math.Max(2, spread.Length));
+                for (int w = 0; w < spread.Length; w++)
+                    units.Add(new Unit(line.Quarter + span * w / spread.Length, spread[w], false, w == 0, 0) { LineStart = w == 0, StanzaStart = w == 0 && line.Stanza });
             }
             units.Sort((a, b) => a.Quarter.CompareTo(b.Quarter));
         }
         if (units.Count == 0) return [];
         return Lines(units, harmonies);
     }
+
+    /// <summary>
+    /// How far the score's syllables sit from the MIDI's (the engine may place a syllable on a note a little after its
+    /// lyric event): the median distance to the nearest MIDI syllable with the same text, within a beat. Zero when too
+    /// few match.
+    /// </summary>
+    private static double Offset(List<Unit> units, LyricWordMark[] ordered)
+    {
+        var distances = new List<double>();
+        int from = 0;
+        foreach (var unit in units)
+        {
+            string first = Plain(unit.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "");
+            if (first.Length == 0) continue;
+            while (from < ordered.Length && ordered[from].Quarter < unit.Quarter - 1) from++;
+            double? best = null;
+            for (int k = from; k < ordered.Length && ordered[k].Quarter <= unit.Quarter + 1; k++)
+                if (Plain(ordered[k].Text) == first && (best is null || Math.Abs(unit.Quarter - ordered[k].Quarter) < Math.Abs(best.Value)))
+                    best = unit.Quarter - ordered[k].Quarter;
+            if (best is double d) distances.Add(d);
+        }
+        if (distances.Count < Math.Max(3, units.Count / 4)) return 0;
+        distances.Sort();
+        return Math.Round(distances[distances.Count / 2] * 64) / 64;
+    }
+
+    /// <summary>
+    /// Each score syllable takes the word continuation of the MIDI syllable with the same text at about the same time.
+    /// Several syllables crowded on one note ("gun tou") are joined the same way ("guntou").
+    /// </summary>
+    private static void JoinWords(List<Unit> units, LyricWordMark[] ordered, double offset)
+    {
+        int from = 0;
+        for (int i = 0; i < units.Count; i++)
+        {
+            string[] tokens = units[i].Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0) continue;
+            double at = units[i].Quarter - offset;
+            while (from < ordered.Length && ordered[from].Quarter < at - 0.2) from++;
+            for (int k = from; k < ordered.Length && ordered[k].Quarter <= at + 0.2; k++)
+            {
+                if (Plain(ordered[k].Text) != Plain(tokens[0])) continue;
+                string text = tokens[0];
+                int last = k;
+                for (int t = 1; t < tokens.Length; t++)
+                {
+                    bool same = last + 1 < ordered.Length && Plain(ordered[last + 1].Text) == Plain(tokens[t]);
+                    text += (same && ordered[last].Continues ? "" : " ") + tokens[t];
+                    if (same) last++;
+                }
+                units[i] = units[i] with { Text = text, Continues = last == k + tokens.Length - 1 && ordered[last].Continues };
+                break;
+            }
+        }
+    }
+
+    private static string Plain(string text) =>
+        new(text.Normalize(NormalizationForm.FormD).Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
 
     private static string Label(MusicHarmony harmony) =>
         ChordNotation.Root(harmony.Root) + ChordNotation.Display(harmony.Quality) + (harmony.Bass is { } bass ? "/" + ChordNotation.Root(bass) : "");
@@ -177,24 +249,67 @@ public static class PdfLyricsPage
     /// </summary>
     public static (IReadOnlyList<LyricLineStart> Starts, bool WordLines) ReportLines(string scorePath)
     {
+        var (starts, wordLines, _) = Report(scorePath);
+        return (starts, wordLines);
+    }
+
+    private static (IReadOnlyList<LyricLineStart> Starts, bool WordLines, IReadOnlyList<LyricWordMark> Words) Report(string scorePath)
+    {
         try
         {
             string report = LyricsReviewReport.ReportPath(scorePath);
-            if (!File.Exists(report)) return ([], false);
+            if (!File.Exists(report)) return ([], false, []);
             using var document = JsonDocument.Parse(File.ReadAllBytes(report));
             var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return ([], false, []);
             double origin = root.TryGetProperty("origin_removed_quarters", out var o) && o.ValueKind == JsonValueKind.Number ? o.GetDouble() : 0;
+            MidiDocument? midi = null;
+            try
+            {
+                if (root.TryGetProperty("source", out var source) && source.ValueKind == JsonValueKind.String && File.Exists(source.GetString()))
+                    midi = MidiReader.Read(source.GetString()!);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException or ArgumentException
+                or FormatException or IndexOutOfRangeException or EndOfStreamException) { }
+            IReadOnlyList<LyricWordMark> words = midi is null ? [] : WordMarks(midi, origin);
             if (root.TryGetProperty("melody_analysis", out var analysis) && analysis.ValueKind == JsonValueKind.Object
                 && analysis.TryGetProperty("lyrics", out var lyrics) && lyrics.ValueKind == JsonValueKind.Object)
             {
                 var lines = FromReport(lyrics, origin);
-                if (lines.Count > 0) return (lines, true);
+                if (lines.Count > 0) return (lines, true, words);
             }
-            if (root.TryGetProperty("source", out var source) && source.ValueKind == JsonValueKind.String && File.Exists(source.GetString()))
-                return (FromMidi(MidiReader.Read(source.GetString()!), origin), false);
+            if (midi is not null) return (FromMidi(midi, origin), false, words);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidDataException or InvalidOperationException or ArgumentException or FormatException) { }
-        return ([], false);
+        return ([], false, []);
+    }
+
+    /// <summary>
+    /// The MIDI's syllables with their word ends. Karaoke files mark a word end with a space after the syllable ("Eu ",
+    /// "ta", "va ") or before the next one (" ta"); a hyphen ("ta-") joins, and a line or stanza mark or punctuation ends
+    /// the word. A file with no spaces at all says nothing about words and gives no marks.
+    /// </summary>
+    public static IReadOnlyList<LyricWordMark> WordMarks(MidiDocument midi, double originQuarters)
+    {
+        var events = LyricsTrack.SyllableEvents(midi);
+        static bool Mark(char c) => c is ' ' or '/' or '\\' or '\r' or '\n' or '\t';
+        int spaced = events.Count(e => e.Text.Length > 0 && (Mark(e.Text[0]) || Mark(e.Text[^1])));
+        if (events.Count == 0 || spaced < Math.Max(2, events.Count / 10)) return [];
+        var result = new List<LyricWordMark>(events.Count);
+        for (int i = 0; i < events.Count; i++)
+        {
+            string text = events[i].Text;
+            string word = text.Trim('/', '\\', '\r', '\n', '\t', ' ');
+            bool hyphen = word.EndsWith('-');
+            word = word.TrimEnd('-');
+            string? next = i + 1 < events.Count ? events[i + 1].Text : null;
+            bool ends = Mark(text[^1]) || word.Length > 0 && !char.IsLetterOrDigit(word[^1]);
+            bool nextStarts = next is null || next.Length == 0 || Mark(next[0]);
+            bool nextLine = next is not null && next.TrimStart(' ').Length > 0 && next.TrimStart(' ')[0] is '/' or '\\';
+            bool continues = next is not null && !nextLine && (hyphen || !ends && !nextStarts);
+            result.Add(new LyricWordMark(Math.Round((double)events[i].Tick / midi.Ppq - originQuarters, 6), word, continues));
+        }
+        return result;
     }
 
     /// <summary>lyrics.lines of the report: {tick or quarter, text/texto, paragraph/parágrafo}; read tolerantly.</summary>

@@ -170,6 +170,43 @@ if (args.Length >= 3)
     var marked = MidiReader.Read(SimpleMidiWriter.Write(120, 4, [new WrittenTrack("Voz", 0, 52, Enumerable.Range(0, 16).Select(i => new WrittenNote(i, 1, 60)).ToArray()) { Lyrics = karaoke.OrderBy(l => l.Start).ToArray() }]));
     var starts = PdfLyricsPage.FromMidi(marked, 1);
     Check(starts.Select(s => (s.Quarter, s.Stanza)).SequenceEqual([(3.0, false), (7.0, false), (11.0, true)]), "MIDI karaoke marks give line and stanza starts: " + string.Join(", ", starts));
+    // A score whose syllables are all single (the engine's karaoke lyrics): the MIDI's spaces tell where words end.
+    string[] sung = ["Eu ", "ta", "va ", "na ", "ba", "la", "da ", "com ", "meu ", "par", "cei", "ro,", "/Du", "du ", "can-", "tou"];
+    string singleScore = Path.Combine(work, "Balada.mscz");
+    using (var zip = System.IO.Compression.ZipFile.Open(singleScore, System.IO.Compression.ZipArchiveMode.Create))
+    using (var writer = new StreamWriter(zip.CreateEntry("score.mscx").Open(), new System.Text.UTF8Encoding(false)))
+    {
+        // "can-" and "tou" crowded on one half note, as the engine writes two syllables on one note.
+        string Note(string text) => text == "can-" ? "<Chord><durationType>half</durationType><Lyrics><text>can tou</text></Lyrics><Note><pitch>72</pitch><tpc>14</tpc></Note></Chord>"
+            : text == "tou" ? "" : $"<Chord><durationType>quarter</durationType><Lyrics><text>{text.Trim(' ', '/').TrimEnd('-')}</text></Lyrics><Note><pitch>72</pitch><tpc>14</tpc></Note></Chord>";
+        string measures = string.Concat(sung.Chunk(4).Select((four, i) => "<Measure><voice>" + (i == 0 ? "<TimeSig><sigN>4</sigN><sigD>4</sigD></TimeSig>" : "") + string.Concat(four.Select(Note)) + "</voice></Measure>"));
+        writer.Write("<museScore version='4.70'><programVersion>4.7.5</programVersion><Score><Part><Staff id='1'><StaffType group='pitched'><name>stdNormal</name></StaffType></Staff><Instrument id='piano'><trackName>Piano</trackName></Instrument></Part><Staff id='1'>"
+            + measures + "</Staff></Score></museScore>");
+    }
+    string sungMidi = Path.Combine(work, "balada.mid");
+    File.WriteAllBytes(sungMidi, SimpleMidiWriter.Write(120, 4, [new WrittenTrack("Voz", 0, 52, Enumerable.Range(0, 17).Select(i => new WrittenNote(i, 1, 60)).ToArray())
+        { Lyrics = sung.Select((text, i) => new WrittenLyric(i + 1, text)).ToArray() }]));
+    Directory.CreateDirectory(Path.Combine(work, "Balada - revisao"));
+    File.WriteAllText(Path.Combine(work, "Balada - revisao", "validacao.json"), System.Text.Json.JsonSerializer.Serialize(new { origin_removed_quarters = 1, source = sungMidi }));
+    var joined = PdfLyricsPage.Read(singleScore);
+    Check(joined.Select(Show).SequenceEqual(["Eu ta-va na ba-la-da com meu par-cei-ro,", "Du-du cantou"]) && joined[0].Words == "Eu tava na balada com meu parceiro,",
+        "Single syllables (and two crowded on one note) are joined into words by the MIDI's spaces and hyphens: " + string.Join(" | ", joined.Select(Show)));
+    // The MIDI's lyric events a sixteenth after the score's syllables: line starts and words follow the measured offset.
+    string lateScore = Path.Combine(work, "Balada atrasada.mscz"), lateMidi = Path.Combine(work, "balada-atrasada.mid");
+    File.Copy(singleScore, lateScore);
+    File.WriteAllBytes(lateMidi, SimpleMidiWriter.Write(120, 4, [new WrittenTrack("Voz", 0, 52, Enumerable.Range(0, 17).Select(i => new WrittenNote(i, 1, 60)).ToArray())
+        { Lyrics = sung.Select((text, i) => new WrittenLyric(i + 1.25, text)).ToArray() }]));
+    Directory.CreateDirectory(Path.Combine(work, "Balada atrasada - revisao"));
+    File.WriteAllText(Path.Combine(work, "Balada atrasada - revisao", "validacao.json"), System.Text.Json.JsonSerializer.Serialize(new { origin_removed_quarters = 1, source = lateMidi }));
+    var late = PdfLyricsPage.Read(lateScore);
+    Check(late.Select(Show).SequenceEqual(["Eu ta-va na ba-la-da com meu par-cei-ro,", "Du-du cantou"]),
+        "A constant offset between the MIDI's lyrics and the score's syllables is measured and removed: " + string.Join(" | ", late.Select(Show)));
+    var leading = PdfLyricsPage.WordMarks(MidiReader.Read(SimpleMidiWriter.Write(120, 4, [new WrittenTrack("Voz", 0, 52, [new WrittenNote(0, 1, 60)])
+        { Lyrics = Enumerable.Range(0, 16).Select(i => new WrittenLyric(i, (i % 3 == 0 ? " " : "") + "la")).ToArray() }])), 0);
+    Check(leading.Count == 16 && leading[0].Continues && leading[1].Continues && !leading[2].Continues && leading[3].Continues && leading[0].Text == "la",
+        "A space before the syllable also starts a word");
+    Check(PdfLyricsPage.WordMarks(MidiReader.Read(SimpleMidiWriter.Write(120, 4, [new WrittenTrack("Voz", 0, 52, [new WrittenNote(0, 1, 60)])
+        { Lyrics = Enumerable.Range(0, 16).Select(i => new WrittenLyric(i, "la")).ToArray() }])), 0).Count == 0, "Lyrics without any spaces say nothing about words");
     string lyricPdf = Path.Combine(work, "letra.pdf");
     File.WriteAllText(lyricPdf, body.ToString(), System.Text.Encoding.Latin1);
     PdfChordPage.Append(lyricPdf, "Casa", "Grupo", [], true, null, lyricLines);
