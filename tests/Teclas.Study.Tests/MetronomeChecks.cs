@@ -41,7 +41,41 @@ internal static class MetronomeChecks
         double firstClick = FirstLoudSecond(mixed);
         check(Math.Abs(firstClick - .5) < .003, "Click starts on the beat sample");
         try { ScoreMetronome.MixClicks(source, source, [], CancellationToken.None); check(false, "Overwrite accepted"); } catch (InvalidOperationException) { check(true, "Overwrite rejected"); }
+        CheckMuseScoreGuard(work, check);
         return new { beats = beats.Count, countIn = start.Beats, firstClick };
+    }
+
+    /// <summary>MuseScore's own metronome preference is off during audio exports and comes back afterwards.</summary>
+    private static void CheckMuseScoreGuard(string work, Action<bool, string> check)
+    {
+        string settings = MuseScoreMetronomeGuard.SettingsPath, marker = MuseScoreMetronomeGuard.MarkerPath;
+        string ini = Path.Combine(work, "MuseScore4.ini");
+        MuseScoreMetronomeGuard.SettingsPath = ini; MuseScoreMetronomeGuard.MarkerPath = Path.Combine(work, "guard", "marcador");
+        try
+        {
+            const string on = "[application]\r\nplayback\\metronomeEnabled=true\r\nx=1\r\n";
+            File.WriteAllText(ini, on);
+            var first = MuseScoreMetronomeGuard.SilenceAsync(CancellationToken.None).GetAwaiter().GetResult();
+            var second = MuseScoreMetronomeGuard.SilenceAsync(CancellationToken.None).GetAwaiter().GetResult();
+            check(File.ReadAllText(ini) == on.Replace("=true", "=false") && File.Exists(MuseScoreMetronomeGuard.MarkerPath), "MuseScore metronome off during export");
+            first.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            first.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            check(File.ReadAllText(ini).Contains("metronomeEnabled=false"), "Stays off while another export runs");
+            second.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            check(File.ReadAllText(ini) == on && !File.Exists(MuseScoreMetronomeGuard.MarkerPath), "MuseScore metronome restored");
+
+            const string off = "[application]\nplayback\\metronomeEnabled=false\n";
+            File.WriteAllText(ini, off);
+            MuseScoreMetronomeGuard.SilenceAsync(CancellationToken.None).GetAwaiter().GetResult().DisposeAsync().AsTask().GetAwaiter().GetResult();
+            check(File.ReadAllText(ini) == off, "Metronome already off is left untouched");
+
+            // An export interrupted earlier left the marker: the preference goes back on.
+            Directory.CreateDirectory(Path.GetDirectoryName(MuseScoreMetronomeGuard.MarkerPath)!);
+            File.WriteAllText(MuseScoreMetronomeGuard.MarkerPath, ini);
+            MuseScoreMetronomeGuard.RestorePending();
+            check(File.ReadAllText(ini) == off.Replace("=false", "=true") && !File.Exists(MuseScoreMetronomeGuard.MarkerPath), "Pending restore after an interrupted export");
+        }
+        finally { MuseScoreMetronomeGuard.SettingsPath = settings; MuseScoreMetronomeGuard.MarkerPath = marker; }
     }
 
     /// <summary>Native stage: MuseScore's MIDI drives the beats of the rendered study audio.</summary>

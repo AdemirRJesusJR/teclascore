@@ -130,6 +130,7 @@ public static class StudyAudioExport
     {
         var start = new ProcessStartInfo(museScorePath) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
         start.ArgumentList.Add("-o"); start.ArgumentList.Add(output); start.ArgumentList.Add(input);
+        await using var silence = await MuseScoreMetronomeGuard.SilenceAsync(token).ConfigureAwait(false);
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Não foi possível iniciar o MuseScore.");
         var errors = process.StandardError.ReadToEndAsync(token); _ = process.StandardOutput.ReadToEndAsync(token);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromMinutes(5));

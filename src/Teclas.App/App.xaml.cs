@@ -22,7 +22,12 @@ public partial class App : Application
         if (e.Args.Length == 2 && e.Args[0] == "--verify-folder-watch-ui")
         { VerifyFolderWatchUi(e.Args[1]); return; }
         // Automated checks report their own failures; only real sessions keep crash files.
-        if (!e.Args.Any(arg => arg.StartsWith("--verify", StringComparison.Ordinal) || arg.StartsWith("--", StringComparison.Ordinal) && arg.Contains("smoke", StringComparison.OrdinalIgnoreCase))) InstallCrashLog();
+        if (!e.Args.Any(arg => arg.StartsWith("--verify", StringComparison.Ordinal) || arg.StartsWith("--", StringComparison.Ordinal) && arg.Contains("smoke", StringComparison.OrdinalIgnoreCase)))
+        {
+            InstallCrashLog();
+            // An audio export interrupted by closing the app may have left MuseScore's own metronome switched off.
+            Teclas.Core.MuseScoreMetronomeGuard.RestorePending();
+        }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-lyrics-editor-ui")
         { VerifyLyricsEditorUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-recorded-melody-ui")

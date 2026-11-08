@@ -166,7 +166,8 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
             hash = Convert.ToHexString(await SHA256.HashDataAsync(source, token));
         var executable = new FileInfo(museScorePath);
         string renderer = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(executable.FullName + executable.Length + executable.LastWriteTimeUtc.Ticks)))[..16];
-        string audioPath = Path.Combine(cacheDirectory, $"{hash}-{renderer}-pcm16.wav");
+        // v2: earlier audio could carry MuseScore's own metronome clicks (see MuseScoreMetronomeGuard).
+        string audioPath = Path.Combine(cacheDirectory, $"{hash}-{renderer}-pcm16-v2.wav");
         if (File.Exists(audioPath))
         {
             try
@@ -283,6 +284,9 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
     /// </summary>
     private async Task ExportAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng = false, int resolution = 120, string? stylePath = null)
     {
+        // Audio follows TeclaScore's metronome option only, never the one left on inside MuseScore.
+        await using var silence = Path.GetExtension(outputPath).ToLowerInvariant() is ".wav" or ".mp3" or ".ogg" or ".flac"
+            ? await MuseScoreMetronomeGuard.SilenceAsync(token) : null;
         for (int attempt = 1; ; attempt++)
         {
             try { await ExportOnceAsync(scorePath, outputPath, token, operation, allowPagedPng, resolution, stylePath); return; }
