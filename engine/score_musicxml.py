@@ -98,6 +98,10 @@ def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
         if triplet and (start+dur)%core.DIV==0:core.sub(nt,'tuplet',type='stop',number=1)
     if event is not None and start==event['start'] and event.get('lyric') and not event.get('chord'):
         lyric=core.sub(n,'lyric',number='1');core.sub(lyric,'syllabic',event['lyric']['syllabic']);core.sub(lyric,'text',event['lyric']['text'])
+        # A word's last syllable held over the following notes (melisma): extender line up to the last of them.
+        if event['lyric'].get('extend'):core.sub(lyric,'extend',type='start')
+    elif event is not None and start==event['start'] and event.get('lyric_extend_stop') and not event.get('chord'):
+        core.sub(core.sub(n,'lyric',number='1'),'extend',type='stop')
     if event is not None and start==event['start'] and event.get('lyric2'):
         # Second verse of a repeated passage, under the first.
         lyric=core.sub(n,'lyric',number='2');core.sub(lyric,'syllabic',event['lyric2']['syllabic']);core.sub(lyric,'text',event['lyric2']['text'])
@@ -158,6 +162,38 @@ def emit_marker(measure,kind,text=None):
         core.sub(d,'sound',**({'dacapo':'yes'} if text.startswith('D.C.') else {'dalsegno':'segno'}))
     return at_end
 
+def emit_lyric_text(measure,item):
+    """A line of the lyric written as text below the staff (speech, or a sung line the melody does not play).
+    Italic words below the staff become an Expression text in MuseScore, which never widens the measure."""
+    d=core.sub(measure,'direction',placement='below');dt=core.sub(d,'direction-type')
+    # A fixed height between the staff and the syllables: autoplace alone let a long line run into the next notes.
+    core.sub(dt,'words',item['text'],default_y=-100,font_style='italic')
+    if item.get('offset'):core.sub(d,'offset',item['offset'])
+
+def lyric_text_width(bar):
+    """Room, in staff spaces, the lyric lines written as text under a bar need. The text does not widen the measure
+    in MuseScore, so the bar is planned at least this wide; otherwise a long line at the end of a system runs past
+    the right margin."""
+    import lyrics_width
+    return max((lyrics_width.text_width(item['text'])*1.12+item.get('offset',0)/core.DIV*2.4
+                for item in bar.get('lyric_texts',())),default=0)
+
+def verse_bars(lyrics,bars):
+    """Bars where a sung line of the karaoke starts (a pickup in the second half of a bar counts for the next bar)."""
+    if not isinstance(lyrics,dict):return set()
+    result=set()
+    for line in lyrics.get('lines',[]):
+        if line.get('placement')!='notes' or not line.get('measure'):continue
+        index=line['measure']-1
+        if line.get('measure_position',0)>=.5 and index+1<len(bars):index+=1
+        result.add(index)
+    return result
+
+def verse_break_penalty(start,verse_starts):
+    """Small preference for systems that start where a sung line of the lyric starts. Smaller than the phrase-grid
+    penalties of layout_bars, so it only chooses among layouts that fit the four-bar grid equally well."""
+    return .08 if verse_starts and start not in verse_starts else 0
+
 BARS_PER_SYSTEM=4     # at most a phrase of four bars per system, as in lead sheets
 MAX_CHORDS_PER_SYSTEM=4
 # Staff spaces of music a system holds after the clef and key signature. Calibrated on rendered scores: lines
@@ -165,13 +201,19 @@ MAX_CHORDS_PER_SYSTEM=4
 SYSTEM_WIDTH=98
 
 def lyric_width(text):
-    """Estimated width, in staff spaces, of one syllable under the staff (10 pt text plus the gap between words)."""
-    return len(text)*1.2+1.2
+    """Estimated width, in staff spaces, of one syllable under the staff: the text measured in a font with the metrics
+    of MuseScore's lyric font (lyrics_width.py, 10 pt Edwin) plus the least distance between syllables
+    (lyricsMinDistance 1.2). The 20% margin and the 1.8 constant keep SYSTEM_WIDTH=98 valid: with them no system of
+    Galanteador, Sexta-feira rotineira or Mamãe que é mamãe was broken again by MuseScore 4.7."""
+    import lyrics_width
+    return lyrics_width.text_width(text)*1.2+1.8
 
 def note_width(note):
-    """Estimated width, in staff spaces, of one melody attack: its syllable or the note itself."""
+    """Estimated width, in staff spaces, of one melody attack: its syllable (with room for the hyphen inside a word)
+    or the note itself."""
     lyric=note.get('lyric')
-    return max(2.4,lyric_width(lyric['text'])) if lyric else 2.4
+    if not lyric or not lyric.get('text'):return 2.4
+    return max(2.4,lyric_width(lyric['text'])+(.6 if lyric.get('syllabic') in ('begin','middle') else 0))
 
 def chord_widths(chords):
     """(width, leading space) each chord symbol with its keyboard diagram needs, in staff spaces, by tick. Chords
@@ -184,13 +226,13 @@ def chord_widths(chords):
         previous=c
     return widths
 
-def layout_bars(bars,notes,chords,max_chords=MAX_CHORDS_PER_SYSTEM,first_page_capacity=7,section_starts=(),bars_per_system=BARS_PER_SYSTEM):
+def layout_bars(bars,notes,chords,max_chords=MAX_CHORDS_PER_SYSTEM,first_page_capacity=7,section_starts=(),bars_per_system=BARS_PER_SYSTEM,verse_starts=()):
     """Systems with as few lines as fit, each section starting a new one; among equally short layouts, lines end on
     the phrase grid (every two and four bars from the section start). A bar's width is the larger of its notes
-    (with their words) and its chord symbols with keyboard diagrams."""
+    (with their words, or a lyric line written as text under it) and its chord symbols with keyboard diagrams."""
     widths=chord_widths(chords);note_widths=[];chord_ticks=[]
     for b in bars:
-        note_widths.append(sum(note_width(n) for n in notes if b['start']<=n['start']<b['end'])+2)
+        note_widths.append(max(sum(note_width(n) for n in notes if b['start']<=n['start']<b['end'])+2,lyric_text_width(b)))
         chord_ticks.append(sorted(t for t in widths if b['start']<=t<b['end']))
     def fits(group):
         if len(group)>bars_per_system or sum((bars[i]['end']-bars[i]['start'])/core.DIV for i in group)>16:return False
@@ -216,7 +258,7 @@ def layout_bars(bars,notes,chords,max_chords=MAX_CHORDS_PER_SYSTEM,first_page_ca
                 group=list(range(start,end))
                 if size>1 and not fits(group):continue
                 offset=end-first
-                penalty=0 if end==stop else (.3 if offset%2 else 0)+(.1 if offset%4 else 0)
+                penalty=0 if end==stop else (.3 if offset%2 else 0)+(.1 if offset%4 else 0)+verse_break_penalty(end,verse_starts)
                 options.append((best[start][0]+1+penalty,best[start][1]+[group]))
             best[end]=min(options,key=lambda item:item[0])
         return best[stop][1]
@@ -300,7 +342,7 @@ def build_musicxml(parsed,config,harmony,out,title):
         harmony=core.transpose_harmony(harmony,output_transpose)
         note_report['output_transposition_semitones']=output_transpose
     # MIDI lyrics (karaoke files) go under the melody unless the user turned them off.
-    note_report['lyrics']=core.attach_lyrics(parsed,notes,origin) if not chords_only and config.get('include_lyrics',True) else 0
+    note_report['lyrics']=core.attach_lyrics(parsed,notes,origin,bars,config) if not chords_only and config.get('include_lyrics',True) else 0
     # When each syllable is sung (also the ones without a note of their own): used to find the parts, not reported.
     sung_ticks=note_report['lyrics'].pop('sung_ticks',None) if isinstance(note_report['lyrics'],dict) else None
     second=[]
@@ -381,7 +423,7 @@ def build_musicxml(parsed,config,harmony,out,title):
         sections=score_sections.detect_sections(bars,notes+second,chords,core.DIV,sung)
         if sections:note_report['sections']=sections
     starts,lines=core.layout_bars(bars,notes,chords,config.get('max_chords_per_system',MAX_CHORDS_PER_SYSTEM),first_capacity,
-                                  [item['bar'] for item in sections])
+                                  [item['bar'] for item in sections],verse_starts=verse_bars(note_report.get('lyrics'),bars))
     if config.get('line_starts'):
         # A chord sheet keeps its own lines: each one starts a system (MuseScore adds page breaks as needed).
         first_bars=sorted({int(index) for index in config['line_starts'] if 0<int(index)<len(bars)})
@@ -500,6 +542,7 @@ def build_musicxml(parsed,config,harmony,out,title):
                 core.sub(di,'sound',tempo=bpm)
             for c in (chords if primary else []):
                 if b['start']<=c['tick']<b['end']:core.emit_harmony(measure,c,b['start'],ps)
+            for item in (b.get('lyric_texts',()) if primary else ()):emit_lyric_text(measure,item)
             for label in labels:
                 if b['start']<=label['tick']<b['end']:
                     direction=core.sub(measure,'direction',placement='above')
