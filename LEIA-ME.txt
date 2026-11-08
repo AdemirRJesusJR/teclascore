@@ -1,3 +1,7 @@
+TECLASCORE 1.5.0
+
+As letras do karaokê são divididas em sílabas pelas regras do português e cada sílaba vai para a nota em que é cantada; falas aparecem como "(falado: …)" e a página é conferida para que as sílabas não se encostem. Editar › Letra… corrige a letra, e o PDF pode ganhar a página Letra e cifras. Cifras, notas e ritmos ficam mais precisos (acordes sem quinta, 13, 7(b9), baixos de inversão, modulações, swing, tercinas e compasso estimado). A geração é mais rápida e a fila trabalha em segundo plano, com várias músicas ao mesmo tempo.
+
 TECLASCORE 1.4.0
 
 As partituras marcam as partes da música (Intro, A, B, Refrão, Instrumental, Final), começam cada parte num sistema novo e têm até 4 compassos por sistema. Abaixo do título aparecem o tom, o compasso e o andamento. As sílabas da letra não ficam mais grudadas. O PDF ganha o Mapa da música, com os acordes compasso por compasso de cada parte. Cada novidade pode ser desligada em Configurações › Aparência das partituras.

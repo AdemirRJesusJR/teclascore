@@ -1,3 +1,15 @@
+TECLASCORE 1.5.0 · LETRAS, PRECISÃO E FILA EM SEGUNDO PLANO
+
+1. Em Sobre, confira que a versão é 1.5.0.
+2. Gere um karaokê com letra: as sílabas seguem o português (vi-nha, fi-lho, nunca vin-ha), cada uma sob a nota em que é cantada, sem sílabas encostadas. Duas sílabas numa nota aparecem ligadas (de‿a) e sílabas longas têm linha de prolongamento.
+3. Numa música com trecho falado, confira "(falado: …)" sobre a pauta, sem sílabas espalhadas nas notas.
+4. Use Editar › Letra…, corrija uma palavra e salve: a partitura é refeita com a letra nova e a anterior fica no Histórico.
+5. Em Configurações › Aparência das partituras, ligue "Letra e cifras no PDF" e exporte: a página traz a letra por versos com os acordes sobre as sílabas.
+6. Confira na revisão de cifras um acorde com sétima e nona aumentada ou um 6/9, e uma inversão com baixo (G/B). Numa música que muda de tom, a modulação aparece na revisão.
+7. Numa música em 3/4 sem compasso declarado no MIDI, confira que a partitura sai em 3/4; numa com tercinas, que as tercinas aparecem escritas.
+8. Em Configurações › Conversões simultâneas, escolha 2 ao mesmo tempo. Na etapa Gerar use Gerar e próxima (Ctrl+Shift+Enter) em três músicas: a próxima abre na hora e as partituras ficam prontas em segundo plano. Alt+← e Alt+→ passam entre as etapas.
+9. Use a ação de acentos dos títulos na biblioteca: a prévia mostra os títulos que ganham acento antes de aplicar.
+
 TECLASCORE 1.4.0 · PARTES DA MÚSICA, CABEÇALHO E MAPA NO PDF
 
 1. Em Sobre, confira que a versão é 1.4.0.

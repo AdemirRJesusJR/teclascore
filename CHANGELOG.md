@@ -1,5 +1,21 @@
 # Histórico de versões
 
+## 1.5.0 — 08/11/2026
+
+Letras bem divididas e alinhadas à melodia, cifras e notas mais precisas e geração mais rápida, com uma fila que trabalha em segundo plano.
+
+- **Letras divididas em sílabas.** As palavras do karaokê são separadas pelas regras do português (ca-sa, pás-sa-ro, vi-nha), com uma lista ampla de acentos para as letras escritas sem acento. Os dígrafos nh, lh e ch nunca ficam separados, mesmo quando o MIDI os separa. Textos do karaokê com codificação antiga também são lidos corretamente.
+- **Letra alinhada à melodia.** Cada sílaba vai para a nota em que é cantada, mesmo quando a letra do MIDI vem um pouco adiantada ou atrasada. Duas sílabas numa nota só aparecem ligadas (de‿a) e uma sílaba longa ganha a linha de prolongamento. Trechos falados aparecem como "(falado: …)" e não são distribuídos nas notas.
+- **Letra sem colisões.** A partitura renderizada é conferida: sílabas que encostam umas nas outras ganham mais espaço.
+- **Editar › Letra….** Corrija a letra de uma partitura: cole o texto (uma linha por verso, linha em branco entre estrofes) ou ajuste onde cada sílaba se divide. A letra corrigida é salva como nova versão, com a anterior no Histórico.
+- **Página "Letra e cifras" no PDF (opcional).** A letra inteira, por versos e estrofes, com cada acorde sobre a sílaba em que começa. Fica em Configurações › Aparência das partituras, desligada por padrão.
+- **Revisão da letra.** A Revisão guiada aponta letra fora da melodia, palavras amontoadas e falas. A letra só escolhe como melodia uma pista com melodia de verdade, nunca a de notas-guia.
+- **Cifras mais precisas.** Acordes sem a quinta deixam de virar outro acorde. A análise passa a reconhecer 13, 7(b9), 7(#9), m11, 6/9, 7(#5) e 7(b5). Inversões ganham o baixo automaticamente (G/B), e a grafia segue o tom (Bb em Fá maior, A# em Si maior). Modulações declaradas no MIDI ou percebidas pela harmonia aparecem na revisão.
+- **Notas e ritmos mais fiéis.** A melodia separa a voz principal de uma voz interna na mesma pista. Os ritmos são lidos com swing, tercinas (inclusive de semínimas), anacruse e o compasso estimado quando o MIDI não o declara. As notas são divididas pela métrica do compasso. A melodia acompanha as trocas de instrumento e escolhe trechos de fontes diferentes com menos trocas desnecessárias.
+- **Mais rápido.** Cada passo do MuseScore roda num só processo, o espaçamento para quando não melhora mais e o MIDI é lido uma vez só. Os tempos de cada etapa ficam no registro local. A busca na biblioteca não recalcula a confiança a cada tecla, e os PDFs em massa saem em paralelo.
+- **Fila em segundo plano.** Em Configurações › Conversões simultâneas escolha quantas músicas são geradas ao mesmo tempo. Em Automático, o número depende do processador e da memória livre. Gerar em segundo plano (Ctrl+Enter) põe a música na fila sem esperar, e Gerar e próxima (Ctrl+Shift+Enter) já abre a próxima música pendente. Alt+← e Alt+→ passam entre as etapas, e Confirmar etapa resolve as confirmações simples de uma vez. Uma falha só é tentada de novo quando a causa permite.
+- **Títulos com acentos.** Os títulos automáticos recuperam os acentos ("Mamãe", "Coração"). Uma ação com prévia restaura os acentos dos títulos já existentes na biblioteca.
+
 ## 1.4.0 — 08/11/2026
 
 Partituras organizadas pelas partes da música, com cabeçalho informativo e um mapa da música no PDF.
