@@ -163,6 +163,45 @@ var directFiles = Directory.EnumerateFileSystemEntries(direct).Select(Path.GetFi
 Check(directFiles.SequenceEqual(new[] { "Intérprete - Música (2).pdf", "Intérprete - Música.pdf", "Intérprete - Outra.pdf" }.Order()),
     "direct mode numbers repeated names and leaves no batch folder, report or staging folder");
 Check(directReport.ReportPath is null, "direct mode writes no report file");
+
+// Parallel workers: several MuseScores at once, results in the chosen order, distinct names for equal titles.
+{
+    int active = 0, peak = 0, started = 0;
+    async Task Slow(string source, string destination, IProgress<string>? phases, CancellationToken token)
+    {
+        Interlocked.Increment(ref started);
+        int now = Interlocked.Increment(ref active); lock (snapshots) peak = Math.Max(peak, now);
+        try { phases?.Report("Convertendo todas as páginas…"); await Task.Delay(80, token); await File.WriteAllBytesAsync(destination, fakePdf, token); }
+        finally { Interlocked.Decrement(ref active); }
+    }
+    var parallel = new BatchPdfExportService(Slow, Destination("cache-paralelo")) { MaxParallel = 3 };
+    var many = Enumerable.Range(0, 7).Select(i => new BatchPdfSource("p" + i, i % 2 == 0 ? "Igual" : "Outra " + i, i % 2 == 0 ? first : second, "", "Banda")).ToArray();
+    var parallelProgress = new List<BatchPdfProgress>();
+    var parallelReport = await parallel.ExportAsync(many, Destination("paralelo"), new InlineProgress<BatchPdfProgress>(p => { lock (parallelProgress) parallelProgress.Add(p); }), CancellationToken.None);
+    Check(parallelReport.SavedCount == 7 && peak == 3, $"three PDFs are rendered at the same time (peak {peak})");
+    Check(parallelReport.Items.Select(i => i.Id).SequenceEqual(many.Select(m => m.Id)), "parallel results keep the chosen order");
+    Check(parallelReport.Items.Select(i => i.PdfFileName).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 7 &&
+        parallelReport.Items.Count(i => i.PdfFileName.StartsWith("Banda - Igual", StringComparison.Ordinal)) == 4, "equal titles get numbered names in parallel");
+    Check(parallelProgress.Max(p => p.Completed) == 7 && parallelProgress.All(p => p.Total == 7), "parallel progress counts every PDF once");
+    // Two separate exports into the same folder (as the autopilot does per finished song) never collide.
+    string shared = Destination("mesma pasta"); Directory.CreateDirectory(shared);
+    var single = new BatchPdfExportService(Slow, Destination("cache-avulso"));
+    var both = await Task.WhenAll(
+        single.ExportAsync([new BatchPdfSource("x", "Mesma", first, "", "Banda")], shared, null, CancellationToken.None, directlyIntoDestination: true),
+        single.ExportAsync([new BatchPdfSource("y", "Mesma", second, "", "Banda")], shared, null, CancellationToken.None, directlyIntoDestination: true));
+    Check(both.All(r => r.SavedCount == 1) && Directory.GetFiles(shared, "*.pdf").Select(Path.GetFileName).Order().SequenceEqual(new[] { "Banda - Mesma (2).pdf", "Banda - Mesma.pdf" }),
+        "concurrent exports into one folder get distinct names");
+    // Cancelling a parallel batch starts nothing new and reports the rest as cancelled.
+    using var stop = new CancellationTokenSource();
+    started = 0;
+    var cancelling = new BatchPdfExportService(async (source, destination, phases, token) =>
+    {
+        if (Interlocked.Increment(ref started) == 2) stop.Cancel();
+        await Task.Delay(50, token); await File.WriteAllBytesAsync(destination, fakePdf, token);
+    }, Destination("cache-paralelo-cancelado")) { MaxParallel = 2 };
+    var stopped = await cancelling.ExportAsync(Enumerable.Range(0, 6).Select(i => new BatchPdfSource("c" + i, "Cancelar " + i, first)).ToArray(), Destination("paralelo-cancelado"), null, stop.Token);
+    Check(stopped.Cancelled && started <= 2 && stopped.CancelledCount + stopped.SavedCount == 6 && stopped.CancelledCount >= 4, $"cancelled parallel batch stops starting PDFs ({started} started)");
+}
 await File.WriteAllTextAsync(Path.Combine(root, "checks.txt"), $"PASS {checks} batch PDF checks\n");
 Console.WriteLine($"PASS {checks} batch PDF checks. Results: {root}");
 

@@ -23,10 +23,14 @@ public sealed record BatchPdfReport(string? Directory, IReadOnlyList<BatchPdfIte
     public string Summary => $"{SavedCount} PDF(s) salvos · {FailedCount} falha(s) · {SkippedCount} não exportado(s) · {CancelledCount} cancelado(s).";
 }
 
-/// <summary>Exports complete individual PDFs sequentially, publishing each only after validation.</summary>
+/// <summary>Exports complete individual PDFs (one MuseScore per PDF, <see cref="MaxParallel"/> at a time), publishing each only after validation.</summary>
 public sealed class BatchPdfExportService
 {
+    /// <summary>Several exports into the same folder (also from separate calls) reserve distinct names under this lock.</summary>
+    private static readonly object PublishLock = new();
     private readonly string cacheDirectory;
+    /// <summary>How many PDFs are rendered at the same time (1 to 4). One keeps the original sequential order of work.</summary>
+    public int MaxParallel { get; init; } = 1;
     private readonly Func<string, string, IProgress<string>?, CancellationToken, Task> export;
     public BatchPdfExportService(string museScorePath, string cacheDirectory)
         : this(new ScoreExporter(museScorePath, cacheDirectory) is var exporter ? (score, pdf, progress, token) => exporter.ExportPdfAsync(score, pdf, progress, token) : null!, cacheDirectory) { }
@@ -64,24 +68,45 @@ public sealed class BatchPdfExportService
         var names = new HashSet<string>(directlyIntoDestination ? Directory.EnumerateFileSystemEntries(output).Select(Path.GetFileName).OfType<string>() : [],
             StringComparer.OrdinalIgnoreCase);
         bool cancelled = false;
+        var slots = new BatchPdfItemResult?[items.Length];
+        int next = -1, completed = 0;
         try
         {
-            for (int index = 0; index < items.Length; index++)
+            int workers = Math.Clamp(MaxParallel, 1, 4);
+            await Task.WhenAll(Enumerable.Range(0, Math.Min(workers, items.Length)).Select(_ => Task.Run(Worker, CancellationToken.None))).ConfigureAwait(false);
+            cancelled = token.IsCancellationRequested && slots.Any(slot => slot is null || slot.Status == BatchPdfStatus.Cancelled);
+            for (int index = 0; index < items.Length; index++) results.Add(slots[index] ?? CancelledItem(items[index]));
+        }
+        finally
+        {
+            // Remove only files explicitly owned by this operation. Unknown files are preserved.
+            TryDeleteEmptyDirectory(cache);
+            TryDeleteEmptyDirectory(pdfStaging);
+        }
+
+        async Task Worker()
+        {
+            while (true)
             {
+                int index = Interlocked.Increment(ref next);
+                if (index >= items.Length) return;
+                // A cancelled batch never starts another item; the ones not started are reported as cancelled.
+                if (token.IsCancellationRequested) return;
+                slots[index] = await ExportOne(index).ConfigureAwait(false);
+                if (slots[index]!.Status == BatchPdfStatus.Cancelled) return;
+                progress?.Report(new(Interlocked.Increment(ref completed), items.Length, items[index].Title, slots[index]!.Message));
+            }
+        }
+
+        async Task<BatchPdfItemResult> ExportOne(int index)
+        {
                 var item = items[index];
-                if (token.IsCancellationRequested)
-                {
-                    cancelled = true; results.AddRange(items.Skip(index).Select(CancelledItem)); break;
-                }
                 if (!string.IsNullOrWhiteSpace(item.BlockedReason))
-                {
-                    results.Add(new(item.Id, item.Title, item.ScorePath, BatchPdfStatus.Skipped, null, item.BlockedReason));
-                    progress?.Report(new(index + 1, items.Length, item.Title, item.BlockedReason)); continue;
-                }
+                    return new(item.Id, item.Title, item.ScorePath, BatchPdfStatus.Skipped, null, item.BlockedReason);
                 string snapshot = Path.Combine(cache, $"{index + 1:00000}.mscz"), renderedPdf = Path.Combine(cache, $"{index + 1:00000}.pdf"),
                     temporaryPdf = Path.Combine(pdfStaging, $"{index + 1:00000}.pdf");
                 string? sourceHash = null;
-                var fileProgress = new InlineProgress<string>(stage => progress?.Report(new(index, items.Length, item.Title, stage)));
+                var fileProgress = new InlineProgress<string>(stage => progress?.Report(new(Volatile.Read(ref completed), items.Length, item.Title, stage)));
                 try
                 {
                     if (string.IsNullOrWhiteSpace(item.ScorePath) || !Path.IsPathFullyQualified(item.ScorePath) ||
@@ -102,31 +127,17 @@ public sealed class BatchPdfExportService
                     await using var checkedSource = new FileStream(item.ScorePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
                     if (Convert.ToHexString(await SHA256.HashDataAsync(checkedSource, token).ConfigureAwait(false)) != sourceHash)
                         throw new IOException("A partitura mudou durante a exportação. O PDF não foi salvo; exporte novamente a versão atual.");
-                    string filename = ScoreFileName.Unique(ScoreFileName.Stem(item.Artist, item.Title, item.ScorePath), ".pdf", names);
-                    string target = Path.Combine(output, filename);
                     token.ThrowIfCancellationRequested();
-                    File.Move(temporaryPdf, target, overwrite: false);
-                    results.Add(new(item.Id, item.Title, item.ScorePath, BatchPdfStatus.Success, target, "Todas as páginas salvas neste PDF.", sourceHash));
+                    string target = Publish(temporaryPdf, output, ScoreFileName.Stem(item.Artist, item.Title, item.ScorePath), names);
+                    return new(item.Id, item.Title, item.ScorePath, BatchPdfStatus.Success, target, "Todas as páginas salvas neste PDF.", sourceHash);
                 }
-                catch (OperationCanceledException) when (token.IsCancellationRequested)
-                {
-                    cancelled = true; results.Add(CancelledItem(item));
-                    results.AddRange(items.Skip(index + 1).Select(CancelledItem)); break;
-                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { return CancelledItem(item); }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException or
                     InvalidOperationException or ArgumentException or TimeoutException or Win32Exception or System.Xml.XmlException)
                 {
-                    results.Add(new(item.Id, item.Title, item.ScorePath, BatchPdfStatus.Failure, null, FriendlyError(error), sourceHash));
+                    return new(item.Id, item.Title, item.ScorePath, BatchPdfStatus.Failure, null, FriendlyError(error), sourceHash);
                 }
                 finally { TryDelete(snapshot); TryDelete(renderedPdf); TryDelete(temporaryPdf); }
-                progress?.Report(new(index + 1, items.Length, item.Title, results[^1].Message));
-            }
-        }
-        finally
-        {
-            // Remove only files explicitly owned by this operation. Unknown files are preserved.
-            TryDeleteEmptyDirectory(cache);
-            TryDeleteEmptyDirectory(pdfStaging);
         }
         var report = new BatchPdfReport(output, results, cancelled, null, "");
         if (directlyIntoDestination) return report;
@@ -147,6 +158,21 @@ public sealed class BatchPdfExportService
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         { report = report with { Warning = "Os resultados estão nesta janela, mas não foi possível gravar o relatório na pasta: " + error.Message }; }
         return report;
+    }
+
+    /// <summary>Moves the checked PDF to a free name; a name taken meanwhile (another export into the same folder) gets the next number.</summary>
+    private static string Publish(string temporaryPdf, string output, string stem, HashSet<string> names)
+    {
+        lock (PublishLock)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                string target = Path.Combine(output, ScoreFileName.Unique(stem, ".pdf", names));
+                if (File.Exists(target) || Directory.Exists(target)) continue;
+                try { File.Move(temporaryPdf, target, overwrite: false); return target; }
+                catch (IOException) when (attempt < 20 && File.Exists(target) && File.Exists(temporaryPdf)) { }
+            }
+        }
     }
 
     private static BatchPdfItemResult CancelledItem(BatchPdfSource item) => new(item.Id, item.Title, item.ScorePath,
