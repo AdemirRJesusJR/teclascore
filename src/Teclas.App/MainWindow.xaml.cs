@@ -64,6 +64,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         naturalThemeVersion=smoke;
         ThemeManager.Apply(ThemeManager.StartupId(settings.ThemeId, !smoke && SystemParameters.HighContrast), EffectiveDark);
         KeyboardDiagramPreview.CLabel = settings.NoteNames == "solfejo" ? "Dó" : "C";
+        KeyboardDiagramPreview.Style = KeyboardDiagramSvg.Normalize(settings.DiagramStyle);
+        ScoreExporter.AppendChordPage = settings.PdfChordPage;
         Teclas.Core.ChordNotation.Current = ToPreference(settings.ChordNotation);
         InitializeComponent();
         InitializeOperations();
@@ -360,6 +362,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         if(!row.IncludeLyrics)request["includeLyrics"]=false;
         if(row.ChordStaff && !row.ChordsOnly)request["chordStaff"]=true;
         if(settings.NoteNames=="solfejo")request["noteNames"]="solfejo";
+        AddPresentation(request);
         AddNotation(request);
         if(SecondVoiceSources(row) is {Count:>0} secondVoice && !row.ChordsOnly)request["secondVoiceSources"]=secondVoice;
         if(ScoreStyleRequest() is {} scoreStyle)request["scoreStyle"]=scoreStyle;

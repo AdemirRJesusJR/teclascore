@@ -15,6 +15,8 @@ public static class KeyboardDiagramVoicing
     };
     public static IReadOnlyList<string> Qualities => Intervals.Keys.ToArray();
     public static bool SupportsQuality(string quality) => quality is not null && Intervals.ContainsKey(quality);
+    public static IReadOnlyList<int> IntervalsOf(string quality) =>
+        Intervals.TryGetValue(quality, out var intervals) ? intervals : throw new ArgumentException("Tipo de acorde não suportado.", nameof(quality));
     public static int[] Pitches(int rootPitchClass, string quality, int inversion)
     {
         if (inversion is < 0 or > 2) throw new ArgumentOutOfRangeException(nameof(inversion));

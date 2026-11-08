@@ -225,10 +225,33 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
                     throw new InvalidDataException("O MuseScore não produziu um PDF válido. O arquivo anterior foi preservado.");
             }
             token.ThrowIfCancellationRequested();
+            FinishPdf(scorePath, temporary, progress);
             progress?.Report("Salvando o PDF no destino escolhido…");
             File.Move(temporary, destination, true);
         }
         finally { TryDelete(temporary); }
+    }
+
+    /// <summary>PDFs end with a page of the song's chords and keyboard diagrams (Configurações › Página de acordes no PDF).</summary>
+    public static bool AppendChordPage { get; set; } = true;
+
+    /// <summary>
+    /// Adds the chord page and the document properties (title, performer). A score MuseScore wrote in a way this
+    /// step does not recognize keeps the plain PDF: finishing never makes an export fail.
+    /// </summary>
+    private static void FinishPdf(string scorePath, string pdfPath, IProgress<string>? progress)
+    {
+        if (!string.Equals(Path.GetExtension(scorePath), ".mscz", StringComparison.OrdinalIgnoreCase)) return;
+        try
+        {
+            var (title, artist, chords) = PdfChordPage.ReadScore(scorePath);
+            if (AppendChordPage && chords.Any(c => c.Diagram is not null)) progress?.Report("Acrescentando a página de acordes ao PDF…");
+            PdfChordPage.Append(pdfPath, title, artist, chords, AppendChordPage);
+        }
+        catch (Exception e) when (e is InvalidDataException or IOException or FormatException or System.Xml.XmlException or ArgumentException or OverflowException)
+        {
+            progress?.Report("O PDF foi salvo sem a página de acordes: " + e.Message);
+        }
     }
 
     private void ValidateScore(string path)

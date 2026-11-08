@@ -125,9 +125,34 @@ public static class ScoreMetadataOrganizer
         needsReview|=conflictingDeclarations;
         if(title=="Sem título")needsReview=true;
         if(title.Length>160 || artist.Length>120 || composer.Length>120)needsReview=true;
-        title=Limit(title,160);artist=Limit(artist,120);composer=Limit(composer,120);
+        // Declared performer names stay as written; inferred ones are capitalized.
+        title=Limit(title,160);artist=Limit(explicitValues.ContainsKey("artist")?artist:ArtistCase(artist),120);composer=Limit(composer,120);
         if(needsReview)origin+=" Confira as sugestões.";
         return new(title,artist,composer,origin,needsReview);
+    }
+
+    /// <summary>
+    /// A performer is a proper name: "os barões da pisadinha", "OS BARÕES DA PISADINHA" and "Os barões da pisadinha"
+    /// become "Os Barões da Pisadinha", with connectors (da, de, e…) in lower case. Names already written with
+    /// some capital letter after the first word (MC Kevinho, Zé Neto e Cristiano) are kept as written.
+    /// </summary>
+    public static string ArtistCase(string artist)
+    {
+        var words=artist.Split(' ',StringSplitOptions.RemoveEmptyEntries);
+        var letters=artist.Where(char.IsLetter).ToArray();
+        if(words.Length==0 || letters.Length<2)return artist;
+        bool allLower=letters.All(char.IsLower),allUpper=letters.All(char.IsUpper);
+        bool sentence=words.Length>1 && words.Skip(1).All(word=>!word.Any(char.IsUpper));
+        if(!allLower && !allUpper && !sentence)return artist;
+        if(allUpper && words.Length==1 && letters.Length<=4)return artist;   // initials and short band names (ABBA, RPM)
+        var culture=System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+        return string.Join(' ',words.Select((word,index)=>
+        {
+            string lower=word.ToLower(culture);
+            if(index>0 && NameConnectors.Contains(lower))return lower;
+            int first=lower.IndexOf(lower.FirstOrDefault(char.IsLetter));
+            return first<0?lower:lower[..first]+char.ToUpper(lower[first],culture)+lower[(first+1)..];
+        }));
     }
 
     private static string LabelKey(string key)

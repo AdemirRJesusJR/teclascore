@@ -466,6 +466,8 @@ def build_musicxml(parsed,config,harmony,out,title):
     if second:report['second_voice']=second
     if chord_staff:report['chord_staff_notes']=[{'start':event['start'],'pitch':pitch} for event in chord_staff for pitch in event['pitches']]
     report['note_names']='solfejo' if config.get('note_names')=='solfejo' else 'letras'
+    report['diagram_style']=config.get('diagram_style','classico')
+    report['page_footer']=bool(config.get('page_footer',False))
     report['chord_texts']=dict(CHORD_TEXT)
     if labels:report['instrument_labels']=labels
     if staff_groups:report['staff_per_source']={'staves':len(staff_groups),'names':[group['name'] for group in staff_groups],

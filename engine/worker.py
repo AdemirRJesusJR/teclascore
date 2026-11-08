@@ -317,6 +317,11 @@ def main():
     config['include_lyrics']=req.get('includeLyrics') is not False
     config['chord_staff']=bool(req.get('chordStaff'))
     config['note_names']='solfejo' if req.get('noteNames')=='solfejo' else 'letras'
+    # Presentation defaults of new scores: highlighted diagrams, title and page count in the footer,
+    # readable note lengths (attacks never move). Reviewed profiles keep their approved rhythm text.
+    config['diagram_style']=engine.keyboard_svg.diagram_style(req.get('diagramStyle'))
+    config['page_footer']=req.get('pageFooter') is not False
+    config['clean_durations']=req.get('cleanDurations') is not False and not data.get('reviewedProfile')
     if isinstance(req.get('chordNotation'),dict):config['chord_notation']=req['chordNotation']
     if req.get('secondVoiceSources'):config['second_voice_sources']=manual_melody_config(req['secondVoiceSources'])['melody_sources']
     if isinstance(req.get('scoreStyle'),dict):config['score_style']={'music_font':str(req['scoreStyle'].get('musicFont','')),'size':str(req['scoreStyle'].get('size',''))}
@@ -383,6 +388,9 @@ def main():
     if report.get('staff_per_source'):notice+=f" As trocas de instrumento ficaram próximas demais para uma pauta; cada instrumento ganhou sua pauta ({', '.join(report['staff_per_source']['names'])})."
     response={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'reviewedProfile':data['reviewedProfile'],'message':notice,'transposeSemitones':config['transpose_semitones']}
     if 'melody_merge' in report['melody_analysis']:response['melodyMerge']=report['melody_analysis']['melody_merge']
+    if isinstance(report.get('quality'),dict):
+        response['quality']=report['quality']
+        if report['quality'].get('issues'):response['message']+=' Para conferir: '+'; '.join(report['quality']['issues'])+'.'
     write_queue_receipt(req,workspace,response,data['sha256'])
     send('result',data=response)
 if __name__=='__main__':

@@ -196,7 +196,7 @@ public partial class MainWindow
         return new ScoreFlowInput
         {
             ChordsOnly = row.ChordsOnly,
-            Tracks = row.Tracks.Select(t => new ScoreFlowTrack(TrackLabel(t), t.Hint, t.IsMelody, t.Channel == 10, t.Count)).ToArray(),
+            Tracks = row.Tracks.Select(t => new ScoreFlowTrack(TrackLabel(t), t.Hint, t.IsMelody, t.Channel == 10, t.Count, IsGuideTrack(t))).ToArray(),
             MelodyRange = marked.Length == 0 ? null : PlayedMelodyRange(row),
             KeyboardKeys = KeyboardKeys,
             LyricsTrack = lyrics,

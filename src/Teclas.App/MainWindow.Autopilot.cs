@@ -26,17 +26,24 @@ public partial class MainWindow
     public IReadOnlyList<AutopilotOutcome> LastAutopilot { get; private set; } = [];
 
     /// <summary>Songs the autopilot would take: MIDIs read without problems and without a score yet.</summary>
+    /// <summary>A track that barely changes pitch (MidiFile marks it "Nota-guia"): the karaoke guide under the words.</summary>
+    internal static bool IsGuideTrack(TrackRow track) => track.Source.Hint.StartsWith("Nota-guia", StringComparison.Ordinal);
+
     internal IReadOnlyList<MidiRow> AutopilotCandidates() =>
         Files.Where(row => !row.UsesNativeScoreWorkflow && row.Document is not null && row.ScorePath is null).ToList();
 
     /// <summary>Chooses the melody when it is clear; returns null when ready, or the reason it needs a human.</summary>
     internal string? PrepareAutopilotMelody(MidiRow row)
     {
-        if (row.UseReviewedProfile || row.HasMelodyChoice) return null;
+        if (row.UseReviewedProfile) return null;
+        if (row.Tracks.FirstOrDefault(t => t.IsMelody && IsGuideTrack(t)) is { } guide)
+            return $"a pista {TrackLabel(guide)} marcada como melodia é uma nota-guia (altura quase fixa), não a voz cantada";
+        if (row.HasMelodyChoice) return null;
         // A missing voice is not replaced by arpeggios, bass or lyric guide notes: the user decides (another MIDI or Só cifras).
         if (row.CatalogLacksMelody) return "o diagnóstico do lote indica que o MIDI não traz a melodia completa; escolha outra fonte ou ligue Só cifras";
         var coverage = LyricsCoverageOf(row);
-        if (coverage.Count > 0 && coverage[0].Share >= .5 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } sung)
+        if (coverage.Count > 0 && coverage[0].Share >= .5 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } sung
+            && !IsGuideTrack(sung))
         {
             sung.IsMelody = true; row.AutoMelody = true; row.AutoMelodyConfident = true;
             return null;
@@ -47,6 +54,8 @@ public partial class MainWindow
             track.IsMelody = true; row.AutoMelody = true; row.AutoMelodyConfident = true;
             return null;
         }
+        if (coverage.Count > 0 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } lyricGuide && IsGuideTrack(lyricGuide))
+            return "a letra acompanha uma nota-guia (altura quase fixa), não a voz; escolha a melodia ou use Melodia de uma gravação";
         return "melodia sem escolha clara" + (proposal.Reason.Length > 0 ? ": " + proposal.Reason : "");
     }
 

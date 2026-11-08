@@ -66,6 +66,7 @@ public partial class MainWindow
         if (!row.IncludeLyrics) options["includeLyrics"] = false;
         if (row.ChordStaff && !row.ChordsOnly) options["chordStaff"] = true;
         if (settings.NoteNames == "solfejo") options["noteNames"] = "solfejo";
+        AddPresentation(options);
         AddNotation(options);
         if (SecondVoiceSources(row) is { Count: > 0 } secondVoice && !row.ChordsOnly) options["secondVoiceSources"] = secondVoice;
         if (ScoreStyleRequest() is { } scoreStyle) options["scoreStyle"] = scoreStyle;

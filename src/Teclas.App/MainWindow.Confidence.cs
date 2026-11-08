@@ -4,6 +4,8 @@ using Teclas.Core;
 
 namespace Teclas.App;
 
+internal sealed record NotationQuality(int Score, IReadOnlyList<string> Issues);
+
 /// <summary>The confidence rating of each generated score, and the library order that puts the riskiest first.</summary>
 public partial class MainWindow
 {
@@ -22,7 +24,31 @@ public partial class MainWindow
             row.Chords.Select(c => c.Confidence).ToArray(), row.Chords.Count(c => !string.IsNullOrWhiteSpace(c.Alternatives)),
             row.ReviewPoints.Count, row.ReviewPoints.Count(p => p.Blocking),
             row.AutoMelody, row.AutoMelodyConfident, lyrics, row.IncludeLyrics, row.HasOperationError, row.PageCount,
-            row.CatalogLacksMelody && !row.ChordsOnly && !row.UseReviewedProfile));
+            row.CatalogLacksMelody && !row.ChordsOnly && !row.UseReviewedProfile,
+            NotationQualityOf(row.ScorePath) is { } quality ? quality.Score : null,
+            NotationQualityOf(row.ScorePath)?.Issues));
+    }
+
+    private readonly Dictionary<string, (DateTime Stamp, NotationQuality? Quality)> notationQuality = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The engine's notation check saved with the score (its review folder's validacao.json); null for older scores.</summary>
+    internal NotationQuality? NotationQualityOf(string scorePath)
+    {
+        try
+        {
+            string report = Path.Combine(Path.GetDirectoryName(scorePath)!, Path.GetFileNameWithoutExtension(scorePath) + " - revisao", "validacao.json");
+            if (!File.Exists(report)) return null;
+            var stamp = File.GetLastWriteTimeUtc(report);
+            if (notationQuality.TryGetValue(report, out var cached) && cached.Stamp == stamp) return cached.Quality;
+            NotationQuality? quality = null;
+            using (var document = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(report)))
+                if (document.RootElement.TryGetProperty("quality", out var element) && element.TryGetProperty("score", out var score) && score.TryGetInt32(out int value))
+                    quality = new(value, element.TryGetProperty("issues", out var issues) && issues.ValueKind == System.Text.Json.JsonValueKind.Array
+                        ? issues.EnumerateArray().Select(i => i.GetString() ?? "").Where(i => i.Length > 0).ToArray() : []);
+            notationQuality[report] = (stamp, quality);
+            return quality;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException) { return null; }
     }
 
     internal void RefreshConfidence(MidiRow row) => row.Confidence = RateScore(row);

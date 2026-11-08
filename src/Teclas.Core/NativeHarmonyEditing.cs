@@ -12,6 +12,10 @@ internal sealed record NativeHarmonyInfo(string Root, string Quality, bool CanEd
 {
     /// <summary>Name printed under the C keys of the diagram ("C", or "Dó" with solfège names); kept when the chord is edited.</summary>
     public string DiagramLabel { get; init; } = "C";
+    /// <summary>Drawing of the diagram ("classico", "destacado" or "cinza"); an edited chord keeps it.</summary>
+    public string DiagramStyle { get; init; } = KeyboardDiagramSvg.Classic;
+    /// <summary>Key names in flats (only when the chord root spelling did not decide them).</summary>
+    public bool DiagramFlats { get; init; }
 }
 
 /// <summary>Edits one evidenced native chord/keyboard pair; never rewrites shared image bytes.</summary>
@@ -57,11 +61,11 @@ internal static class NativeHarmonyEditing
             return Block(root, quality, "Não foi possível associar esta cifra a uma única imagem de teclado com segurança.", images.Length > 0 || ambiguousBefore);
         if (images.Length == 0) return new(root, quality, true, "", false, null);
         var image = images[0];
-        if (!TryReadKeyboard(archive, image, PitchClass(tpc), quality, out int inversion, out string label))
+        if (!TryReadKeyboard(archive, image, PitchClass(tpc), quality, root, out int inversion, out string label, out string style, out bool flats))
             return Block(root, quality, "A imagem junto à cifra não corresponde a um diagrama de teclado reconhecido. Edite este par no MuseScore.", true);
         if (image.Element("offset") is { } offset && (!FiniteAttribute(offset, "x", out _) || !FiniteAttribute(offset, "y", out _)))
             return Block(root, quality, "A posição da imagem não pôde ser interpretada com segurança.", true);
-        return new(root, quality, true, "", true, inversion) { DiagramLabel = label };
+        return new(root, quality, true, "", true, inversion) { DiagramLabel = label, DiagramStyle = style, DiagramFlats = flats };
     }
 
     internal static void Apply(NativeScoreArchive archive, XElement harmony, string root, string quality, int? diagramInversion)
@@ -82,7 +86,10 @@ internal static class NativeHarmonyEditing
         {
             var image = harmony.ElementsAfterSelf().First();
             int inversion = diagramInversion ?? current.DiagramInversion!.Value;
-            byte[] bytes = NativeScoreArchive.XmlBytes(new XDocument(KeyboardSvg(PitchClass(tpc), quality, inversion, current.DiagramLabel)));
+            var drawing = current.DiagramStyle == KeyboardDiagramSvg.Classic
+                ? KeyboardSvg(PitchClass(tpc), quality, inversion, current.DiagramLabel)
+                : KeyboardDiagramSvg.Build(PitchClass(tpc), quality, inversion, current.DiagramStyle, current.DiagramLabel == "Dó", spelling, current.DiagramFlats);
+            byte[] bytes = NativeScoreArchive.XmlBytes(new XDocument(drawing));
             string name = Md4(bytes) + ".svg";
             string entry = "Pictures/" + name;
             if (archive.Entries.TryGetValue(entry, out var existing) && !existing.AsSpan().SequenceEqual(bytes))
@@ -153,9 +160,10 @@ internal static class NativeHarmonyEditing
     /// <summary>Names the TeclaScore diagrams print under the C keys.</summary>
     internal static readonly string[] DiagramLabels = ["C", "Dó"];
 
-    private static bool TryReadKeyboard(NativeScoreArchive archive, XElement image, int root, string quality, out int inversion, out string label)
+    private static bool TryReadKeyboard(NativeScoreArchive archive, XElement image, int root, string quality, string rootSpelling,
+        out int inversion, out string label, out string style, out bool flats)
     {
-        inversion = 0; label = "C";
+        inversion = 0; label = "C"; style = KeyboardDiagramSvg.Classic; flats = false;
         string? path = (string?)image.Element("path");
         if (path is null || (!archive.Entries.TryGetValue("Pictures/" + path, out var bytes) && !archive.Entries.TryGetValue(path, out bytes)) || bytes.Length > 128 * 1024)
             return false;
@@ -170,6 +178,19 @@ internal static class NativeHarmonyEditing
                 if (!XNode.DeepEquals(actual, CanonicalSvg(KeyboardSvg(root, quality, candidate, name)))) continue;
                 inversion = candidate; label = name; return true;
             }
+        // Highlighted drawings: the marked keys tell the inversion; the exact tree confirms style, names and spelling.
+        var marked = KeyboardDiagramSvg.MarkedPitches(document.Root);
+        for (int candidate = 0; candidate < 3; candidate++)
+        {
+            if (!KeyboardDiagramVoicing.Pitches(root, quality, candidate).SequenceEqual(marked)) continue;
+            foreach (string drawing in new[] { KeyboardDiagramSvg.Highlight, KeyboardDiagramSvg.Gray })
+                foreach (string name in DiagramLabels)
+                    foreach (bool flat in new[] { false, true })
+                    {
+                        if (!XNode.DeepEquals(actual, CanonicalSvg(KeyboardDiagramSvg.Build(root, quality, candidate, drawing, name == "Dó", rootSpelling, flat)))) continue;
+                        inversion = candidate; label = name; style = drawing; flats = flat; return true;
+                    }
+        }
         return false;
     }
     private static XElement CanonicalSvg(XElement element) => new(element.Name,

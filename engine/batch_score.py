@@ -13,6 +13,8 @@ from batch_svg_qa import analyze as analyze_svg
 import batch_svg_qa as svg_geometry
 import compact_score_layout
 import diagram_lanes
+import keyboard_svg
+import lyrics_accents
 
 WORK=Path(__file__).resolve().parent
 BATCH=Path(os.environ.get('PARTITURAS_JOB',str(Path(tempfile.gettempdir())/'TeclasPartituras')));BATCH.mkdir(parents=True,exist_ok=True)
@@ -434,6 +436,25 @@ def priority_melody_notes(selected,sources,ppq,onset_cluster_quarters=.04):
     return result,summary
 
 
+def _readable_stop(start,stop,next_start,end,origin,grids):
+    """Notated end of a melody note: same attack, fewer tiny rests.
+
+    MIDI melodies are often played detached, which writes a 32nd note followed by a chain of short
+    rests. Only the written length changes, never an attack: a rest shorter than half a beat before
+    the next attack is filled (legato), and a note shorter than an eighth with room after it is
+    lengthened to the next eighth boundary. Triplet beats keep their exact lengths.
+    Returns (stop, 1 if changed else 0); positions are relative to the bar origin.
+    """
+    half=DIV//2;limit=min(next_start,end-origin)
+    def binary(position):return grids.get(int((position+origin)//DIV),4)%3!=0
+    if not (binary(start) and binary(max(start,stop-1))):return stop,0
+    if stop<limit and limit-stop<half and binary(limit-1):
+        return limit,1
+    if stop-start<half:
+        rounded=-(-(stop+origin)//half)*half-origin
+        if start<rounded<=limit and rounded!=stop:return rounded,1
+    return stop,0
+
 def melody_events(parsed,config,origin,end):
     ppq=parsed['ppq'];sources=config['melody_sources']
     selected=sorted([n for n in parsed['notes'] if (not config.get('velocity_filter') or n['velocity'] in config['velocity_filter']) and any(source_matches(n,[s]) and s.get('start_quarter',-1)<=n['start']/ppq<s.get('end_quarter',float('inf')) and s.get('min_pitch',0)<=n['pitch']<=s.get('max_pitch',127) for s in sources)],key=lambda n:(n['start'],n['pitch']))
@@ -524,7 +545,7 @@ def melody_events(parsed,config,origin,end):
             collision_quarters.extend((n['start']/ppq,onsetmap[s]['start']/ppq))
         if s not in onsetmap or n['velocity']>onsetmap[s]['velocity']:onsetmap[s]=n
     if collision>max(3,len(top)*.008):raise NeedsReview(f'{collision} ataques colidem após quantização; requer revisão rítmica individual.',sorted(set(collision_quarters)))
-    events=[];errors=[];onsets=sorted(onsetmap)
+    events=[];errors=[];onsets=sorted(onsetmap);durations_cleaned=0
     for i,s in enumerate(onsets):
         n=onsetmap[s];next_s=onsets[i+1] if i+1<len(onsets) else end-origin
         # A note moved across a section change was clipped at the old section's end; use its MIDI length.
@@ -533,6 +554,9 @@ def melody_events(parsed,config,origin,end):
         if i+1<len(onsets) and onsetmap[next_s]['start']-note_end<=ppq*.28:stop=next_s
         beat=int((s+origin)//DIV);minimum=DIV//grids.get(beat,4)
         stop=min(next_s,end-origin,max(s+minimum,stop))
+        if config.get('clean_durations'):
+            stop,cleaned=_readable_stop(s,stop,next_s,end,origin,grids)
+            durations_cleaned+=cleaned
         if sections and not n.get('_crossing'):stop=min(stop,n['_section_end']-origin)
         if stop>s:
             event={'start':s,'end':stop,'pitch':n['pitch']}
@@ -549,6 +573,7 @@ def melody_events(parsed,config,origin,end):
     if len({n['pitch'] for n in events})<3:raise NeedsReview('Fonte selecionada não contém alturas suficientes para uma melodia identificável.')
     assert sum(len(n.get('graces',[])) for n in events)==len(grace_notes),'Grace target lost during grouping'
     report={'raw_notes':len(selected),'principal_source_notes':main_count,'grace_notes_preserved':len(grace_notes),'solo_notes_added':solo_count,'simultaneous_notes_reduced':len(selected)-len(top),'melody_attacks':len(events),'quantized_attack_collisions':collision,'triplet_beats_original':triplet_beats,'onset_adjustment_max_quarters':max(errors),'onset_adjustment_mean_quarters':sum(errors)/len(errors)}
+    if config.get('clean_durations'):report['durations_cleaned']=durations_cleaned
     if boundary_refinements:report['boundary_grid_refinements']=boundary_refinements
     if attack_adjustments:report['attack_position_adjustments']=attack_adjustments
     if section_adjustments:report['section_boundary_adjustments']=section_adjustments
@@ -579,7 +604,9 @@ def karaoke_syllables(parsed):
     syllables=[];previous=None
     for event in sorted(source,key=lambda e:(e['tick'],e['order'])):
         text=_lyric_text(event['data'])
-        if karaoke:starts=not syllables or text[:1] in (' ','/','\\')
+        # A new word starts after a space, slash or line mark, whether it is written at the start of
+        # this syllable or at the end of the previous one ("o " + "seu").
+        if karaoke:starts=not syllables or text[:1] in (' ','/','\\') or (previous or '').endswith((' ','\t'))
         else:starts=previous is None or not previous.rstrip().endswith('-')
         clean=text.lstrip('/\\').strip()
         if clean.endswith('-'):clean=clean[:-1].rstrip()
@@ -587,7 +614,11 @@ def karaoke_syllables(parsed):
         # Credits mixed into the lyrics (e-mail, web address) are not sung.
         if not clean or re.search(r'@|https?:|www\.|\.com\b|\.br\b',clean,re.I):continue
         syllables.append({'tick':event['tick'],'text':clean,'word_start':starts})
-    return syllables if len(syllables)>=16 else []
+    if len(syllables)<16:return []
+    if lyrics_accents.needs_restoring([s['text'] for s in syllables]):
+        restored=lyrics_accents.restore(syllables)
+        if restored:syllables[0]['accents_restored']=restored
+    return syllables
 
 def attach_lyrics(parsed,notes,origin):
     """Puts each syllable on the melody note starting with it (same time conversion as chords).
@@ -606,11 +637,17 @@ def attach_lyrics(parsed,notes,origin):
         if assigned and assigned[-1]['note'] is note:
             assigned[-1]['text']+=('' if not syllable['word_start'] else ' ')+syllable['text'];assigned[-1]['last_word_start']=syllable['word_start']
         else:assigned.append({'note':note,'text':syllable['text'],'word_start':syllable['word_start'],'last_word_start':syllable['word_start']})
+    crowded=[]
     for position,item in enumerate(assigned):
         following=assigned[position+1]['word_start'] if position+1<len(assigned) else True
         syllabic=('single' if following else 'begin') if item['word_start'] else ('end' if following else 'middle')
         item['note']['lyric']={'text':item['text'],'syllabic':syllabic}
-    return {'syllables':len(syllables),'attached':len(assigned)}
+        # Three or more sung words on one note: the melody line is probably not the sung voice.
+        if item['text'].count(' ')>=2:crowded.append(item['note']['start'])
+    result={'syllables':len(syllables),'attached':len(assigned)}
+    if crowded:result['crowded_notes']=crowded
+    if syllables[0].get('accents_restored'):result['accents_restored']=syllables[0]['accents_restored']
+    return result
 
 def instrument_names():
     """Portuguese General MIDI names: (full name, staff abbreviation) for each program."""
@@ -641,14 +678,34 @@ from score_musicxml import make_bars, TYPES, pieces, emit_note, KINDS, emit_harm
 
 C_LABEL='C'  # name printed under the two C keys of each keyboard diagram ('Dó' with solfège note names)
 
-def keyboard_asset(rootpc,quality,inversion=2,c_label='C'):
+def diagram_flats(chord,report=None):
+    """Key names follow the chord's spelling (Bb → flats); a natural root follows the key signature."""
+    spelling=str(chord.get('root_spelling') or '')
+    if 'b' in spelling[1:]:return True
+    if '#' in spelling:return False
+    key=(report or {}).get('key')
+    fifths=key.get('fifths',0) if isinstance(key,dict) else 0
+    return fifths<0
+
+def keyboard_asset(rootpc,quality,inversion=2,c_label='C',style='classico',flats=False,spelling=None):
+    """(file name, SVG bytes, MIDI pitches) of one diagram. 'classico' is the original two-octave drawing
+    (byte-identical to delivered scores); 'destacado' and 'cinza' fill and name the chord's keys."""
     inversion=diagram_inversion(inversion)
+    style=keyboard_svg.diagram_style(style)
     intervals=CHORD_INTERVALS[quality]
     bass_interval=0 if inversion==0 else next(x for x in ((3,4,2,5) if inversion==1 else (7,6,8)) if x in intervals)
     bass=53+((rootpc+bass_interval-53)%12)
     pitches=sorted(bass+(rootpc+x-bass)%12 for x in intervals)
     if max(pitches)>71:pitches=[p-12 for p in pitches]
     assert 48<=min(pitches)<max(pitches)<=71
+    if style!='classico':
+        names='solfejo' if c_label!='C' else 'letras'
+        spelled=keyboard_svg.tone_names(rootpc,intervals,spelling,flats,names)
+        svg=E.fromstring(keyboard_svg.svg_highlight(pitches,style,names,flats,spelled))
+        svg.find(NS+'title').text=('Acorde em posição fundamental','Acorde em primeira inversão','Acorde em segunda inversão')[inversion]
+        svg.find(NS+'desc').text=('Fundamental no grave','Terça ou nota suspensa no grave','Quinta no grave')[inversion]+'; notas MIDI: '+','.join(map(str,pitches))
+        data=E.tostring(svg,encoding='utf-8',xml_declaration=True)
+        return md4(data)+'.svg',data,pitches
     label=str(rootpc)+quality;svg=E.fromstring(svg_keyboard(label,pitches))
     svg.find(NS+'title').text=('Acorde em posição fundamental','Acorde em primeira inversão','Acorde em segunda inversão')[inversion]
     label=('Fundamental no grave','Terça ou nota suspensa no grave','Quinta no grave')[inversion]
@@ -763,6 +820,21 @@ def convert_score(xml,report,out,filename):
         # The words under the staff need room before the next system's chord names and keyboard diagrams.
         style_values.update(minSystemDistance=str(max(float(style_values['minSystemDistance']),17)),maxSystemDistance=str(max(float(style_values['maxSystemDistance']),24)))
     style_values.update(score_style_values(report.get('score_style')))
+    if report.get('staff_per_source'):
+        # Instrument staves that only rest in a system are hidden (the first system shows them all).
+        # Vertical spread uses the system spread, not the system distance: keep the same room for the
+        # lyrics and the raised keyboard diagrams once the systems become shorter.
+        style_values.update(hideEmptyStaves='1',dontHideStavesInFirstSystem='1',
+                            minSystemSpread=style_values['minSystemDistance'],
+                            maxSystemSpread=str(max(32,float(style_values['maxSystemDistance']))))
+        report['hidden_empty_staves']=True
+    footer=report.get('page_footer',False)
+    if footer:
+        # Title and "página X de Y" on every page, so loose printed pages stay in order.
+        text='$:workTitle: · página $P de $n'
+        style_values.update(showFooter='1',footerFirstPage='1',footerOddEven='0',oddFooterC=text,evenFooterC=text,
+                            oddFooterL='',oddFooterR='',evenFooterL='',evenFooterR='')
+        report['page_footer']=text
     for tag,val in style_values.items():
         n=style.find('Style/'+tag)
         if n is None:n=sub(style.find('Style'),tag)
@@ -777,6 +849,15 @@ def convert_score(xml,report,out,filename):
     progress('Inserindo os diagramas de teclado junto às cifras…')
     with zipfile.ZipFile(initial) as z:contents={n:z.read(n) for n in z.namelist()}
     name=next(n for n in contents if n.endswith('.mscx'));root=E.fromstring(contents[name]);harmonies=root.findall('.//Harmony')
+    if report.get('hidden_empty_staves'):
+        # The top staff carries the chord names and keyboard diagrams: it is never hidden.
+        top=root.find('Score/Part/Staff')
+        if top is not None:
+            hide=top.find('hideWhenEmpty')
+            if hide is None:
+                hide=E.Element('hideWhenEmpty');staff_type=top.find('StaffType')
+                top.insert(list(top).index(staff_type)+1 if staff_type is not None else 0,hide)
+            hide.text='2'
     if report.get('melody_analysis',{}).get('chords_only'):
         # Rhythm slashes only show the beats: they never sound (the chord symbols play the harmony).
         for note in root.iter('Note'):
@@ -813,8 +894,9 @@ def convert_score(xml,report,out,filename):
                         name_tag=E.Element('name');root_tag=info.find('root')
                         info.insert(list(info).index(root_tag) if root_tag is not None else 0,name_tag)
                     name_tag.text=written
-                path,data,pitches=keyboard_asset(c['root'],c['quality'],inversion,'Dó' if report.get('note_names')=='solfejo' else 'C');assets['Pictures/'+path]=data
-                asset_manifest[path]={'root':c['root'],'quality':c['quality'],'pitches':pitches,'diagram_inversion':inversion}
+                path,data,pitches=keyboard_asset(c['root'],c['quality'],inversion,'Dó' if report.get('note_names')=='solfejo' else 'C',
+                                                 report.get('diagram_style','classico'),diagram_flats(c,report),c.get('root_spelling'));assets['Pictures/'+path]=data
+                asset_manifest[path]={'root':c['root'],'quality':c['quality'],'pitches':pitches,'diagram_inversion':inversion,'diagram_style':report.get('diagram_style','classico')}
                 im=E.Element('Image');E.SubElement(im,'offset',x=str(4.5+max(0,len(written or c['quality'])-1)*.8),y=str(-6.7-lift));sub(im,'path',path);sub(im,'autoScale',0);E.SubElement(im,'size',w='14',h=str(14*84/282));sub(im,'lockAspectRatio',1);sub(im,'sizeIsSpatium',1)
                 if placement:
                     # One shared row keeps each chord symbol aligned with its
@@ -935,6 +1017,8 @@ def convert_score(xml,report,out,filename):
         im=Image.open(path).convert('RGB');im.thumbnail((330,480));x=10+i%columns*350;y=28+i//columns*525;canvas.paste(im,(x,y));draw.text((x,y-20),str(i+1),fill='black')
     canvas.save(out/'previa-geral.png')
     report.update(final_path=str(final),images=images,diagram_assets=asset_manifest,pages=len(pages),native_reopened=True,melody_attacks_verified=len(allnotes),final_sha256=hashlib.sha256(final.read_bytes()).hexdigest())
+    import score_quality
+    report['quality']=score_quality.evaluate(report)
     return final
 
 def prepare(config):

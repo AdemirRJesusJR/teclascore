@@ -1,3 +1,4 @@
+using Teclas.Core;
 namespace Teclas.App;
 
 public partial class MainWindow
@@ -76,6 +77,56 @@ public partial class MainWindow
             Notify(); PersistPreferences();
             Status = "Nomes das teclas trocados: valem nos diagramas do app e nas próximas partituras geradas (as já geradas mudam ao gerar de novo).";
         }
+    }
+
+    public IReadOnlyList<object> DiagramStyleOptions { get; } =
+    [
+        new { Value = "destacado", Label = "Destacado (cores)" },
+        new { Value = "cinza", Label = "Destacado em cinza (P&B)" },
+        new { Value = "classico", Label = "Clássico (pontos)" }
+    ];
+
+    /// <summary>Drawing of the keyboard diagrams in the app and in the next generated scores.</summary>
+    public string DiagramStyle
+    {
+        get => KeyboardDiagramSvg.Normalize(settings.DiagramStyle);
+        set
+        {
+            string style = KeyboardDiagramSvg.Normalize(value);
+            if (settings.DiagramStyle == style) return;
+            settings.DiagramStyle = style; KeyboardDiagramPreview.Style = style;
+            Notify(); PersistPreferences();
+            Status = "Desenho dos diagramas trocado: vale no app e nas próximas partituras geradas (as já geradas mudam ao gerar de novo).";
+        }
+    }
+
+    /// <summary>Title and "página X de Y" at the foot of every page of the next generated scores.</summary>
+    public bool PageFooter
+    {
+        get => settings.PageFooter;
+        set { if (settings.PageFooter == value) return; settings.PageFooter = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>Each PDF ends with a page of the song's chords and keyboard diagrams.</summary>
+    public bool PdfChordPage
+    {
+        get => settings.PdfChordPage;
+        set { if (settings.PdfChordPage == value) return; settings.PdfChordPage = value; ScoreExporter.AppendChordPage = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>Note lengths written for reading (fewer tiny rests); attacks never move.</summary>
+    public bool CleanDurations
+    {
+        get => settings.CleanDurations;
+        set { if (settings.CleanDurations == value) return; settings.CleanDurations = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>Presentation options every generation request carries.</summary>
+    private void AddPresentation(System.Text.Json.Nodes.JsonObject request)
+    {
+        request["diagramStyle"] = KeyboardDiagramSvg.Normalize(settings.DiagramStyle);
+        if (!settings.PageFooter) request["pageFooter"] = false;
+        if (!settings.CleanDurations) request["cleanDurations"] = false;
     }
 
     public bool SimplifiedChords

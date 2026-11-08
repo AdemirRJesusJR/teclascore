@@ -13,7 +13,8 @@ public sealed record ScoreFlowCheck(string Id, ScoreFlowStep Step, ScoreFlowLeve
     public bool Pending => Level == ScoreFlowLevel.Block || Level == ScoreFlowLevel.Confirm && !Confirmed;
 }
 
-public sealed record ScoreFlowTrack(string Name, string Hint, bool IsMelody, bool IsPercussion, int Notes);
+/// <param name="GuideNotes">The track barely changes pitch: a karaoke guide note, not the sung line.</param>
+public sealed record ScoreFlowTrack(string Name, string Hint, bool IsMelody, bool IsPercussion, int Notes, bool GuideNotes = false);
 
 public sealed record ScoreFlowChord(double Quarter, string Name);
 
@@ -79,6 +80,15 @@ public static class ScoreFlowRules
                         $"{span} e não cabe no seu teclado de {input.KeyboardKeys} teclas ({VoiceRange.NoteName(low)}–{VoiceRange.NoteName(high)}), nem mudando de oitava. Confira se todas as pistas marcadas são mesmo melodia.",
                         "compare", "Comparar pistas", Confirmed("melody-keyboard"), "Manter assim"));
                 }
+            }
+            // A lyric guide note is not a melody: it plays one or two pitches under the words. It must be confirmed
+            // explicitly, and the autopilot never picks it on its own.
+            foreach (var track in melody.Where(t => t.GuideNotes))
+            {
+                string id = "melody-guide:" + track.Name;
+                checks.Add(new(id, ScoreFlowStep.Melody, ScoreFlowLevel.Confirm,
+                    $"{track.Name} quase não muda de altura: parece a nota-guia da letra, não a voz cantada. Desmarque essa pista e escolha a melodia de verdade (ou ligue Só cifras).",
+                    "compare", "Comparar pistas", Confirmed(id), "É melodia"));
             }
             foreach (var track in melody.Where(t => DoubtfulMelodyHints.Contains(t.Hint)))
             {

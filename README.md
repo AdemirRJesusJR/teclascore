@@ -8,6 +8,10 @@ Versão 1.2.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artist
 
 **Posições na biblioteca inteira:** em Posições dos diagramas, deixe marcada a opção Aplicar também às outras músicas. As cifras alteradas passam a valer nas músicas com o mesmo acorde tocado (nota e tipo, já com a transposição), e as partituras já geradas são atualizadas em seguida, com a versão anterior no Histórico. As outras cifras de cada música não mudam.
 
+**Apresentação das partituras (1.3.0):** em Configurações › Aparência das partituras escolha o desenho dos diagramas: **Destacado** (teclas do acorde pintadas, com o nome de cada nota e o baixo mais escuro), **Cinza** para imprimir em preto e branco, ou o **Clássico** de bolinhas; todos continuam na segunda inversão. O rodapé mostra "Título · página X de Y". Pautas vazias somem nos sistemas em que o instrumento não toca, sem tirar a pauta de cima com cifras e diagramas. Durações curtas demais viram colcheias legíveis, sem mover nenhum ataque nem mexer em tercinas. O PDF ganha uma página final com os acordes da música e os seus diagramas, além de título e intérprete nas propriedades do arquivo.
+
+**Conferência automática (1.3.0):** cada partitura recebe uma nota de qualidade da escrita (pausas e notas minúsculas, compassos vazios, letra apertada, páginas demais) que entra na nota de confiança; uma pista que quase não muda de altura é tratada como nota-guia da letra, pede confirmação e não é usada como melodia pelo Piloto automático. Letras de karaokê sem acentos recuperam os acentos das palavras sem ambiguidade (coração, você), e nomes de artistas escritos todo em minúsculas ou maiúsculas ganham iniciais maiúsculas; o que vem declarado no MIDI é mantido como está.
+
 **Instalador completo:** cada entrega gera `debug/TeclaScore-Completo.iss` com a versão atual e o compila em `debug/saida/TeclaScore-X-Completo-Setup-x64.exe`, que instala o aplicativo e, se faltar, o MuseScore Studio 4 do kit. O script é gerenciado e refeito a cada versão; para personalizar, copie-o com outro nome.
 
 **Correção em massa e igreja:** digite a cifra inteira por compasso; escolha a escrita das cifras (7M, ø, °, bemóis) e aplique à biblioteca; a melodia que passa entre instrumentos é montada por trechos; a planilha edita títulos e artistas de todas as músicas; letras e cifras saem para OpenLP e Holyrics; falhas são repetidas com ajuste automático, sem nunca retirar a melodia.
@@ -278,7 +282,7 @@ Arquivos de versões antigas devem ser abertos e salvos em uma nova cópia pelo 
 
 ## Instalação e atualizações
 
-Baixe **TeclaScore-0.20.4-Setup-x64.exe** na página da versão e siga o assistente em português. Escolha a pasta e os atalhos. A instalação é para o usuário atual e não exige permissões de administrador. O desinstalador fica disponível nos Aplicativos instalados do Windows; ele preserva biblioteca, configurações e partituras. Também é possível extrair o ZIP completo e executar **Instalar.cmd**, ou abrir Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
+Baixe **TeclaScore-X.Y.Z-Setup-x64.exe** (a versão mais recente) na página de releases e siga o assistente em português. Escolha a pasta e os atalhos. A instalação é para o usuário atual e não exige permissões de administrador. O desinstalador fica disponível nos Aplicativos instalados do Windows; ele preserva biblioteca, configurações e partituras. Também é possível extrair o ZIP completo e executar **Instalar.cmd**, ou abrir Teclas.Partituras.exe na pasta extraída. A instalação por usuário cria atalhos e mantém cada versão separada em `%LOCALAPPDATA%/Programs/TeclaScore/versions`; as preferências continuam em `%LOCALAPPDATA%/TeclasPartituras`. A versão anterior é preservada.
 
 Na tela **Sobre → Instalação e atualizações**, confira dependências e consulte a última versão publicada no GitHub. A consulta só ocorre ao clicar. Baixe o ZIP pela página da versão e selecione-o no app; o instalador confere SHA-256 e conteúdo antes de instalar. Se a consulta não estiver disponível, selecione também o arquivo SHA256SUMS da mesma versão. A nova instalação não fecha o app sem sua escolha. O assistente localiza e valida Python/MuseScore e oferece o preparo isolado de Pillow; o Python privado já acompanha a distribuição; instalar MuseScore continua pelo instalador oficial.
 
@@ -316,6 +320,8 @@ Abra Teclas.Partituras.sln. A compilação normal não usa bibliotecas NuGet ext
     python tools/prepare_distribution.py
     pwsh -File tools/build_installer.ps1 -CompilerPath "C:\ferramentas\Inno Setup 7\ISCC.exe"
     python tools/package_app.py --installer
+    # Ou tudo de uma vez (publish, distribuição, instaladores, pacote, conferência; -Tag e -Publish opcionais):
+    pwsh -File tools/release.ps1 -PythonPath "C:\caminho\python.exe" -Tag -Publish
     dotnet run --project tests/Teclas.Tests/Teclas.Tests.csproj
     dotnet run --project tests/Teclas.Dashboard.Tests/Teclas.Dashboard.Tests.csproj
     dotnet run --project tests/Teclas.Settings.Tests/Teclas.Settings.Tests.csproj

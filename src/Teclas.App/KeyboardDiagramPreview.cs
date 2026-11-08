@@ -11,6 +11,8 @@ internal sealed class KeyboardDiagramPreview
 {
     /// <summary>Name under the C keys: "C", or "Dó" with solfège note names (Configurações).</summary>
     internal static string CLabel { get; set; } = "C";
+    /// <summary>Drawing of the diagrams (Configurações): "destacado", "cinza" or "classico".</summary>
+    internal static string Style { get; set; } = KeyboardDiagramSvg.Highlight;
     private readonly Dictionary<(int Root, string Quality, int Inversion, int Bass), DrawingImage> images = new();
     private static readonly Color BassColor = Color.FromRgb(37, 99, 235);
     private static readonly int[] WhiteNotes = Enumerable.Range(48, 24)
@@ -26,8 +28,15 @@ internal sealed class KeyboardDiagramPreview
             return null;
         int transposedRoot = ((pitchClass + transpose) % 12 + 12) % 12;
         int bassClass = bass is not null && KeyboardDiagramVoicing.TryRootPitchClass(bass, out int b) ? ((b + transpose) % 12 + 12) % 12 : -1;
-        var key = (transposedRoot, quality.Trim() + "|" + CLabel, inversion, bassClass);
+        var key = (transposedRoot, quality.Trim() + "|" + CLabel + "|" + Style + "|" + root, inversion, bassClass);
         if (images.TryGetValue(key, out var image)) return image;
+        if (Style != KeyboardDiagramSvg.Classic)
+        {
+            string spelling = transpose == 0 ? root : "";
+            image = new DrawingImage(DrawSvg(KeyboardDiagramSvg.Build(transposedRoot, quality.Trim(), inversion, Style, CLabel == "Dó", spelling, root.Contains('b')), bassClass));
+            image.Freeze(); images.Add(key, image);
+            return image;
+        }
         var pitches = KeyboardDiagramVoicing.Pitches(transposedRoot, quality.Trim(), inversion);
         var drawing = new DrawingGroup();
         var ink = new SolidColorBrush(Color.FromRgb(17, 17, 17));
@@ -67,6 +76,56 @@ internal sealed class KeyboardDiagramPreview
         image.Freeze();
         images.Add(key, image);
         return image;
+    }
+
+    /// <summary>Draws the engine's highlighted SVG (rects and texts only) so the app shows exactly what the score prints.</summary>
+    private static DrawingGroup DrawSvg(System.Xml.Linq.XElement svg, int bassClass)
+    {
+        var drawing = new DrawingGroup();
+        double Number(System.Xml.Linq.XElement e, string name) => double.Parse((string?)e.Attribute(name) ?? "0", CultureInfo.InvariantCulture);
+        Brush Paint(string? value) => value is null or "none" ? Brushes.Transparent
+            : value == "white" ? Brushes.White : new SolidColorBrush((Color)ColorConverter.ConvertFromString(value));
+        using (var dc = drawing.Open())
+        {
+            dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, 282, 84));
+            var bassMarks = new List<Rect>();
+            foreach (var element in svg.Elements())
+            {
+                if (element.Name.LocalName == "rect")
+                {
+                    var rect = new Rect(Number(element, "x"), Number(element, "y"), Number(element, "width"), Number(element, "height"));
+                    var stroke = element.Attribute("stroke") is { } s ? new Pen(Paint(s.Value), Number(element, "stroke-width")) : null;
+                    dc.DrawRectangle(Paint((string?)element.Attribute("fill")), stroke, rect);
+                }
+                else if (element.Name.LocalName == "text")
+                {
+                    double size = Number(element, "font-size");
+                    var text = new FormattedText(element.Value, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                        new Typeface(new FontFamily("Arial"), FontStyles.Normal, (string?)element.Attribute("font-weight") == "bold" ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal),
+                        size, Paint((string?)element.Attribute("fill")), 1);
+                    dc.DrawText(text, new Point(Number(element, "x") - text.Width / 2, Number(element, "y") - text.Baseline));
+                }
+            }
+            if (bassClass >= 0)
+            {
+                // The bass of a slash chord: a blue ring at the foot of the lowest key with that name in the window.
+                var keys = svg.Elements().Where(e => e.Name.LocalName == "rect").ToArray();
+                var whites = keys.Where(e => Number(e, "height") == 60).ToArray();
+                int start = KeyboardDiagramSvg.WindowStart(KeyboardDiagramSvg.MarkedPitches(svg));
+                for (int pitch = start; pitch < start + 18; pitch++)
+                {
+                    if (((pitch % 12) + 12) % 12 != bassClass) continue;
+                    int[] natural = [0, 2, 4, 5, 7, 9, 11];
+                    int whiteIndex = Enumerable.Range(start, pitch - start + 1).Count(p => natural.Contains(p % 12)) - 1;
+                    bool isWhite = natural.Contains(pitch % 12);
+                    if (whiteIndex >= whites.Length) break;
+                    var centre = isWhite ? new Point(1 + whiteIndex * 28 + 14, 44) : new Point(1 + (whiteIndex + 1) * 28, 22);
+                    dc.DrawEllipse(null, new Pen(new SolidColorBrush(BassColor), 2.5), centre, 7, 7);
+                    break;
+                }
+            }
+        }
+        return drawing;
     }
 
     internal static string Describe(string root, string quality, int inversion, int transpose, string? bass)

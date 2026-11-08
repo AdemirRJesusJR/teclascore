@@ -3,7 +3,8 @@
 analyze(path) returns diagram and Harmony bounding boxes ordered by staff row,
 then x, independently of the exporter's arbitrary element order. Coordinates
 are in SVG viewBox units. Glyph bounds conservatively include Bezier controls.
-The keyboard image template is 14 white keys, 20x60 each, in a 282x84 viewBox.
+Keyboard image templates, both in a 282x84 viewBox: the classic drawing has 14 white keys
+of 20x60; the highlighted one (keyboard_svg.py) has 10 white keys of 28x60, the chord's keys filled.
 No score or source SVG is modified. CLI: python batch_svg_qa.py page.svg --out qa.json
 """
 from __future__ import annotations
@@ -139,6 +140,22 @@ def _intersection(a,b,tolerance=.5):
     out=[max(a[0],b[0]),max(a[1],b[1]),min(a[2],b[2]),min(a[3],b[3])]
     return out if out[2]-out[0]>tolerance and out[3]-out[1]>tolerance else None
 
+# Template name: (white keys, key width in viewBox units). Both keys are 60 units tall.
+TEMPLATES={'classico':(14,20),'destacado':(10,28)}
+# Fills of the highlighted drawing's pressed white keys (color and gray versions).
+PRESSED_WHITE={'#5b8def','#1d3f99','#a6a6a6','#4d4d4d'}
+
+def _white_key(element,rectangle):
+    """Template name when the path is a white key of a TeclaScore keyboard diagram, else None."""
+    if not rectangle:return None
+    width=rectangle[2]-rectangle[0]
+    if width<=0:return None
+    ratio=(rectangle[3]-rectangle[1])/width;fill=element.get('fill','').lower()
+    white=fill in ('#fff','#ffffff','white')
+    if white and abs(ratio-3)<.02:return 'classico'
+    if (white or fill in PRESSED_WHITE) and abs(ratio-60/28)<.02:return 'destacado'
+    return None
+
 def analyze(svg_path, staff_right=None):
     path=Path(svg_path);root=ET.parse(path).getroot();records=_records(root);warnings=[]
     vb=[float(x) for x in root.get('viewBox','0 0 9921.26 14031.5').split()]
@@ -155,26 +172,26 @@ def analyze(svg_path, staff_right=None):
         if cls=='Harmony':
             glyphs.append(dict(bbox=box,source_index=rec['source_index'],row=_row_for(box,rows)));continue
         rectangle=_rect(rec)
-        white=e.get('fill','').lower() in ('#fff','#ffffff','white')
-        is_key=white and rectangle and abs((rectangle[3]-rectangle[1])/(rectangle[2]-rectangle[0])-3)<.02
-        if is_key:
-            w=rectangle[2]-rectangle[0]
-            first=current is None or current['white_keys']==14 or rectangle[0]<=current['_last_key_x']+.01
+        kind=_white_key(e,rectangle)
+        if kind:
+            w=rectangle[2]-rectangle[0];keys,width=TEMPLATES[kind]
+            first=current is None or current['white_keys']==current['_expected'] or current['_kind']!=kind or rectangle[0]<=current['_last_key_x']+.01
             if first:
-                if current is not None and current['white_keys']!=14:warnings.append('Diagram with '+str(current['white_keys'])+' white keys')
-                unit=w/20; x=rectangle[0]-unit;y=rectangle[1]-unit
-                template=[(x,y),(x+14*w+2*unit,y),(x+14*w+2*unit,y+84*unit),(x,y+84*unit)]
+                if current is not None and current['white_keys']!=current['_expected']:warnings.append('Diagram with '+str(current['white_keys'])+' white keys')
+                unit=w/width; x=rectangle[0]-unit;y=rectangle[1]-unit
+                template=[(x,y),(x+keys*w+2*unit,y),(x+keys*w+2*unit,y+84*unit),(x,y+84*unit)]
                 full=_bbox(_xy(rec['matrix'],p) for p in template)
                 current=dict(bbox=full,ink_bbox=box,source_index=rec['source_index'],white_keys=0,path_count=0,
                              key_width=math.dist(_xy(rec['matrix'],(0,0)),_xy(rec['matrix'],(w,0))),
                              scale_x=math.hypot(rec['matrix'][0],rec['matrix'][1]),scale_y=math.hypot(rec['matrix'][2],rec['matrix'][3]),
-                             row=_row_for(full,rows),_last_key_x=rectangle[0])
+                             row=_row_for(full,rows),_last_key_x=rectangle[0],_kind=kind,_expected=keys,template=kind)
                 diagrams.append(current)
             current['white_keys']+=1;current['_last_key_x']=rectangle[0]
         if current is None:warnings.append('Image path before first recognized keyboard key');continue
         current['path_count']+=1;current['ink_bbox']=_union([current['ink_bbox'],box])
-    if current is not None and current['white_keys']!=14:warnings.append('Final diagram has '+str(current['white_keys'])+' white keys')
-    for d in diagrams:d.pop('_last_key_x',None)
+    if current is not None and current['white_keys']!=current['_expected']:warnings.append('Final diagram has '+str(current['white_keys'])+' white keys')
+    for d in diagrams:
+        for key in ('_last_key_x','_kind','_expected'):d.pop(key,None)
     diagrams.sort(key=lambda d:(d['row'],d['bbox'][0],d['bbox'][1]))
     for i,d in enumerate(diagrams):d['index']=i
 

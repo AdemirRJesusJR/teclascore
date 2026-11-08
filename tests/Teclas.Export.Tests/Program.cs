@@ -68,4 +68,45 @@ if (args.Length >= 3)
     Console.WriteLine(await MediaPlaybackSmoke.RunAsync(audio.Path)); checks++;
     Console.WriteLine($"PDF: {pdf}\nAudio: {audio.Path}\nDuration: {audio.Duration}");
 }
+// Chord page and document properties appended to a MuseScore-style PDF (classic xref table), without MuseScore.
+{
+    string pdfPath = Path.Combine(work, "acordes.pdf"), scorePath = Path.Combine(work, "acordes.mscz");
+    var body = new System.Text.StringBuilder("%PDF-1.4\n");
+    var offsets = new List<int>();
+    void Obj(string text) { offsets.Add(body.Length); body.Append($"{offsets.Count} 0 obj\n{text}\nendobj\n"); }
+    Obj("<<\n/Title (Old)\n>>");
+    Obj("<<\n/Type /Catalog\n/Pages 3 0 R\n>>");
+    Obj("<<\n/Type /Pages\n/Kids \n[\n4 0 R\n]\n/Count 1\n>>");
+    Obj("<<\n/Type /Page\n/Parent 3 0 R\n/MediaBox [0 0 595.000000 842.000000]\n>>");
+    int xrefAt = body.Length;
+    body.Append($"xref\n0 {offsets.Count + 1}\n0000000000 65535 f \n");
+    foreach (int offset in offsets) body.Append($"{offset:D10} 00000 n \n");
+    body.Append($"trailer\n<<\n/Size {offsets.Count + 1} \n/Info 1 0 R\n/Root 2 0 R\n/ID [ <00> <00> ]\n>>\nstartxref\n{xrefAt} \n%%EOF\n");
+    File.WriteAllText(pdfPath, body.ToString(), System.Text.Encoding.Latin1);
+    var svg = KeyboardDiagramSvg.Build(0, "m", 2, KeyboardDiagramSvg.Highlight, false, "C");
+    using (var zip = System.IO.Compression.ZipFile.Open(scorePath, System.IO.Compression.ZipArchiveMode.Create))
+    {
+        using (var writer = new StreamWriter(zip.CreateEntry("score.mscx").Open()))
+            writer.Write("<museScore><Score><metaTag name=\"workTitle\">Luz divina</metaTag><metaTag name=\"artist\">Roberto Carlos</metaTag><Staff><Measure><voice>" +
+                "<Harmony><harmonyInfo><name>m</name><root>14</root></harmonyInfo></Harmony><Image><path>cm.svg</path></Image>" +
+                "<Harmony><harmonyInfo><name>m</name><root>14</root></harmonyInfo></Harmony><Image><path>cm.svg</path></Image>" +
+                "<Harmony><harmonyInfo><root>12</root></harmonyInfo></Harmony></voice></Measure></Staff></Score></museScore>");
+        using (var writer = new StreamWriter(zip.CreateEntry("Pictures/cm.svg").Open())) writer.Write(svg.ToString());
+    }
+    var (songTitle, songArtist, songChords) = PdfChordPage.ReadScore(scorePath);
+    Check(songTitle == "Luz divina" && songArtist == "Roberto Carlos", "Chord page reads title and performer");
+    Check(songChords.Select(c => c.Label).SequenceEqual(["Cm", "Bb"]) && songChords[0].Diagram is not null && songChords[1].Diagram is null, "Chord page lists each chord once, with its diagram");
+    PdfChordPage.Append(pdfPath, songTitle, songArtist, songChords);
+    string finished = File.ReadAllText(pdfPath, System.Text.Encoding.Latin1);
+    Check(finished.StartsWith(body.ToString(), StringComparison.Ordinal), "Original PDF bytes kept (incremental update)");
+    Check(System.Text.RegularExpressions.Regex.IsMatch(finished, @"3 0 obj\s*<<\s*/Type /Pages\s*/Kids \[4 0 R \d+ 0 R\]\s*/Count 2"), "Page tree gains the chord page");
+    Check(finished.Contains("/Prev " + xrefAt) && finished.Contains("/Author <FEFF0052006F0062"), "New trailer links the old one and names the performer");
+    int lastXref = int.Parse(System.Text.RegularExpressions.Regex.Matches(finished, @"startxref\s+(\d+)")[^1].Groups[1].Value);
+    Check(finished.AsSpan(lastXref, 4).SequenceEqual("xref"), "startxref points at the new table");
+    foreach (System.Text.RegularExpressions.Match entry in System.Text.RegularExpressions.Regex.Matches(finished[lastXref..], @"(\d{10}) 00000 n "))
+        Check(System.Text.RegularExpressions.Regex.IsMatch(finished[int.Parse(entry.Groups[1].Value)..], @"^\d+ 0 obj"), "Every new xref offset points at an object");
+    Check(finished.Contains("(Acordes desta música - Luz divina) Tj"), "Heading written in WinAnsi");
+    Check(KeyboardDiagramSvg.ToneNames(0, KeyboardDiagramVoicing.IntervalsOf("m"), "C", false, false)!.Values.Order().SequenceEqual(["C", "Eb", "G"]), "Diagram names follow the chord");
+    Check(KeyboardDiagramSvg.MarkedPitches(svg).SequenceEqual(KeyboardDiagramVoicing.Pitches(0, "m", 2)), "Highlighted diagram marks its keys");
+}
 Console.WriteLine($"PASS: {checks} export checks.");

@@ -21,9 +21,9 @@ internal static class MetadataOrganizationChecks
             }
         }
         var lower=Suggest("a gente fez amor - gusttavo lima.mid");
-        check(lower.Title=="a gente fez amor" && lower.Artist=="gusttavo lima","Lowercase names retain original casing and use phrase evidence");
+        check(lower.Title=="a gente fez amor" && lower.Artist=="Gusttavo Lima","Lowercase titles keep their casing, performer names are capitalized");
         var upper=Suggest("50 REAIS - NAIARA AZEVEDO.mid");
-        check(upper.Title=="50 REAIS" && upper.Artist=="NAIARA AZEVEDO","Uppercase numeric title is not mistaken for performer");
+        check(upper.Title=="50 REAIS" && upper.Artist=="Naiara Azevedo","Uppercase numeric title is not mistaken for performer");
         foreach(string filename in new[]{"Lua Azul - Mar Aberto.mid","Time - Eagles.mid","Alpha Beta - Gamma Delta.mid","eu te amo - voce me ama.mid"})
         {
             var value=Suggest(filename);

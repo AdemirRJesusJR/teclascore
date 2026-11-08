@@ -12,7 +12,9 @@ public sealed record ConfidenceInput(
     bool LyricsRequested,
     bool HasError,
     int PageCount,
-    bool SourceMelodyIncomplete = false);
+    bool SourceMelodyIncomplete = false,
+    int? NotationQuality = null,
+    IReadOnlyList<string>? NotationIssues = null);
 
 /// <summary>A 0–100 rating (higher needs less review) and the reasons that lowered it, in words.</summary>
 public sealed record ConfidenceRating(int Score, IReadOnlyList<string> Reasons)
@@ -51,6 +53,13 @@ public static class ScoreConfidence
         if (input.MelodyChosenAutomatically && !input.MelodyChoiceConfident) { score -= 20; reasons.Add("melodia escolhida automaticamente sem certeza"); }
         if (input.LyricsRequested && input.LyricsShareOnMelody is { } share2 && share2 < .6)
         { score -= share2 < .3 ? 15 : 8; reasons.Add($"só {share2:P0} da letra cai na melodia"); }
+        if (input.NotationQuality is { } quality && quality < 90)
+        {
+            // The engine's check of the written score (tiny rests, empty bars, crowded lyrics, guide notes).
+            score -= Math.Min(35, (100 - quality) * .6);
+            if (input.NotationIssues is { Count: > 0 } issues) reasons.AddRange(issues);
+            else reasons.Add($"qualidade da escrita {quality}/100");
+        }
         if (input.PageCount > 6) { score -= 5; reasons.Add($"{input.PageCount} páginas: talvez falte dobrar repetições"); }
         return new((int)Math.Round(Math.Clamp(score, 0, 100)), reasons);
     }
