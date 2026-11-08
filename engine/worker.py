@@ -316,16 +316,20 @@ def main():
             step,alter=engine.spellings(active['fifths'],active.get('minor',False))[c['root']]
             name=step+('#'*alter if alter>0 else 'b'*(-alter))
             chord={'quarter':c['tick']/parsed['ppq'],'root':c.get('root_spelling') or name,'quality':c['quality'],'confidence':round(c.get('confidence',0),2)}
+            # Slash bass found in the MIDI (G/B, pedal): the app shows it and sends it back to the generation.
+            if c.get('bass_spelling'):chord['bass']=c['bass_spelling']
             if not reviewed:
                 evidence=c.get('evidence',{})
                 chord['recommendation']=evidence.get('recommendation','')
                 chord['alternatives']=', '.join(chord_label(option['root'],option['quality'],active['fifths'])
                     for option in evidence.get('alternatives',[]))
             chords.append(chord)
-        document.update(chords=chords,keyFifths=fifths,keyMinor=harmony.get('key',{}).get('minor',False))
+        key_changes=[{'quarter':change['tick']/parsed['ppq'],'measure':change.get('measure'),'fifths':change['fifths'],'minor':bool(change.get('minor',False)),
+                      'confidence':change.get('confidence'),'source':change.get('source','reviewed_profile')} for change in harmony.get('key_changes',[]) if change['tick']>0]
+        document.update(chords=chords,keyFifths=fifths,keyMinor=harmony.get('key',{}).get('minor',False),keyChanges=key_changes)
         analysis.write_text(json.dumps(document,ensure_ascii=False,indent=2),encoding='utf8')
         send('progress',message='Análise concluída. Preparando as cifras e os pontos de revisão…')
-        response={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation',''),'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
+        response={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'keyChanges':key_changes,'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation',''),'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
         if 'melodyMerge' in document:response['melodyMerge']=document['melodyMerge']
         if diagnosis:
             response['sourceDiagnosis']=diagnosis
@@ -380,8 +384,8 @@ def main():
             if bass:
                 if not re.fullmatch('[A-G](#{1,2}|b{1,2})?',bass):raise ValueError('Baixo de acorde inválido: '+bass)
                 event['bass']=(naturals[bass[0]]+bass.count('#')-bass.count('b'))%12;event['bass_spelling']=bass
-            elif changed:
-                # Another chord at this position: the old slash bass does not belong to it.
+            else:
+                # No bass in the edited chord: the user removed it, or another chord took this position.
                 event.pop('bass',None);event.pop('bass_spelling',None)
             selected_inversion=c.get('diagramInversion')
             event['diagram_inversion']=None if selected_inversion is None else engine.diagram_inversion(selected_inversion)

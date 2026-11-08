@@ -69,7 +69,7 @@ class DiagramInversionTests(unittest.TestCase):
                 for inversion in range(3):
                     with self.subTest(root=root, quality=quality, inversion=inversion):
                         _, data, pitches = engine.keyboard_asset(root, quality, inversion)
-                        bass_interval = 0 if inversion==0 else next(x for x in ((3,4,2,5) if inversion==1 else (7,6,8)) if x in intervals)
+                        bass_interval = 0 if inversion==0 else next(x for x in ((4,3,2,5) if inversion==1 else (7,6,8)) if x in intervals)
                         self.assertEqual(pitches[0]%12, (root+bass_interval)%12)
                         self.assertEqual({p%12 for p in pitches}, {(root+i)%12 for i in intervals})
                         self.assertEqual(len(pitches), len(intervals))

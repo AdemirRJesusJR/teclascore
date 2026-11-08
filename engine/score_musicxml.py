@@ -102,7 +102,11 @@ def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
         # Second verse of a repeated passage, under the first.
         lyric=core.sub(n,'lyric',number='2');core.sub(lyric,'syllabic',event['lyric2']['syllabic']);core.sub(lyric,'text',event['lyric2']['text'])
 
-KINDS={'':'major','m':'minor','7':'dominant','maj7':'major-seventh','m7':'minor-seventh','mMaj7':'major-minor','dim':'diminished','dim7':'diminished-seventh','m7b5':'half-diminished','aug':'augmented','sus2':'suspended-second','sus4':'suspended-fourth','6':'major-sixth','m6':'minor-sixth','9':'dominant-ninth','maj9':'major-ninth','m9':'minor-ninth','7sus4':'dominant','add9':'major','madd9':'minor'}
+KINDS={'':'major','m':'minor','7':'dominant','maj7':'major-seventh','m7':'minor-seventh','mMaj7':'major-minor','dim':'diminished','dim7':'diminished-seventh','m7b5':'half-diminished','aug':'augmented','sus2':'suspended-second','sus4':'suspended-fourth','6':'major-sixth','m6':'minor-sixth','9':'dominant-ninth','maj9':'major-ninth','m9':'minor-ninth','7sus4':'dominant','add9':'major','madd9':'minor',
+       '13':'dominant-13th','7b9':'dominant','7#9':'dominant','m11':'minor-11th','69':'major-sixth','7#5':'dominant','7b5':'dominant'}
+# Added, removed or altered degrees written after the kind, so MuseScore reads the exact chord: (value, alter, type).
+DEGREES={'add9':((9,0,'add'),),'madd9':((9,0,'add'),),'7sus4':((3,0,'subtract'),(4,0,'add')),
+         '7b9':((9,-1,'add'),),'7#9':((9,1,'add'),),'69':((9,0,'add'),),'7b5':((5,-1,'alter'),),'7#5':((5,1,'alter'),)}
 
 # How chord symbols are written, chosen by the user: the suffix shown for each quality (e.g. 7M instead of maj7) and
 # whether altered roots are written with flats or sharps ('auto' keeps the spelling of the key). Set per score.
@@ -137,11 +141,8 @@ def emit_harmony(measure,event,barstart,ps):
         spelling=event['bass_spelling'];bstep,alter=respell(spelling[0],spelling.count('#')-spelling.count('b'))
         b=core.sub(h,'bass');core.sub(b,'bass-step',bstep)
         if alter:core.sub(b,'bass-alter',alter)
-    if q in ('add9','madd9'):
-        d=core.sub(h,'degree');core.sub(d,'degree-value',9);core.sub(d,'degree-alter',0);core.sub(d,'degree-type','add')
-    if q=='7sus4':
-        d=core.sub(h,'degree');core.sub(d,'degree-value',3);core.sub(d,'degree-alter',0);core.sub(d,'degree-type','subtract')
-        d=core.sub(h,'degree');core.sub(d,'degree-value',4);core.sub(d,'degree-alter',0);core.sub(d,'degree-type','add')
+    for value,alter,kind in DEGREES.get(q,()):
+        d=core.sub(h,'degree');core.sub(d,'degree-value',value);core.sub(d,'degree-alter',alter);core.sub(d,'degree-type',kind)
     offset=event['tick']-barstart
     if offset:core.sub(h,'offset',offset)
 
