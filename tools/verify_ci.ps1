@@ -160,6 +160,7 @@ try {
         [void](Invoke-Check 'wpf-v048-ui' $app @('--verify-v048-ui',(Join-Path $reports 'wpf-v048-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v048-ui.json'))
         [void](Invoke-Check 'wpf-v049-ui' $app @('--verify-v049-ui',(Join-Path $reports 'wpf-v049-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v049-ui.json'))
         [void](Invoke-Check 'wpf-v052-ui' $app @('--verify-v052-ui',(Join-Path $reports 'wpf-v052-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-v052-ui.json'))
+        [void](Invoke-Check 'wpf-recorded-melody-ui' $app @('--verify-recorded-melody-ui',(Join-Path $reports 'wpf-recorded-melody-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-recorded-melody-ui.json'))
         [void](Invoke-Check 'wpf-bulk-pdf-ui' $app @('--verify-bulk-pdf-ui',(Join-Path $reports 'wpf-bulk-pdf-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-bulk-pdf-ui.json'))
         [void](Invoke-Check 'wpf-track-audition-ui' $app @('--verify-track-audition',(Join-Path $reports 'wpf-track-audition-ui.json'),'--synthetic') $work -JsonReport (Join-Path $reports 'wpf-track-audition-ui.json'))
         [void](Invoke-Check 'wpf-track-mix-ui' $app @('--verify-track-mix-ui',(Join-Path $reports 'wpf-track-mix-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-track-mix-ui.json'))

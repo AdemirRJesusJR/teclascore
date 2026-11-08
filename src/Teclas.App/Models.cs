@@ -92,6 +92,10 @@ public sealed partial class MidiRow : Observable
     /// <summary>The batch diagnosis says this MIDI has no complete melody (only accompaniment, or only themes and solos).</summary>
     public bool CatalogLacksMelody=>Profile?["config"]?["status"]?.GetValue<string>() is "no_melody" or "partial_melody";
     public bool HasReviewedProfile=>Profile?["config"]?["status"]?.GetValue<string>()=="ready";
+    /// <summary>The MIDI is a copy that received a melody transcribed from a recording (track "Melodia (gravação)").</summary>
+    public bool HasRecordedMelodyTrack=>Tracks.Any(track=>track.Source.Name==RecordedMelody.TrackName);
+    /// <summary>The score's melody is that transcribed track: it must be checked by ear.</summary>
+    public bool MelodyFromRecording=>!ChordsOnly && Tracks.Any(track=>track.IsMelody && track.Source.Name==RecordedMelody.TrackName);
     private bool useReviewedProfile;
     public bool UseReviewedProfile{get=>useReviewedProfile;set{if(Set(ref useReviewedProfile,value))NotifyCategory();}}
     private string status="";public string Status{get=>status;set=>Set(ref status,value);}

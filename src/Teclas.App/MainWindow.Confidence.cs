@@ -22,7 +22,7 @@ public partial class MainWindow
             row.Chords.Select(c => c.Confidence).ToArray(), row.Chords.Count(c => !string.IsNullOrWhiteSpace(c.Alternatives)),
             row.ReviewPoints.Count, row.ReviewPoints.Count(p => p.Blocking),
             row.AutoMelody, row.AutoMelodyConfident, lyrics, row.IncludeLyrics, row.HasOperationError, row.PageCount,
-            row.CatalogLacksMelody && !row.ChordsOnly && !row.UseReviewedProfile));
+            row.CatalogLacksMelody && !row.ChordsOnly && !row.UseReviewedProfile, row.MelodyFromRecording));
     }
 
     internal void RefreshConfidence(MidiRow row) => row.Confidence = RateScore(row);

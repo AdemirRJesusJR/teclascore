@@ -124,6 +124,15 @@ def source_diagnosis(profile):
     if reason and not reason.endswith('.'):reason+='.'
     return {'status':config['status'],'message':template.format(reason=reason or 'sem detalhes.')}
 
+RECORDED_MELODY_TRACK='Melodia (gravação)'
+RECORDED_MELODY_MESSAGE=('A melodia desta partitura veio de uma gravação: foi transcrita automaticamente e alinhada ao MIDI. '
+                         'Confira ouvindo a gravação, compasso a compasso: notas, ritmo, oitava e trechos sem voz podem precisar de ajuste.')
+
+def recorded_melody_sources(parsed,sources):
+    """Chosen melody sources that are the track a recording added (audio_melody_align names it)."""
+    tracks=parsed.get('tracks',[])
+    return [s for s in sources if 0<=s.get('track',-1)<len(tracks) and RECORDED_MELODY_TRACK in tracks[s['track']].get('names',[])]
+
 def pitch_class(spelling):
     if not isinstance(spelling,str) or not re.fullmatch('[A-G](#{1,2}|b{1,2})?',spelling):raise ValueError('Nota inválida na cifra: '+str(spelling))
     return (NATURALS[spelling[0]]+spelling.count('#')-spelling.count('b'))%12
@@ -200,6 +209,20 @@ def main():
         report=audio_transcription.transcribe(req['inputAudio'],target,lambda message:send('progress',message=message))
         send('result',data=dict(report,midiPath=str(target)))
         return
+    if req['mode']=='alignAudioMelody':
+        # A recording of the same song gives a MIDI without melody its voice: a new copy gets an extra track; the
+        # original is never written. A recording that does not fit is refused with nothing written.
+        try:import audio_melody_align
+        except ImportError as error:raise ValueError('Componentes de transcrição ausentes (numpy/onnxruntime). Reinstale o TeclaScore.') from error
+        source=Path(req['inputMidi']).resolve()
+        if not source.is_file():raise ValueError('O MIDI original não foi encontrado.')
+        target=Path(req['outputMidi']).resolve()
+        if target==source:raise ValueError('A cópia precisa de outro nome: o MIDI original não é alterado.')
+        target.parent.mkdir(parents=True,exist_ok=True)
+        report=audio_melody_align.align(req['inputAudio'],source,target,req.get('outputReport'),lambda message:send('progress',message=message),
+                                        audio_source=req.get('audioSource'))
+        send('result',data=dict(report,midiPath=str(target)))
+        return
     if req['mode']=='transcribeNotes':
         # Notes played on a MIDI keyboard (recorded by the app) become a MIDI on the player's own beat grid.
         try:import audio_transcription
@@ -274,9 +297,15 @@ def main():
         if diagnosis:
             point=engine.song_start_review_point(parsed,'source_melody_incomplete',diagnosis['message'])
             if point is not None:points.insert(0,point)
+        recorded=not config.get('chords_only') and bool(recorded_melody_sources(parsed,all_sources(config)))
+        if recorded:
+            # A transcribed melody is a starting point: it always asks to be checked by ear.
+            point=engine.song_start_review_point(parsed,'melody_from_recording',RECORDED_MELODY_MESSAGE)
+            if point is not None:points.insert(0,point)
         document={'source':str(source),'sha256':parsed['sha256'],'config':config,'harmony':harmony,'reviewedProfile':reviewed,'ppq':parsed['ppq'],'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
         if 'melody_merge' in melody_report:document['melodyMerge']=melody_report['melody_merge']
         if diagnosis:document['sourceDiagnosis']=diagnosis
+        if recorded:document['melodyFromRecording']=True
         analysis=workspace/'analysis.json'
         fifths=harmony.get('key',{}).get('fifths',0)
         chords=[]
@@ -301,6 +330,9 @@ def main():
         if diagnosis:
             response['sourceDiagnosis']=diagnosis
             response['warnings']=[diagnosis['message'],*response['warnings']]
+        if recorded:
+            response['melodyFromRecording']=True
+            response['warnings']=[RECORDED_MELODY_MESSAGE,*response['warnings']]
         send('result',data=response)
         return
     if mode!='generate':raise ValueError('Operação desconhecida.')
