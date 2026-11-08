@@ -130,6 +130,16 @@ def review_points(parsed,config,harmony,*,include_melody_report=False):
                           f"({item['confidence']:.0%}) ficou fora da cifra por falta de apoio. "
                           'Ouça o compasso e acrescente a cifra se ela fizer parte da música.')
         points.append(point)
+    try:
+        import melody_rhythm
+        _,doubt=melody_rhythm.meter_guess(parsed,summarize(parsed)['time_signatures'])
+    except Exception:doubt=None
+    if doubt and bars:
+        if doubt['declared']:text=(f"O MIDI marca {doubt['declared']}, mas os acentos (graves, notas longas, trocas de acorde e bumbo) "
+                                   f"sugerem {doubt['guess']}. Ouça o início e confira o compasso.")
+        elif doubt['adopted']:text=f"O MIDI não informa o compasso; pelos acentos foi usado {doubt['guess']}. Ouça o início e confira."
+        else:text=f"O MIDI não informa o compasso e foi usado 4/4, mas os acentos sugerem {doubt['guess']}. Ouça o início e confira."
+        add((bars[0]['start']+origin)/DIV,'meter_guess',text)
     if harmony.get('context_advice'):
         for diagnostic in harmony.get('diagnostics',[]):
             add(diagnostic['tick']/parsed['ppq'],diagnostic['kind'],diagnostic['message'])
@@ -138,6 +148,13 @@ def review_points(parsed,config,harmony,*,include_melody_report=False):
         _,_,report=melody_events(parsed,config,origin,end)
         for quarter in report.get('collision_original_quarters',[]):
             add(quarter,'rhythm_collision','Ataques próximos agrupados na grade; confira as notas e os ornamentos.')
+        for change in report.get('program_changes_followed',[]):
+            add(change['first_quarter'],'program_change',
+                f"A pista da melodia troca de instrumento (programa {change['from_program']+1} → {change['to_program']+1}); "
+                'as notas depois da troca continuam na melodia. Ouça o trecho para confirmar.')
+        if report.get('swing'):
+            add((bars[0]['start']+origin)/DIV,'swing',
+                f"Colcheias tocadas com swing (razão {report['swing']['ratio']:.2f} do tempo) foram escritas retas, com a indicação Swing.")
         for item in report.get('boundary_grid_refinements',[]):
             add(item['beat_original'],'rhythm_refined',
                 'Ritmo refinado automaticamente para separar ataques próximos. Confira o trecho com velocidade reduzida.')
@@ -295,7 +312,13 @@ def pitch_xml(parent,pitch,pitchmap):
 
 def meta(parsed):
     summary=summarize(parsed)
-    meters=summary['time_signatures'] or [{'tick':0,'numerator':4,'denominator':4}]
+    meters=summary['time_signatures']
+    if not meters:
+        # Sem compasso no MIDI: 3/4 ou 6/8 só quando os acentos mostram isso com folga; senão 4/4.
+        import melody_rhythm
+        try:meters,_=melody_rhythm.meter_guess(parsed,[])
+        except Exception:meters=None
+        meters=meters or [{'tick':0,'numerator':4,'denominator':4}]
     tempos=summary['tempo_changes'] or [{'tick':0,'bpm':120}]
     return summary,meters,tempos
 

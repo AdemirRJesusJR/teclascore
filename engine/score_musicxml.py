@@ -12,6 +12,7 @@ import batch_svg_qa as svg_geometry
 import compact_score_layout
 import diagram_lanes
 import batch_score as core
+import melody_rhythm
 
 
 def make_bars(parsed,meters):
@@ -19,6 +20,7 @@ def make_bars(parsed,meters):
     if not pitched:raise core.NeedsReview('Sem notas melódicas válidas.')
     initial=meters[0];barq=initial['numerator']*4/initial['denominator']
     origin=math.floor(min(n['start'] for n in pitched)/ppq/barq)*round(barq*core.DIV)
+    pickup=_pickup_origin(pitched,ppq,barq,origin)
     last=math.ceil(max(n['end'] for n in pitched)/ppq*core.DIV)
     changes=sorted({round(m['tick']/ppq*core.DIV):(m['numerator'],m['denominator']) for m in meters}.items())
     current=(initial['numerator'],initial['denominator']);bars=[];start=origin
@@ -32,22 +34,90 @@ def make_bars(parsed,meters):
         bars.append({'start':start-origin,'end':stop-origin,'meter':current,'partial':stop-start!=size})
         start=stop
     if len(bars)>700:raise core.NeedsReview('Duração excessiva ou nota sem término; requer verificação.')
+    if pickup is not None and bars and bars[0]['end']>pickup-origin:
+        # Anacruse: o primeiro compasso começa no tempo da primeira nota e é incompleto (implicit no MusicXML).
+        shift=pickup-origin
+        bars[0]=dict(bars[0],start=0,end=bars[0]['end']-shift,partial=True,pickup=True)
+        for bar in bars[1:]:bar['start']-=shift;bar['end']-=shift
+        origin=pickup
     return origin,start,bars
+
+def _pickup_origin(pitched,ppq,barq,origin):
+    """Início do compasso de anacruse, ou None.
+
+    Só a melodia (uma única pista e canal) soa antes da primeira barra cheia, a partir da metade do compasso, e
+    outra fonte entra no compasso seguinte. O início fica no tempo (semínima) da primeira nota."""
+    first=min(n['start'] for n in pitched)/ppq;bar_start=origin/core.DIV;line=bar_start+barq
+    if first<=bar_start+1e-9 or first-bar_start<barq/2-1e-9:return None
+    before=[n for n in pitched if n['start']/ppq<line-1e-9]
+    if len({(n['track'],n['channel']) for n in before})!=1:return None
+    source=(before[0]['track'],before[0]['channel'])
+    entering=[n for n in pitched if line-1e-9<=n['start']/ppq<line+barq and (n['track'],n['channel'])!=source]
+    if not entering:return None
+    start=math.floor(first+1e-9)*core.DIV
+    return start if origin<start<round(line*core.DIV) else None
 
 TYPES={3840:('whole',0),2880:('half',1),1920:('half',0),1440:('quarter',1),960:('quarter',0),720:('eighth',1),480:('eighth',0),360:('16th',1),240:('16th',0),120:('32nd',0),60:('64th',0),30:('128th',0)}
 
-def pieces(start,end,grids):
+def metric_structure(bar):
+    """(tamanho do compasso cheio, unidade de tempo, limites dos grupos) em unidades DIV, pelo início métrico.
+
+    4/4: tempos de semínima, metades do compasso como grupos. x/8 composto: tempo de semínima pontuada. 5/8 e 7/8:
+    colcheias em grupos 3+2 e 2+2+3. Os demais compassos formam um único grupo."""
+    numerator,denominator=bar['meter'];full=round(numerator*4/denominator*core.DIV)
+    if denominator==8 and numerator%3==0 and numerator>=6:
+        beat=core.DIV*3//2;bounds=list(range(0,full+1,2*beat)) if numerator==12 else [0,full]
+    elif denominator==8:
+        beat=core.DIV//2
+        groups={5:(3,2),7:(2,2,3)}.get(numerator,(numerator,))
+        bounds=[0]
+        for size in groups:bounds.append(bounds[-1]+size*beat)
+    else:
+        beat=core.DIV*4//denominator
+        bounds=[0,full//2,full] if numerator==4 else [0,full]
+    return full,beat,bounds
+
+def _metric_allowed(rel,d,full,beat,bounds):
+    """Uma figura de duração d começando em rel cabe sem ligadura pela estrutura do compasso."""
+    if rel+d>full:return False
+    if rel==0:return True
+    group_end=min(b for b in bounds if b>rel)
+    if rel+d>group_end:return False
+    if rel//beat==(rel+d-1)//beat or rel%beat==0:return True
+    # Síncope colcheia-semínima-colcheia (compassos simples): a semínima no contratempo fica sem ligadura.
+    return beat==core.DIV and d==core.DIV and rel%beat==beat//2
+
+def pieces(start,end,grids,bar=None):
+    """Figuras (início, duração, tercina) que escrevem [start, end). Com o compasso (bar), a divisão segue a
+    estrutura métrica: semínima pontuada no x/8 composto, metade do compasso no 4/4 e síncope sem ligadura.
+    tercina é True (tercina de colcheias num tempo) ou ('pair', início) para a tercina de semínimas em dois tempos."""
     t=start
+    if bar is not None:
+        full,beat_unit,bounds=metric_structure(bar)
+        anchor=bar['start']-((full-(bar['end']-bar['start'])) if bar.get('pickup') else 0)
     while t<end:
         beat=t//core.DIV;beatend=(beat+1)*core.DIV;mode=grids.get(beat,4)
+        if melody_rhythm.is_pair(mode):
+            group=beat*core.DIV if mode==melody_rhythm.PAIR_FIRST else (beat-1)*core.DIV
+            room=min(end,group+2*core.DIV)-t
+            d=max([x for x in (1280,640,320,160,80) if x<=room and (t-group)%x==0] or
+                  [x for x in (1280,640,320,160,80,40) if x<=room] or [0])
+            if not d:raise core.NeedsReview(f'Duração de tercina indefinida no tempo {t/core.DIV:.3f}.')
+            yield t,d,('pair',group);t+=d;continue
         if mode%3==0:
+            if t%core.DIV==0 and min(end,beatend)-t>=core.DIV:
+                # Um tempo inteiro numa grade ternária é uma semínima comum, não três colcheias de tercina ligadas.
+                yield t,core.DIV,False;t+=core.DIV;continue
             d=max([x for x in (640,320,160,80,40) if x<=min(end,beatend)-t] or [0])
             if not d:raise core.NeedsReview(f'Duração de tercina indefinida no tempo {t/core.DIV:.3f}.')
             yield t,d,True;t+=d;continue
         triplenext=min([b*core.DIV for b,v in grids.items() if v%3==0 and b*core.DIV>t] or [end])
         limit=min(end,triplenext)
-        if t%core.DIV:limit=min(limit,beatend)
-        candidates=[d for d in core.TYPES if d<=limit-t]
+        if bar is None:
+            if t%core.DIV:limit=min(limit,beatend)
+            candidates=[d for d in core.TYPES if d<=limit-t]
+        else:
+            candidates=[d for d in core.TYPES if d<=limit-t and _metric_allowed(t-anchor,d,full,beat_unit,bounds)]
         if not candidates:raise core.NeedsReview(f'Duração irregular de {limit-t} unidades.')
         d=max(candidates);yield t,d,False;t+=d
 
@@ -77,25 +147,34 @@ def emit_note(measure,start,dur,triplet,event,ps,full_rest=False):
     n=core.sub(measure,'note')
     if event is not None and event.get('chord'):core.sub(n,'chord')
     if event is None:core.sub(n,'rest',**({'measure':'yes'} if full_rest else {}))
-    else:core.pitch_xml(n,event['pitch'],ps)
+    else:core.pitch_xml(n,event['pitch'],{**ps,event['pitch']%12:tuple(event['spelling'])} if event.get('spelling') else ps)
     core.sub(n,'duration',dur)
     tiein=event is not None and start>event['start'];tieout=event is not None and start+dur<event['end']
     if tiein:core.sub(n,'tie',type='stop')
     if tieout:core.sub(n,'tie',type='start')
     core.sub(n,'voice',1)
+    pair=isinstance(triplet,tuple)
     if not full_rest:
-        typ,dots=({640:('quarter',0),320:('eighth',0),160:('16th',0),80:('32nd',0),40:('64th',0)}[dur] if triplet else core.TYPES[dur])
+        if pair:typ,dots={1280:('half',0),640:('quarter',0),320:('eighth',0),160:('16th',0),80:('32nd',0),40:('64th',0)}[dur]
+        else:typ,dots=({640:('quarter',0),320:('eighth',0),160:('16th',0),80:('32nd',0),40:('64th',0)}[dur] if triplet else core.TYPES[dur])
         core.sub(n,'type',typ)
         for _ in range(dots):core.sub(n,'dot')
+        if event is not None and event.get('courtesy') and start==event['start'] and not event.get('chord'):
+            core.sub(n,'accidental',event['courtesy'],cautionary='yes')
     if triplet:
-        tm=core.sub(n,'time-modification');core.sub(tm,'actual-notes',3);core.sub(tm,'normal-notes',2);core.sub(tm,'normal-type','eighth')
+        # Tercina de semínimas (dois tempos): 3:2 com unidade normal de semínima.
+        tm=core.sub(n,'time-modification');core.sub(tm,'actual-notes',3);core.sub(tm,'normal-notes',2);core.sub(tm,'normal-type','quarter' if pair else 'eighth')
     if event is not None and event.get('slash'):core.sub(n,'stem','none');core.sub(n,'notehead','slash')
     if tiein or tieout or triplet:
         nt=core.sub(n,'notations')
         if tiein:core.sub(nt,'tied',type='stop')
         if tieout:core.sub(nt,'tied',type='start')
-        if triplet and start%core.DIV==0:core.sub(nt,'tuplet',type='start',number=1,bracket='no')
-        if triplet and (start+dur)%core.DIV==0:core.sub(nt,'tuplet',type='stop',number=1)
+        if pair:
+            if start==triplet[1]:core.sub(nt,'tuplet',type='start',number=1,bracket='yes')
+            if start+dur==triplet[1]+2*core.DIV:core.sub(nt,'tuplet',type='stop',number=1)
+        else:
+            if triplet and start%core.DIV==0:core.sub(nt,'tuplet',type='start',number=1,bracket='no')
+            if triplet and (start+dur)%core.DIV==0:core.sub(nt,'tuplet',type='stop',number=1)
     if event is not None and start==event['start'] and event.get('lyric') and not event.get('chord'):
         lyric=core.sub(n,'lyric',number='1');core.sub(lyric,'syllabic',event['lyric']['syllabic']);core.sub(lyric,'text',event['lyric']['text'])
     if event is not None and start==event['start'] and event.get('lyric2'):
@@ -263,6 +342,31 @@ def high_melody_layout(part,lines):
         if pitches:assert image_y+image_height<=music_top-.8+1e-8
     return result
 
+def spell_melody(notes,chords,harmony,key,bars,ppq,origin):
+    """Aplica melody_spelling às notas (posições relativas à origem) e devolve os contadores do relatório."""
+    import melody_spelling
+    from batch_harmony import CHORD_INTERVALS
+    changes=sorted(((round(kc['tick']/ppq*core.DIV)-origin,kc) for kc in harmony.get('key_changes',[])),key=lambda item:item[0])
+    def active(position):
+        current=key
+        for tick,change in changes:
+            if tick<=position:current=change
+        return current
+    def key_at(position):
+        current=active(position);return current.get('fifths',0),current.get('minor',False)
+    cache={}
+    def key_map_at(position):
+        signature=key_at(position)
+        if signature not in cache:cache[signature]=core.spellings(*signature)
+        return cache[signature]
+    usable=[c for c in chords if c.get('quality') in CHORD_INTERVALS]
+    respelled=melody_spelling.spell_notes(notes,usable,key_at,key_map_at,lambda q:CHORD_INTERVALS[q])
+    courtesy=melody_spelling.courtesy_accidentals(notes,bars,lambda position:key_at(position)[0])
+    result={}
+    if respelled:result['contextual_spellings']=respelled
+    if courtesy:result['courtesy_accidentals']=courtesy
+    return result
+
 def build_musicxml(parsed,config,harmony,out,title):
     core.progress('Organizando a melodia e conferindo a duração das notas…')
     set_chord_notation(config.get('chord_notation'))
@@ -324,8 +428,11 @@ def build_musicxml(parsed,config,harmony,out,title):
         header=core._header_layout(metadata)
     chords=[]
     for ev in harmony['events']:
-        tick=round(ev['tick']/parsed['ppq']*core.DIV)-origin
-        beat=tick//core.DIV;grid=grids.get(beat,4);snapped=round(beat*core.DIV+round((tick-beat*core.DIV)/(core.DIV/grid))*core.DIV/grid)
+        quarter=ev['tick']/parsed['ppq']
+        # Com swing, as cifras seguem as colcheias escritas retas.
+        if note_report.get('swing'):quarter=melody_rhythm.straighten(quarter,note_report['swing']['ratio'])
+        tick=round(quarter*core.DIV)-origin
+        beat=tick//core.DIV;grid=melody_rhythm.grid_div(grids.get(beat,4));snapped=round(beat*core.DIV+round((tick-beat*core.DIV)/(core.DIV/grid))*core.DIV/grid)
         adjustment=(snapped-tick)/core.DIV;tick=snapped
         if 0<=tick<end-origin:chords.append(dict(ev,tick=tick,placement_adjustment_quarters=adjustment))
     unique_chords={}
@@ -392,6 +499,9 @@ def build_musicxml(parsed,config,harmony,out,title):
         tick=bars[index]['start'];prior=[c for c in chords if c['tick']<=tick]
         if prior and not any(c['tick']==tick for c in chords):chords.append(dict(max(prior,key=lambda c:c['tick']),tick=tick,reminder=True))
     chords.sort(key=lambda c:c['tick'])
+    if not chords_only and config.get('contextual_spelling',True):
+        # Grafia das notas pela cifra vigente e pelo contexto (G# sobre E7 em Dó maior), com cortesias.
+        note_report.update(spell_melody(notes+second,chords,harmony,key,bars,parsed['ppq'],origin))
     root=E.Element('score-partwise',version='4.0');work=core.sub(root,'work');core.sub(work,'work-title',title)
     ident=core.sub(root,'identification')
     if metadata['composer']:core.sub(ident,'creator',metadata['composer'],type='composer')
@@ -498,6 +608,13 @@ def build_musicxml(parsed,config,harmony,out,title):
                 offset=round(t['tick']/parsed['ppq']*core.DIV)-origin-b['start'] if i else 0
                 if offset:core.sub(di,'offset',offset)
                 core.sub(di,'sound',tempo=bpm)
+            if primary and i==0 and note_report.get('swing'):
+                # Colcheias escritas retas, tocadas longa-curta: a indicação de texto e a razão para a reprodução.
+                first,second_part=melody_rhythm.swing_text(note_report['swing']['ratio'])
+                di=core.sub(measure,'direction',placement='above');dt=core.sub(di,'direction-type')
+                core.sub(dt,'words','Swing',font_weight='bold')
+                sound=core.sub(di,'sound');swing=core.sub(sound,'swing')
+                core.sub(swing,'first',first);core.sub(swing,'second',second_part);core.sub(swing,'swing-type','eighth')
             for c in (chords if primary else []):
                 if b['start']<=c['tick']<b['end']:core.emit_harmony(measure,c,b['start'],ps)
             for label in labels:
@@ -518,7 +635,7 @@ def build_musicxml(parsed,config,harmony,out,title):
                 else:
                     bounds=[a]+inner_chords+[z]
                     for left,right in zip(bounds,bounds[1:]):
-                        for start,dur,tr in core.pieces(left,right,grids):core.emit_note(measure,start,dur,tr,n,ps)
+                        for start,dur,tr in core.pieces(left,right,grids,b):core.emit_note(measure,start,dur,tr,n,ps)
             assert sum(int(n.findtext('duration','0')) for n in measure.findall('note') if n.find('chord') is None)==b['end']-b['start']
             if primary and i+1 in config.get('tuplet_bracket_measures',[]):
                 # Explicit brackets keep adjacent triplet labels centered over their
