@@ -5,13 +5,33 @@ Channel numbers are 1-based; programs are 0-based General MIDI numbers.
 """
 from pathlib import Path
 from collections import Counter, defaultdict, deque
-import struct, hashlib, json, argparse
+import struct, hashlib, json, argparse, codecs
 
 GM = '''Acoustic Grand Piano|Bright Acoustic Piano|Electric Grand Piano|Honky-tonk Piano|Electric Piano 1|Electric Piano 2|Harpsichord|Clavinet|Celesta|Glockenspiel|Music Box|Vibraphone|Marimba|Xylophone|Tubular Bells|Dulcimer|Drawbar Organ|Percussive Organ|Rock Organ|Church Organ|Reed Organ|Accordion|Harmonica|Tango Accordion|Acoustic Guitar nylon|Acoustic Guitar steel|Electric Guitar jazz|Electric Guitar clean|Electric Guitar muted|Overdriven Guitar|Distortion Guitar|Guitar harmonics|Acoustic Bass|Electric Bass finger|Electric Bass pick|Fretless Bass|Slap Bass 1|Slap Bass 2|Synth Bass 1|Synth Bass 2|Violin|Viola|Cello|Contrabass|Tremolo Strings|Pizzicato Strings|Orchestral Harp|Timpani|String Ensemble 1|String Ensemble 2|SynthStrings 1|SynthStrings 2|Choir Aahs|Voice Oohs|Synth Voice|Orchestra Hit|Trumpet|Trombone|Tuba|Muted Trumpet|French Horn|Brass Section|SynthBrass 1|SynthBrass 2|Soprano Sax|Alto Sax|Tenor Sax|Baritone Sax|Oboe|English Horn|Bassoon|Clarinet|Piccolo|Flute|Recorder|Pan Flute|Blown Bottle|Shakuhachi|Whistle|Ocarina|Lead 1 square|Lead 2 sawtooth|Lead 3 calliope|Lead 4 chiff|Lead 5 charang|Lead 6 voice|Lead 7 fifths|Lead 8 bass lead|Pad 1 new age|Pad 2 warm|Pad 3 polysynth|Pad 4 choir|Pad 5 bowed|Pad 6 metallic|Pad 7 halo|Pad 8 sweep|FX 1 rain|FX 2 soundtrack|FX 3 crystal|FX 4 atmosphere|FX 5 brightness|FX 6 goblins|FX 7 echoes|FX 8 sci-fi|Sitar|Banjo|Shamisen|Koto|Kalimba|Bag pipe|Fiddle|Shanai|Tinkle Bell|Agogo|Steel Drums|Woodblock|Taiko Drum|Melodic Tom|Synth Drum|Reverse Cymbal|Guitar Fret Noise|Breath Noise|Seashore|Bird Tweet|Telephone Ring|Helicopter|Applause|Gunshot'''.split('|')
 
+def _single_byte(data):
+    # cp1252 for Windows-era files; the five bytes cp1252 leaves undefined are read as latin-1.
+    return ''.join(chr(b) if b in (0x81,0x8d,0x8f,0x90,0x9d) else bytes((b,)).decode('cp1252') for b in data)
+
+def decode_raw(data):
+    """Text of one meta event, not stripped: UTF-8 when valid, else cp1252/latin-1."""
+    try: return data.decode('utf-8')
+    except UnicodeDecodeError: return _single_byte(data)
+
+def decode_texts(payloads):
+    """Texts of a sequence of meta events (lyrics, karaoke syllables) decoded together.
+
+    A UTF-8 character split between two events (b'cora\\xc3', b'\\xa7\\xc3\\xa3o') is completed in the event where it
+    ends. When the whole sequence is not valid UTF-8, each event is read on its own (cp1252/latin-1)."""
+    payloads=[bytes(p) for p in payloads]
+    if payloads and payloads[0].startswith(b'\xef\xbb\xbf'): payloads[0]=payloads[0][3:]
+    try: b''.join(payloads).decode('utf-8')
+    except UnicodeDecodeError: return [decode_raw(p) for p in payloads]
+    decoder=codecs.getincrementaldecoder('utf-8')()
+    return [decoder.decode(p) for p in payloads]
+
 def decode(data):
-    try: return data.decode('utf-8').strip('\x00\r\n ')
-    except UnicodeDecodeError: return data.decode('cp1252', errors='replace').strip('\x00\r\n ')
+    return decode_raw(data).strip('\x00\r\n ')
 
 def vlq(data, pos):
     value = 0

@@ -150,7 +150,10 @@ def review_points(parsed,config,harmony,*,include_melody_report=False):
             add(diagnostic['tick']/parsed['ppq'],diagnostic['kind'],diagnostic['message'])
     report={}
     try:
-        _,_,report=melody_events(parsed,config,origin,end)
+        melody_notes,_,report=melody_events(parsed,config,origin,end)
+        if config.get('include_lyrics',True):
+            # Karaoke syllables left out or crowded on one note are worth a look (never blocking).
+            points.extend(attach_lyrics(parsed,melody_notes,origin,copy.deepcopy(bars),config).get('review_points',[]))
         for quarter in report.get('collision_original_quarters',[]):
             add(quarter,'rhythm_collision','Ataques próximos agrupados na grade; confira as notas e os ornamentos.')
         for item in report.get('boundary_grid_refinements',[]):
@@ -188,8 +191,10 @@ def review_points(parsed,config,harmony,*,include_melody_report=False):
 DEFAULT_SCORE_SUBTITLE=''
 
 def default_score_title(filename):
+    """Title from the file name; a name written without any accent gets them back where the word is unambiguous
+    ("Coracao esta em pedacos" -> "Coração está em pedaços")."""
     title=re.sub(r'[_]+',' ',Path(filename).stem)
-    return re.sub(r'\s+',' ',title).strip() or 'Partitura'
+    return lyrics_accents.restore_title(re.sub(r'\s+',' ',title).strip()) or 'Partitura'
 
 def score_metadata(values,default_title):
     result={}
@@ -638,68 +643,181 @@ def melody_events(parsed,config,origin,end):
 
 def _lyric_text(data):
     """Keeps leading spaces and slashes: in karaoke files they mark new words and lines."""
-    try:text=data.decode('utf-8')
-    except UnicodeDecodeError:text=data.decode('cp1252',errors='replace')
-    return text.strip('\x00\r\n')
+    from inspect_midi import decode_raw
+    return decode_raw(data).strip('\x00\r\n')
+
+_CREDIT=re.compile(r'@|https?:|www\.|\.com\b|\.br\b',re.I)
 
 def karaoke_syllables(parsed):
     """Syllables of the song text: lyric events (type 5), else karaoke text events (type 1, @ headers skipped).
 
-    Fewer than 16 syllables usually means credits or comments, not lyrics, so nothing is returned.
+    Each syllable keeps where the karaoke starts a word, a line ('/' before it, or a line break after the previous
+    one) and a paragraph ('\\' before it, or a blank line). The texts are decoded together, so a UTF-8 character
+    split between two events is kept. Fewer than 16 syllables usually means credits or comments, not lyrics, so
+    nothing is returned.
     """
+    from inspect_midi import decode_texts
     metas=[e for e in parsed.get('events',[]) if e.get('kind')=='meta']
     source=[e for e in metas if e['type']==5]
     karaoke=len(source)<16
     if karaoke:source=[e for e in metas if e['type']==1 and not _lyric_text(e['data']).lstrip().startswith('@')]
-    syllables=[];previous=None
-    for event in sorted(source,key=lambda e:(e['tick'],e['order'])):
-        text=_lyric_text(event['data'])
+    source=sorted(source,key=lambda e:(e['tick'],e['order']))
+    texts=decode_texts([e['data'] for e in source])
+    # Lyric events usually mark the syllables of a word with a hyphen ("Ma-", "ri-", "a "); many karaoke
+    # conversions write the word end as a trailing space instead ("Se", "gun", "da "), as text events do.
+    spaces=karaoke or sum(t.strip('\x00\r\n ').endswith('-') for t in texts)<max(2,len(texts)//20)
+    syllables=[];previous=None;line=paragraph=True
+    for event,raw in zip(source,texts):
+        raw=raw.strip('\x00')
+        lead=raw[:len(raw)-len(raw.lstrip(' \t\r\n/\\'))]
+        if '/' in lead or '\r' in lead or '\n' in lead:line=True
+        if '\\' in lead:line=paragraph=True
+        text=raw.strip('\r\n')
         # A new word starts after a space, slash or line mark, whether it is written at the start of
         # this syllable or at the end of the previous one ("o " + "seu").
-        if karaoke:starts=not syllables or text[:1] in (' ','/','\\') or (previous or '').endswith((' ','\t'))
+        if spaces:starts=not syllables or text[:1] in (' ','/','\\') or (previous or '').endswith((' ','\t'))
         else:starts=previous is None or not previous.rstrip().endswith('-')
         clean=text.lstrip('/\\').strip()
         if clean.endswith('-'):clean=clean[:-1].rstrip()
         previous=text
+        trail=raw[len(raw.rstrip(' \t\r\n')):]
+        breaks=trail.count('\n') or trail.count('\r')
         # Credits mixed into the lyrics (e-mail, web address) are not sung.
-        if not clean or re.search(r'@|https?:|www\.|\.com\b|\.br\b',clean,re.I):continue
-        syllables.append({'tick':event['tick'],'text':clean,'word_start':starts})
+        if clean and not _CREDIT.search(clean):
+            syllables.append({'tick':event['tick'],'text':clean,'word_start':starts or line,
+                              'line_start':line,'paragraph_start':paragraph})
+            line=paragraph=False
+        if breaks:line=True
+        if breaks>=2:paragraph=True
     if len(syllables)<16:return []
     if lyrics_accents.needs_restoring([s['text'] for s in syllables]):
         restored=lyrics_accents.restore(syllables)
         if restored:syllables[0]['accents_restored']=restored
     return syllables
 
-def attach_lyrics(parsed,notes,origin):
-    """Puts each syllable on the melody note starting with it (same time conversion as chords).
+def lyrics_lines(syllables,ppq,origin=0,bars=None,kinds=None,groups=None):
+    """Lines of the lyric for the lyric page: tick (MIDI), quarter, measure, text and paragraph number (from 1)."""
+    import lyrics_align
+    events=[dict(s,pos=round(s['tick']/ppq*DIV)-origin) for s in syllables]
+    if groups is None:groups,_=lyrics_align.group_lines(events,DIV)
+    lines=[];paragraph=0
+    for number,indices in enumerate(groups):
+        first=syllables[indices[0]]
+        if first.get('paragraph_start') or not lines:paragraph+=1
+        item={'tick':first['tick'],'quarter':round(first['tick']/ppq,6),'text':lyrics_align.line_text(syllables,indices),'paragraph':paragraph}
+        if bars:
+            position=events[indices[0]]['pos']
+            index=next((i for i,b in enumerate(bars) if b['start']<=position<b['end']),None)
+            item['measure']=None if index is None else index+1
+            if index is not None:item['measure_position']=round((position-bars[index]['start'])/(bars[index]['end']-bars[index]['start']),3)
+        if kinds:item['placement']={'sung':'notes','spoken':'spoken','text':'text'}[kinds[number]]
+        lines.append(item)
+    return lines
 
-    A syllable more than one beat away from any attack is left out; several on one note are joined.
+def _solo_positions(parsed,config,origin):
+    """Score positions of solo-source attacks that the main melody sources do not play."""
+    if not config or not config.get('solo_sources'):return []
+    ppq=parsed['ppq'];main=config.get('melody_sources',[])
+    return sorted({round(n['start']/ppq*DIV)-origin for n in parsed['notes']
+                   if source_matches(n,config['solo_sources']) and not source_matches(n,main)})
+
+def attach_lyrics(parsed,notes,origin,bars=None,config=None):
+    """Puts the karaoke syllables on the melody notes (lyrics_align.py) and reports what did not fit.
+
+    Words written whole by the karaoke are split into syllables over the notes until the next word; two words on one
+    note are joined by the elision sign; speech over an instrumental part becomes text "(falado: …)" and a sung line
+    the chosen melody does not play becomes text under its first measure. When the melody does not carry the song
+    (fewer than 40% of the syllables fit), every line is written under its first measure ('lines' mode).
     """
+    import lyrics_align
     syllables=karaoke_syllables(parsed)
     attacks=sorted(notes,key=lambda n:n['start'])
-    if not syllables or not attacks:return {'syllables':len(syllables),'attached':0}
-    assigned=[];index=0;sung=[]
-    for syllable in syllables:
-        tick=round(syllable['tick']/parsed['ppq']*DIV)-origin
-        sung.append(tick)
-        while index+1<len(attacks) and attacks[index+1]['start']<=tick+DIV//4:index+=1
-        note=attacks[index]
-        if abs(note['start']-tick)>DIV:continue
-        if assigned and assigned[-1]['note'] is note:
-            assigned[-1]['text']+=('' if not syllable['word_start'] else ' ')+syllable['text'];assigned[-1]['last_word_start']=syllable['word_start']
-        else:assigned.append({'note':note,'text':syllable['text'],'word_start':syllable['word_start'],'last_word_start':syllable['word_start']})
-    crowded=[]
-    for position,item in enumerate(assigned):
-        following=assigned[position+1]['word_start'] if position+1<len(assigned) else True
-        syllabic=('single' if following else 'begin') if item['word_start'] else ('end' if following else 'middle')
-        item['note']['lyric']={'text':item['text'],'syllabic':syllabic}
+    if not syllables:return {'syllables':0,'attached':0,'sung_ticks':[]}
+    config=config or {}
+    mode=config.get('lyrics_mode','auto')
+    if mode not in ('auto','notes','lines'):mode='auto'
+    ppq=parsed['ppq']
+    events=[{'pos':round(s['tick']/ppq*DIV)-origin,'text':s['text'],'word_start':s['word_start'],
+             'line_start':s.get('line_start',False),'paragraph_start':s.get('paragraph_start',False)}
+            for s in syllables]
+    plan=lyrics_align.plan(events,attacks,DIV,bars=bars,mode=mode,solo_positions=_solo_positions(parsed,config,origin))
+    ordered=plan['attacks'];detail=plan['report'];placed=detail['events']
+    crowded=[];attached=0;placed_events=set()
+    for k,pieces in sorted(plan['placements'].items()):
+        note=ordered[k];lyric,words=lyrics_align.note_lyric(pieces)
+        note['lyric']=lyric;attached+=1
+        placed_events.update(piece['event'] for piece in pieces)
         # Three or more sung words on one note: the melody line is probably not the sung voice.
-        if item['text'].count(' ')>=2:crowded.append(item['note']['start'])
-    # When each word is sung (score ticks), also for words left off the melody: section marks use it.
-    result={'syllables':len(syllables),'attached':len(assigned),'sung_ticks':sung}
+        if words>=3:crowded.append(note['start'])
+    for k in plan['extend_stop']:ordered[k]['lyric_extend_stop']=True
+    def where(position,text=None):
+        quarter=(position+origin)/DIV
+        item={'quarter':round(quarter,6),'tick':round(quarter*ppq)}
+        if bars:item['measure']=next((i+1 for i,b in enumerate(bars) if b['start']<=position<b['end']),None)
+        if text is not None:item['text']=text
+        return item
+    spoken=[];texts=[]
+    for item in plan['texts']:
+        text=f"(falado: {item['text']})" if item['kind']=='spoken' else item['text']
+        entry=dict(where(item['pos'],text),kind=item['kind'])
+        if item['kind']=='spoken':spoken.append(entry)
+        texts.append(dict(entry,pos=item['pos']))
+    if bars:_anchor_lyric_texts(texts,bars,attacks)
+    spoken_events={i for number,kind in enumerate(detail['kinds']) if kind=='spoken' for i in detail['lines'][number]}
+    result={'syllables':len(syllables),'attached':attached,'share':round(len(placed_events)/len(syllables),3),
+            'mode':detail['mode'],'requested_mode':mode,
+            'dropped':[where(placed[i]['pos'],placed[i]['text']) for i in detail['dropped']],
+            'crowded':[where(start,ordered_text) for start,ordered_text in ((s,next((n['lyric']['text'] for n in ordered if n['start']==s),'')) for s in crowded)],
+            'spoken':spoken,'text_lines':[{k:v for k,v in t.items() if k!='pos'} for t in texts if t['kind']=='text'],
+            'lines':lyrics_lines(syllables,ppq,origin,bars,detail['kinds'],detail['lines']),
+            'offset_quarters':round(detail['offset']/DIV,4),'match_estimate':detail['match_estimate'],
+            'line_marks':detail['line_marks'],
+            # When each word is heard (score ticks), also for words left off the melody; speech is not sung.
+            'sung_ticks':[e['pos'] for i,e in enumerate(placed) if i not in spoken_events]}
     if crowded:result['crowded_notes']=crowded
     if syllables[0].get('accents_restored'):result['accents_restored']=syllables[0]['accents_restored']
+    if bars:result['review_points']=lyrics_review_points(result,origin,bars)
     return result
+
+def _anchor_lyric_texts(texts,bars,attacks):
+    """Each spoken or unsung line goes to the measure where it starts, at the last attack before it (or the bar start)."""
+    for item in texts:
+        index=next((i for i,b in enumerate(bars) if b['start']<=item['pos']<b['end']),None)
+        if index is None:index=0 if item['pos']<bars[0]['start'] else len(bars)-1
+        bar=bars[index]
+        if index+1<len(bars) and item['pos']-bar['start']>=.75*(bar['end']-bar['start']):
+            # A line that starts on the last beat (pickup) is written under the next measure.
+            index+=1;bar=bars[index];item=dict(item,pos=bar['start'])
+        candidates=[n['start'] for n in attacks if bar['start']<=n['start']<=item['pos']+DIV//8]
+        offset=(max(candidates) if candidates else bar['start'])-bar['start']
+        existing=next((t for t in bar.setdefault('lyric_texts',[]) if t['offset']==offset),None)
+        if existing:existing['text']+=' / '+item['text']
+        else:bar['lyric_texts'].append({'offset':offset,'text':item['text'],'kind':item['kind']})
+
+def lyrics_review_points(lyrics,origin,bars):
+    """Non-blocking review points: one per measure with syllables left out or crowded, one when the lyric went by lines."""
+    points=[]
+    if lyrics.get('mode')=='lines':
+        point=locate_review_point((bars[0]['start']+origin)/DIV,origin,bars,'lyrics_dropped',
+            f"Só {lyrics.get('match_estimate',0):.0%} das sílabas casam com a melodia escolhida: a letra foi escrita por versos, "
+            'sob o primeiro compasso de cada um. Escolha a pista do canto para ter a letra sob as notas.')
+        if point is not None:points.append(point)
+        return points
+    for kind,items,message in (
+            ('lyrics_dropped',lyrics.get('dropped',[]),'{n} sílaba(s) da letra sem nota próxima ficaram fora: {words}. Confira a melodia e a letra neste compasso.'),
+            ('lyrics_crowded',lyrics.get('crowded',[]),'Três ou mais palavras na mesma nota ({words}). Confira se a melodia é a voz cantada.')):
+        by_measure={}
+        for item in items:by_measure.setdefault(item.get('measure'),[]).append(item)
+        groups=[(measure,group) for measure,group in by_measure.items() if measure is not None]
+        for number,(measure,group) in enumerate(groups[:LYRIC_POINTS]):
+            words=', '.join(f"“{item['text']}”" for item in group[:6] if item.get('text'))
+            text=message.format(n=len(group),words=words)
+            if number==LYRIC_POINTS-1 and len(groups)>LYRIC_POINTS:text+=f' O mesmo acontece em mais {len(groups)-LYRIC_POINTS} compasso(s).'
+            point=locate_review_point(group[0]['quarter'],origin,bars,kind,text)
+            if point is not None:points.append(point)
+    return points
+
+LYRIC_POINTS=12  # review points of each kind; the last one counts the remaining measures
 
 def instrument_names():
     """Portuguese General MIDI names: (full name, staff abbreviation) for each program."""
@@ -1122,6 +1240,8 @@ def convert_score(xml,report,out,filename):
     save_and_render(pre,final,out,out/'gravacao.log')
     # Primeiro os nomes dos instrumentos (só SVG), depois paginação e espaçamento uma vez.
     layout_with_instrument_labels(final,report,out)
+    # Syllables checked on the rendered pages (score_layout.py); kept apart from repair_spacing.
+    from score_layout import repair_lyric_collisions;repair_lyric_collisions(final,report,out)
     compact_instrument_label_layout(final,report,out)
     render_final_pages(final,out)
     progress('Conferindo notas, ritmos e diagramas na partitura salva…')
@@ -1146,7 +1266,8 @@ def convert_score(xml,report,out,filename):
             if labels:
                 position=0
                 for element in m:
-                    if element.tag=='direction':
+                    # Lyric lines written as text sit below the staff; the instrument names above it.
+                    if element.tag=='direction' and element.get('placement')!='below':
                         words=element.find('direction-type/words')
                         if words is not None and ''.join(words.itertext()).strip():
                             tick=b['start']+position+round(int(element.findtext('offset','0'))/reopened_div*DIV)

@@ -243,6 +243,68 @@ def analyze(svg_path, staff_right=None):
                             image_image_overlaps=sum(x['type']=='image-image' for x in overlaps),harmony_image_overlaps=sum(x['type']=='harmony-image' for x in overlaps),clipped=len(clipped)),
                 method='Full keyboard template bounds; transformed SVG path control-point enclosures for Harmony. Spatial grouping by staff row and adjacent glyph boxes, never XML glyph order.')
 
+LYRIC_MIN_GAP=.2  # staff spaces between neighbouring syllables of one lyric line
+
+def _staff_space(records):
+    ys=sorted({round(y,3) for rec in records if rec['element'].get('class')=='StaffLines'
+               for y in (_xy(rec['matrix'],(0,float(v)))[1] for v in re.findall(NUMBER,rec['element'].get('points',''))[1::2])})
+    gaps=[b-a for a,b in zip(ys,ys[1:]) if b-a>1]
+    return min(gaps) if gaps else 82.677
+
+def analyze_lyrics(svg_path,min_gap=LYRIC_MIN_GAP):
+    """Lyric syllables, hyphens and lyric-line texts of one page, and where they collide.
+
+    Syllables are grouped by staff row (the staff above them) and by verse line (their vertical position); two
+    neighbours closer than `min_gap` staff spaces, a hyphen running into a syllable, or a text line written below
+    the staff (Expression) over a syllable are collisions. Boxes are in SVG units; gaps are in staff spaces."""
+    root=ET.parse(Path(svg_path)).getroot();records=_records(root);rows=_staff_rows(records);space=_staff_space(records)
+    items=[]
+    for rec in records:
+        cls=rec['element'].get('class','')
+        if cls not in ('Lyrics','LyricsLineSegment','Expression','BarLine'):continue
+        if rec['tag']=='polyline':
+            values=[float(v) for v in re.findall(NUMBER,rec['element'].get('points',''))]
+            box=_bbox(_xy(rec['matrix'],(values[i],values[i+1])) for i in range(0,len(values)-1,2))
+        elif rec['tag']=='path':box=_bbox(_xy(rec['matrix'],p) for p in _path_points(rec['element'].get('d','')))
+        else:continue
+        if box is None:continue
+        # A barline belongs to the staff it crosses; a syllable or text to the staff above it.
+        above=[r for r in rows if r['bbox'][1]<=(box[1]+box[3])/2]
+        row=(above[-1] if above else rows[0])['row'] if rows else 0
+        items.append(dict(kind={'Lyrics':'syllable','LyricsLineSegment':'line','Expression':'text','BarLine':'barline'}[cls],bbox=box,row=row))
+    syllables=[i for i in items if i['kind']=='syllable'];collisions=[]
+    for row in sorted({i['row'] for i in syllables}):
+        in_row=sorted((i for i in syllables if i['row']==row),key=lambda i:(i['bbox'][1]+i['bbox'][3])/2)
+        verses=[]
+        for item in in_row:
+            middle=(item['bbox'][1]+item['bbox'][3])/2
+            if verses and middle-verses[-1][-1]['_middle']<=space*1.2:verses[-1].append(item)
+            else:verses.append([item])
+            item['_middle']=middle
+        for verse in verses:
+            verse.sort(key=lambda i:i['bbox'][0])
+            for a,b in zip(verse,verse[1:]):
+                gap=(b['bbox'][0]-a['bbox'][2])/space
+                if gap<min_gap:collisions.append(dict(type='syllable-syllable',row=row,gap=round(gap,3),x=a['bbox'][2],bbox=_union([a['bbox'],b['bbox']])))
+        for line in (i for i in items if i['kind']=='line' and i['row']==row):
+            height=line['bbox'][3]-line['bbox'][1]
+            if height>space*.6:continue  # a slanted or tall line is not a hyphen or extender
+            for item in in_row:
+                if _intersection(line['bbox'],item['bbox'],.05*space):
+                    collisions.append(dict(type='line-syllable',row=row,gap=0,x=line['bbox'][0],bbox=_union([line['bbox'],item['bbox']])));break
+        for text in (i for i in items if i['kind']=='text' and i['row']==row):
+            for item in in_row:
+                if _intersection(text['bbox'],item['bbox'],.05*space):
+                    collisions.append(dict(type='text-syllable',row=row,gap=0,x=item['bbox'][0],bbox=_union([text['bbox'],item['bbox']])));break
+    for item in syllables:item.pop('_middle',None)
+    barlines={}
+    for item in items:
+        if item['kind']=='barline':barlines.setdefault(item['row'],[]).append(item['bbox'][2])
+    return dict(svg_path=str(Path(svg_path).resolve()),staff_space=space,rows=len(rows),syllables=len(syllables),
+                texts=sum(i['kind']=='text' for i in items),collisions=collisions,
+                barlines={row:sorted(xs) for row,xs in barlines.items()},
+                row_left={r['row']:r['bbox'][0] for r in rows})
+
 if __name__=='__main__':
     ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('svg',nargs='+');ap.add_argument('--out');ap.add_argument('--staff-right',type=float)
     args=ap.parse_args();results=[analyze(p,args.staff_right) for p in args.svg];output=results[0] if len(results)==1 else results

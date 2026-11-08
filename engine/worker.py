@@ -348,6 +348,8 @@ def main():
         send('progress',message='Análise concluída. Preparando as cifras e os pontos de revisão…')
         response={'analysisPath':str(analysis),'reviewedProfile':reviewed,'keyFifths':fifths,'keyMinor':harmony.get('key',{}).get('minor',False),'keyChanges':key_changes,'chords':chords,'warnings':[] if reviewed else harmony.get('warnings',[]),'reason':config.get('reason',''),'registerAdaptation':config.get('register_adaptation',''),'reviewPoints':points,'rhythmReady':rhythm_ready,'rhythmMessage':rhythm_message}
         if 'melodyMerge' in document:response['melodyMerge']=document['melodyMerge']
+        # Title suggested from the file name, with the accents a stripped name lost.
+        if config.get('filename'):response['suggestedTitle']=engine.default_score_title(config['filename'])
         if diagnosis:
             response['sourceDiagnosis']=diagnosis
             response['warnings']=[diagnosis['message'],*response['warnings']]
@@ -375,6 +377,8 @@ def main():
     config['transpose_semitones']=engine.transpose_semitones(req.get('transposeSemitones'))
     config['fold_repeats']=bool(req.get('foldRepeats'))
     config['include_lyrics']=req.get('includeLyrics') is not False
+    # Lyrics under the notes ('notes'), by lines under the first measure of each ('lines') or chosen per song ('auto').
+    config['lyrics_mode']=req.get('lyricsMode') if req.get('lyricsMode') in ('auto','notes','lines') else 'auto'
     config['chord_staff']=bool(req.get('chordStaff'))
     config['note_names']='solfejo' if req.get('noteNames')=='solfejo' else 'letras'
     # Presentation defaults of new scores: highlighted diagrams, title and page count in the footer,
