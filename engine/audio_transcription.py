@@ -132,6 +132,31 @@ def build_notes(frames, onsets, onset_threshold=.5, frame_threshold=.3, minimum_
     return sorted(events)
 
 
+SHORT_FRAMES = 6        # ~70 ms: semicolcheias cantadas em andamento rápido
+LONG_FRAMES = 11        # ~128 ms: o mínimo original do Basic Pitch
+
+
+def filter_short_notes(events, long_frames=LONG_FRAMES, minimum_amplitude=.4, reach=30, leap=7):
+    """Notas curtas (entre SHORT_FRAMES e long_frames quadros) só ficam quando são fortes e continuam a linha: outra
+    nota começa a até `reach` quadros (~0,35 s) dela, a até `leap` semitons. As demais costumam ser ruído do modelo.
+    events são (início, fim, altura, amplitude) em quadros; as notas longas passam sem mudança."""
+    ordered = sorted(events); starts = [e[0] for e in ordered]
+    import bisect
+    kept = []
+    for index, event in enumerate(ordered):
+        start, end, pitch, amplitude = event
+        if end - start > long_frames: kept.append(event); continue
+        if amplitude < minimum_amplitude: continue
+        lo, hi = bisect.bisect_left(starts, start - reach), bisect.bisect_right(starts, start + reach)
+        if any(j != index and abs(ordered[j][2] - pitch) <= leap and ordered[j][2] != pitch for j in range(lo, hi)): kept.append(event)
+    return kept
+
+
+def detect_notes(frames, onsets):
+    """Notas do modelo com o mínimo curto (semicolcheias cantadas) e o filtro de amplitude e continuidade."""
+    return filter_short_notes(build_notes(frames, onsets, minimum_frames=SHORT_FRAMES))
+
+
 def beat_track(envelope, fps=FRAMES_PER_SECOND, tightness=100.0):
     """Beat times (seconds) and tempo from an onset-strength envelope: tempo by autocorrelation weighted around 110 BPM,
     beats by dynamic programming (Ellis 2007)."""
@@ -419,7 +444,7 @@ def transcribe(wav_path, midi_path, progress=lambda message: None):
     progress('Ouvindo as notas com o modelo Basic Pitch…')
     frames, onsets, _ = posteriors(audio)
     times = frame_times(len(frames))
-    events = build_notes(frames, onsets)
+    events = detect_notes(frames, onsets)
     def seconds(frame): return float(times[min(frame, len(times) - 1)])
     notes = [(seconds(a), seconds(b), pitch, amplitude) for a, b, pitch, amplitude in events]
     if len(notes) < 8: raise ValueError('Quase nenhuma nota reconhecida neste áudio.')
@@ -428,14 +453,16 @@ def transcribe(wav_path, midi_path, progress=lambda message: None):
     beats = steady_grid(beats, notes)
     if len(beats) >= 2: bpm = 60 / float(np.median(np.diff(beats)))
     melody, accompaniment = skyline(notes)
-    phase = downbeat_phase(accompaniment or melody, beats)
+    # Compasso pelos acentos, como na gravação pelo teclado (3 ou 4 tempos).
+    meter = meter_guess(notes, beats)
+    phase = downbeat_phase(accompaniment or melody, beats, meter=meter)
     progress('Reconhecendo os acordes pelo som…')
-    chords = audio_chords(melody, accompaniment, beats, phase)
-    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords))
+    chords = audio_chords(melody, accompaniment, beats, phase, span=2 if meter == 4 else 3)
+    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords), meter=meter)
     pitches = [n[2] for n in melody]
     return {'notes': len(notes), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),
             'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
-            'bpm': round(bpm, 1), 'beats': len(beats), 'downbeat_phase': phase, 'seconds': round(len(audio) / SAMPLE_RATE, 1),
+            'bpm': round(bpm, 1), 'meter': meter, 'beats': len(beats), 'downbeat_phase': phase, 'seconds': round(len(audio) / SAMPLE_RATE, 1),
             'melody_range': [min(pitches), max(pitches)] if pitches else None, **write_midi.last}
 
 

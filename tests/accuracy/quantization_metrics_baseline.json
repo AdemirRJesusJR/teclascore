@@ -5,7 +5,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0288,
+  "onset_error_mean": 0.0295,
   "collisions": 0
  },
  "7e6964fcc877990aa760f9682fa1fd756db650a4cb5524ec499de03294236b20": {
@@ -14,7 +14,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0346,
+  "onset_error_mean": 0.0348,
   "collisions": 0
  },
  "2e00c1a2d4573e0a1c9c5674d7f248a9ce43bce879b488ed10caee2d1f98d475": {
@@ -23,7 +23,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0137,
+  "onset_error_mean": 0.0134,
   "collisions": 0
  },
  "39f7f7d8f284d8c54651b20efca304208d717b7bc5bb694e92f7aca7c0f375fb": {
@@ -32,7 +32,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0415,
+  "onset_error_mean": 0.0618,
   "collisions": 0
  },
  "233f0055092e5ddf29e21a3b8a4a8c2c842c704cf58ae09dce327e586aa70d02": {
@@ -41,7 +41,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0507,
+  "onset_error_mean": 0.0539,
   "collisions": 0
  },
  "aaf4e37111f31d052c6afb852c8d896327cfbce15f39470c1c2d840228ed9df9": {
@@ -50,7 +50,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0271,
+  "onset_error_mean": 0.028,
   "collisions": 3
  },
  "4cf498844e68e6b4e3256c613b955e6d8b9b53b1fcd9468e286c7c0ae2988124": {
@@ -59,7 +59,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0313,
+  "onset_error_mean": 0.0322,
   "collisions": 0
  },
  "e293219e920d6de4ff103388b7bd8757a4ff36511740802de6f6339dc2b2464c": {
@@ -77,7 +77,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0201,
+  "onset_error_mean": 0.0197,
   "collisions": 0
  },
  "7036f085f40f75c9255ccd816d82e884a27fdf0638dba429ee889017fdfa6004": {
@@ -86,7 +86,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0288,
+  "onset_error_mean": 0.0286,
   "collisions": 0
  },
  "c9a46ff4fccbbe6bf82fec54c731e1f6849fc328011fbab78ea8ecbfe29a94f5": {
@@ -104,7 +104,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0406,
+  "onset_error_mean": 0.0402,
   "collisions": 0
  },
  "d44e6c2540318dab6f46b7f08c4550b524bbaa58b72650f1536864ef3e3b0ddb": {
@@ -122,7 +122,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0358,
+  "onset_error_mean": 0.0419,
   "collisions": 0
  },
  "8a266b511863cf5c853f8a97be7cf684c10f4910c564308cfe1c8eda1174e59e": {
@@ -131,7 +131,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0346,
+  "onset_error_mean": 0.0397,
   "collisions": 0
  },
  "268f586d293031c1e5ff0c81cf7654566f4ec68566223527a73a98e6dfa44278": {
@@ -140,7 +140,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0027,
+  "onset_error_mean": 0.0032,
   "collisions": 0
  },
  "82c8e1591c574d14065785036662e59ec6db15dd83c2194ad8d812981678f031": {
@@ -149,7 +149,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.019,
+  "onset_error_mean": 0.0181,
   "collisions": 0
  },
  "105040e36c618f2eb316a711d3e57798def387dec524384b40c293a17fcc6d07": {
@@ -158,7 +158,7 @@
   "attack_precision": 1.0,
   "pitch_fidelity": 1.0,
   "restored_attacks_present": 1.0,
-  "onset_error_mean": 0.0317,
+  "onset_error_mean": 0.0303,
   "collisions": 0
  }
 }

@@ -962,8 +962,12 @@ def analyze_harmony(parsed, melody_sources=None, context_advice=False):
                 # E.g. F#-A-C in an upper part + an actually played D bass is
                 # D7, not an invented D nor a freestanding F# diminished chord.
                 used_bass = False
+                # In new analyses a suspended upper structure may be completed by the bass on its own root:
+                # E-A-D-G over a C bass is C6/9, not A7sus4. Complete triads are NOT renamed by the bass
+                # (a passing A under C-E-G is not a new Am7).
                 if (bass_pc is not None and bass_pc not in pcs
-                        and (candidate is None or candidate['quality'] in ('dim', 'dim7', 'aug'))):
+                        and (candidate is None or candidate['quality'] in ('dim', 'dim7', 'aug')
+                             or (context_advice and candidate['quality'] in ('sus2', 'sus4', '7sus4')))):
                     joined = weights.copy()
                     joined[bass_pc] = max(weights.values())
                     with_bass = _choose_candidate(set(joined), joined, bass_pc, context_advice=context_advice,

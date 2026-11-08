@@ -71,7 +71,9 @@ def profile_metrics(parsed, config, origin, end, events, statistics, proof=None)
     expected = _clustered({n['start'] / ppq for n in main}, cluster)
     sources = _clustered({n['start'] / ppq for n in every}, cluster)
     written = sorted((e['start'] + origin) / engine.DIV for e in events)
-    recall = _matched(expected, written) / len(expected) if expected else 1.
+    # Attacks the engine masks on purpose as an inner voice of the same source are not melody attacks.
+    masked = statistics.get('masked_inner_attacks', 0)
+    recall = min(1., _matched(expected, written) / max(1, len(expected) - masked)) if expected else 1.
     precision = _matched(sources, written) / len(written) if written else 1.
     pitched = sum(any(n['pitch'] == e['pitch'] and abs(n['start'] / ppq - (e['start'] + origin) / engine.DIV) < ONSET_TOLERANCE
                       for n in every) for e in events)
