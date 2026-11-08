@@ -28,6 +28,8 @@ public partial class App : Application
             // An audio export interrupted by closing the app may have left MuseScore's own metronome switched off.
             Teclas.Core.MuseScoreMetronomeGuard.RestorePending();
         }
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-library-group-ui")
+        { VerifyLibraryGroupUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-lyrics-editor-ui")
         { VerifyLyricsEditorUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-recorded-melody-ui")

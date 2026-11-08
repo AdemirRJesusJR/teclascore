@@ -1,3 +1,7 @@
+TECLASCORE 1.5.3
+
+Ao concluir uma etapa, a música continua aberta mesmo quando muda de grupo na lista (de Prontas para Para conferir, por exemplo). Antes a tela ficava vazia até a música ser clicada de novo.
+
 TECLASCORE 1.5.2
 
 Com a opção Metrônomo desmarcada, a partitura toca sem cliques, mesmo que o metrônomo esteja ligado no MuseScore. A primeira reprodução de cada música prepara o áudio de novo.

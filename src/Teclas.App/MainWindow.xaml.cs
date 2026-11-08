@@ -413,6 +413,8 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     private void SelectionChanged(object sender,SelectionChangedEventArgs e)
     {
         if(Library is null)return;
+        // A card moving to another group must not close the open song (see MainWindow.LibraryRegrouping.cs).
+        if(KeepSelectionWhileRegrouping(e))return;
         StopObservingScoreDraft();
         loading=true;selectedFile=Library.SelectedItem as MidiRow;
         ObserveScoreDraft();

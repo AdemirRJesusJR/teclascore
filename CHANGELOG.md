@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 1.5.3 — 08/11/2026
+
+Correção da música aberta ao avançar as etapas.
+
+- **A música continua aberta ao avançar as etapas.** Concluir uma etapa podia mudar a música de grupo na lista (de Prontas para Para conferir, por exemplo), e a tela ficava vazia até a música ser clicada de novo na lista lateral. Agora a música continua aberta e a lista só muda o cartão de lugar.
+
 ## 1.5.2 — 08/11/2026
 
 Correção do metrônomo na reprodução da partitura.

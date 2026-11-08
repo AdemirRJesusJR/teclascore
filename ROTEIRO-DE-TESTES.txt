@@ -1,3 +1,9 @@
+TECLASCORE 1.5.3 · MÚSICA ABERTA ENTRE AS ETAPAS
+
+1. Em Sobre, confira que a versão é 1.5.3.
+2. Abra uma música já gerada do grupo Prontas e volte à etapa Melodia. Avance para a etapa 2 e as seguintes: a música continua aberta, mesmo quando o cartão muda para Para conferir na lista lateral.
+3. Altere as posições dos diagramas e use Alt+← e Alt+→: a tela nunca fica vazia.
+
 TECLASCORE 1.5.2 · METRÔNOMO DESMARCADO
 
 1. Em Sobre, confira que a versão é 1.5.2.
