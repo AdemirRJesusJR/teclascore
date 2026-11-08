@@ -165,6 +165,30 @@ public partial class App
             }));
             typeof(MainWindow).GetMethod("OpenMidiFolderClick", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [window, new RoutedEventArgs()]);
             await revisit.Task;
+
+            // Listening: clicking another MIDI while one plays switches to it (the old Stop notification must not cancel the new one).
+            string listenFolder = Path.Combine(work, "Escuta"); Directory.CreateDirectory(listenFolder);
+            byte[] longMidi = TinyMidi(); longMidi[^9] = 0x8F; longMidi[^8] = 0x00; // 1920-tick note: about 2 s
+            foreach (var name in new[] { "Um.mid", "Dois.mid" }) await File.WriteAllBytesAsync(Path.Combine(listenFolder, name), longMidi);
+            var output = new SilentMidiOutput(); int othersStopped = 0;
+            var listenWindow = new MidiFolderWindow(listenFolder, false, Array.Empty<string>(), () => othersStopped++, () => output) { ShowActivated = false, Opacity = 0, ShowInTaskbar = false };
+            listenWindow.Show();
+            try
+            {
+                await Wait(() => listenWindow.ScanTask is { IsCompleted: true } && listenWindow.Items.Count == 2);
+                var listenMethod = typeof(MidiFolderWindow).GetMethod("ListenClick", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                void Listen(MidiFolderItem item) => listenMethod.Invoke(listenWindow, [new Button { Tag = item }, new RoutedEventArgs()]);
+                MidiFolderItem one = listenWindow.Items.Single(i => i.Name == "Um.mid"), two = listenWindow.Items.Single(i => i.Name == "Dois.mid");
+                Listen(one);
+                await Wait(() => one.ListenGlyph == "■");
+                Listen(two);
+                await Wait(() => two.ListenGlyph != "…");
+                await Task.Delay(150); Flush();
+                Check(two.ListenGlyph == "■" && one.ListenGlyph == "▶" && othersStopped == 2, "listening-switches-to-the-clicked-midi");
+                Listen(two); Flush();
+                Check(two.ListenGlyph == "▶", "clicking-the-playing-midi-stops-it");
+            }
+            finally { listenWindow.Close(); }
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, copiedFiles = 0, soundsPlayed = 0 }, new JsonSerializerOptions { WriteIndented = true }));
             window.Close(); window = null; Shutdown(0);
         }

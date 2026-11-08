@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 1.5.1 — 08/11/2026
+
+Correção na escuta da Pasta de MIDIs.
+
+- **Trocar de MIDI enquanto um toca.** Na janela Pasta de MIDIs, clicar em ▶ de outro arquivo enquanto um MIDI tocava parava a música em vez de passar para o arquivo clicado. Agora a escuta troca direto para o MIDI escolhido; clicar em ■ no que está tocando continua parando.
+
 ## 1.5.0 — 08/11/2026
 
 Letras bem divididas e alinhadas à melodia, cifras e notas mais precisas e geração mais rápida, com uma fila que trabalha em segundo plano.

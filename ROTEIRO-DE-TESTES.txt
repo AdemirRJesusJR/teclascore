@@ -1,3 +1,9 @@
+TECLASCORE 1.5.1 · ESCUTA NA PASTA DE MIDIS
+
+1. Em Sobre, confira que a versão é 1.5.1.
+2. Abra a Pasta de MIDIs, toque um MIDI com ▶ e, sem parar, clique em ▶ de outro: a música troca para o arquivo clicado, o anterior volta a mostrar ▶ e o novo mostra ■.
+3. Clique em ■ no MIDI que está tocando: a música para.
+
 TECLASCORE 1.5.0 · LETRAS, PRECISÃO E FILA EM SEGUNDO PLANO
 
 1. Em Sobre, confira que a versão é 1.5.0.

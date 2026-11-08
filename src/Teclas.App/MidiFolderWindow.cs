@@ -47,6 +47,8 @@ public sealed class MidiFolderWindow : Window
     private readonly Func<IMidiOutputTransport>? outputFactory;
     private MidiTrackPlayer? player;
     private MidiFolderItem? playing;
+    // True only after player.Play for `playing`: the previous file's queued Stop notification must not cancel a file still loading.
+    private bool playingStarted;
     private CancellationTokenSource? scan;
     private string? lastScanNote;
     public IReadOnlyList<string> SelectedPaths { get; private set; } = [];
@@ -277,6 +279,7 @@ public sealed class MidiFolderWindow : Window
             if (!ReferenceEquals(item, playing)) return;
             player ??= CreatePlayer();
             player.Play(sequence);
+            playingStarted = true;
             item.ListenGlyph = "■";
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or OverflowException or UnauthorizedAccessException)
@@ -291,7 +294,7 @@ public sealed class MidiFolderWindow : Window
         var created = new MidiTrackPlayer(outputFactory);
         created.StateChanged += (_, _) => Dispatcher.InvokeAsync(() =>
         {
-            if (playing is { } item && !created.IsPlaying && !created.IsPaused) { item.ListenGlyph = "▶"; playing = null; }
+            if (playing is { } item && playingStarted && !created.IsPlaying && !created.IsPaused) { item.ListenGlyph = "▶"; playing = null; playingStarted = false; }
         });
         return created;
     }
@@ -299,7 +302,7 @@ public sealed class MidiFolderWindow : Window
     private void StopListening()
     {
         if (playing is { } item) item.ListenGlyph = "▶";
-        playing = null;
+        playing = null; playingStarted = false;
         player?.Stop(releaseOutput: true);
     }
 }

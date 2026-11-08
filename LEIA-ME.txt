@@ -1,3 +1,7 @@
+TECLASCORE 1.5.1
+
+Na Pasta de MIDIs, clicar em ▶ de outro arquivo enquanto um MIDI toca passa a tocar o arquivo clicado, em vez de parar a música.
+
 TECLASCORE 1.5.0
 
 As letras do karaokê são divididas em sílabas pelas regras do português e cada sílaba vai para a nota em que é cantada; falas aparecem como "(falado: …)" e a página é conferida para que as sílabas não se encostem. Editar › Letra… corrige a letra, e o PDF pode ganhar a página Letra e cifras. Cifras, notas e ritmos ficam mais precisos (acordes sem quinta, 13, 7(b9), baixos de inversão, modulações, swing, tercinas e compasso estimado). A geração é mais rápida e a fila trabalha em segundo plano, com várias músicas ao mesmo tempo.
