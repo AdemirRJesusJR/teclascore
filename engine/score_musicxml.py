@@ -344,6 +344,13 @@ def build_musicxml(parsed,config,harmony,out,title):
     if len(chords)>len(bars)*3:raise core.NeedsReview('Harmonia excessivamente densa; revisar detecção de acordes.')
     if chords_only:
         notes[:]=chord_slashes(bars,chords)
+        # Slashes sit on the middle line without an accidental: Bb in flat keys, also after a modulation.
+        for bar in bars:
+            active=key
+            for change in harmony.get('key_changes',[]):
+                if round(change['tick']/parsed['ppq']*core.DIV)<=origin+bar['start']:active=change
+            for slash in notes:
+                if bar['start']<=slash['start']<bar['end'] and active.get('fifths',0)<0:slash['pitch']=SLASH_PITCH-1
         note_report['chord_slashes']=len(notes)
         # Chord sheet pasted as text: the words under each chord go on the first slash of its measure.
         words={int(index):text for index,text in (config.get('sheet_lyrics') or {}).items() if str(text).strip()}

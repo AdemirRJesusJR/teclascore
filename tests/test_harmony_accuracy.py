@@ -279,6 +279,16 @@ class KeyChangeTests(unittest.TestCase):
         self.assertIn(('D', '-1'), roots)
         self.assertNotIn(('C', '1'), roots)
 
+    def test_chord_chart_slashes_need_no_accidental_after_a_modulation_to_a_flat_key(self):
+        parsed, result = analyze(self.song(24, 1))
+        config = dict(melody_sources=[], solo_sources=[], diagram_inversion=2, filename='teste.mid', chords_only=True)
+        with tempfile.TemporaryDirectory() as directory:
+            xml, _ = engine.build_musicxml(parsed, config, copy.deepcopy(result), Path(directory), 'Teste')
+            tree = E.parse(xml)
+        measures = list(tree.iter('measure'))
+        self.assertEqual({(n.findtext('pitch/step'), n.findtext('pitch/alter')) for n in measures[30].iter('note')}, {('B', '-1')})
+        self.assertEqual({(n.findtext('pitch/step'), n.findtext('pitch/alter')) for n in measures[0].iter('note')}, {('B', None)})
+
     def test_review_point_for_the_modulation(self):
         parsed, result = analyze(self.song(24, 1), melody=[dict(track=3, channel=3, program=73)])
         config = dict(melody_sources=[dict(track=3, channel=3, program=73)], solo_sources=[], filename='teste.mid')
