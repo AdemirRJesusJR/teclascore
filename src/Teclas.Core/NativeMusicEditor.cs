@@ -36,6 +36,8 @@ public sealed record NativeMusicEdits(IReadOnlyList<MusicNoteChange> Notes, IRea
 {
     public IReadOnlyList<MusicEventReplacement> EventReplacements { get; init; } = [];
     public IReadOnlyList<MusicVoiceCopy> VoiceCopies { get; init; } = [];
+    /// <summary>Verse 1 syllables set, changed or removed on notes (the lyrics editor).</summary>
+    public IReadOnlyList<MusicLyricChange> Lyrics { get; init; } = [];
 }
 
 /// <summary>Conservative patches over the native XML; unrelated music and archive entries are retained.</summary>
@@ -94,6 +96,7 @@ public static partial class NativeMusicEditor
             token.ThrowIfCancellationRequested();
             NativeHarmonyEditing.Apply(state.Archive, state.Harmonies[change.Id].Node, change.Root, change.Quality, change.DiagramInversion);
         }
+        ApplyLyrics(state, edits, token);
         ApplyStructure(state, edits);
         CheckSource(model, token);
         token.ThrowIfCancellationRequested();
@@ -305,8 +308,8 @@ public static partial class NativeMusicEditor
     {
         var errors = new List<string>();
         if (edits.Notes is null || edits.Durations is null || edits.Harmonies is null) return ["A lista de alterações está incompleta."];
-        if (edits.EventReplacements is null || edits.VoiceCopies is null) return ["A lista de alterações estruturais está incompleta."];
-        if (edits.Notes.Count + edits.Durations.Count + edits.Harmonies.Count + edits.EventReplacements.Count + edits.VoiceCopies.Count == 0) return ["Faça uma alteração antes de preparar a prévia."];
+        if (edits.EventReplacements is null || edits.VoiceCopies is null || edits.Lyrics is null) return ["A lista de alterações estruturais está incompleta."];
+        if (edits.Notes.Count + edits.Durations.Count + edits.Harmonies.Count + edits.EventReplacements.Count + edits.VoiceCopies.Count + edits.Lyrics.Count == 0) return ["Faça uma alteração antes de preparar a prévia."];
         if ((long)edits.Notes.Count + edits.Durations.Count + edits.Harmonies.Count > 10000) return ["Aplique no máximo 10.000 alterações por vez."];
         var used = new HashSet<string>(StringComparer.Ordinal);
         bool changed = false;
@@ -364,6 +367,7 @@ public static partial class NativeMusicEditor
             changed |= edit.Root != target.View.Root || edit.Quality != target.View.Quality || target.View.HasDiagram && edit.DiagramInversion is { } inversion && inversion != target.View.DiagramInversion;
         }
         changed |= ValidateStructure(state, edits, errors);
+        changed |= ValidateLyrics(state, edits, errors);
         if (!changed) errors.Add("Nenhuma alteração musical foi solicitada.");
         return errors.Distinct(StringComparer.Ordinal).Take(30).ToArray();
     }
