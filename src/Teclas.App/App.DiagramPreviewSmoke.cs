@@ -171,6 +171,8 @@ public partial class App
         try
         {
             ThemeManager.Apply("graphite");
+            // The marker checks measure the classic drawing; the dotted one is checked on its own below.
+            KeyboardDiagramPreview.Style = KeyboardDiagramSvg.Classic;
             var row = Music(("C", "", null), ("F♯", "m7", null), ("C", "", 1), ("C", "m", 2),
                 ("C", "9", 1), ("C", "7", 0), ("C", "maj7", 2), ("C", "mMaj7", 1),
                 ("F#", " m7 ", null), ("B♭", "", 0), ("Bb", "", 0), ("C", "m", 2),
@@ -329,10 +331,17 @@ public partial class App
                 Check(previews.GetImage(chord.Root, chord.Quality, chord.DiagramInversion!.Value, 0) is DrawingImage drawing
                     && Markers(drawing).SequenceEqual(KeyboardDiagramVoicing.Pitches(pc, chord.Quality, chord.DiagramInversion!.Value)), "rendering-parity-" + index);
             }
-            Check(matrix.Chords.Count == 720, "parity-covers-all-720-supported-voicings");
+            Check(matrix.Chords.Count == 36 * KeyboardDiagramVoicing.Qualities.Count, "parity-covers-every-supported-voicing");
+            KeyboardDiagramPreview.Style = KeyboardDiagramSvg.Dots;
+            var dotted = new KeyboardDiagramPreview();
+            Check(matrix.Chords.All(chord => KeyboardDiagramVoicing.TryRootPitchClass(chord.Root, out int pc)
+                && dotted.GetImage(chord.Root, chord.Quality, chord.DiagramInversion!.Value, 0) is DrawingImage drawing
+                && Shapes(drawing.Drawing).Count(shape => shape.Geometry is EllipseGeometry) == KeyboardDiagramVoicing.Pitches(pc, chord.Quality, chord.DiagramInversion!.Value).Length),
+                "dotted-preview-draws-one-dot-per-note");
+            KeyboardDiagramPreview.Style = KeyboardDiagramSvg.Classic;
             var matrixDialog = new DiagramPositionsWindow(matrix); var matrixTable = Table(matrixDialog);
-            Check(matrixTable.Items.Count == 240 && matrixTable.Items.Cast<object>().All(item => (int)Value(item, "OccurrenceCount")! == 3
-                && (bool)Value(item, "HasMixedPositions")!), "large-sequence-has-240-unique-rows-preserving-720-legacy-choices");
+            Check(matrixTable.Items.Count == 12 * KeyboardDiagramVoicing.Qualities.Count && matrixTable.Items.Cast<object>().All(item => (int)Value(item, "OccurrenceCount")! == 3
+                && (bool)Value(item, "HasMixedPositions")!), "large-sequence-has-one-row-per-chord-preserving-every-legacy-choice");
             var matrixOriginal = matrix.Chords.Select(chord => chord.DiagramInversion).ToArray();
             Modal(matrixDialog, async () =>
             {
@@ -344,11 +353,11 @@ public partial class App
                     "large-chord-list-keeps-row-virtualization");
                 object start = matrixTable.Items[0]; var startRow = await Realize(matrixTable, start);
                 Check((bool)Value(start, "HasMixedPositions")! && Value(start, "PreviewImage") is null
-                    && matrixDialog.Inversions.Take(717).SequenceEqual(matrixOriginal.Take(717)), "recycling-rows-does-not-resolve-unedited-mixed-groups");
+                    && matrixDialog.Inversions.Take(matrixOriginal.Length - 3).SequenceEqual(matrixOriginal.Take(matrixOriginal.Length - 3)), "recycling-rows-does-not-resolve-unedited-mixed-groups");
                 Descendants(startRow).OfType<ComboBox>().Single().SelectedIndex = 2; Flush();
                 Check(Descendants(startRow).OfType<Image>().Single().Source is DrawingImage
                     && ReferenceEquals(Descendants(startRow).OfType<Image>().Single().Source, Value(start, "PreviewImage")), "recycled-first-row-restores-correct-preview");
-                Check(matrixDialog.Inversions.Take(3).All(value => value == 1) && matrixDialog.Inversions.Skip(717).All(value => value == 2),
+                Check(matrixDialog.Inversions.Take(3).All(value => value == 1) && matrixDialog.Inversions.Skip(matrixOriginal.Length - 3).All(value => value == 2),
                     "virtualized-group-edits-reach-the-correct-original-occurrences");
                 Click(Button(matrixDialog, "CancelDiagramPositionsButton"));
             });
