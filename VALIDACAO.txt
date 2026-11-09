@@ -1,3 +1,12 @@
+TECLASCORE · VALIDAÇÃO DO CI (sem versão nova)
+09/11/2026
+
+- CI do GitHub falhava em todas as execuções desde a 0.51.0 (execuções 63 a 112), sem afetar o app entregue. Duas causas, ambas em testes:
+  - wpf-score-flow-ui: o monitor do runner (1024 px) limita a janela abaixo dos 1600 px que o smoke pede, e o layout largo nunca era aplicado. O smoke agora aplica o layout para a largura pedida quando a tela limita a janela e registra a medição da barra superior como pulada, com o motivo. Conferido com tela limitada simulada (33 verificações, 1 pulada) e tela real (34 verificações).
+  - test_return_transposition_and_tie_across_system_survive_reopen (nativo, desde a 1.4.0): com sistemas de 4 compassos a nota ligada do teste não cruzava mais um início de sistema. A nota passou para os tempos 14 a 18, cruzando o compasso 4, e o teste afirma esse início de sistema.
+- CI local completo com MuseScore 4.7.5 e -NativeEngineTests: 73 etapas aprovadas, 0 falhas, 3 puladas; 393 testes do motor. Sem avisos de compilação.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DA VERSÃO 0.50.0
 07/11/2026
 

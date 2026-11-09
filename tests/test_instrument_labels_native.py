@@ -65,8 +65,10 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         return report,native
 
     def test_return_transposition_and_tie_across_system_survive_reopen(self):
-        notes=[n for n in sequence() if not 11<=n['start']/PPQ<14]
-        next(n for n in notes if n['start']==10*PPQ)['end']=14*PPQ
+        # Systems hold up to four bars (BARS_PER_SYSTEM), so the second system starts at bar 4 (quarter 16): the held
+        # note from quarter 14 to 18 is written as a tie across that system break.
+        notes=[n for n in sequence() if not 15<=n['start']/PPQ<18]
+        next(n for n in notes if n['start']==14*PPQ)['end']=18*PPQ
         third=dict(track=3,channel=3,program=24)
         for n in notes:
             if n['start']>=24*PPQ:n.update(third)
@@ -75,6 +77,7 @@ class NativeInstrumentLabelTests(unittest.TestCase):
         self.assertEqual([n['pitch'] for n in report['notes']],[n['pitch']+2 for n in notes])
         self.assertTrue(native.findall('.//Tie') or native.findall('.//Spanner'))
         starts=[report['bars'][index]['start'] for index in report['system_starts']]
+        self.assertIn(16*engine.DIV,starts)
         self.assertTrue(any(n['start']<tick<n['end'] for n in report['notes'] for tick in starts))
 
     def test_late_entry_reserves_complete_name_inside_right_margin(self):
