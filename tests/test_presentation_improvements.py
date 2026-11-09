@@ -115,7 +115,7 @@ class HighlightedDiagramTests(unittest.TestCase):
         self.assertEqual(names(0, 'dim7', 'C'), {'C', 'Eb', 'Gb', 'A'})
         self.assertEqual(names(0, 'm', 'C', True), {'Dó', 'Mib', 'Sol'})
 
-    def test_dots_style_marks_keys_and_names_them_underneath(self):
+    def test_dots_style_marks_keys_without_letters(self):
         for root in range(12):
             for quality in engine.CHORD_INTERVALS:
                 for inversion in range(3):
@@ -128,14 +128,7 @@ class HighlightedDiagramTests(unittest.TestCase):
                         self.assertTrue(all(r.get('fill') in ('white', '#111111') for r in svg.iter(NS + 'rect')))
                         ring = [c for c in dots if c.get('fill') == 'none']
                         self.assertEqual([int(c.get('data-midi')) for c in ring], [pitches[0]])
-                        texts = list(svg.iter(NS + 'text'))
-                        self.assertEqual(len(texts), len(pitches))
-                        self.assertTrue(all(float(t.get('y')) > 61 for t in texts))
-                        self.assertEqual([t.get('font-weight') for t in texts].count('bold'), 1)
-
-    def test_dots_names_split_in_two_rows_only_when_crowded(self):
-        self.assertEqual(keyboard_svg.dot_name_rows([29, 57, 85]), ('16', ['79', '79', '79']))
-        self.assertEqual(keyboard_svg.dot_name_rows([29, 43, 57]), ('12', ['72', '83', '72']))
+                        self.assertEqual(list(svg.iter(NS + 'text')), [])
 
     def test_dots_is_the_default_style(self):
         self.assertEqual(keyboard_svg.diagram_style(None), 'pontos')
@@ -183,7 +176,8 @@ class StyleTests(unittest.TestCase):
         import inspect
         source = inspect.getsource(engine.convert_score)
         self.assertIn("hideEmptyStaves='1'", source)
-        self.assertIn('$:workTitle: · página $P de $n', source)
+        self.assertIn("text='página $P de $n'", source)
+        self.assertNotIn('$:workTitle: · página', source)
         self.assertIn("hide.text='2'", source)
 
 

@@ -224,11 +224,9 @@ if (args.Length >= 3)
     Check(KeyboardDiagramSvg.MarkedPitches(svg).SequenceEqual(KeyboardDiagramVoicing.Pitches(0, "m", 2)), "Highlighted diagram marks its keys");
     var dots = KeyboardDiagramSvg.Build(0, "m", 2, KeyboardDiagramSvg.Dots, false, "C");
     var circles = dots.Elements().Where(e => e.Name.LocalName == "circle").ToArray();
-    var names = dots.Elements().Where(e => e.Name.LocalName == "text").ToArray();
     Check(KeyboardDiagramSvg.MarkedPitches(dots).SequenceEqual(KeyboardDiagramVoicing.Pitches(0, "m", 2)) && circles.Length == 3
         && circles.Count(c => (string?)c.Attribute("fill") == "none") == 1, "Dotted diagram marks its keys, the bass as a ring");
-    Check(names.Select(t => t.Value).SequenceEqual(["G", "C", "Eb"]) && names.All(t => (string?)t.Attribute("y") == "79")
-        && names.Count(t => (string?)t.Attribute("font-weight") == "bold") == 1, "Dotted diagram names the notes under the keys, bass in bold");
+    Check(!dots.Elements().Any(e => e.Name.LocalName == "text"), "Dotted diagram has no letters");
     Check(KeyboardDiagramSvg.Normalize(null) == KeyboardDiagramSvg.Dots && KeyboardDiagramSvg.Normalize("destacado") == KeyboardDiagramSvg.Highlight, "Dots is the default diagram style");
 }
 Console.WriteLine($"PASS: {checks} export checks.");

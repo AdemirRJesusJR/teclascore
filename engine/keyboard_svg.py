@@ -7,7 +7,7 @@ inversion's bass) is darker. The Teclas.Core C# generator (NativeHarmonyEditing.
 writes byte-for-byte the same element tree: keep both in sync.
 
 'pontos' (the default) keeps the keys white: a black dot on each white key of the chord, a white dot on
-each black key, the bass as a hollow ring, and the note names in a row under the keyboard (bass in bold).
+each black key and the bass as a hollow ring, with no letters (the chord symbol names it).
 """
 import xml.etree.ElementTree as E
 
@@ -86,19 +86,12 @@ def window_start(pitches):
     return best[1]
 
 
-def dot_name_rows(xs):
-    """(font size, y of each name) for names under the keys: one row, or two alternating rows when neighbours crowd."""
-    if all(b-a>=24 for a,b in zip(xs,xs[1:])):return '16',['79']*len(xs)
-    return '12',['72' if index%2==0 else '83' for index in range(len(xs))]
-
-
-def svg_dots(pitches,names='letras',flats=False,spelled=None):
-    """Element tree text of the 'pontos' diagram (UTF-8, with XML declaration)."""
+def svg_dots(pitches):
+    """Element tree text of the 'pontos' diagram (UTF-8, with XML declaration): dots only, no letters."""
     pitches=sorted(pitches)
     start=window_start(pitches)
     whites=[p for p in range(start,start+24) if p%12 in NATURAL][:WHITE_KEYS]
     blacks=[p for p in range(start,whites[-1]) if p%12 not in NATURAL]
-    table=(SOLFEGE_FLAT if flats else SOLFEGE_SHARP) if names=='solfejo' else (LETTERS_FLAT if flats else LETTERS_SHARP)
     root=E.Element('svg',xmlns='http://www.w3.org/2000/svg',width='282',height='84',viewBox='0 0 282 84')
     E.SubElement(root,'title').text='Acorde'
     E.SubElement(root,'desc').text='Teclas marcadas com pontos'
@@ -107,23 +100,15 @@ def svg_dots(pitches,names='letras',flats=False,spelled=None):
         E.SubElement(root,'rect',x=str(1+index*KEY_WIDTH),y='1',width=str(KEY_WIDTH),height='60',fill='white',stroke='#111111',**{'stroke-width':'1'})
     for pitch in blacks:
         E.SubElement(root,'rect',x=str(1+(whites.index(pitch-1)+1)*KEY_WIDTH-8),y='1',width='16',height='37',fill='#111111')
-    xs=[]
     for pitch in pitches:
         natural=pitch%12 in NATURAL
         x=1+whites.index(pitch)*KEY_WIDTH+KEY_WIDTH//2 if natural else 1+(whites.index(pitch-1)+1)*KEY_WIDTH
-        xs.append(x)
         ink='#111111' if natural else '#FFFFFF'
         if pitch==bass:
             attributes={'r':'6' if natural else '5','fill':'none','stroke':ink,'stroke-width':'2.5'}
         else:
             attributes={'r':'7' if natural else '6','fill':ink}
         E.SubElement(root,'circle',cx=str(x),cy='50' if natural else '28',**attributes,**{'data-midi':str(pitch)})
-    size,rows=dot_name_rows(xs)
-    for pitch,x,y in zip(pitches,xs,rows):
-        name=(spelled or {}).get(pitch%12) or table[pitch%12]
-        attributes={'font-family':'Arial','font-size':size,'text-anchor':'middle'}
-        if pitch==bass:attributes['font-weight']='bold'
-        E.SubElement(root,'text',x=str(x),y=y,fill='#000000' if pitch==bass else '#555555',**attributes).text=name
     return E.tostring(root,encoding='utf-8',xml_declaration=True)
 
 
@@ -132,7 +117,7 @@ def svg_highlight(pitches,style='destacado',names='letras',flats=False,spelled=N
 
     spelled maps pitch class → written name (from tone_names); without it keys use sharps or flats."""
     style=diagram_style(style)
-    if style=='pontos':return svg_dots(pitches,names,flats,spelled)
+    if style=='pontos':return svg_dots(pitches)
     if style=='classico':raise ValueError('Use o desenho clássico para o estilo classico.')
     pitches=sorted(pitches)
     start=window_start(pitches)

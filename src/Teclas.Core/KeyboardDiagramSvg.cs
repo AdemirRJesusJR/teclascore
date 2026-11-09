@@ -6,8 +6,8 @@ namespace Teclas.Core;
 /// The highlighted keyboard diagram ("destacado" in color, "cinza" for black-and-white printing): ten wider keys
 /// on a window that follows the chord, the chord's keys filled and named, the bass key darker. Same 282×84 frame
 /// as the classic drawing. Mirrors engine/keyboard_svg.py element by element, so a diagram written by the engine
-/// is recognized here when a chord is edited or transposed. "pontos" (the default) keeps the keys white, marks them
-/// with dots (the bass as a hollow ring) and names the notes in a row under the keyboard.
+/// is recognized here when a chord is edited or transposed. "pontos" (the default) keeps the keys white and marks them
+/// with dots (the bass as a hollow ring), with no letters.
 /// </summary>
 public static class KeyboardDiagramSvg
 {
@@ -112,7 +112,7 @@ public static class KeyboardDiagramSvg
             : ("#5B8DEF", "#2F6FEB", "#1D3F99", "#1D3F99", "#FFFFFF", "#FFFFFF");
         string[] table = solfege ? (flats ? SolfegeFlat : SolfegeSharp) : (flats ? Flat : Sharp);
         int bass = pitches.Min();
-        if (style == Dots) return BuildDots(pitches, whites, blacks, bass, spelled, table, inversion);
+        if (style == Dots) return BuildDots(pitches, whites, blacks, bass, inversion);
         var svg = new XElement(Svg + "svg", new XAttribute("width", "282"), new XAttribute("height", "84"), new XAttribute("viewBox", "0 0 282 84"),
             new XElement(Svg + "title", new[] { "Acorde em posição fundamental", "Acorde em primeira inversão", "Acorde em segunda inversão" }[inversion]),
             new XElement(Svg + "desc", new[] { "Fundamental no grave", "Terça ou nota suspensa no grave", "Quinta no grave" }[inversion] + "; notas MIDI: " + string.Join(',', pitches)));
@@ -150,16 +150,8 @@ public static class KeyboardDiagramSvg
         return svg;
     }
 
-    /// <summary>Font size and y of each name under the keys: one row, or two alternating rows when neighbours crowd.</summary>
-    public static (string Size, string[] Rows) DotNameRows(IReadOnlyList<int> xs)
+    private static XElement BuildDots(int[] pitches, int[] whites, int[] blacks, int bass, int inversion)
     {
-        bool roomy = Enumerable.Range(1, Math.Max(0, xs.Count - 1)).All(i => xs[i] - xs[i - 1] >= 24);
-        return roomy ? ("16", xs.Select(_ => "79").ToArray()) : ("12", xs.Select((_, i) => i % 2 == 0 ? "72" : "83").ToArray());
-    }
-
-    private static XElement BuildDots(int[] pitches, int[] whites, int[] blacks, int bass, Dictionary<int, string>? spelled, string[] table, int inversion)
-    {
-        int[] ordered = pitches.Order().ToArray();
         var svg = new XElement(Svg + "svg", new XAttribute("width", "282"), new XAttribute("height", "84"), new XAttribute("viewBox", "0 0 282 84"),
             new XElement(Svg + "title", new[] { "Acorde em posição fundamental", "Acorde em primeira inversão", "Acorde em segunda inversão" }[inversion]),
             new XElement(Svg + "desc", new[] { "Fundamental no grave", "Terça ou nota suspensa no grave", "Quinta no grave" }[inversion] + "; notas MIDI: " + string.Join(',', pitches)));
@@ -169,29 +161,16 @@ public static class KeyboardDiagramSvg
         foreach (int pitch in blacks)
             svg.Add(new XElement(Svg + "rect", new XAttribute("x", 1 + (Array.IndexOf(whites, pitch - 1) + 1) * KeyWidth - 8), new XAttribute("y", "1"),
                 new XAttribute("width", "16"), new XAttribute("height", "37"), new XAttribute("fill", "#111111")));
-        var xs = new List<int>();
-        foreach (int pitch in ordered)
+        foreach (int pitch in pitches.Order())
         {
             bool natural = Natural.Contains(Mod12(pitch));
             int x = natural ? 1 + Array.IndexOf(whites, pitch) * KeyWidth + KeyWidth / 2 : 1 + (Array.IndexOf(whites, pitch - 1) + 1) * KeyWidth;
-            xs.Add(x);
             string ink = natural ? "#111111" : "#FFFFFF";
             var dot = new XElement(Svg + "circle", new XAttribute("cx", x), new XAttribute("cy", natural ? "50" : "28"));
             if (pitch == bass) dot.Add(new XAttribute("r", natural ? "6" : "5"), new XAttribute("fill", "none"), new XAttribute("stroke", ink), new XAttribute("stroke-width", "2.5"));
             else dot.Add(new XAttribute("r", natural ? "7" : "6"), new XAttribute("fill", ink));
             dot.Add(new XAttribute("data-midi", pitch));
             svg.Add(dot);
-        }
-        var (size, rows) = DotNameRows(xs);
-        for (int i = 0; i < ordered.Length; i++)
-        {
-            int pitch = ordered[i];
-            string name = spelled is not null && spelled.TryGetValue(Mod12(pitch), out var written) && written.Length > 0 ? written : table[Mod12(pitch)];
-            var text = new XElement(Svg + "text", new XAttribute("x", xs[i]), new XAttribute("y", rows[i]), new XAttribute("fill", pitch == bass ? "#000000" : "#555555"),
-                new XAttribute("font-family", "Arial"), new XAttribute("font-size", size), new XAttribute("text-anchor", "middle"));
-            if (pitch == bass) text.Add(new XAttribute("font-weight", "bold"));
-            text.Add(name);
-            svg.Add(text);
         }
         return svg;
     }

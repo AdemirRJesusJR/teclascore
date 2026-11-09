@@ -1251,8 +1251,8 @@ def convert_score(xml,report,out,filename):
     apply_score_spacing(style_values,spacing)
     footer=report.get('page_footer',False)
     if footer:
-        # Title and "página X de Y" on every page, so loose printed pages stay in order.
-        text='$:workTitle: · página $P de $n'
+        # "página X de Y" on every page, so loose printed pages stay in order (the title is already at the top).
+        text='página $P de $n'
         style_values.update(showFooter='1',footerFirstPage='1',footerOddEven='0',oddFooterC=text,evenFooterC=text,
                             oddFooterL='',oddFooterR='',evenFooterL='',evenFooterR='',
                             # The footer already numbers the pages; the corner number would sit on the first diagrams.

@@ -93,6 +93,7 @@ public partial class App
             Check(window.CanConfirmFlowStep == melodyConfirms > 0 && window.ConfirmCurrentFlowStep() == melodyConfirms, "confirm-step-takes-the-melody-confirmations");
             Flush();
             Check(window.CanFlowNext && window.FlowReachable == ScoreFlowStep.Analysis && !window.CanGenerateNow, "melody-step-clears-but-analysis-is-next");
+            Check(window.SelectedFile!.StatusShort == "25%" && window.FlowProgressText == "25%", "card-progress-advances-with-the-melody-step " + window.SelectedFile.StatusShort);
             Snapshot("score-flow-2-melodia-pronta");
 
             // Simulated analysis (the engine is not needed for the locks): a review point, a duplicate chord and a doubtful one.

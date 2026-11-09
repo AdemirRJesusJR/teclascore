@@ -218,6 +218,8 @@ public partial class MainWindow
     private void NotifyFlow()
     {
         flowChecks = selectedFile is { } row && IsGuidedFlow(row) ? ScoreFlowRules.Evaluate(FlowInput(row)) : [];
+        // The card in the song list shows the same progress as the panel, step by step.
+        if (selectedFile is { } open) open.FlowDoneSteps = IsGuidedFlow(open) ? (int)FlowReachable : null;
         foreach (var name in new[] { nameof(GuidedFlow), nameof(FlowCheckList), nameof(FlowReachable), nameof(FlowAllowedTab), nameof(FlowCurrentStep), nameof(FlowSteps),
             nameof(FlowPanelChecks), nameof(FlowPanelVisibility), nameof(GenerationButtonsVisibility), nameof(SelectionMessageVisibility), nameof(FlowSummary),
             nameof(FlowNextLabel), nameof(CanFlowNext), nameof(FlowEnqueueVisibility), nameof(FlowChecksVisibility), nameof(GenerateButtonLabel), nameof(CanGenerateNow), nameof(CanEnqueueNow),

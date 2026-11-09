@@ -42,10 +42,12 @@ public partial class App
             var open = rows[1];
             library.SelectedItem = open; Flush();
             Check(ReferenceEquals(window.SelectedFile, open), "song-opened");
+            Check(open.StatusShort == window.FlowProgressText && open.StatusShort.EndsWith('%'), $"card-shows-the-panel-progress card={open.StatusShort} panel={window.FlowProgressText}");
             string Where() => $"group={open.StatusGroup} sel={(library.SelectedItem as MidiRow)?.ScoreTitle ?? "null"} open={window.SelectedFile?.ScoreTitle ?? "null"}";
 
             open.ScorePath = score; open.HasPendingScoreProperties = false; Flush();
             Check(open.StatusGroup != "EM PREPARO", "generated-card-changes-group " + Where());
+            Check(open.StatusShort == "100%" && window.FlowProgressText == "100%" && open.ProgressToolTip.Contains("100%"), $"generated-card-shows-full-progress card={open.StatusShort}");
             Check(ReferenceEquals(library.SelectedItem, open) && ReferenceEquals(window.SelectedFile, open), "stays-open-when-generated " + Where());
 
             open.Approved = true; Flush();
@@ -53,6 +55,7 @@ public partial class App
             Check(ReferenceEquals(library.SelectedItem, open) && ReferenceEquals(window.SelectedFile, open), "stays-open-when-approved " + Where());
 
             open.Approved = false; Flush();
+            Check(open.StatusShort == "100%", "unapproved-card-keeps-full-progress " + open.StatusShort);
             Check(ReferenceEquals(library.SelectedItem, open) && ReferenceEquals(window.SelectedFile, open), "stays-open-when-approval-is-undone " + Where());
 
             // A card that is not open changing group does not open anything nor close the open one.

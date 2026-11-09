@@ -113,7 +113,7 @@ public partial class MainWindow
 
     public IReadOnlyList<object> DiagramStyleOptions { get; } =
     [
-        new { Value = "pontos", Label = "Pontos com nomes" },
+        new { Value = "pontos", Label = "Pontos" },
         new { Value = "destacado", Label = "Destacado (cores)" },
         new { Value = "cinza", Label = "Destacado em cinza (P&B)" },
         new { Value = "classico", Label = "Clássico (pontos)" }
@@ -133,7 +133,7 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>Title and "página X de Y" at the foot of every page of the next generated scores.</summary>
+    /// <summary>"página X de Y" at the foot of every page of the next generated scores.</summary>
     public bool PageFooter
     {
         get => settings.PageFooter;

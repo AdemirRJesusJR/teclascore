@@ -1,3 +1,7 @@
+TECLASCORE 1.6.3
+
+O percentual no card de cada música agora é o progresso das etapas (25% por etapa, 100% com a partitura gerada) e se atualiza a cada passo. A nota de confiança da partitura fica na dica do card. O rodapé das partituras mostra só "página X de Y", sem repetir o nome da música. Os diagramas de pontos saem sem letras, e o PDF não traz mais a página "Mapa da música" (ela pode ser ligada em Configurações).
+
 TECLASCORE 1.6.2
 
 Ao salvar em PDF, exportar ou salvar o pacote ZIP, o campo Nome da janela mostra só o nome do arquivo (antes aparecia o caminho inteiro). A janela continua abrindo na última pasta usada.

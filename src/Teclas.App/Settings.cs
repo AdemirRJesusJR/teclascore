@@ -54,14 +54,14 @@ public sealed class Settings
     public int ConversionParallelism { get; set; }
     /// <summary>Names under the C keys of the keyboard diagrams: "letras" (C) or "solfejo" (Dó).</summary>
     public string NoteNames { get; set; } = "letras";
-    /// <summary>Keyboard diagram drawing: "pontos" (dots, names under the keys), "destacado" (keys filled in color), "cinza" (for black-and-white printing) or "classico".</summary>
+    /// <summary>Keyboard diagram drawing: "pontos" (dots, no letters), "destacado" (keys filled in color), "cinza" (for black-and-white printing) or "classico".</summary>
     public string DiagramStyle { get; set; } = "pontos";
-    /// <summary>Title and "página X de Y" at the foot of every page of new scores.</summary>
+    /// <summary>"página X de Y" at the foot of every page of new scores.</summary>
     public bool PageFooter { get; set; } = true;
     /// <summary>PDFs end with a page of the song's chords and their keyboard diagrams.</summary>
     public bool PdfChordPage { get; set; } = true;
     /// <summary>PDFs also get a "Mapa da música" page: the chords bar by bar, part by part.</summary>
-    public bool PdfMusicMap { get; set; } = true;
+    public bool PdfMusicMap { get; set; }
     /// <summary>New scores name their parts (Intro, A, Refrão…) and start a system at each one.</summary>
     public bool SectionMarks { get; set; } = true;
     /// <summary>New scores show key, time signature and tempo in a line under the title.</summary>

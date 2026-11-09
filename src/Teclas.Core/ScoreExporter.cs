@@ -237,7 +237,7 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
     public static bool AppendChordPage { get; set; } = true;
 
     /// <summary>Whether exported PDFs also get the "Mapa da música" page (parts and chords bar by bar).</summary>
-    public static bool AppendMusicMap { get; set; } = true;
+    public static bool AppendMusicMap { get; set; }
 
     /// <summary>Whether exported PDFs also get the "Letra e cifras" page (the whole lyric with the chords above the syllables).</summary>
     public static bool AppendLyricsPage { get; set; }

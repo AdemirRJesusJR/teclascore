@@ -1,3 +1,14 @@
+TECLASCORE 1.6.3 · PROGRESSO NO CARD
+
+1. Em Sobre, confira que a versão é 1.6.3.
+2. Adicione um MIDI novo: o card mostra 0%, igual ao painel "Progresso da partitura".
+3. Conclua a etapa Melodia: o card passa para 25%; siga pelas etapas Ritmo e Cifras e confira 50% e 75%.
+4. Gere a partitura: o card mostra 100%, mesmo quando a música fica em Para conferir.
+5. Passe o mouse sobre o percentual: a dica mostra o progresso, a confiança da partitura e o que revisar.
+6. Com "Número da página no rodapé" ligado, o pé de cada página mostra só "página X de Y", sem o nome da música.
+7. Com o desenho "Pontos", os diagramas mostram só os pontos e o círculo do grave, sem letras.
+8. Numa instalação nova, salve um PDF: ele não traz a página "Mapa da música"; ligando a opção em Configurações, ela volta.
+
 TECLASCORE 1.6.2 · NOME DO ARQUIVO AO SALVAR
 
 1. Em Sobre, confira que a versão é 1.6.2.

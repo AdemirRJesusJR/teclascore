@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 1.6.3 — 08/11/2026
+
+O card da música mostra o progresso das etapas, e as partituras ficam mais enxutas.
+
+- **O percentual do card é o progresso.** O card na lista mostra o mesmo progresso do painel "Progresso da partitura": 0% numa música nova, 25% a cada etapa concluída (Melodia, Ritmo, Cifras) e 100% quando a partitura é gerada. Ele se atualiza a cada passo. Antes, depois de gerar, o card mostrava a nota de confiança da partitura (por exemplo, 38%), que parecia um progresso incompleto.
+- **A confiança continua visível.** Ela decide se a música fica em Para conferir ou em Prontas, e aparece na dica do card, junto com o que vale revisar.
+- **Rodapé só com a página.** O rodapé das partituras passa de "Inquilina · página 3 de 5" para "página 3 de 5", porque o título já está no alto da primeira página. A opção agora se chama "Número da página no rodapé". Vale para as próximas partituras geradas; as já geradas mudam ao gerar de novo.
+- **Diagramas de pontos sem letras.** O desenho de pontos deixa de escrever o nome das notas embaixo do teclado: a cifra ao lado já diz o acorde. A opção passa a se chamar "Pontos".
+- **PDF sem o Mapa da música.** A página "Mapa da música" deixa de entrar nos PDFs. Quem quiser pode ligá-la em Configurações › Aparência das partituras › "Mapa da música no PDF".
+
 ## 1.6.2 — 08/11/2026
 
 Correção na janela de salvar.
