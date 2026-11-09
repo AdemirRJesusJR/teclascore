@@ -134,11 +134,11 @@ public sealed class BatchLogStore(string directory)
         DefaultIgnoreCondition = JsonIgnoreCondition.Never, PropertyNameCaseInsensitive = true
     };
 
-    /// <summary>Saves the entry as <c>yyyy-MM-dd-HHmmss.json</c> (a suffix keeps two batches in the same second apart) and returns the path.</summary>
+    /// <summary>Saves the entry as <c>yyyy-MM-dd-HHmmss.json</c> by the clock of the batch itself (its own offset, so a reader in another time zone, like the CI runner, sees the same name; a suffix keeps two batches in the same second apart) and returns the path.</summary>
     public string Write(BatchLogEntry entry)
     {
         System.IO.Directory.CreateDirectory(Directory);
-        string stem = entry.Inicio.LocalDateTime.ToString("yyyy-MM-dd-HHmmss"), path = Path.Combine(Directory, stem + ".json");
+        string stem = entry.Inicio.DateTime.ToString("yyyy-MM-dd-HHmmss"), path = Path.Combine(Directory, stem + ".json");
         for (int n = 2; File.Exists(path); n++) path = Path.Combine(Directory, $"{stem}-{n}.json");
         string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try { File.WriteAllText(temporary, JsonSerializer.Serialize(entry, Json), new System.Text.UTF8Encoding(false)); File.Move(temporary, path); }

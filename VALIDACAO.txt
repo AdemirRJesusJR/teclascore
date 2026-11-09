@@ -1,3 +1,15 @@
+TECLASCORE · VALIDAÇÃO DA VERSÃO 1.9.1 E DO CI
+09/11/2026
+
+- Conferência sem janelas: tools/verify_ci.ps1 roda cada verificação numa área de trabalho secundária e invisível (CreateDesktop + CreateProcess com lpDesktop). Medido com um amostrador EnumWindows (40 ms) durante a conferência completa com MuseScore 4.7.5 e -NativeEngineTests:
+  - main (1.9.0), área de trabalho normal: 131 janelas visíveis do TeclaScore; 76 aprovadas, 0 falhas, 3 puladas.
+  - 1.9.1, área de trabalho oculta: 0 janelas; 76 aprovadas, 0 falhas, 3 puladas.
+  - 1.9.1 com -VisibleWindows (caminho usado no GitHub Actions): 128 janelas; 76 aprovadas, 0 falhas, 3 puladas.
+  - Renders PNG dos smokes (105 por rodada): 83 idênticos entre main-visível e 1.9.1-oculta, 85 entre main-visível e 1.9.1-visível. Os que mudam mostram horas, caminhos temporários com GUID, tempos medidos (Desempenho) ou o estado da fila no instante da captura; dois mudam só nos bytes do PNG, com pixels iguais.
+  - MuseScore em modo conversor (-o, -j, -S) não cria janela em nenhum fluxo, inclusive nos 421 testes Python nativos; as opções SW_HIDE e CREATE_NO_WINDOW no motor são garantia.
+- CI do GitHub falhava desde a 1.8.0 (execuções de 3031e4c e e3801d7) em Teclas.Tests: BatchLogStore nomeava o arquivo do log de lote com o horário convertido para o fuso da máquina (14:02-03:00 virava 17:02 no runner em UTC). Passa a usar o relógio do próprio início (Inicio.DateTime). Conferido com um início em +05:00: arquivo 2026-11-09-140200.json; Teclas.Tests: 323 verificações.
+
+REGISTRO ANTERIOR
 TECLASCORE · VALIDAÇÃO DO CI (sem versão nova)
 09/11/2026
 
