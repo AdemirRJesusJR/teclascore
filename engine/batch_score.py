@@ -1104,6 +1104,8 @@ _native_analyze_svg=analyze_svg
 def analyze_svg(path):
     with timed('svg_analysis'):return _native_analyze_svg(path)
 
+MUSESCORE_CRASH_CODES={3221225477,3221226505,-1073741819,-1073740791}  # 0xC0000005 e 0xC0000409, como int sem e com sinal
+
 def hidden_process_options():
     """Opções do subprocess para o MuseScore não mostrar janela nem console no Windows.
 
@@ -1124,7 +1126,13 @@ def call_musescore(args,log,timeout=90):
     progress(messages.get(log.stem,'Processando a partitura no MuseScore…'))
     start=time.perf_counter()
     try:
-        with timed('musescore'):p=subprocess.run([EXE]+args,capture_output=True,text=True,errors='replace',timeout=timeout,**hidden_process_options())
+        with timed('musescore'):
+            for attempt in range(1,4):
+                p=subprocess.run([EXE]+args,capture_output=True,text=True,errors='replace',timeout=timeout,**hidden_process_options())
+                # 0xC0000005 (violação de acesso) e 0xC0000409 (estouro de pilha): o MuseScore caiu, em geral ao
+                # encerrar, com o trabalho já feito ou não. Mesma política do Core (ScoreExporter): até três tentativas.
+                if p.returncode not in MUSESCORE_CRASH_CODES or attempt==3:break
+                time.sleep(0.5*attempt)
     finally:
         if not TIMINGS:reset_timings()
         TIMINGS['musescore_calls'].append({'kind':log.stem,'seconds':round(time.perf_counter()-start,3)})

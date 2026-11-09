@@ -167,7 +167,7 @@ public sealed class BatchLogStore(string directory)
 public sealed record RestorePointInfo(string Id, string Operation, DateTimeOffset CreatedAt, int SongCount, int CopiedFiles, string Package)
 {
     /// <summary>"Antes de: Piloto automático · 09/11 14:02 · 168 músicas".</summary>
-    [JsonIgnore] public string Label => $"Antes de: {Operation} · {CreatedAt.LocalDateTime:dd/MM HH:mm} · {SongCount} música{(SongCount == 1 ? "" : "s")}";
+    [JsonIgnore] public string Label => $"Antes de: {Operation} · {CreatedAt.DateTime:dd/MM HH:mm} · {SongCount} música{(SongCount == 1 ? "" : "s")}";
     [JsonIgnore] public bool IsAvailable => File.Exists(Package);
 }
 
@@ -184,7 +184,7 @@ public sealed class RestorePointStore(string directory)
     private string IndexPath => Path.Combine(Directory, "index.json");
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
-    public string NewId(DateTimeOffset? now = null) => (now ?? DateTimeOffset.Now).LocalDateTime.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..6];
+    public string NewId(DateTimeOffset? now = null) => (now ?? DateTimeOffset.Now).DateTime.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..6];
     public string PackagePath(string id) => Path.Combine(Directory, Safe(id) + ".teclasbackup");
     /// <summary>Where the package's files are extracted when the user returns to the point.</summary>
     public string RestoreDirectory(string id) => Path.Combine(Directory, Safe(id) + "-restaurado");

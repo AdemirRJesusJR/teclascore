@@ -90,7 +90,7 @@ public partial class MainWindow
         if (!point.IsAvailable) { Status = "O arquivo deste ponto de restauração não está mais disponível."; return false; }
         if (!restorePointConfirm(point.Label)) return false;
         if (IsBackgroundQueueRunning || IsAutopilotRunning) { Status = "Pause a fila de conversões antes de voltar a um ponto de restauração."; return false; }
-        await CreateRestorePointAsync("Voltar ao ponto " + point.CreatedAt.LocalDateTime.ToString("dd/MM HH:mm"), Files.Where(r => r.ScorePath is not null).ToList());
+        await CreateRestorePointAsync("Voltar ao ponto " + point.CreatedAt.DateTime.ToString("dd/MM HH:mm"), Files.Where(r => r.ScorePath is not null).ToList());
         bool done = false;
         await RunOperation(async () =>
         {
