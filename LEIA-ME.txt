@@ -1,3 +1,7 @@
+TECLASCORE 1.9.2
+
+Correções: o motor repete a chamada ao MuseScore quando ele cai ao encerrar, e o log de lote e os pontos de restauração usam o horário do próprio lote.
+
 TECLASCORE 1.9.1
 
 A conferência automática (tools/verify_ci.ps1) roda numa área de trabalho secundária e invisível do Windows: as janelas dos smokes WPF não piscam mais na tela nem no Alt+Tab, e os renders saem iguais. O motor chama o MuseScore com a janela escondida.

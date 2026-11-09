@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 1.9.2 — 09/11/2026
+
+Correções de robustez e de fuso horário encontradas pelo CI do GitHub.
+
+- **MuseScore que cai ao encerrar.** O motor Python repete a chamada ao MuseScore até três vezes quando ele sai com `0xC0000005` ou `0xC0000409` (queda, em geral ao fechar), a mesma política que o exportador e o mapa de reprodução já usavam. Outros códigos de erro continuam falhando na hora.
+- **Horário do lote.** O nome do log de lote, o rótulo dos pontos de restauração e o botão "Voltar ao ponto …" usam o horário em que o lote começou, com o fuso dele, em vez de convertê-lo de novo para o fuso da máquina. Em outro fuso (como o runner do GitHub, em UTC) os nomes e rótulos saíam deslocados e os testes falhavam desde a 1.8.0.
+
 ## 1.9.1 — 09/11/2026
 
 A conferência automática e a geração deixam de piscar janelas na tela.
