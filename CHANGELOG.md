@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 1.6.2 — 08/11/2026
+
+Correção na janela de salvar.
+
+- **Só o nome do arquivo no campo Nome.** Ao salvar a partitura em PDF (e também ao exportar e ao salvar o pacote ZIP), o campo Nome mostrava o caminho inteiro, como "P:\...\Avioes do Forro - Inquilina.pdf". Agora ele mostra só o nome do arquivo, e a janela continua abrindo na última pasta em que você salvou.
+
 ## 1.6.1 — 08/11/2026
 
 Novo desenho para os diagramas de teclado.

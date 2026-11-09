@@ -114,14 +114,14 @@ public partial class App
                 "using-output-creates-directory-and-cleans-owned-write-probe");
             var pdfDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
                 "Salvar partitura em PDF", "Documento PDF|*.pdf", "Intérprete - Música.pdf", ".pdf")!;
-            Check(pdfDialog is not null && pdfDialog.FileName == Path.Combine(nextOutput, "Intérprete - Música.pdf")
+            Check(pdfDialog is not null && pdfDialog.FileName == "Intérprete - Música.pdf"
                 && pdfDialog.InitialDirectory == nextOutput && pdfDialog.DefaultDirectory == nextOutput,
-                "pdf-export-of-old-score-uses-saved-folder-and-absolute-filename");
+                "pdf-export-of-old-score-uses-saved-folder-and-shows-only-the-file-name");
             Check(pdfDialog!.OverwritePrompt && pdfDialog.AddExtension && pdfDialog.DefaultExt.TrimStart('.') == "pdf",
                 "pdf-export-keeps-extension-and-overwrite-confirmation");
             var zipDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
                 "Salvar pacote", "Pacote ZIP|*.zip", "Partituras de teclado.zip", ".zip")!;
-            Check(zipDialog is not null && zipDialog.FileName == Path.Combine(nextOutput, "Partituras de teclado.zip")
+            Check(zipDialog is not null && zipDialog.FileName == "Partituras de teclado.zip"
                 && zipDialog.InitialDirectory == nextOutput && zipDialog.DefaultDirectory == nextOutput && zipDialog.OverwritePrompt,
                 "musescore-zip-export-uses-saved-folder");
             string freshOutput = Path.Combine(fixture, "exportação", "ainda inexistente"); Draft(freshOutput); Save();
@@ -133,7 +133,7 @@ public partial class App
             Check(!Directory.EnumerateFileSystemEntries(freshOutput).Any(), "preparing-dialog-leaves-no-files-or-write-probes");
             pdfDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
                 "Salvar partitura em PDF", "Documento PDF|*.pdf", "Outro título.pdf", ".pdf")!;
-            Check(pdfDialog!.FileName == Path.Combine(freshOutput, "Outro título.pdf"), "next-export-uses-latest-saved-folder");
+            Check(pdfDialog!.FileName == "Outro título.pdf" && pdfDialog.InitialDirectory == freshOutput, "next-export-uses-latest-saved-folder");
             string chosenExport = Path.Combine(fixture, "última exportação 🎹"); Directory.CreateDirectory(chosenExport);
             Invoke("RememberExportDirectory", chosenExport);
             Check(Settings.Load(preferences).LastExportDirectory == chosenExport && window.OutputDirectory == freshOutput,
@@ -143,7 +143,7 @@ public partial class App
             zipDialog = await (Task<SaveFileDialog?>)Invoke("CreateScoreExportDialogAsync",
                 "Salvar pacote", "ZIP|*.zip", "Partituras.zip", ".zip")!;
             folderDialog = await (Task<OpenFolderDialog?>)Invoke("CreateBatchPdfFolderDialogAsync")!;
-            Check(pdfDialog?.InitialDirectory == chosenExport && pdfDialog.FileName == Path.Combine(chosenExport,"Próxima música.pdf")
+            Check(pdfDialog?.InitialDirectory == chosenExport && pdfDialog.FileName == "Próxima música.pdf"
                 && zipDialog?.InitialDirectory == chosenExport && folderDialog?.FolderName == chosenExport,
                 "pdf-zip-and-batch-start-at-last-successful-export-directory");
             pdfDialog!.FileName = Path.Combine(freshOutput,"Cancelado.pdf"); // No export succeeded: simply choosing is insufficient.

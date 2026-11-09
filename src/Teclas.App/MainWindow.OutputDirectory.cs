@@ -73,8 +73,9 @@ public partial class MainWindow
         return new SaveFileDialog
         {
             Title = title, Filter = filter, DefaultExt = extension, AddExtension = true, OverwritePrompt = true,
-            // An absolute filename also overrides the shell's remembered folder for this dialog.
-            FileName = Path.Combine(destination, fileName), InitialDirectory = destination, DefaultDirectory = destination
+            // Only the name goes in the Nome box (a full path would show there as typed); InitialDirectory
+            // opens the dialog in the export folder, overriding the shell's remembered folder.
+            FileName = fileName, InitialDirectory = destination, DefaultDirectory = destination
         };
     }
 

@@ -1,3 +1,10 @@
+TECLASCORE 1.6.2 · NOME DO ARQUIVO AO SALVAR
+
+1. Em Sobre, confira que a versão é 1.6.2.
+2. Abra uma partitura gerada e clique em Salvar PDF: o campo Nome mostra só "Intérprete - Música.pdf", sem a pasta.
+3. A janela abre na última pasta em que você salvou um PDF; salve e confira o arquivo nessa pasta.
+4. Repita em Exportar partitura e em Salvar pacote ZIP: o campo Nome mostra só o nome do arquivo.
+
 TECLASCORE 1.6.1 · DIAGRAMAS COM PONTOS E NOMES
 
 1. Em Sobre, confira que a versão é 1.6.1.

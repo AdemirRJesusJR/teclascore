@@ -1,3 +1,7 @@
+TECLASCORE 1.6.2
+
+Ao salvar em PDF, exportar ou salvar o pacote ZIP, o campo Nome da janela mostra só o nome do arquivo (antes aparecia o caminho inteiro). A janela continua abrindo na última pasta usada.
+
 TECLASCORE 1.6.1
 
 Novo desenho de diagrama de teclado, "Pontos com nomes": teclas brancas com um ponto em cada nota do acorde, o grave num círculo vazado e os nomes das notas embaixo do teclado. É o padrão das instalações novas; em Configurações › Aparência das partituras › Diagramas você escolhe entre ele, Destacado, Destacado em cinza e Clássico.
