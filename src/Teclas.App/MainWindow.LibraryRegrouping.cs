@@ -7,7 +7,7 @@ using System.Windows.Threading;
 namespace Teclas.App;
 
 /// <summary>
-/// The library groups its cards live (Em preparo, Para conferir, Prontas, Com falha). When a card changes group, WPF adds it
+/// The library groups its cards live (Em preparo, Prontas, Com falha). When a card changes group, WPF adds it
 /// to the new group and later removes it from the old one; that removal also drops the ListBox selection although the card
 /// is still in the list. Advancing a step (an analysis that changes the rating) then left the editor blank until the card
 /// was clicked again. The open song is kept during the move and selected again right after it.

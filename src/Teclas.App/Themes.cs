@@ -190,6 +190,8 @@ public static class ThemeManager
             ["KeyboardActive"] = id is "graphite" or ContrastId ? "#F2BD62" : id is "ocean" or "light" ? dark ? "#7FA9F0" : "#9CBFEB"
                 : id == "indigo" ? dark ? "#B79CF0" : "#BDA4E8" : dark ? "#6CC9A8" : "#B2D5BF",
             ["Ready"] = id == ContrastId ? "#7CFFB2" : dark ? "#77D7B8" : "#16715C", ["Generated"] = id == ContrastId ? "#9FD0FF" : dark ? "#9ABDEB" : "#42689C",
+            // Cards still in progress: the palette accent, except in the green palette, where it would look like "ready".
+            ["Progress"] = id == "classic" ? dark ? "#9ABDEB" : "#42689C" : accent,
             ["Review"] = id == ContrastId ? "#FFE500" : dark ? "#EAC17B" : "#8A6225", ["Error"] = id == ContrastId ? "#FF9C8F" : dark ? "#F0A298" : "#A94C43",
             ["ChartTrack"] = chartTrack, ["TableHeader"] = tableHeader, ["TableHeaderInk"] = tableHeaderInk,
             ["TableAlternate"] = tableAlternate, ["PreviewCanvas"] = dark ? "#181B21" : "#E8EEEB"

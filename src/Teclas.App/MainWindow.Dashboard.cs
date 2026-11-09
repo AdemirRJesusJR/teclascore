@@ -94,7 +94,7 @@ public partial class MainWindow
     private void InitDashboard()
     {
         if (dashboardInitialized) return;
-        // Grouped by status (Em preparo, Para conferir, Prontas, Com falha), each group in library order.
+        // Grouped by status (Em preparo, Prontas, Com falha), each group in library order.
         var view = new LibraryCollectionView(Files, IsStillListed, moving => libraryRegrouping = moving) { CustomSort = new LibraryOrder(this), IsLiveGrouping = true, IsLiveSorting = true };
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(MidiRow.StatusGroup)));
         view.LiveGroupingProperties.Add(nameof(MidiRow.StatusGroup));

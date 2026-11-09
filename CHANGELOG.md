@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 1.6.4 — 08/11/2026
+
+Cores dos cards pelo progresso: partitura gerada não fica mais "para conferir".
+
+- **Sem o grupo Para conferir.** A lista de músicas fica com três grupos: Em preparo (etapas por fazer), Prontas (toda partitura gerada, aprovada ou não) e Com falha. Antes, uma partitura gerada com 100% ainda podia cair em Para conferir, em âmbar, por causa da nota de confiança.
+- **A cor acompanha as etapas.** O percentual do card fica cinza em 0%, azul de 25% a 75% (e em "Revisada"), verde em 100% e em "✓ Aprovada", e vermelho em "Falhou".
+- **Barrinha de progresso no pé de cada card,** na mesma cor do percentual. Ela some quando a música falhou.
+- **Na paleta Verde clássico,** o andamento usa azul, para não se confundir com o verde de pronta.
+- A confiança da partitura continua na dica do card, junto com o que vale revisar.
+
 ## 1.6.3 — 08/11/2026
 
 O card da música mostra o progresso das etapas, e as partituras ficam mais enxutas.

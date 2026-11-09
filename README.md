@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 1.6.3 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 1.6.4 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Selecionar várias músicas:** clique com o botão direito num card e escolha **Selecionar** (ou use Ctrl+clique). Cada card ganha uma caixa de marcação; Shift+clique marca um intervalo, a caixa da seção marca a seção inteira e Ctrl+A marca todas. A barra flutuante embaixo da lista age sobre todas as marcadas: **PDFs**, **Repertório**, **Gerar**, **Cifras**, **Coleção**, **Favoritar**, **Títulos** e **Remover** (com Desfazer). Esc sai da seleção.
 
@@ -98,7 +98,7 @@ Versão 1.6.3 para Windows x64, em C# / WPF (.NET 10). Organiza título e artist
 
 **Mover a janela:** arraste o título da página ou os espaços vazios do cabeçalho, além da barra de título do Windows. Os botões de PDF e importação continuam clicáveis.
 
-**Visual novo (0.51.0):** o menu fica no topo da janela. As músicas aparecem agrupadas por situação (Em preparo, Para conferir, Prontas e Com falha). A música aberta tem um cabeçalho com título, artista e dados do MIDI. O passo a passo tem quatro telas: Melodia, Ritmo, Cifras e Gerar. Em janelas largas, um painel à direita mostra o progresso da partitura e o seu teclado.
+**Visual novo (0.51.0):** o menu fica no topo da janela. As músicas aparecem agrupadas por situação (Em preparo, Prontas e Com falha; até a 1.6.3 havia também Para conferir). A música aberta tem um cabeçalho com título, artista e dados do MIDI. O passo a passo tem quatro telas: Melodia, Ritmo, Cifras e Gerar. Em janelas largas, um painel à direita mostra o progresso da partitura e o seu teclado.
 
 **Barra de ações da biblioteca:** Adicionar, Gerar, Exportar e Estudar ficam em menus numa barra embaixo da lista de músicas, com Comandos (Ctrl+K) e ⋯ (títulos e artistas, músicas repetidas, limpar biblioteca) à direita. A coluna da esquerda tem só a busca, favoritos, o botão de filtro (coleção e lista inteligente) e os filtros com contagem, e os cards usam o resto da altura. Salvar PDF usa o tamanho padrão e fica ao lado de Importar MuseScore.
 

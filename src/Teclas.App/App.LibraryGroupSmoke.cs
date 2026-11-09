@@ -9,7 +9,7 @@ namespace Teclas.App;
 
 public partial class App
 {
-    // The open song stays open when its card changes group (Em preparo → Para conferir → Prontas) or moves inside one.
+    // The open song stays open when its card changes group (Em preparo → Prontas) or moves inside one.
     private async void VerifyLibraryGroupUi(string reportPath)
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -43,10 +43,12 @@ public partial class App
             library.SelectedItem = open; Flush();
             Check(ReferenceEquals(window.SelectedFile, open), "song-opened");
             Check(open.StatusShort == window.FlowProgressText && open.StatusShort.EndsWith('%'), $"card-shows-the-panel-progress card={open.StatusShort} panel={window.FlowProgressText}");
+            Check(open.StatusGroup == "EM PREPARO" && open.StatusTone == (open.ProgressPercent == 0 ? "new" : "accent")
+                && open.ProgressDoneWidth.Value == open.ProgressPercent && open.ProgressBarVisibility == Visibility.Visible, "open-card-is-in-progress-with-its-bar " + Where());
             string Where() => $"group={open.StatusGroup} sel={(library.SelectedItem as MidiRow)?.ScoreTitle ?? "null"} open={window.SelectedFile?.ScoreTitle ?? "null"}";
 
             open.ScorePath = score; open.HasPendingScoreProperties = false; Flush();
-            Check(open.StatusGroup != "EM PREPARO", "generated-card-changes-group " + Where());
+            Check(open.StatusGroup == "PRONTAS" && open.StatusTone == "ready", "generated-card-is-ready-and-green " + Where());
             Check(open.StatusShort == "100%" && window.FlowProgressText == "100%" && open.ProgressToolTip.Contains("100%"), $"generated-card-shows-full-progress card={open.StatusShort}");
             Check(ReferenceEquals(library.SelectedItem, open) && ReferenceEquals(window.SelectedFile, open), "stays-open-when-generated " + Where());
 
@@ -61,6 +63,25 @@ public partial class App
             // A card that is not open changing group does not open anything nor close the open one.
             rows[0].ScorePath = score; rows[0].HasPendingScoreProperties = false; Flush();
             Check(ReferenceEquals(window.SelectedFile, open), "other-card-moving-keeps-the-open-song " + Where());
+
+            // Picture of the cards in each tone: green 100% and ✓ Aprovada, blue 50%, with the bar at the foot.
+            open.Approved = true; rows[2].FlowDoneSteps = 2; Flush(); window.UpdateLayout(); Flush();
+            Check(rows[2].StatusTone == "accent" && rows[2].StatusShort == "50%" && open.StatusShort == "✓ Aprovada", "card-tones-for-the-picture");
+            foreach (var theme in new[] { "ocean", "classic", "ocean:dark" })
+            {
+                var parts = theme.Split(':');
+                window.SetThemeForSmoke(parts[0]); window.SetThemeModeForSmoke(parts.Length > 1 ? parts[1] : "light", null); Flush(); window.UpdateLayout(); Flush();
+                var list = (FrameworkElement)library.Parent;
+                int lw = (int)list.ActualWidth, lh = (int)list.ActualHeight;
+                var drawing = new System.Windows.Media.DrawingVisual();
+                using (var context = drawing.RenderOpen())
+                    context.DrawRectangle(new System.Windows.Media.VisualBrush(list) { Stretch = System.Windows.Media.Stretch.None }, null, new Rect(0, 0, lw, lh));
+                var picture = new System.Windows.Media.Imaging.RenderTargetBitmap(lw, lh, 96, 96, System.Windows.Media.PixelFormats.Pbgra32); picture.Render(drawing);
+                var png = new System.Windows.Media.Imaging.PngBitmapEncoder(); png.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(picture));
+                using var stream = File.Create(Path.Combine(reports, "library-cards-" + theme.Replace(':', '-') + ".png")); png.Save(stream);
+            }
+            window.SetThemeForSmoke("classic"); window.SetThemeModeForSmoke("light", null);
+            open.Approved = false; rows[2].FlowDoneSteps = null; Flush();
 
             // Advancing a step of a generated song runs an operation that changes its group (here the analysis fails without
             // Python and the card goes to Com falha). WPF regroups the cards live and, after other cards moved, removes the card

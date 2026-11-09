@@ -54,10 +54,10 @@ public sealed partial class MidiRow
         return (title, "");
     }
 
-    /// <summary>Library groups, in order: Em preparo, Para conferir, Prontas, Com falha.</summary>
+    /// <summary>Library groups, in order: Em preparo (steps still open), Prontas (score generated) and Com falha.</summary>
     public int StatusGroupOrder => StatusInfo().Order;
     public string StatusGroup => StatusInfo().Group;
-    /// <summary>Short status chip of a list row: the step progress ("0%" … "100%"), "Aprovada", "Revisada" or "Falhou".</summary>
+    /// <summary>Short status chip of a list row: the step progress ("0%" … "100%"), "✓ Aprovada", "Revisada" or "Falhou".</summary>
     public string StatusShort => StatusInfo().Chip;
 
     private int? flowDoneSteps;
@@ -67,6 +67,11 @@ public sealed partial class MidiRow
 
     /// <summary>25% per step done and 100% once the score exists; before the song is opened, a chosen melody with its analysis counts as the first step.</summary>
     public int ProgressPercent => ScorePath is not null ? 100 : Math.Clamp(flowDoneSteps ?? (AnalysisPath is not null ? 1 : 0), 0, 4) * 25;
+
+    /// <summary>The thin bar at the foot of the card: filled part and rest, as star widths; hidden when the song failed.</summary>
+    public System.Windows.GridLength ProgressDoneWidth => new(ProgressPercent, System.Windows.GridUnitType.Star);
+    public System.Windows.GridLength ProgressRestWidth => new(100 - ProgressPercent, System.Windows.GridUnitType.Star);
+    public System.Windows.Visibility ProgressBarVisibility => Category == DashboardCategory.Error ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
 
     /// <summary>Tooltip of the card chip: the steps done, then the score's confidence and what to review.</summary>
     public string ProgressToolTip
@@ -82,21 +87,18 @@ public sealed partial class MidiRow
             return steps + confidence + review;
         }
     }
-    /// <summary>ready · review · error · accent: the chip and cover colors.</summary>
+    /// <summary>new (gray, 0%) · accent (blue, 25–75%) · ready (green, 100%) · error: the chip, cover and progress bar colors.</summary>
     public string StatusTone => StatusInfo().Tone;
 
     private (int Order, string Group, string Chip, string Tone) StatusInfo()
     {
         switch (Category)
         {
-            case DashboardCategory.Error: return (4, "COM FALHA", "Falhou", "error");
-            case DashboardCategory.Generated:
-                if (Approved) return (3, "PRONTAS", "Aprovada", "ready");
-                // The group still follows the confidence; the chip shows the progress, which is complete.
-                if (Confidence is { } c) return c.Score >= 85 ? (3, "PRONTAS", "100%", "ready") : (2, "PARA CONFERIR", "100%", "review");
-                return (2, "PARA CONFERIR", "100%", "review");
+            // A generated score has nothing left in the steps: it is ready, whatever its confidence (shown in the tooltip).
+            case DashboardCategory.Error: return (3, "COM FALHA", "Falhou", "error");
+            case DashboardCategory.Generated: return (2, "PRONTAS", Approved ? "✓ Aprovada" : "100%", "ready");
             case DashboardCategory.Ready: return (1, "EM PREPARO", "Revisada", "accent");
-            default: return (1, "EM PREPARO", ProgressPercent + "%", "accent");
+            default: return (1, "EM PREPARO", ProgressPercent + "%", ProgressPercent == 0 ? "new" : "accent");
         }
     }
 
@@ -104,6 +106,7 @@ public sealed partial class MidiRow
     {
         Notify(nameof(StatusGroupOrder)); Notify(nameof(StatusGroup)); Notify(nameof(StatusShort)); Notify(nameof(StatusTone));
         Notify(nameof(ProgressPercent)); Notify(nameof(ProgressToolTip));
+        Notify(nameof(ProgressDoneWidth)); Notify(nameof(ProgressRestWidth)); Notify(nameof(ProgressBarVisibility));
     }
 
     private void NotifyDisplay()

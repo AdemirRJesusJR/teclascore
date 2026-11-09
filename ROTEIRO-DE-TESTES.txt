@@ -1,3 +1,13 @@
+TECLASCORE 1.6.4 · CORES DOS CARDS
+
+1. Em Sobre, confira que a versão é 1.6.4.
+2. Adicione um MIDI novo: o card fica em Em preparo com "0%" em cinza e a barrinha vazia.
+3. Conclua a etapa Melodia: o percentual vira "25%" em azul e a barrinha enche um quarto; siga até 75%.
+4. Gere a partitura: o card vai para Prontas com "100%" em verde e a barrinha cheia, mesmo com confiança baixa. Não aparece mais o grupo Para conferir.
+5. Aprove a partitura: o card mostra "✓ Aprovada" em verde.
+6. Troque a paleta para Verde clássico: as músicas em andamento ficam em azul, diferentes das prontas.
+7. Uma música com falha mostra "Falhou" em vermelho, sem a barrinha.
+
 TECLASCORE 1.6.3 · PROGRESSO NO CARD
 
 1. Em Sobre, confira que a versão é 1.6.3.
