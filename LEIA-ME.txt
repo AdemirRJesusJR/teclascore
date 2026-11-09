@@ -1,3 +1,7 @@
+TECLASCORE 1.6.5
+
+Cada música da lista fica numa caixa com borda, e a barrinha de progresso corre pela borda de baixo do card, como na prévia aprovada.
+
 TECLASCORE 1.6.4
 
 Os cards das músicas mudam de cor conforme as etapas: cinza em 0%, azul de 25% a 75%, verde em 100% e em "✓ Aprovada", vermelho em "Falhou", com uma barrinha de progresso no pé de cada card. O grupo Para conferir deixa de existir: toda partitura gerada fica em Prontas. A confiança continua na dica do card.

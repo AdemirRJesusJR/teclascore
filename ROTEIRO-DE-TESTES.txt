@@ -1,3 +1,11 @@
+TECLASCORE 1.6.5 · CAIXA DOS CARDS
+
+1. Em Sobre, confira que a versão é 1.6.5.
+2. Na Biblioteca, cada música aparece numa caixa com fundo e borda, separada das outras.
+3. Numa música em 50% ou 75%, a barrinha azul corre pela borda de baixo da caixa e acompanha o canto arredondado.
+4. Numa partitura gerada, a barrinha verde ocupa toda a borda de baixo; numa música com falha, não há barrinha.
+5. Passe o mouse e selecione um card: o destaque de seleção continua visível.
+
 TECLASCORE 1.6.4 · CORES DOS CARDS
 
 1. Em Sobre, confira que a versão é 1.6.4.

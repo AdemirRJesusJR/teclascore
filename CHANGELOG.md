@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 1.6.5 — 08/11/2026
+
+Os cards da lista ficam como na prévia aprovada.
+
+- **Cada música numa caixa.** Os cards ganham fundo próprio e borda fina, com mais espaço entre eles. Antes eles não tinham contorno e se misturavam com a lista.
+- **Barrinha rente à borda de baixo.** A barrinha de progresso corre pela borda inferior do card e acompanha os cantos arredondados. Antes ela ficava solta embaixo dos botões.
+- As cores seguem as da 1.6.4: cinza em 0%, azul de 25% a 75%, verde em 100% e em "✓ Aprovada", vermelho em "Falhou".
+
 ## 1.6.4 — 08/11/2026
 
 Cores dos cards pelo progresso: partitura gerada não fica mais "para conferir".

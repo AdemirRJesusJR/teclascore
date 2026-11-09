@@ -45,4 +45,10 @@ public partial class MainWindow
         }, DispatcherPriority.Normal);
         return true;
     }
+
+    /// <summary>Rounds the card's clip so the progress bar along its bottom edge follows the corners.</summary>
+    private void LibraryCardShellSizeChanged(object sender, System.Windows.SizeChangedEventArgs e)
+    {
+        if (sender is System.Windows.FrameworkElement shell) shell.Clip = new System.Windows.Media.RectangleGeometry(new System.Windows.Rect(e.NewSize), 10, 10);
+    }
 }

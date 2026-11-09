@@ -64,24 +64,6 @@ public partial class App
             rows[0].ScorePath = score; rows[0].HasPendingScoreProperties = false; Flush();
             Check(ReferenceEquals(window.SelectedFile, open), "other-card-moving-keeps-the-open-song " + Where());
 
-            // Picture of the cards in each tone: green 100% and ✓ Aprovada, blue 50%, with the bar at the foot.
-            open.Approved = true; rows[2].FlowDoneSteps = 2; Flush(); window.UpdateLayout(); Flush();
-            Check(rows[2].StatusTone == "accent" && rows[2].StatusShort == "50%" && open.StatusShort == "✓ Aprovada", "card-tones-for-the-picture");
-            foreach (var theme in new[] { "ocean", "classic", "ocean:dark" })
-            {
-                var parts = theme.Split(':');
-                window.SetThemeForSmoke(parts[0]); window.SetThemeModeForSmoke(parts.Length > 1 ? parts[1] : "light", null); Flush(); window.UpdateLayout(); Flush();
-                var list = (FrameworkElement)library.Parent;
-                int lw = (int)list.ActualWidth, lh = (int)list.ActualHeight;
-                var drawing = new System.Windows.Media.DrawingVisual();
-                using (var context = drawing.RenderOpen())
-                    context.DrawRectangle(new System.Windows.Media.VisualBrush(list) { Stretch = System.Windows.Media.Stretch.None }, null, new Rect(0, 0, lw, lh));
-                var picture = new System.Windows.Media.Imaging.RenderTargetBitmap(lw, lh, 96, 96, System.Windows.Media.PixelFormats.Pbgra32); picture.Render(drawing);
-                var png = new System.Windows.Media.Imaging.PngBitmapEncoder(); png.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(picture));
-                using var stream = File.Create(Path.Combine(reports, "library-cards-" + theme.Replace(':', '-') + ".png")); png.Save(stream);
-            }
-            window.SetThemeForSmoke("classic"); window.SetThemeModeForSmoke("light", null);
-            open.Approved = false; rows[2].FlowDoneSteps = null; Flush();
 
             // Advancing a step of a generated song runs an operation that changes its group (here the analysis fails without
             // Python and the card goes to Com falha). WPF regroups the cards live and, after other cards moved, removes the card
@@ -130,6 +112,43 @@ public partial class App
                 await Settle(); Kept(row, "diagram-positions");
                 foreach (int tab in new[] { 2, 1, 3, 0, 2 }) { tabs.SelectedIndex = tab; await Settle(); }
                 Kept(row, "steps");
+            }
+
+            // Picture of the cards in every state, compared with the approved preview (Opção 2): gray 0%, blue 50% and 75%,
+            // green 100% and ✓ Aprovada, red Falhou; each card in its own box with the bar along its bottom edge.
+            window.Close(); Flush();
+            string pictureSettings = Path.Combine(work, "foto.json"), pictureMidis = Path.Combine(work, "foto"); Directory.CreateDirectory(pictureMidis);
+            new Settings { OutputDirectory = Path.Combine(work, "saida"), PythonPath = Path.Combine(work, "sem-python.exe"), MuseScorePath = Path.Combine(work, "sem-musescore.exe") }.Save(pictureSettings);
+            window = new MainWindow(true, pictureSettings) { Opacity = 0, ShowInTaskbar = false, ShowActivated = false, Width = 1300, Height = 1250 };
+            window.Show(); Flush();
+            window.HandleShortcut(Key.D2, ModifierKeys.Control, null); Flush();
+            library = (ListBox)window.FindName("Library");
+            var shown = new List<MidiRow>();
+            foreach (var (name, shift) in new[] { ("Asa Branca", 1), ("Xote das Meninas", 2), ("Ta Rocheda", 3), ("Inquilina", 4), ("O Bebe", 5), ("Sexta-feira", 6) })
+            {
+                string path = Path.Combine(pictureMidis, name + ".mid"); File.WriteAllBytes(path, TwoPartMidi(shift));
+                window.ImportForSmoke(path); Flush(); shown.Add(window.Files.Single(r => r.FullPath == path));
+            }
+            shown[1].FlowDoneSteps = 2; shown[2].FlowDoneSteps = 3;
+            foreach (var row in shown.Skip(3).Take(2)) { row.ScorePath = score; row.HasPendingScoreProperties = false; }
+            shown[4].Approved = true; shown[5].HasOperationError = true; Flush();
+            Check(string.Join(",", shown.Select(r => r.StatusTone + ":" + r.StatusShort)) == "new:0%,accent:50%,accent:75%,ready:100%,ready:✓ Aprovada,error:Falhou",
+                "picture-cards-cover-every-state " + string.Join(",", shown.Select(r => r.StatusTone + ":" + r.StatusShort)));
+            foreach (var theme in new[] { "ocean:dark", "ocean:light", "classic:light" })
+            {
+                var parts = theme.Split(':');
+                window.SetThemeForSmoke(parts[0]); window.SetThemeModeForSmoke(parts[1], null); Flush(); window.UpdateLayout(); Flush();
+                var list = (FrameworkElement)library.Parent;
+                int lw = (int)list.ActualWidth, lh = (int)list.ActualHeight;
+                var drawing = new System.Windows.Media.DrawingVisual();
+                using (var context = drawing.RenderOpen())
+                {
+                    context.DrawRectangle((System.Windows.Media.Brush)window.FindResource("CardBrush"), null, new Rect(0, 0, lw, lh));
+                    context.DrawRectangle(new System.Windows.Media.VisualBrush(list) { Stretch = System.Windows.Media.Stretch.None }, null, new Rect(0, 0, lw, lh));
+                }
+                var picture = new System.Windows.Media.Imaging.RenderTargetBitmap(lw, lh, 96, 96, System.Windows.Media.PixelFormats.Pbgra32); picture.Render(drawing);
+                var png = new System.Windows.Media.Imaging.PngBitmapEncoder(); png.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(picture));
+                using var stream = File.Create(Path.Combine(reports, "library-cards-" + theme.Replace(':', '-') + ".png")); png.Save(stream);
             }
 
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks }, new JsonSerializerOptions { WriteIndented = true }));
