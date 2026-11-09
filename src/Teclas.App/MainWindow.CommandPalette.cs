@@ -11,6 +11,7 @@ public partial class MainWindow
     {
         ["Piloto automático da biblioteca"] = "\uE945",
         ["Revisão em sequência"] = "\uE9D5",
+        ["Mesa de triagem (tabela da biblioteca)"] = "\uE80A",
         ["Repertório rápido (culto ou show)"] = "\uE8FD",
         ["Títulos e artistas (planilha)"] = "\uE70F",
         ["Digitar a cifra da música"] = "\uE765",
@@ -68,6 +69,7 @@ public partial class MainWindow
         {
             Act("Piloto automático da biblioteca", "lote gerar tudo automatico noite", () => AutopilotClick(this, e)),
             Act("Revisão em sequência", "revisar aprovar conferir", () => ReviewSequenceClick(this, e)),
+            Act("Mesa de triagem (tabela da biblioteca)", "tabela lote triagem selecionar em massa cards", () => { if (IsIdle && CommitEdits()) { SetCurrentPage("library"); IsLibraryTableView = !IsLibraryTableView; } }),
             Act("Repertório rápido (culto ou show)", "setlist culto show repertorio lista", () => QuickSetlistClick(this, e)),
             Act("Títulos e artistas (planilha)", "nomes metadados compositor colecao tabela", () => MetadataSheetClick(this, e)),
             Act("Digitar a cifra da música", "acordes compasso corrigir", () => TypedChordsClick(this, e), () => CanCustomizeDiagrams),

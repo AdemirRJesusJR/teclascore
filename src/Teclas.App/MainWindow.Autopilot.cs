@@ -41,35 +41,33 @@ public partial class MainWindow
     /// </summary>
     internal string? PlanAutopilotMelody(MidiRow row, bool apply)
     {
-        if (row.UseReviewedProfile) return null;
+        var (track, reason) = ProposeAutopilotMelody(row);
+        if (apply && track is not null) { track.IsMelody = true; row.AutoMelody = true; row.AutoMelodyConfident = true; }
+        return reason;
+    }
+
+    /// <summary>
+    /// The autopilot's verdict without changing the song: the track it would mark as melody (when the choice is clear),
+    /// or the reason it needs a human. Both null: the song already has its melody (or uses the reviewed profile).
+    /// </summary>
+    internal (TrackRow? Track, string? Reason) ProposeAutopilotMelody(MidiRow row)
+    {
+        if (row.UseReviewedProfile) return (null, null);
         if (row.Tracks.FirstOrDefault(t => t.IsMelody && IsGuideTrack(t)) is { } guide)
-            return $"a pista {TrackLabel(guide)} marcada como melodia é uma nota-guia (altura quase fixa), não a voz cantada";
-        if (row.HasMelodyChoice) return null;
+            return (null, $"a pista {TrackLabel(guide)} marcada como melodia é uma nota-guia (altura quase fixa), não a voz cantada");
+        if (row.HasMelodyChoice) return (null, null);
         // A missing voice is not replaced by arpeggios, bass or lyric guide notes: the user decides (another MIDI or Só cifras).
-        if (row.CatalogLacksMelody) return "o diagnóstico do lote indica que o MIDI não traz a melodia completa; escolha outra fonte ou ligue Só cifras";
-        void Choose(TrackRow track) { if (!apply) return; track.IsMelody = true; row.AutoMelody = true; row.AutoMelodyConfident = true; }
+        if (row.CatalogLacksMelody) return (null, "o diagnóstico do lote indica que o MIDI não traz a melodia completa; escolha outra fonte ou ligue Só cifras");
         // The lyrics decide: the part with 90% or more of the syllables, clearly ahead of the other lines, is the melody.
-        if (row.Tracks.FirstOrDefault(t => t.MelodySuggestion?.FollowsLyrics == true && !IsGuideTrack(t)) is { } lyricsMelody)
-        {
-            Choose(lyricsMelody);
-            return null;
-        }
+        if (row.Tracks.FirstOrDefault(t => t.MelodySuggestion?.FollowsLyrics == true && !IsGuideTrack(t)) is { } lyricsMelody) return (lyricsMelody, null);
         var coverage = LyricsCoverageOf(row);
-        if (coverage.Count > 0 && coverage[0].Share >= .5 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } sung
-            && !IsGuideTrack(sung))
-        {
-            Choose(sung);
-            return null;
-        }
+        if (coverage.Count > 0 && coverage[0].Share >= .5 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } sung && !IsGuideTrack(sung))
+            return (sung, null);
         var proposal = MelodyBatchAdvisor.Propose(row.Tracks.Select(t => t.MelodySuggestion).OfType<MelodySourceSuggestion>().ToArray());
-        if (proposal.Source is { } source && proposal.Confident && row.Tracks.FirstOrDefault(t => t.Source.Key == source) is { } track)
-        {
-            Choose(track);
-            return null;
-        }
+        if (proposal.Source is { } source && proposal.Confident && row.Tracks.FirstOrDefault(t => t.Source.Key == source) is { } track) return (track, null);
         if (coverage.Count > 0 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } lyricGuide && IsGuideTrack(lyricGuide))
-            return "a letra acompanha uma nota-guia (altura quase fixa), não a voz; escolha a melodia ou use Melodia de uma gravação";
-        return "melodia sem escolha clara" + (proposal.Reason.Length > 0 ? ": " + proposal.Reason : "");
+            return (null, "a letra acompanha uma nota-guia (altura quase fixa), não a voz; escolha a melodia ou use Melodia de uma gravação");
+        return (null, "melodia sem escolha clara" + (proposal.Reason.Length > 0 ? ": " + proposal.Reason : ""));
     }
 
     private bool autopilotRunning;

@@ -17,7 +17,7 @@ public sealed partial class MidiRow
         {
             if (queueState == value) return;
             queueState = value;
-            Notify(); Notify(nameof(IsQueued)); Notify(nameof(QueueBadge)); Notify(nameof(QueueBadgeVisibility));
+            Notify(); Notify(nameof(IsQueued)); Notify(nameof(QueueBadge)); Notify(nameof(QueueBadgeVisibility)); NotifyTriage();
         }
     }
 

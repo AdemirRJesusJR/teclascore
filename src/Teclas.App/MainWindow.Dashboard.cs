@@ -185,7 +185,7 @@ public partial class MainWindow
             {
                 libraryDirty = false;
                 var selection = Library?.SelectedItem;
-                LibraryView.Refresh();
+                LibraryView.Refresh(); RefreshLibraryTable();
                 if (selection is MidiRow row && MatchesLibraryFilter(row) && Library is not null)
                     Library.SelectedItem = row;
             }
@@ -195,7 +195,7 @@ public partial class MainWindow
                 nameof(HasFiles), nameof(HasGenerated), nameof(CanBatch), nameof(CanExportBatchPdf), nameof(SessionSummary),
                 nameof(DashboardMessage), nameof(LibraryCountText), nameof(EmptyLibraryVisible),
                 nameof(EmptyProductionVisible), nameof(DashboardEmptyVisible), nameof(DashboardHasFilesVisible),
-                nameof(EmptyLibraryMessage) }) Notify(name);
+                nameof(EmptyLibraryMessage), nameof(TriageSelectAllText), nameof(TriageAllChecked) }) Notify(name);
         }
         finally { dashboardRefreshing = false; }
     }

@@ -34,6 +34,10 @@ public partial class App : Application
         { VerifyLyricsEditorUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-recorded-melody-ui")
         { VerifyRecordedMelodyUi(e.Args[1]); return; }
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-v190-triage-ui")
+        { VerifyV190TriageUi(e.Args[1]); return; }
+        if (e.Args.Length == 2 && e.Args[0] == "--verify-v190-review-ui")
+        { VerifyV190ReviewUi(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-v052-ui")
         { VerifyV052Ui(e.Args[1]); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-batch-guard-ui")

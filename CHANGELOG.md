@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 1.9.0 — 09/11/2026
+
+Modo lote: uma mesa para triar centenas de MIDIs e uma revisão que mostra onde olhar.
+
+- **Mesa de triagem.** O ícone de tabela ao lado da busca da Biblioteca troca os cards por uma tabela em tela cheia, com Música/intérprete, Melodia escolhida (pista), Tom, Páginas, Confiança e Situação (Pronta, Para revisar, Para gerar, Precisa de você, Falhou, Na fila, Gerando…) com o motivo curto ao lado. A busca e os filtros de situação são os mesmos dos cards; clique no cabeçalho para ordenar. A escolha entre tabela e cards fica salva.
+- **Seleção e ações em massa.** Caixa em cada linha, caixa do cabeçalho para marcar todas as filtradas, ↑↓ percorrem, Espaço marca, Enter abre a música, Ctrl+A marca as filtradas, Esc limpa, Delete exclui. No rodapé da tabela: Gerar (fila), Aprovar ≥85%, PDFs, Refazer com outra melodia e Excluir. Gerar e Excluir passam pela janela "O que vai acontecer" da 1.7.0 (ponto de restauração, Desfazer no rodapé), e partituras aprovadas são puladas por Refazer e Excluir.
+- **Faixa da fila.** Enquanto a fila gera em segundo plano, a tabela mostra "3 em andamento · 12 de 40 · termina em ~9 min", estimado pela mediana das gerações já medidas neste computador, com Pausar e Retomar. A opção "Ao terminar: exportar PDFs e relatório" salva um PDF de cada partitura gerada e um relatório (CSV e JSON) numa pasta "Lote" dentro da pasta de saída.
+- **Revisão em sequência 2.0.** A página da partitura mostra os pontos de revisão destacados sobre os compassos (cifras com dúvida em âmbar, compassos sem melodia em cinza, trechos da análise em azul), com o mapa de compassos do MuseScore preparado junto com o áudio. À direita, a lista dos pontos: as alternativas de cada cifra (teclas 1, 2 e 3 escolhem; 0 mantém), compassos vazios, trechos marcados e os avisos de harmonia e escrita do relatório. P vai ao próximo ponto, Espaço ouve a partir dele, A aprova (ou gera de novo se você trocou cifras), R refaz com outra melodia, E edita. O cabeçalho mostra "n de N · ~minutos restantes" e as próximas músicas aparecem em miniatura.
+- Nenhuma ação existente foi removida; os nomes completos ficam nas dicas. Smokes novos `--verify-v190-triage-ui` e `--verify-v190-review-ui` cobrem as duas telas e as ações em massa.
 ## 1.8.0 — 09/11/2026
 
 Síntese rítmica e notação única: a mesma música escrita de forma uniforme, para processar centenas de MIDIs sem misturar figuras raras, pausas miúdas e marcas de andamento repetidas. Nenhuma regra muda ataque, altura ou duração total da partitura; cada uma conta no relatório o que fez.

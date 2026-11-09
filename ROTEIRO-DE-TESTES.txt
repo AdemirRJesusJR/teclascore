@@ -1,3 +1,13 @@
+TECLASCORE 1.9.0 · MODO LOTE
+
+1. Em Sobre, confira que a versão é 1.9.0.
+2. Na Biblioteca, clique no ícone de tabela ao lado da busca: a Mesa de triagem ocupa a tela, com as colunas Música/intérprete, Melodia escolhida (pista), Tom, Pág., Conf. e Situação com o motivo. Feche e reabra o app: a tabela continua.
+3. Clique nos cabeçalhos Conf. e Situação para ordenar; use os filtros Prontos/Revisar/Geradas/Falhas e a busca: a tabela obedece aos mesmos filtros dos cards.
+4. Com o foco na tabela: ↑↓ percorrem, Espaço marca a linha, Enter abre a música nos cards, Ctrl+A marca as filtradas, Esc limpa. A caixa do cabeçalho marca ou desmarca todas as filtradas.
+5. Marque algumas músicas e use as ações do rodapé: Gerar (vão para a fila), Aprovar ≥85% (pede confirmação e só aprova as de nota alta), PDFs (direto na pasta), Refazer (próxima pista candidata) e Excluir (confirmação; Desfazer no rodapé do app).
+6. Com a fila gerando, confira a faixa "N em andamento · X de Y · termina em ~M min" no pé da tabela; Pausar e Retomar; marque "Ao terminar: exportar PDFs e relatório" e confira a pasta "Lote …" na pasta de saída com os PDFs e relatorio-do-lote.csv.
+7. Gerar › Revisão em sequência: a página mostra os compassos destacados (cifras com dúvida em âmbar, compassos vazios em cinza, trechos em azul) depois que o mapa de compassos é preparado; a lista à direita traz as alternativas de cifra. Tecle 1 ou 2 para trocar, 0 para manter, P para o próximo ponto, Espaço para ouvir a partir dele.
+8. Com uma cifra trocada, A manda gerar de novo em vez de aprovar; sem trocas, A aprova e avança. Confira o contador "n de N · ~min restantes" e clique numa miniatura das próximas para pular até ela.
 TECLASCORE 1.8.0 · SÍNTESE RÍTMICA E NOTAÇÃO ÚNICA
 
 1. Em Sobre, confira que a versão é 1.8.0.

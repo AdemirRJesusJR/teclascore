@@ -1,3 +1,6 @@
+TECLASCORE 1.9.0
+
+Modo lote. A Biblioteca ganha a Mesa de triagem (ícone de tabela ao lado da busca): toda a biblioteca numa tabela com melodia escolhida, tom, páginas, confiança e situação com motivo, caixas para marcar, ordenação por coluna, teclado (↑↓, Espaço, Enter) e ações em massa: Gerar, Aprovar ≥85%, PDFs, Refazer com outra melodia e Excluir. Uma faixa no rodapé acompanha a fila ("3 em andamento · 12 de 40 · termina em ~9 min"), com Pausar/Retomar e a opção de exportar PDFs e relatório ao terminar. A Revisão em sequência destaca os pontos de revisão sobre os compassos da página, lista as alternativas de cifra (teclas 1/2, 0 mantém), P vai ao próximo ponto, Espaço ouve a partir dele, A aprova, R refaz, E edita; mostra "n de N · ~minutos restantes" e as próximas músicas em miniatura.
 TECLASCORE 1.8.0
 
 Síntese rítmica e notação única: seis regras novas, ligadas por padrão em Configurações › Aparência das partituras, escrevem a mesma música de forma uniforme (grade rítmica única, síntese de durações, finais de frase, tempo e fórmula únicos, síntese de repetições e grafia única). Nenhuma muda ataque, altura ou duração total; a dica do card mostra em "Escrita:" o que cada uma fez.

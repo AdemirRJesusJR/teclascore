@@ -97,9 +97,20 @@ public partial class MainWindow
             if (!operationsDisposed)
             {
                 RefreshBackgroundQueue(finished: true);
-                if (!IsBackgroundQueueRunning) backgroundQueueRun.Clear();
+                // The task is still "running" inside its own finally: the end of the run is handled right after it completes.
+                _ = Dispatcher.BeginInvoke(OnBackgroundQueueTaskCompleted, DispatcherPriority.Background);
             }
         }
+    }
+
+    /// <summary>After the queue task ends (and no new one took its place): the strip, the end-of-run export and the run ids.</summary>
+    private void OnBackgroundQueueTaskCompleted()
+    {
+        if (operationsDisposed || IsBackgroundQueueRunning) return;
+        RefreshBackgroundQueue(finished: true);
+        OnBackgroundQueueFinished(QueueRunItems);
+        backgroundQueueRun.Clear();
+        NotifyBackgroundQueue();
     }
 
     /// <summary>Pauses the background queue safely: the conversions in progress stop and wait in the queue as paused.</summary>
@@ -153,6 +164,7 @@ public partial class MainWindow
         }
         ResolveQueueWaiters(finished || !active);
         if (selectionChanged) RefreshSelection();
+        if (IsLibraryTableView) RefreshLibraryTable();
         NotifyBackgroundQueue();
     }
 
@@ -160,6 +172,7 @@ public partial class MainWindow
     {
         foreach (string name in new[] { nameof(IsBackgroundQueueRunning), nameof(BackgroundQueueVisibility), nameof(CanPauseBackgroundQueue), nameof(BackgroundQueueText), nameof(BackgroundQueueToolTip) })
             Notify(name);
+        NotifyQueueStrip();
     }
 
     /// <summary>Completes when the item finishes (completed, failed or paused), leaves the queue, or the queue stops before it.</summary>

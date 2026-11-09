@@ -46,4 +46,23 @@ for (int mask = 0; mask < 32; mask++)
     Check(metrics.Total == metrics.Ready + metrics.Review + metrics.Generated + metrics.Error && metrics.Pages == 0,
         $"Every state belongs to exactly one category with a non-negative page count: {mask}.");
 }
+
+// ---- The engine report beside a generated score (review in sequence 2.0) ----
+{
+    using var document = System.Text.Json.JsonDocument.Parse("""
+        {"origin_removed_quarters": 4, "harmonic_warnings": ["Armadura sugerida com confiança limitada"], "quality": {"score": 88, "issues": ["letra apertada"]},
+         "bars": [{"start": 0, "end": 3840}, {"start": 3840, "end": 7680}, {"start": 7680, "end": 11520}, {"start": 11520, "end": 15360}, {"start": 15360, "end": 19200}],
+         "notes": [{"start": 0, "end": 1920, "pitch": 60}, {"start": 7680, "end": 9600, "pitch": 62}, {"start": 15360, "end": 16000, "pitch": 64}]}
+        """);
+    var report = ScoreValidationReport.Parse(document.RootElement);
+    Check(report.HarmonicWarnings.Count == 1 && report.QualityScore == 88 && report.QualityIssues.SequenceEqual(["letra apertada"]), "Warnings and quality are read from the report.");
+    Check(report.MeasureCount == 5 && report.EmptyMeasures.SequenceEqual([2, 4]) && report.OriginQuarters == 4 && report.Bars.Count == 5 && report.Bars[1] == (4, 8), "Bars, empty measures and the origin offset are read.");
+    Check(report.EmptyRanges().SequenceEqual([(2, 2), (4, 4)]), "Empty ranges leave out the first and the last measure.");
+    Check(report.MeasureAtMidiQuarter(4) == 1 && report.MeasureAtMidiQuarter(9) == 2 && report.MeasureAtMidiQuarter(23.9) == 5 && report.MeasureAtMidiQuarter(1) is null && report.MeasureAtMidiQuarter(40) == 5,
+        "A chord position in MIDI quarters finds its score measure after the removed origin.");
+    var merged = ScoreValidationReport.Parse(System.Text.Json.JsonDocument.Parse("""{"bars": [{"start": 0, "end": 3840}, {"start": 3840, "end": 7680}, {"start": 7680, "end": 11520}, {"start": 11520, "end": 15360}], "notes": []}""").RootElement);
+    Check(merged.EmptyMeasures.SequenceEqual([1, 2, 3, 4]) && merged.EmptyRanges().Count == 0, "A score with no melody at all is one intro-to-end run, not a review point.");
+    Check(ScoreValidationReport.Read(Path.Combine(Path.GetTempPath(), "nao-existe-" + Guid.NewGuid().ToString("N") + ".mscz")) == ScoreValidationReport.Empty, "A missing report reads as empty.");
+    Check(ScoreValidationReport.Parse(System.Text.Json.JsonDocument.Parse("[]").RootElement) == ScoreValidationReport.Empty, "A report that is not an object reads as empty.");
+}
 Console.WriteLine($"PASS: {passed} dashboard checks.");

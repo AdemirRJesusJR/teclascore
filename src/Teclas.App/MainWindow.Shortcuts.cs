@@ -14,6 +14,8 @@ public partial class MainWindow
         ("Esc", "Parar a reprodução ou a contagem; sair da seleção de músicas"),
         ("Ctrl+clique no card", "Selecionar várias músicas (também pelo botão direito › Selecionar)"),
         ("Shift+clique / Ctrl+A", "Na seleção: marcar um intervalo ou todas as músicas da lista"),
+        ("↑ ↓ · Espaço · Enter", "Mesa de triagem: percorrer as linhas, marcar a linha e abrir a música (Ctrl+A marca as filtradas, Delete exclui as marcadas)"),
+        ("1 / 2 · 0 · P · Espaço", "Revisão em sequência: escolher uma alternativa de cifra, manter a cifra, próximo ponto, ouvir a partir do ponto (A aprova, R refaz, E edita)"),
         ("Ctrl+← / Ctrl+→", "Voltar ou avançar 5 segundos"),
         ("Ctrl+M", "Ligar ou desligar o metrônomo"),
         ("Ctrl+Shift+M", "Ligar ou desligar a contagem antes de tocar"),
@@ -74,7 +76,7 @@ public partial class MainWindow
         // Outside text fields (which keep their own undo), Ctrl+Z / Ctrl+Y step through the card's changes.
         if (modifiers == ctrl && key == Key.Z) { Undo(); return true; }
         if (modifiers == ctrl && key == Key.Y || modifiers == ctrlShift && key == Key.Z) { Redo(); return true; }
-        if (modifiers == ModifierKeys.None && key == Key.Space && focus is not ButtonBase && currentPage == "library")
+        if (modifiers == ModifierKeys.None && key == Key.Space && focus is not ButtonBase && currentPage == "library" && !IsInLibraryTable(focus))
         {
             if (CanPauseScore) PauseScoreClick(this, new RoutedEventArgs());
             else if (countingIn) StopPlayback("Contagem cancelada.");

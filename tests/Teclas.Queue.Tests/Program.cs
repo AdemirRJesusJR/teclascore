@@ -324,6 +324,24 @@ using (var queue = new ConversionQueueService(Path.Combine(work, "queue-concurre
 }
 
 File.WriteAllText(Path.Combine(work, "report.json"), JsonSerializer.Serialize(new { checks = passed.Count, passed }, new JsonSerializerOptions { WriteIndented = true }));
+
+// ---- Estimate of the background queue (Mesa de triagem strip) ----
+{
+    static PerformanceRecord Record(PerformanceOperation operation, double seconds, PerformanceOutcome outcome = PerformanceOutcome.Success, PerformanceProcessKind kind = PerformanceProcessKind.Worker) =>
+        new(DateTimeOffset.UtcNow, operation, PerformancePhase.Process, kind, outcome, seconds * 1000, null, null, 0, new Dictionary<PerformanceCount, long>());
+    Check(ConversionQueueEstimate.SecondsPerSong([]) == ConversionQueueEstimate.DefaultSecondsPerSong, "Without history the estimate falls back to the default seconds per song");
+    var history = new[] { Record(PerformanceOperation.EngineGenerate, 40), Record(PerformanceOperation.EngineGenerate, 60), Record(PerformanceOperation.EngineGenerate, 300),
+        Record(PerformanceOperation.EngineAnalyze, 10), Record(PerformanceOperation.EngineAnalyze, 20), Record(PerformanceOperation.EngineGenerate, 5, PerformanceOutcome.Failure),
+        Record(PerformanceOperation.EngineGenerate, 1000, PerformanceOutcome.Success, PerformanceProcessKind.App) };
+    Check(Math.Abs(ConversionQueueEstimate.SecondsPerSong(history) - 75) < .001, "The estimate is the median generation (60) plus the median analysis (15): failures and app records are ignored");
+    Check(ConversionQueueEstimate.RemainingSeconds(75, 10, 2) == 375 && ConversionQueueEstimate.RemainingSeconds(75, 0, 2) == 0 && ConversionQueueEstimate.RemainingSeconds(75, 3, 0) == 225,
+        "Remaining time spreads the songs over the lanes (at least one) and is zero when nothing is left");
+    Check(ConversionQueueEstimate.Describe(30) == "termina em menos de 1 min" && ConversionQueueEstimate.Describe(9 * 60) == "termina em ~9 min"
+        && ConversionQueueEstimate.Describe(80 * 60) == "termina em ~1 h 20 min" && ConversionQueueEstimate.Describe(120 * 60) == "termina em ~2 h" && ConversionQueueEstimate.Describe(0) == "",
+        "The end is described in minutes or hours");
+    Check(ConversionQueueEstimate.Strip(3, 12, 40, 9 * 60) == "3 em andamento · 12 de 40 · termina em ~9 min" && ConversionQueueEstimate.Strip(0, 40, 40, 0) == "40 de 40"
+        && ConversionQueueEstimate.Strip(1, 0, 1, 30) == "1 em andamento · 0 de 1 · termina em menos de 1 min", "The strip joins the parts that apply");
+}
 Console.WriteLine($"PASS: {passed.Count} durable queue checks.");
 
 sealed class FakeWorker : IConversionQueueWorker

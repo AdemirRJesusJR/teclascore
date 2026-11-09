@@ -80,7 +80,7 @@ public partial class MainWindow
         row.Confidence = rating;
     }
 
-    internal void RefreshAllConfidence() { foreach (var row in Files) RefreshConfidence(row); }
+    internal void RefreshAllConfidence() { foreach (var row in Files) { RefreshConfidence(row); RefreshTriage(row); } }
 
     /// <summary>"Revisar primeiro" sorts the cards by rating (lowest first); every other list keeps the library order.</summary>
     private bool reviewSortActive;

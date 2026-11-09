@@ -43,6 +43,7 @@ public partial class MainWindow
     private void NotifyLibrarySelection()
     {
         Notify(nameof(LibrarySelectionText)); Notify(nameof(LibrarySelectAllText)); Notify(nameof(LibraryFavoriteActionText));
+        NotifyTriageSelection();
         RefreshGroupChecks();
     }
 

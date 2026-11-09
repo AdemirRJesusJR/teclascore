@@ -21,6 +21,8 @@ public sealed class Settings
     public string ThemeMode { get; set; } = "";
     public bool IsSidebarCollapsed { get; set; }
     public bool IsPreviewControlsCompact { get; set; }
+    /// <summary>The library opens as the Mesa de triagem (table) instead of the card list.</summary>
+    public bool LibraryTableView { get; set; }
     public double LibraryFiltersShare { get; set; } = .55;
     public double TrackAuditionSpeed { get; set; } = 1.0;
     public bool TrackAuditionCombine { get; set; } = true;

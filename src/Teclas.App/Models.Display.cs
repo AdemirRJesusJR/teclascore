@@ -107,6 +107,7 @@ public sealed partial class MidiRow
         Notify(nameof(StatusGroupOrder)); Notify(nameof(StatusGroup)); Notify(nameof(StatusShort)); Notify(nameof(StatusTone));
         Notify(nameof(ProgressPercent)); Notify(nameof(ProgressToolTip));
         Notify(nameof(ProgressDoneWidth)); Notify(nameof(ProgressRestWidth)); Notify(nameof(ProgressBarVisibility));
+        NotifyTriage();
     }
 
     private void NotifyDisplay()
