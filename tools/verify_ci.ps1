@@ -10,7 +10,10 @@ param(
     [switch]$NativeEngineTests,
     # Native suites to leave out, with the reason recorded in the report (e.g. a known difference of a CI server).
     [string[]]$SkipNativeSuites = @(),
-    [string]$SkipNativeReason = ''
+    [string]$SkipNativeReason = '',
+    # Run the checks on the user's own desktop. By default they run on a secondary, invisible Windows
+    # desktop so the WPF smokes never flash on screen (not on GitHub Actions, where nobody watches).
+    [switch]$VisibleWindows
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -28,6 +31,195 @@ foreach ($path in @($reports,$work,(Join-Path $output 'tmp'))) { [void][IO.Direc
 $results = [Collections.Generic.List[object]]::new()
 $configuration = 'Release'
 $started = [DateTimeOffset]::UtcNow
+
+# Each check is a child process. On a developer's machine they run on a secondary desktop created with
+# CreateDesktop: the ~45 WPF smokes open real windows (Opacity 0, ShowActivated false), and Windows still
+# shows those on screen and in Alt+Tab for a moment each, so a full run flashes more than a hundred windows.
+# Processes on the secondary desktop are invisible, their children (MuseScore, Python) inherit it, and the
+# PNG renders are unchanged: the smokes draw with RenderTargetBitmap, which never reads the screen.
+# System.Diagnostics.Process cannot set STARTUPINFO.lpDesktop, hence the small CreateProcess wrapper below.
+# Fallback: GitHub Actions (-VisibleWindows is implied, nobody watches that desktop) or a CreateDesktop failure.
+$ciProcessSource = @'
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.IO.Pipes;
+using System.Runtime.InteropServices;
+using System.Text;
+using Microsoft.Win32.SafeHandles;
+
+namespace TeclasCi
+{
+    /// <summary>A checked process: on a hidden desktop through CreateProcess, or the ordinary Process class.</summary>
+    public sealed class CiProcess : IDisposable
+    {
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct STARTUPINFO
+        {
+            public int cb; public IntPtr lpReserved; public string lpDesktop; public IntPtr lpTitle;
+            public int dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags;
+            public short wShowWindow, cbReserved2; public IntPtr lpReserved2, hStdInput, hStdOutput, hStdError;
+        }
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PROCESS_INFORMATION { public IntPtr hProcess, hThread; public int dwProcessId, dwThreadId; }
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CreateDesktopW(string name, IntPtr device, IntPtr devmode, int flags, uint access, IntPtr security);
+        [DllImport("user32.dll", SetLastError = true)] private static extern bool CloseDesktop(IntPtr handle);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool CreateProcessW(string application, StringBuilder commandLine, IntPtr processAttributes, IntPtr threadAttributes,
+            bool inheritHandles, uint creationFlags, IntPtr environment, string currentDirectory, ref STARTUPINFO startupInfo, out PROCESS_INFORMATION processInformation);
+        [DllImport("kernel32.dll", SetLastError = true)] private static extern bool CloseHandle(IntPtr handle);
+        [DllImport("kernel32.dll", SetLastError = true)] private static extern uint WaitForSingleObject(SafeProcessHandle handle, uint milliseconds);
+        [DllImport("kernel32.dll", SetLastError = true)] private static extern bool GetExitCodeProcess(SafeProcessHandle handle, out int exitCode);
+        [DllImport("kernel32.dll", SetLastError = true)] private static extern bool TerminateProcess(SafeProcessHandle handle, int exitCode);
+
+        private const uint GENERIC_ALL = 0x10000000, CREATE_UNICODE_ENVIRONMENT = 0x400, CREATE_NO_WINDOW = 0x08000000;
+        private const int STARTF_USESTDHANDLES = 0x100;
+        private const uint WAIT_OBJECT_0 = 0, WAIT_TIMEOUT = 0x102;
+
+        private readonly Process process;            // visible-desktop path
+        private readonly SafeProcessHandle handle;   // hidden-desktop path
+        private readonly int processId;
+        private int? exitCode;
+
+        public StreamReader StandardOutput { get; private set; }
+        public StreamReader StandardError { get; private set; }
+        public int Id { get { return process != null ? process.Id : processId; } }
+        public bool OnHiddenDesktop { get { return handle != null; } }
+
+        /// <summary>Creates the invisible desktop in the current window station; IntPtr.Zero when Windows refuses.</summary>
+        public static IntPtr CreateHiddenDesktop(string name)
+        {
+            try { return CreateDesktopW(name, IntPtr.Zero, IntPtr.Zero, 0, GENERIC_ALL, IntPtr.Zero); }
+            catch (Exception) { return IntPtr.Zero; }
+        }
+        public static void CloseHiddenDesktop(IntPtr desktop) { if (desktop != IntPtr.Zero) CloseDesktop(desktop); }
+        public static string LastErrorMessage() { return new Win32Exception(Marshal.GetLastWin32Error()).Message; }
+
+        public static CiProcess Start(ProcessStartInfo info, string desktop)
+        {
+            if (string.IsNullOrEmpty(desktop)) return new CiProcess(Process.Start(info));
+            return new CiProcess(info, desktop);
+        }
+
+        private CiProcess(Process started)
+        {
+            process = started;
+            StandardOutput = started.StandardOutput; StandardError = started.StandardError;
+        }
+
+        private CiProcess(ProcessStartInfo info, string desktop)
+        {
+            var stdout = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
+            var stderr = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
+            var stdin = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+            var startup = new STARTUPINFO();
+            startup.cb = Marshal.SizeOf(typeof(STARTUPINFO));
+            startup.lpDesktop = desktop;
+            startup.dwFlags = STARTF_USESTDHANDLES;
+            startup.hStdInput = stdin.ClientSafePipeHandle.DangerousGetHandle();
+            startup.hStdOutput = stdout.ClientSafePipeHandle.DangerousGetHandle();
+            startup.hStdError = stderr.ClientSafePipeHandle.DangerousGetHandle();
+            var commandLine = new StringBuilder(Quote(info.FileName));
+            foreach (string argument in info.ArgumentList) commandLine.Append(' ').Append(Quote(argument));
+            IntPtr environment = Marshal.StringToHGlobalUni(EnvironmentBlock(info.Environment));
+            PROCESS_INFORMATION information;
+            bool created;
+            try
+            {
+                created = CreateProcessW(info.FileName, commandLine, IntPtr.Zero, IntPtr.Zero, true, CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW,
+                    environment, string.IsNullOrEmpty(info.WorkingDirectory) ? null : info.WorkingDirectory, ref startup, out information);
+            }
+            finally { Marshal.FreeHGlobal(environment); }
+            int error = Marshal.GetLastWin32Error();
+            stdin.DisposeLocalCopyOfClientHandle(); stdout.DisposeLocalCopyOfClientHandle(); stderr.DisposeLocalCopyOfClientHandle();
+            stdin.Dispose(); // the child reads end-of-file, like a CI runner without a console
+            if (!created) { stdout.Dispose(); stderr.Dispose(); throw new Win32Exception(error, "CreateProcess failed for " + info.FileName); }
+            CloseHandle(information.hThread);
+            handle = new SafeProcessHandle(information.hProcess, true);
+            processId = information.dwProcessId;
+            var encoding = info.StandardOutputEncoding ?? new UTF8Encoding(false);
+            StandardOutput = new StreamReader(stdout, encoding, true);
+            StandardError = new StreamReader(stderr, info.StandardErrorEncoding ?? encoding, true);
+        }
+
+        public bool WaitForExit(int milliseconds)
+        {
+            if (process != null) return process.WaitForExit(milliseconds);
+            uint result = WaitForSingleObject(handle, milliseconds < 0 ? uint.MaxValue : (uint)milliseconds);
+            if (result == WAIT_TIMEOUT) return false;
+            if (result != WAIT_OBJECT_0) throw new Win32Exception(Marshal.GetLastWin32Error(), "Waiting for the process failed.");
+            return true;
+        }
+
+        public bool HasExited { get { return process != null ? process.HasExited : WaitForSingleObject(handle, 0) == WAIT_OBJECT_0; } }
+
+        public int ExitCode
+        {
+            get
+            {
+                if (process != null) return process.ExitCode;
+                if (exitCode.HasValue) return exitCode.Value;
+                int code;
+                if (!GetExitCodeProcess(handle, out code)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Reading the exit code failed.");
+                exitCode = code; return code;
+            }
+        }
+
+        /// <summary>Stops the process and every child it owns (a smoke's MuseScore or Python).</summary>
+        public void Kill()
+        {
+            if (process != null) { process.Kill(true); return; }
+            try { using (var owner = Process.GetProcessById(processId)) owner.Kill(true); }
+            catch (Exception) { TerminateProcess(handle, -1); }
+        }
+
+        public void Dispose()
+        {
+            if (process != null) process.Dispose();
+            if (handle != null) handle.Dispose();
+        }
+
+        private static string EnvironmentBlock(IDictionary<string, string> variables)
+        {
+            var keys = new List<string>(variables.Keys);
+            keys.Sort(StringComparer.OrdinalIgnoreCase);
+            var block = new StringBuilder();
+            foreach (string key in keys) block.Append(key).Append('=').Append(variables[key]).Append('\0');
+            return block.Append('\0').ToString();
+        }
+
+        // Same rules as .NET's own argument pasting: the child sees exactly the ArgumentList entries.
+        private static string Quote(string argument)
+        {
+            if (argument.Length > 0 && argument.IndexOfAny(new[] { ' ', '\t', '"' }) < 0) return argument;
+            var quoted = new StringBuilder("\"");
+            int backslashes = 0;
+            foreach (char c in argument)
+            {
+                if (c == '\\') { backslashes++; continue; }
+                if (c == '"') { quoted.Append('\\', backslashes * 2 + 1).Append('"'); backslashes = 0; continue; }
+                quoted.Append('\\', backslashes).Append(c); backslashes = 0;
+            }
+            return quoted.Append('\\', backslashes).Append('"').ToString();
+        }
+    }
+}
+'@
+Add-Type -TypeDefinition $ciProcessSource
+$hiddenDesktop = $null; $hiddenDesktopHandle = [IntPtr]::Zero
+if ($VisibleWindows) { $desktopNote = 'visible desktop (-VisibleWindows)' }
+elseif ($env:GITHUB_ACTIONS) { $desktopNote = 'visible desktop (GitHub Actions)' }
+else {
+    $name = 'TeclaScoreCI-' + [guid]::NewGuid().ToString('N').Substring(0,8)
+    $hiddenDesktopHandle = [TeclasCi.CiProcess]::CreateHiddenDesktop($name)
+    if ($hiddenDesktopHandle -ne [IntPtr]::Zero) { $hiddenDesktop = $name; $desktopNote = 'hidden desktop ' + $name }
+    else { $desktopNote = 'visible desktop (CreateDesktop failed: ' + [TeclasCi.CiProcess]::LastErrorMessage() + ')' }
+}
+Write-Host ('Checks run on the ' + $desktopNote + '.')
 
 function Record-Skip([string]$Name, [string]$Reason) {
     $results.Add([pscustomobject]@{name=$Name;status='skipped';seconds=0;exitCode=$null;reason=$Reason;log=$null})
@@ -61,10 +253,10 @@ function Invoke-Check {
         if ([IO.Path]::GetFileName($Executable) -ieq 'powershell.exe') {
             [void]$info.Environment.Remove('PSModulePath')
         }
-        $process=[Diagnostics.Process]::Start($info)
+        $process=[TeclasCi.CiProcess]::Start($info,$hiddenDesktop)
         $outTask=$process.StandardOutput.ReadToEndAsync();$errTask=$process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit($Timeout*1000)) {
-            $process.Kill($true);[void]$process.WaitForExit(10000);throw "Timed out after $Timeout seconds; owned child processes were stopped."
+            $process.Kill();[void]$process.WaitForExit(10000);throw "Timed out after $Timeout seconds; owned child processes were stopped."
         }
         $stdout=$outTask.GetAwaiter().GetResult();$stderr=$errTask.GetAwaiter().GetResult();$code=$process.ExitCode
         if ($code -ne 0) { throw "Process exited with code $code." }
@@ -77,7 +269,7 @@ function Invoke-Check {
     } catch {
         $reason=$_.Exception.Message
         if ($code -eq 0) { $code=-1 }
-        if ($process -and -not $process.HasExited) { try {$process.Kill($true)} catch {} }
+        if ($process -and -not $process.HasExited) { try {$process.Kill()} catch {} }
     } finally {
         if ($process) { $process.Dispose() }
         $timer.Stop()
@@ -204,11 +396,12 @@ try {
     $passed=@($results|Where-Object status -eq 'passed').Count
     $skipped=@($results|Where-Object status -eq 'skipped').Count
     $sourceCommit=if($env:GITHUB_SHA -match '^[0-9a-fA-F]{40}$'){$env:GITHUB_SHA}else{$null}
-    $report=[ordered]@{schemaVersion=1;status=$(if($failed){'failed'}else{'passed'});sourceCommit=$sourceCommit;startedUtc=$started.ToString('O');completedUtc=[DateTimeOffset]::UtcNow.ToString('O');passed=$passed;failed=$failed;skipped=$skipped;steps=$results.ToArray()}
+    $report=[ordered]@{schemaVersion=1;status=$(if($failed){'failed'}else{'passed'});sourceCommit=$sourceCommit;startedUtc=$started.ToString('O');completedUtc=[DateTimeOffset]::UtcNow.ToString('O');passed=$passed;failed=$failed;skipped=$skipped;desktop=$desktopNote;steps=$results.ToArray()}
     $report|ConvertTo-Json -Depth 8|Set-Content -LiteralPath (Join-Path $reports 'ci-report.json') -Encoding utf8
     $summary=@('# TeclaScore validation', '',"Passed: $passed · Failed: $failed · Skipped: $skipped",'', '| Check | Result | Seconds | Note |','| --- | --- | ---: | --- |')
     foreach($result in $results){$summary+='| '+$result.name+' | '+$result.status+' | '+$result.seconds+' | '+($result.reason -replace '[\r\n|]',' ')+' |'}
-    $summary+='';$summary+='Timing is observational. Shared-runner speed is not a pass/fail threshold.'
+    $summary+='';$summary+='Timing is observational. Shared-runner speed is not a pass/fail threshold.';$summary+='Checks ran on the '+$desktopNote+'.'
+    [TeclasCi.CiProcess]::CloseHiddenDesktop($hiddenDesktopHandle)
     $summary|Set-Content -LiteralPath (Join-Path $reports 'summary.md') -Encoding utf8
     if($env:GITHUB_STEP_SUMMARY){$summary|Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8}
     Write-Host "CI result: $passed passed, $failed failed, $skipped skipped. Reports: $reports"

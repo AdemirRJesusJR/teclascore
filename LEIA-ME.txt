@@ -1,3 +1,7 @@
+TECLASCORE 1.9.1
+
+A conferência automática (tools/verify_ci.ps1) roda numa área de trabalho secundária e invisível do Windows: as janelas dos smokes WPF não piscam mais na tela nem no Alt+Tab, e os renders saem iguais. O motor chama o MuseScore com a janela escondida.
+
 TECLASCORE 1.9.0
 
 Modo lote. A Biblioteca ganha a Mesa de triagem (ícone de tabela ao lado da busca): toda a biblioteca numa tabela com melodia escolhida, tom, páginas, confiança e situação com motivo, caixas para marcar, ordenação por coluna, teclado (↑↓, Espaço, Enter) e ações em massa: Gerar, Aprovar ≥85%, PDFs, Refazer com outra melodia e Excluir. Uma faixa no rodapé acompanha a fila ("3 em andamento · 12 de 40 · termina em ~9 min"), com Pausar/Retomar e a opção de exportar PDFs e relatório ao terminar. A Revisão em sequência destaca os pontos de revisão sobre os compassos da página, lista as alternativas de cifra (teclas 1/2, 0 mantém), P vai ao próximo ponto, Espaço ouve a partir dele, A aprova, R refaz, E edita; mostra "n de N · ~minutos restantes" e as próximas músicas em miniatura.

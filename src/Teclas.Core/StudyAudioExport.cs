@@ -128,7 +128,8 @@ public static class StudyAudioExport
 
     private static async Task RunAsync(string museScorePath, string output, string input, CancellationToken token)
     {
-        var start = new ProcessStartInfo(museScorePath) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
+        // Same flags as every other MuseScore launch in Core: the converter never gets a visible window.
+        var start = new ProcessStartInfo(museScorePath) { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden, RedirectStandardError = true, RedirectStandardOutput = true };
         start.ArgumentList.Add("-o"); start.ArgumentList.Add(output); start.ArgumentList.Add(input);
         await using var silence = await MuseScoreMetronomeGuard.SilenceAsync(token).ConfigureAwait(false);
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Não foi possível iniciar o MuseScore.");

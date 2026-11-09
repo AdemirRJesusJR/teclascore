@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 1.9.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 1.9.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Selecionar várias músicas:** clique com o botão direito num card e escolha **Selecionar** (ou use Ctrl+clique). Cada card ganha uma caixa de marcação; Shift+clique marca um intervalo, a caixa da seção marca a seção inteira e Ctrl+A marca todas. A barra flutuante embaixo da lista age sobre todas as marcadas: **PDFs**, **Repertório**, **Gerar**, **Cifras**, **Coleção**, **Favoritar**, **Títulos** e **Remover** (com Desfazer). Esc sai da seleção.
 
@@ -158,6 +158,8 @@ Para repetir localmente em PowerShell 7.2+, com .NET SDK 10, Python 3.13 e Pillo
 ```
 
 Use uma pasta nova/vazia. Com `-MuseScorePath "C:/Program Files/MuseScore 4/bin/MuseScore4.exe"`, o runner também executa as integrações nativas disponíveis, usando partituras sintéticas. Sem esse argumento, esses casos são listados como **skipped**, não como aprovados. Os testes automatizados não substituem a revisão visual e musical de um repertório real.
+
+Na sua máquina, as verificações rodam numa área de trabalho secundária e invisível do Windows (criada com `CreateDesktop`): as dezenas de janelas que os smokes WPF abrem não aparecem na tela nem no Alt+Tab, e os renders PNG saem iguais, porque os smokes desenham com `RenderTargetBitmap`, sem ler a tela. O relatório `ci-report.json` registra em `desktop` onde as verificações rodaram. Use `-VisibleWindows` para rodá-las na área de trabalho normal; no GitHub Actions, ou se o Windows recusar a área de trabalho, o script faz isso sozinho.
 
 O projeto `tools/Teclas.Benchmarks` mede leitura de MIDIs sintéticos pequenos/médios/grandes, sugestão de melodia, metadados e conversão WAV. Use `--output relatorio.json --iterations 5` ao executá-lo. O JSON inclui aquecimento, amostras, mediana, p95, CPU e bytes alocados no código gerenciado. Invariantes funcionais são obrigatórias; os tempos são informativos e só devem ser comparados sob ambiente e carga equivalentes. Esta versão cria a base de medição, sem prometer aceleração por si só.
 

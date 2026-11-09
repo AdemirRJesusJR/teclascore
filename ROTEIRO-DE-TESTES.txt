@@ -1,3 +1,11 @@
+TECLASCORE 1.9.1 · CONFERÊNCIA SEM JANELAS
+
+1. Em Sobre, confira que a versão é 1.9.1.
+2. Rode `tools/verify_ci.ps1` com uma pasta de saída nova (por exemplo `-OutputDirectory $env:TEMP\tc191 -MuseScorePath "C:\Program Files\MuseScore 4\bin\MuseScore4.exe" -NativeEngineTests`): a primeira linha diz "Checks run on the hidden desktop TeclaScoreCI-…" e, durante os cinco minutos seguintes, nenhuma janela do TeclaScore aparece na tela nem no Alt+Tab.
+3. Ao terminar, `reports\ci-report.json` traz `"desktop": "hidden desktop TeclaScoreCI-…"` e os PNGs dos smokes em `reports\` estão preenchidos como antes.
+4. Rode de novo com `-VisibleWindows` numa pasta nova: as janelas voltam a piscar e o relatório diz "visible desktop (-VisibleWindows)".
+5. Gere uma partitura no app e exporte o áudio de estudo: nenhuma janela do MuseScore aparece.
+
 TECLASCORE 1.9.0 · MODO LOTE
 
 1. Em Sobre, confira que a versão é 1.9.0.

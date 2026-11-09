@@ -1104,6 +1104,15 @@ _native_analyze_svg=analyze_svg
 def analyze_svg(path):
     with timed('svg_analysis'):return _native_analyze_svg(path)
 
+def hidden_process_options():
+    """Opções do subprocess para o MuseScore não mostrar janela nem console no Windows.
+
+    STARTF_USESHOWWINDOW + SW_HIDE escondem a primeira janela que o processo mostrar;
+    CREATE_NO_WINDOW evita um console. Em outros sistemas não há o que esconder."""
+    if os.name!='nt':return {}
+    info=subprocess.STARTUPINFO();info.dwFlags|=subprocess.STARTF_USESHOWWINDOW;info.wShowWindow=subprocess.SW_HIDE
+    return {'startupinfo':info,'creationflags':subprocess.CREATE_NO_WINDOW}
+
 def call_musescore(args,log,timeout=90):
     messages={
         'importacao':'Criando a partitura no formato MuseScore…',
@@ -1115,7 +1124,7 @@ def call_musescore(args,log,timeout=90):
     progress(messages.get(log.stem,'Processando a partitura no MuseScore…'))
     start=time.perf_counter()
     try:
-        with timed('musescore'):p=subprocess.run([EXE]+args,capture_output=True,text=True,errors='replace',timeout=timeout)
+        with timed('musescore'):p=subprocess.run([EXE]+args,capture_output=True,text=True,errors='replace',timeout=timeout,**hidden_process_options())
     finally:
         if not TIMINGS:reset_timings()
         TIMINGS['musescore_calls'].append({'kind':log.stem,'seconds':round(time.perf_counter()-start,3)})

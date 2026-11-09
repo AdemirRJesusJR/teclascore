@@ -131,7 +131,8 @@ with zipfile.ZipFile(initial,'w',zipfile.ZIP_DEFLATED) as z:
 jobs=[{'in':str(initial),'out':[str(OUT/(TITLE+'.mscz')),str(OUT/(TITLE+'.png'))]}]
 (OUT/'converter.json').write_text(json.dumps(jobs),encoding='utf8')
 exe=r'C:\Program Files\MuseScore 4\bin\MuseScore4.exe'
-p=subprocess.run([exe,'-r','140','-j',str(OUT/'converter.json')],capture_output=True,text=True,errors='replace',timeout=90)
+hidden=subprocess.STARTUPINFO();hidden.dwFlags|=subprocess.STARTF_USESHOWWINDOW;hidden.wShowWindow=subprocess.SW_HIDE  # sem janela do MuseScore
+p=subprocess.run([exe,'-r','140','-j',str(OUT/'converter.json')],capture_output=True,text=True,errors='replace',timeout=90,startupinfo=hidden,creationflags=subprocess.CREATE_NO_WINDOW)
 (OUT/'conversao.log').write_text(p.stdout+'\n'+p.stderr,encoding='utf8')
 assert p.returncode==0,(p.returncode,p.stderr)
 final=OUT/(TITLE+'.mscz')

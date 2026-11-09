@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 1.9.1 — 09/11/2026
+
+A conferência automática e a geração deixam de piscar janelas na tela.
+
+- **Conferência sem janelas.** `tools/verify_ci.ps1` passa a rodar cada verificação numa área de trabalho secundária e invisível do Windows (`CreateDesktop` + `CreateProcess` com `lpDesktop`, dentro do próprio script). Os cerca de 45 smokes WPF abrem janelas reais com opacidade zero, e o Windows ainda as mostrava por um instante na tela e no Alt+Tab: numa conferência completa eram 131 janelas visíveis do TeclaScore; agora, nenhuma. Os renders PNG dos smokes continuam iguais, porque são desenhados com `RenderTargetBitmap`, sem ler a tela: dos 105 renders de uma conferência completa, só mudam os que mostram horas, caminhos temporários ou tempos medidos, e esses mudam igualmente entre duas rodadas na área de trabalho normal. `-VisibleWindows` volta ao comportamento anterior; no GitHub Actions e quando o Windows recusa a área de trabalho, o script usa a área normal e anota isso em `ci-report.json` (`desktop`) e no `summary.md`.
+- **MuseScore sempre escondido.** O motor Python chama o MuseScore com `STARTUPINFO` (`SW_HIDE`) e `CREATE_NO_WINDOW`, e a exportação de áudio de estudo ganhou o mesmo `WindowStyle = Hidden` das demais chamadas do Core. Medido na prática, o conversor do MuseScore 4.7.5 não abria janela nesses fluxos; as opções garantem que continue assim se uma caixa de diálogo aparecer.
+
 ## 1.9.0 — 09/11/2026
 
 Modo lote: uma mesa para triar centenas de MIDIs e uma revisão que mostra onde olhar.
