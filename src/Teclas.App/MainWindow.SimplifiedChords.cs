@@ -175,6 +175,48 @@ public partial class MainWindow
         set { if (settings.CleanDurations == value) return; settings.CleanDurations = value; Notify(); PersistPreferences(); }
     }
 
+    /// <summary>One rhythmic grid per song: note ends aligned to it, real exceptions kept and listed.</summary>
+    public bool RhythmGrid
+    {
+        get => settings.RhythmGrid;
+        set { if (settings.RhythmGrid == value) return; settings.RhythmGrid = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>Figures and rests written by the convention of the meter.</summary>
+    public bool DurationSynthesis
+    {
+        get => settings.DurationSynthesis;
+        set { if (settings.DurationSynthesis == value) return; settings.DurationSynthesis = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>Short notes before tiny rests at the end of a beat or bar become the whole note.</summary>
+    public bool PhraseEndings
+    {
+        get => settings.PhraseEndings;
+        set { if (settings.PhraseEndings == value) return; settings.PhraseEndings = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>Tempo rounded and written once; repeated time signatures removed.</summary>
+    public bool UnifiedTempo
+    {
+        get => settings.UnifiedTempo;
+        set { if (settings.UnifiedTempo == value) return; settings.UnifiedTempo = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>Identical bars as %, identical sections as repeats with endings.</summary>
+    public bool RepeatSynthesis
+    {
+        get => settings.RepeatSynthesis;
+        set { if (settings.RepeatSynthesis == value) return; settings.RepeatSynthesis = value; Notify(); PersistPreferences(); }
+    }
+
+    /// <summary>One spelling per key for accidentals, chords and diagrams.</summary>
+    public bool UnifiedSpelling
+    {
+        get => settings.UnifiedSpelling;
+        set { if (settings.UnifiedSpelling == value) return; settings.UnifiedSpelling = value; Notify(); PersistPreferences(); }
+    }
+
     /// <summary>Presentation options every generation request carries.</summary>
     private void AddPresentation(System.Text.Json.Nodes.JsonObject request)
     {
@@ -183,6 +225,13 @@ public partial class MainWindow
         if (!settings.CleanDurations) request["cleanDurations"] = false;
         if (!settings.SectionMarks) request["sectionMarks"] = false;
         if (!settings.HeaderInfo) request["headerInfo"] = false;
+        // Síntese rítmica e notação única (1.8.0): the engine turns each rule on unless told otherwise.
+        if (!settings.RhythmGrid) request["rhythmGrid"] = false;
+        if (!settings.DurationSynthesis) request["durationSynthesis"] = false;
+        if (!settings.PhraseEndings) request["phraseEndings"] = false;
+        if (!settings.UnifiedTempo) request["unifiedTempo"] = false;
+        if (!settings.RepeatSynthesis) request["repeatSynthesis"] = false;
+        if (!settings.UnifiedSpelling) request["unifiedSpelling"] = false;
     }
 
     public bool SimplifiedChords

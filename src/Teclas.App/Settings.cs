@@ -68,6 +68,18 @@ public sealed class Settings
     public bool HeaderInfo { get; set; } = true;
     /// <summary>Note lengths written for reading (attacks unchanged): fewer tiny rests.</summary>
     public bool CleanDurations { get; set; } = true;
+    /// <summary>One rhythmic grid per song (eighths, sixteenths or triplets): note ends aligned to it, exceptions listed for review.</summary>
+    public bool RhythmGrid { get; set; } = true;
+    /// <summary>Figures and rests by the convention of the meter (half bar visible in 4/4, groups of three in 6/8, standard rests per beat).</summary>
+    public bool DurationSynthesis { get; set; } = true;
+    /// <summary>A short note followed by tiny rests up to the end of the beat or bar becomes the whole note.</summary>
+    public bool PhraseEndings { get; set; } = true;
+    /// <summary>Tempo rounded and written once (micro-variations ignored, real changes kept); repeated time signatures removed.</summary>
+    public bool UnifiedTempo { get; set; } = true;
+    /// <summary>Identical consecutive bars become the % sign; identical sections become a repeat with first and second endings.</summary>
+    public bool RepeatSynthesis { get; set; } = true;
+    /// <summary>Accidentals, chords and diagrams keep one spelling per key (Bb not A#); a repeated note keeps its spelling within the bar.</summary>
+    public bool UnifiedSpelling { get; set; } = true;
     /// <summary>How chord symbols are written (7M or maj7, ø or m7(b5), flats or sharps…).</summary>
     public SavedChordNotation? ChordNotation { get; set; }
     /// <summary>Stage: page colors inverted (light notes on dark) for dim rooms.</summary>

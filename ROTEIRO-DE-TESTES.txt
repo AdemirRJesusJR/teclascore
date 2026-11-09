@@ -1,3 +1,12 @@
+TECLASCORE 1.8.0 · SÍNTESE RÍTMICA E NOTAÇÃO ÚNICA
+
+1. Em Sobre, confira que a versão é 1.8.0.
+2. Em Configurações › Aparência das partituras, confira o bloco "Síntese rítmica e notação única" com seis caixas marcadas: Grade rítmica única, Síntese de durações, Finais de frase, Tempo e fórmula únicos, Síntese de repetições e Grafia única. Desmarque uma, feche e reabra o app: a escolha fica guardada.
+3. Gere a partitura de um MIDI de forró (por exemplo Galanteador): o cabeçalho mostra "♩ = N" inteiro, não há marcas de andamento repetidas pelo meio da música, e as notas antes das pausas no fim do tempo saem inteiras, sem cadeias de pausas miúdas.
+4. Numa música com compassos iguais em sequência (introdução ou vamp), os compassos repetidos aparecem com o sinal % e a reprodução toca a música inteira; com "Síntese de repetições" desmarcada, tudo volta a ser escrito por extenso.
+5. Passe o mouse no percentual do card: a dica traz a linha "Escrita: …" com o que as regras fizeram (finais de nota alinhados, pausas agrupadas, microvariações ignoradas, compassos com %, grafias unificadas).
+6. Na etapa Ritmo, uma música em colcheias com uma tercina ou um trecho em semicolcheias isolados mostra pontos "Tempo fora da grade da música"; os ataques não mudaram.
+7. Gere a mesma música com as seis caixas desmarcadas e compare: mesmos compassos, mesmos ataques e alturas; só a escrita muda.
 TECLASCORE 1.7.0 · PROTEÇÕES PARA LOTES GRANDES
 
 1. Em Sobre, confira que a versão é 1.7.0.

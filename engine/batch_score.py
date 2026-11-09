@@ -178,6 +178,14 @@ def review_points(parsed,config,harmony,*,include_melody_report=False):
         if report.get('swing'):
             add((bars[0]['start']+origin)/DIV,'swing',
                 f"Colcheias tocadas com swing (razão {report['swing']['ratio']:.2f} do tempo) foram escritas retas, com a indicação Swing.")
+        grid=report.get('rhythm_grid') or {}
+        if grid.get('dominant') in ('eighth','sixteenth','triplet'):
+            import score_synthesis
+            classes={'eighth':'colcheias','sixteenth':'semicolcheias','finer':'figuras mais curtas','triplet':'uma tercina'}
+            for item in score_synthesis.review_exceptions(grid):
+                add(item['quarter'],'rhythm_grid',
+                    f"Tempo fora da grade da música ({grid['name']}): {classes.get(item['class'],item['class'])} neste tempo. "
+                    'Os ataques ficaram como foram tocados; ouça o trecho e confira se o ritmo está certo.')
         for item in report.get('boundary_grid_refinements',[]):
             add(item['beat_original'],'rhythm_refined',
                 'Ritmo refinado automaticamente para separar ataques próximos. Confira o trecho com velocidade reduzida.')
@@ -344,6 +352,11 @@ def meta(parsed):
         try:meters,_=melody_rhythm.meter_guess(parsed,[])
         except Exception:meters=None
         meters=meters or [{'tick':0,'numerator':4,'denominator':4}]
+    else:
+        # Uma fórmula igual repetida numa barra da grade vigente não muda nada e só encurtaria um compasso.
+        import score_synthesis
+        meters,removed=score_synthesis.dedupe_meters(meters,parsed['ppq'])
+        if removed:summary['time_signatures_merged']=removed
     tempos=summary['tempo_changes'] or [{'tick':0,'bpm':120}]
     return summary,meters,tempos
 
@@ -730,12 +743,34 @@ def melody_events(parsed,config,origin,end):
     for s,pitch,following,duration,rest in candidates:
         offset,_=bar_of(s)
         if (offset,pitch,following,duration,rest) in preserved_keys:preserved.add(s)
+    # Grade dominante da música (colcheias, semicolcheias ou tercinas) pelos ataques escritos: sempre medida, para o
+    # relatório e os pontos de revisão; só alinha os finais das notas com a opção rhythm_grid (score_synthesis.py).
+    import score_synthesis
+    grid_profile=score_synthesis.dominant_grid([plan[0] for plan in plans],grids,origin,lambda g:rhythm.grid_div(g)%3==0)
+    ends_snapped=0;phrase_ends=0
     for s,n,next_s,stop,fill,minimum in plans:
         if fill and s not in preserved:stop=next_s
         stop=min(next_s,end-origin,max(s+minimum,stop))
         if config.get('clean_durations') and s not in preserved:
             stop,cleaned=_readable_stop(s,stop,next_s,end,origin,grids)
             durations_cleaned+=cleaned
+        if config.get('rhythm_grid') and s not in preserved:
+            # Final da nota na grade dominante: tempos ternários só com música de tercinas, e nunca nos pares.
+            last_grid=grids.get(int((max(s,stop-1)+origin)//DIV),4)
+            ternary=rhythm.grid_div(last_grid)%3==0
+            if rhythm.is_pair(last_grid):unit=None
+            elif ternary:unit=DIV//3 if grid_profile['dominant']=='triplet' else None
+            else:unit=grid_profile['unit'] if grid_profile['dominant']!='triplet' else DIV//2
+            if unit:
+                stop,changed=score_synthesis.snap_end(s,stop,next_s,end-origin,unit,anchor=(-origin)%DIV)
+                ends_snapped+=changed
+        if config.get('phrase_endings') and s not in preserved:
+            # Nota curta seguida de pausas miúdas até o fim do tempo ou do compasso vira a nota completa.
+            bar_start_q,numerator,denominator=meter_map.at((s+origin)/DIV)
+            bar_start=round(bar_start_q*DIV)-origin;bar_end=bar_start+round(numerator*4/denominator*DIV)
+            beat_length=DIV*3//2 if rhythm.compound(numerator,denominator) else DIV*4//denominator
+            stop,changed=score_synthesis.phrase_end(s,stop,next_s,bar_start,bar_end,beat_length,end-origin)
+            phrase_ends+=changed
         if sections and not n.get('_crossing'):stop=min(stop,n['_section_end']-origin)
         if stop>s:
             event={'start':s,'end':stop,'pitch':n['pitch']}
@@ -761,6 +796,10 @@ def melody_events(parsed,config,origin,end):
     if preserved:report['preserved_rests']=len(preserved)
     if program_changes:report['program_changes_followed']=program_changes
     if config.get('clean_durations'):report['durations_cleaned']=durations_cleaned
+    report['rhythm_grid']={key:grid_profile[key] for key in ('dominant','name','unit','beats_with_attacks','counts','exception_beats')}
+    report['rhythm_grid']['exceptions']=[{'quarter':item['beat'],'class':item['class']} for item in grid_profile['exceptions'][:score_synthesis.MAX_LISTED_EXCEPTIONS]]
+    if config.get('rhythm_grid'):report['rhythm_grid']['ends_snapped']=ends_snapped
+    if config.get('phrase_endings'):report['phrase_endings']=phrase_ends
     if boundary_refinements:report['boundary_grid_refinements']=boundary_refinements
     if attack_adjustments:report['attack_position_adjustments']=attack_adjustments
     if section_adjustments:report['section_boundary_adjustments']=section_adjustments
@@ -1418,6 +1457,8 @@ def convert_score(xml,report,out,filename):
         native=E.fromstring(z.read(next(n for n in z.namelist() if n.endswith('.mscx'))))
         assert len(native.findall('Score/Staff'))==report.get('staff_per_source',{}).get('staves',1)
         assert len(native.findall('.//Image'))==images
+        expected_repeats=(report.get('melody_analysis',{}).get('repeat_synthesis') or {}).get('measure_repeats',0)
+        assert len(native.findall('.//MeasureRepeat'))==expected_repeats,'Measure repeat signs changed during native save'
         if labels:
             assert [''.join(text.find('text').itertext()) for text in native.findall('Score/Staff/Measure/voice/StaffText')]==[label['text'] for label in labels],'Instrument labels changed during native save'
             assert not native.findall('.//InstrumentChange'),'Instrument labels must not change playback instruments'

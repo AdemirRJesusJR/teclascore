@@ -77,23 +77,49 @@ def metric_structure(bar):
         bounds=[0,full//2,full] if numerator==4 else [0,full]
     return full,beat,bounds
 
-def _metric_allowed(rel,d,full,beat,bounds):
-    """Uma figura de duração d começando em rel cabe sem ligadura pela estrutura do compasso."""
+def _metric_allowed(rel,d,full,beat,bounds,conventions=False):
+    """Uma figura de duração d começando em rel cabe sem ligadura pela estrutura do compasso.
+
+    Com conventions (Síntese de durações): no compasso composto os grupos de três colcheias ficam visíveis também
+    no início do compasso (semínima pontuada ligada à semínima, não mínima), e a semínima pontuada que começa no
+    contratempo e termina exatamente na metade do compasso ou no fim dele é uma figura só (colcheia e semínima
+    pontuada, como nas lead sheets), em vez de semínima ligada a colcheia."""
     if rel+d>full:return False
+    compound=beat==core.DIV*3//2
     # No início do compasso qualquer figura serve (mínima pontuada no 4/4), exceto nos compassos de grupos
     # desiguais (5/8, 7/8), em que a figura não atravessa o primeiro grupo.
     sizes={b-a for a,b in zip(bounds,bounds[1:])}
-    if rel==0 and len(sizes)==1:return True
+    if rel==0 and len(sizes)==1:
+        return not (conventions and compound and d>beat and d%beat)
     group_end=min(b for b in bounds if b>rel)
     if rel+d>group_end:return False
     if rel//beat==(rel+d-1)//beat or rel%beat==0:return True
     # Síncope colcheia-semínima-colcheia (compassos simples): a semínima no contratempo fica sem ligadura.
-    return beat==core.DIV and d==core.DIV and rel%beat==beat//2
+    if beat==core.DIV and d==core.DIV and rel%beat==beat//2:return True
+    return conventions and beat==core.DIV and d==core.DIV*3//2 and rel%beat==beat//2 and rel+d==group_end
 
-def pieces(start,end,grids,bar=None):
+def _rest_allowed(rel,d,full,beat,bounds):
+    """Pausas padrão por tempo (Síntese de durações): uma pausa maior que o tempo começa num tempo e vale 1, 2 ou 4
+    tempos sem passar do grupo (mínima e semínima, nunca mínima pontuada no 4/4; no composto só a semínima
+    pontuada); uma pausa menor fica dentro do tempo, sem ponto, e a que começa fora da metade do tempo não a
+    atravessa (semicolcheia e colcheia, não colcheia pontuada). Pausas nunca sincopam."""
+    if rel+d>full:return False
+    compound=beat==core.DIV*3//2
+    if d%beat==0:
+        if rel%beat:return False
+        if compound:return d==beat
+        group_end=min(b for b in bounds if b>rel)
+        return rel+d<=group_end and d//beat in (1,2,4)
+    if rel//beat!=(rel+d-1)//beat or TYPES[d][1]:return False
+    if compound:return True
+    half=beat//2;offset=rel%beat
+    return not (offset%half and offset//half!=(offset+d-1)//half)
+
+def pieces(start,end,grids,bar=None,rest=False,conventions=False):
     """Figuras (início, duração, tercina) que escrevem [start, end). Com o compasso (bar), a divisão segue a
     estrutura métrica: semínima pontuada no x/8 composto, metade do compasso no 4/4 e síncope sem ligadura.
-    tercina é True (tercina de colcheias num tempo) ou ('pair', início) para a tercina de semínimas em dois tempos."""
+    tercina é True (tercina de colcheias num tempo) ou ('pair', início) para a tercina de semínimas em dois tempos.
+    Com conventions (Síntese de durações), as pausas (rest) seguem _rest_allowed e as notas, _metric_allowed."""
     t=start
     if bar is not None:
         full,beat_unit,bounds=metric_structure(bar)
@@ -119,8 +145,10 @@ def pieces(start,end,grids,bar=None):
         if bar is None:
             if t%core.DIV:limit=min(limit,beatend)
             candidates=[d for d in core.TYPES if d<=limit-t]
+        elif conventions and rest:
+            candidates=[d for d in core.TYPES if d<=limit-t and _rest_allowed(t-anchor,d,full,beat_unit,bounds)]
         else:
-            candidates=[d for d in core.TYPES if d<=limit-t and _metric_allowed(t-anchor,d,full,beat_unit,bounds)]
+            candidates=[d for d in core.TYPES if d<=limit-t and _metric_allowed(t-anchor,d,full,beat_unit,bounds,conventions)]
         if not candidates:raise core.NeedsReview(f'Duração irregular de {limit-t} unidades.')
         d=max(candidates);yield t,d,False;t+=d
 
@@ -309,13 +337,15 @@ def chord_widths(chords):
         previous=c
     return widths
 
-def layout_bars(bars,notes,chords,max_chords=MAX_CHORDS_PER_SYSTEM,first_page_capacity=7,section_starts=(),bars_per_system=BARS_PER_SYSTEM,verse_starts=()):
+def layout_bars(bars,notes,chords,max_chords=MAX_CHORDS_PER_SYSTEM,first_page_capacity=7,section_starts=(),bars_per_system=BARS_PER_SYSTEM,verse_starts=(),repeat_bars=()):
     """Systems with as few lines as fit, each section starting a new one; among equally short layouts, lines end on
     the phrase grid (every two and four bars from the section start). A bar's width is the larger of its notes
-    (with their words, or a lyric line written as text under it) and its chord symbols with keyboard diagrams."""
-    widths=chord_widths(chords);note_widths=[];chord_ticks=[]
-    for b in bars:
-        note_widths.append(max(sum(note_width(n) for n in notes if b['start']<=n['start']<b['end'])+2,lyric_text_width(b)))
+    (with their words, or a lyric line written as text under it) and its chord symbols with keyboard diagrams.
+    A bar written as a measure repeat (%) only needs room for the sign."""
+    widths=chord_widths(chords);note_widths=[];chord_ticks=[];repeat_bars=set(repeat_bars)
+    for index,b in enumerate(bars):
+        if index in repeat_bars:note_widths.append(max(8,lyric_text_width(b)))
+        else:note_widths.append(max(sum(note_width(n) for n in notes if b['start']<=n['start']<b['end'])+2,lyric_text_width(b)))
         chord_ticks.append(sorted(t for t in widths if b['start']<=t<b['end']))
     def fits(group):
         if len(group)>bars_per_system or sum((bars[i]['end']-bars[i]['start'])/core.DIV for i in group)>16:return False
@@ -388,8 +418,10 @@ def high_melody_layout(part,lines):
         if pitches:assert image_y+image_height<=music_top-.8+1e-8
     return result
 
-def spell_melody(notes,chords,harmony,key,bars,ppq,origin):
-    """Aplica melody_spelling às notas (posições relativas à origem) e devolve os contadores do relatório."""
+def spell_melody(notes,chords,harmony,key,bars,ppq,origin,unify=False):
+    """Aplica melody_spelling às notas (posições relativas à origem) e devolve os contadores do relatório.
+    Com unify (Grafia única), a mesma nota não troca de grafia dentro do compasso nem, fora dos acordes e das
+    passagens cromáticas, ao longo do trecho na mesma armadura."""
     import melody_spelling
     from batch_harmony import CHORD_INTERVALS
     changes=sorted(((round(kc['tick']/ppq*core.DIV)-origin,kc) for kc in harmony.get('key_changes',[])),key=lambda item:item[0])
@@ -406,9 +438,11 @@ def spell_melody(notes,chords,harmony,key,bars,ppq,origin):
         if signature not in cache:cache[signature]=core.spellings(*signature)
         return cache[signature]
     usable=[c for c in chords if c.get('quality') in CHORD_INTERVALS]
-    respelled=melody_spelling.spell_notes(notes,usable,key_at,key_map_at,lambda q:CHORD_INTERVALS[q])
-    courtesy=melody_spelling.courtesy_accidentals(notes,bars,lambda position:key_at(position)[0])
+    kinds={}
+    respelled=melody_spelling.spell_notes(notes,usable,key_at,key_map_at,lambda q:CHORD_INTERVALS[q],kinds=kinds)
     result={}
+    if unify:result['unified_spellings']=melody_spelling.unify_spellings(notes,bars,kinds,key_at)
+    courtesy=melody_spelling.courtesy_accidentals(notes,bars,lambda position:key_at(position)[0])
     if respelled:result['contextual_spellings']=respelled
     if courtesy:result['courtesy_accidentals']=courtesy
     return result
@@ -423,6 +457,14 @@ def build_musicxml(parsed,config,harmony,out,title):
     title=metadata['title'];header=core._header_layout(metadata)
     summary,meters,tempos=core.meta(parsed);origin,end,bars=core.make_bars(parsed,meters)
     chords_only=bool(config.get('chords_only'))
+    import score_synthesis
+    tempo_report=None
+    if config.get('unified_tempo'):
+        # Andamento escrito arredondado, sem as microvariações do sequenciador (a grade rítmica já foi escolhida
+        # com o mapa de andamento original, em melody_events).
+        tempos,tempo_report=score_synthesis.unify_tempos(tempos)
+        tempo_report['opening_bpm']=tempos[0]['bpm']
+        if summary.get('time_signatures_merged'):tempo_report['time_signatures_merged']=summary['time_signatures_merged']
     if chords_only:
         # Chord chart for a MIDI without a complete melody: rhythm slashes carry the chords; no note is invented.
         notes,grids,note_report=[],{},{'chords_only':True,'grace_notes_preserved':0,'quantized_attack_collisions':0}
@@ -510,12 +552,21 @@ def build_musicxml(parsed,config,harmony,out,title):
             first=next((n for n in notes if n['start']==bars[index]['start']),None) if index<len(bars) else None
             if first is not None:first['lyric']={'text':str(text).strip(),'syllabic':'single'}
         if words:note_report['lyrics']={'syllables':len(words),'attached':sum('lyric' in n for n in notes)}
-    if config.get('fold_repeats') and not second:
-        # Optional: literal repetitions are written once between repeat barlines (score_repeats.py).
+    if tempo_report:note_report['unified_tempo']=tempo_report
+    repeat_synthesis=bool(config.get('repeat_synthesis')) and not second and not chords_only
+    if (config.get('fold_repeats') or repeat_synthesis) and not second:
+        # Literal repetitions are written once between repeat barlines (score_repeats.py): the per-song option
+        # also folds returns into D.S./D.C. jumps; the repeat synthesis folds whole sections (up to 16 bars),
+        # with first and second endings when only the end differs.
         import score_repeats
-        jump=score_repeats.fold_jumps(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV)
-        if jump:note_report['repeat_jump']=jump
-        note_report['repeat_folds']=score_repeats.fold_repeats(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV)
+        if config.get('fold_repeats'):
+            jump=score_repeats.fold_jumps(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV)
+            if jump:note_report['repeat_jump']=jump
+        folds=score_repeats.fold_repeats(bars,notes,chords,grids,tempos,harmony.get('key_changes',[]),parsed['ppq'],origin,core.DIV,
+                                         max_bars=16 if repeat_synthesis else score_repeats.MAX_BARS,skip_uniform=repeat_synthesis)
+        if folds or config.get('fold_repeats'):note_report['repeat_folds']=folds
+        if repeat_synthesis:
+            note_report['repeat_synthesis']={'measure_repeats':0,'folded_measures':sum(f['measures']-f.get('endings',0) for f in folds)}
     chord_staff=[]
     if config.get('chord_staff') and not chords_only:
         # Optional chord staff below the melody: each chord written with the notes of its keyboard diagram, held until
@@ -540,8 +591,14 @@ def build_musicxml(parsed,config,harmony,out,title):
         sung=sung_ticks if not note_report.get('repeat_folds') and not note_report.get('repeat_jump') else None
         sections=score_sections.detect_sections(bars,notes+second,chords,core.DIV,sung)
         if sections:note_report['sections']=sections
+    repeat_bars=[]
+    if repeat_synthesis and not chord_staff and not config.get('staff_per_source'):
+        # Compassos idênticos em sequência viram o sinal %: as notas continuam escritas no MusicXML (o MuseScore
+        # mostra o sinal e toca as notas), fora dos inícios de seção e dos compassos com letra.
+        repeat_bars=score_synthesis.measure_repeats(bars,notes,chords,excluded=[item['bar'] for item in sections])
+        note_report['repeat_synthesis']['measure_repeats']=len(repeat_bars)
     starts,lines=core.layout_bars(bars,notes,chords,config.get('max_chords_per_system',MAX_CHORDS_PER_SYSTEM),first_capacity,
-                                  [item['bar'] for item in sections],verse_starts=verse_bars(note_report.get('lyrics'),bars))
+                                  [item['bar'] for item in sections],verse_starts=verse_bars(note_report.get('lyrics'),bars),repeat_bars=repeat_bars)
     if config.get('line_starts'):
         # A chord sheet keeps its own lines: each one starts a system (MuseScore adds page breaks as needed).
         first_bars=sorted({int(index) for index in config['line_starts'] if 0<int(index)<len(bars)})
@@ -554,7 +611,9 @@ def build_musicxml(parsed,config,harmony,out,title):
     chords.sort(key=lambda c:c['tick'])
     if not chords_only and config.get('contextual_spelling',True):
         # Grafia das notas pela cifra vigente e pelo contexto (G# sobre E7 em Dó maior), com cortesias.
-        note_report.update(spell_melody(notes+second,chords,harmony,key,bars,parsed['ppq'],origin))
+        note_report.update(spell_melody(notes+second,chords,harmony,key,bars,parsed['ppq'],origin,unify=bool(config.get('unified_spelling'))))
+    conventions=bool(config.get('duration_synthesis')) and not chords_only
+    regrouped={'rests_regrouped':0,'notes_regrouped':0}
     root=E.Element('score-partwise',version='4.0');work=core.sub(root,'work');core.sub(work,'work-title',title)
     ident=core.sub(root,'identification')
     if metadata['composer']:core.sub(ident,'creator',metadata['composer'],type='composer')
@@ -640,6 +699,16 @@ def build_musicxml(parsed,config,harmony,out,title):
                     core.sub(at,'staves',1);cl=core.sub(at,'clef');core.sub(cl,'sign','F' if low else 'G');core.sub(cl,'line',4 if low else 2)
             lastmeter=b['meter']
             lastkey=currentkey
+            if primary and (b.get('measure_repeat') or (i and bars[i-1].get('measure_repeat'))):
+                # Sinal % (MusicXML measure-repeat): começa no primeiro compasso repetido e para no compasso seguinte
+                # ao último; as notas ficam escritas em cada compasso, como pede o formato.
+                at=measure.find('attributes')
+                if at is None:at=core.sub(measure,'attributes')
+                ms=core.sub(at,'measure-style')
+                if b.get('measure_repeat'):
+                    if not (i and bars[i-1].get('measure_repeat')):core.sub(ms,'measure-repeat',1,type='start',slashes=1)
+                    else:at.remove(ms)
+                else:core.sub(ms,'measure-repeat',type='stop')
             if b.get('repeat_start') or b.get('ending_start'):
                 bl=core.sub(measure,'barline',location='left')
                 if b.get('repeat_start'):core.sub(bl,'bar-style','heavy-light')
@@ -689,7 +758,10 @@ def build_musicxml(parsed,config,harmony,out,title):
                 else:
                     bounds=[a]+inner_chords+[z]
                     for left,right in zip(bounds,bounds[1:]):
-                        for start,dur,tr in core.pieces(left,right,grids,b):core.emit_note(measure,start,dur,tr,n,ps)
+                        written=list(core.pieces(left,right,grids,b,rest=n is None,conventions=conventions))
+                        if conventions and primary and written!=list(core.pieces(left,right,grids,b)):
+                            regrouped['rests_regrouped' if n is None else 'notes_regrouped']+=1
+                        for start,dur,tr in written:core.emit_note(measure,start,dur,tr,n,ps)
             assert sum(int(n.findtext('duration','0')) for n in measure.findall('note') if n.find('chord') is None)==b['end']-b['start']
             if primary and i+1 in config.get('tuplet_bracket_measures',[]):
                 # Explicit brackets keep adjacent triplet labels centered over their
@@ -707,6 +779,7 @@ def build_musicxml(parsed,config,harmony,out,title):
                 if b.get('repeat_end'):core.sub(bl,'repeat',direction='backward')
             elif i==len(bars)-1 or b.get('fine'):bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-heavy')
             elif b.get('jump') and i+1<len(bars) and bars[i+1].get('coda'):bl=core.sub(measure,'barline',location='right');core.sub(bl,'bar-style','light-light')
+    if conventions:note_report['duration_synthesis']=regrouped
     E.indent(root);xml=out/'melodia.musicxml';E.ElementTree(root).write(xml,encoding='utf-8',xml_declaration=True)
     report={'source':parsed['path'],'source_sha256':parsed['sha256'],'title':title,'origin_removed_quarters':origin/core.DIV,'measures':len(bars),'systems':len(lines),'pages_planned':1+sum(kind=='page' for kind in starts.values()),'key':key,'melody_sources':config['melody_sources'],'chord_changes':sum(not c.get('reminder') for c in chords),'chord_symbols':len(chords),'melody_analysis':note_report,'notes':notes,'chords':chords,'bars':bars,'system_starts':starts,'harmonic_warnings':harmony.get('warnings',[])}
     report.update(score_metadata=metadata,diagram_inversion=inversion,custom_diagram_inversions=custom_diagrams,transpose_semitones=output_transpose)

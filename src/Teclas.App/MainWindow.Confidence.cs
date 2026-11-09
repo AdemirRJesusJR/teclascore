@@ -4,7 +4,7 @@ using Teclas.Core;
 
 namespace Teclas.App;
 
-internal sealed record NotationQuality(int Score, IReadOnlyList<string> Issues);
+internal sealed record NotationQuality(int Score, IReadOnlyList<string> Issues, IReadOnlyList<string>? Notes = null);
 
 /// <summary>The confidence rating of each generated score, and the library order that puts the riskiest first.</summary>
 public partial class MainWindow
@@ -26,7 +26,7 @@ public partial class MainWindow
             row.ReviewPoints.Count, row.ReviewPoints.Count(p => p.Blocking),
             row.AutoMelody, row.AutoMelodyConfident, lyrics, row.IncludeLyrics, row.HasOperationError, row.PageCount,
             row.CatalogLacksMelody && !row.ChordsOnly && !row.UseReviewedProfile,
-            notation?.Score, notation?.Issues, row.MelodyFromRecording));
+            notation?.Score, notation?.Issues, row.MelodyFromRecording, notation?.Notes));
     }
 
     /// <summary>The last rating of each card and the state it was computed from; it is reused until the song changes.</summary>
@@ -60,13 +60,16 @@ public partial class MainWindow
             NotationQuality? quality = null;
             using (var document = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(report)))
                 if (document.RootElement.TryGetProperty("quality", out var element) && element.TryGetProperty("score", out var score) && score.TryGetInt32(out int value))
-                    quality = new(value, element.TryGetProperty("issues", out var issues) && issues.ValueKind == System.Text.Json.JsonValueKind.Array
-                        ? issues.EnumerateArray().Select(i => i.GetString() ?? "").Where(i => i.Length > 0).ToArray() : []);
+                    quality = new(value, Strings(element, "issues"), Strings(element, "notes"));
             notationQuality[report] = (stamp, quality);
             return quality;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException) { return null; }
     }
+
+    private static string[] Strings(System.Text.Json.JsonElement element, string name) =>
+        element.TryGetProperty(name, out var items) && items.ValueKind == System.Text.Json.JsonValueKind.Array
+            ? items.EnumerateArray().Select(i => i.GetString() ?? "").Where(i => i.Length > 0).ToArray() : [];
 
     internal void RefreshConfidence(MidiRow row)
     {

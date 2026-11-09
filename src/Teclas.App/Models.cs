@@ -37,7 +37,9 @@ public sealed partial class MidiRow : Observable
     /// <summary>How much the generated score needs review (0–100, higher is better); null without a score.</summary>
     private Teclas.Core.ConfidenceRating? confidence;public Teclas.Core.ConfidenceRating? Confidence{get=>confidence;set{if(Set(ref confidence,value))NotifyConfidence();}}
     public string ConfidenceBadge=>ScorePath is null?"":Approved?"✓ Aprovada":Confidence is {} c?$"{c.Score}% · {c.Label}":"";
-    public string ConfidenceToolTip=>Approved?"Você aprovou esta partitura na revisão.":Confidence is {Reasons.Count:>0} c?"Para revisar: "+string.Join("; ",c.Reasons)+".":Confidence is null?"":"Nada chamou atenção na análise.";
+    public string ConfidenceToolTip=>Approved?"Você aprovou esta partitura na revisão.":Confidence is null?"":
+        (Confidence is {Reasons.Count:>0} c?"Para revisar: "+string.Join("; ",c.Reasons)+".":"Nada chamou atenção na análise.")
+        +(Confidence.NotationNotes.Count>0?"\nEscrita: "+string.Join("; ",Confidence.NotationNotes)+".":"");
     public System.Windows.Visibility ConfidenceVisibility=>ConfidenceBadge.Length==0?System.Windows.Visibility.Collapsed:System.Windows.Visibility.Visible;
     /// <summary>Sort key for "review first": unapproved scores by rating, then approved ones, then songs without a score.</summary>
     public int ReviewOrder=>ScorePath is null?300:Approved?200+(Confidence?.Score??0)/2:Confidence?.Score??0;

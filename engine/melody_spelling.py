@@ -54,12 +54,14 @@ def _candidates(pc):
     return [q for q in range(-8, 13) if pc_of(q) == pc]
 
 
-def spell_notes(notes, chords, key_at, key_map_at, intervals_of, window=8 * 960):
+def spell_notes(notes, chords, key_at, key_map_at, intervals_of, window=8 * 960, kinds=None):
     """Grava em cada nota 'spelling' = (letra, alteração).
 
     notes: eventos com 'start' e 'pitch' (posições em DIV); chords: cifras com 'tick', 'root', 'quality' e
     'root_spelling' opcional; key_at(pos) → (fifths, minor); key_map_at(pos) → mapa {pc: (letra, alteração)} da
-    armadura; intervals_of(quality) → intervalos do acorde. Retorna quantas notas mudaram em relação ao mapa fixo."""
+    armadura; intervals_of(quality) → intervalos do acorde. Retorna quantas notas mudaram em relação ao mapa fixo.
+    kinds, quando é um dicionário, recebe por id(nota) o que decidiu a grafia: 'chord' (nota do acorde),
+    'chromatic' (condução cromática por semitom) ou 'free' (contexto tonal)."""
     ordered = sorted((n for n in notes if 'pitch' in n and not n.get('slash')), key=lambda n: n['start'])
     chords = sorted(chords, key=lambda c: c['tick'])
     ticks = [c['tick'] for c in chords]
@@ -82,8 +84,9 @@ def spell_notes(notes, chords, key_at, key_map_at, intervals_of, window=8 * 960)
         chord = active_chord(position)
         tones = chord_tones(chord, key_map, intervals_of(chord['quality'])) if chord is not None else {}
         letter, alter = key_map[pc]; fixed = lof_of(letter, alter)
+        kind = 'free'
         if pc in tones:
-            choice = tones[pc]
+            choice = tones[pc]; kind = 'chord'
         else:
             center = fifths + 2 + (1 if minor else 0)
             recent = [q for p, q in history if position - p <= window]
@@ -109,9 +112,54 @@ def spell_notes(notes, chords, key_at, key_map_at, intervals_of, window=8 * 960)
                 if falling and not rising: cost += 0 if q <= fixed and q < 6 else CHROMATIC
                 costs.append((cost, abs(q - fixed), q))
             choice = min(costs)[2] if costs else fixed
+            if rising != falling: kind = 'chromatic'
         note['spelling'] = name_of(choice)
+        if kinds is not None: kinds[id(note)] = kind
         if choice != fixed: changed += 1
         history.append((position, choice))
+    return changed
+
+
+def unify_spellings(notes, bars, kinds, key_at):
+    """Grafia única (1.8.0). Duas passagens sobre as grafias já escolhidas, sem tocar nas alturas:
+
+    1. ao longo da peça, numa mesma armadura, uma nota fora do acorde e fora de passagem cromática ('free') recebe
+       a grafia mais usada para a sua classe de altura nesse trecho (contando as notas dos acordes), para que Si
+       bemol não vire Lá sustenido entre uma frase e outra;
+    2. dentro de cada compasso, a mesma classe de altura não troca de grafia: as notas que não pertencem ao acorde
+       seguem a grafia das que pertencem (ou da maioria, ou da primeira).
+    Retorna quantas notas mudaram."""
+    from collections import Counter
+    spelled = [n for n in notes if n.get('spelling') and 'pitch' in n and not n.get('slash')]
+    changed = 0
+    # 1. Preferência do trecho (por armadura) para cada classe de altura.
+    usage = {}
+    for note in spelled:
+        usage.setdefault((key_at(note['start']), note['pitch'] % 12), Counter())[tuple(note['spelling'])] += 1
+    for note in spelled:
+        if kinds.get(id(note)) != 'free': continue
+        counter = usage[(key_at(note['start']), note['pitch'] % 12)]
+        if len(counter) < 2: continue
+        best = max(counter.items(), key=lambda item: (item[1], item[0] == tuple(note['spelling'])))[0]
+        if best != tuple(note['spelling']):
+            note['spelling'] = best; changed += 1
+    # 2. Uma grafia por classe de altura em cada compasso.
+    ordered = sorted(spelled, key=lambda n: n['start'])
+    index = 0
+    for bar in bars:
+        groups = {}
+        while index < len(ordered) and ordered[index]['start'] < bar['end']:
+            note = ordered[index]; index += 1
+            if note['start'] >= bar['start']: groups.setdefault(note['pitch'] % 12, []).append(note)
+        for group in groups.values():
+            if len({tuple(n['spelling']) for n in group}) < 2: continue
+            chord_tones = [tuple(n['spelling']) for n in group if kinds.get(id(n)) == 'chord']
+            pool = chord_tones or [tuple(n['spelling']) for n in group]
+            counter = Counter(pool)
+            target = max(pool, key=lambda s: (counter[s], -pool.index(s)))
+            for note in group:
+                if tuple(note['spelling']) != target and kinds.get(id(note)) != 'chord':
+                    note['spelling'] = target; changed += 1
     return changed
 
 

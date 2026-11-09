@@ -90,4 +90,28 @@ def evaluate(report):
         score -= 5
         issues.append(f'{pages} páginas para {measures} compassos')
 
-    return {'score': int(round(max(0, min(100, score)))), 'issues': issues, 'metrics': metrics}
+    # Síntese rítmica e notação única (score_synthesis.py): what each rule did, and the beats that stay outside
+    # the song's dominant grid (an isolated triplet or sixteenth run) as something to check.
+    import score_synthesis
+    grid = analysis.get('rhythm_grid') or {}
+    synthesis = {'rhythm_grid': grid.get('dominant'), 'grid_exceptions': len(grid.get('exception_beats', [])),
+                 'ends_snapped': grid.get('ends_snapped', 0), 'durations_cleaned': analysis.get('durations_cleaned', 0),
+                 'phrase_endings': analysis.get('phrase_endings', 0),
+                 'rests_regrouped': (analysis.get('duration_synthesis') or {}).get('rests_regrouped', 0),
+                 'notes_regrouped': (analysis.get('duration_synthesis') or {}).get('notes_regrouped', 0),
+                 'tempo_marks_merged': (analysis.get('unified_tempo') or {}).get('tempo_marks_merged', 0),
+                 'measure_repeats': (analysis.get('repeat_synthesis') or {}).get('measure_repeats', 0),
+                 'folded_measures': (analysis.get('repeat_synthesis') or {}).get('folded_measures', 0),
+                 'unified_spellings': analysis.get('unified_spellings', 0)}
+    metrics['synthesis'] = synthesis
+    # Only when the rule is on ('ends_snapped' is then reported) and the exceptions are a clear minority (the same
+    # gate as the review points): a mixed song (sixteenths and triplets alike) has no exceptions to check.
+    if 'ends_snapped' in grid and score_synthesis.review_exceptions(grid):
+        share = synthesis['grid_exceptions'] / grid['beats_with_attacks']
+        if share > .1:
+            score -= min(5, 2 + share * 10)
+            issues.append(f"{synthesis['grid_exceptions']} tempos fora da grade de {grid['name']} da música "
+                          '(tercinas ou semicolcheias isoladas); confira o ritmo nesses compassos')
+
+    return {'score': int(round(max(0, min(100, score)))), 'issues': issues, 'metrics': metrics,
+            'notes': score_synthesis.summary_lines(analysis)}

@@ -21,7 +21,10 @@ def _bar_signature(bar, notes, chords):
     harmony = tuple(sorted((c['tick'] - start, c.get('root'), c.get('quality'), c.get('diagram_inversion'),
                             -1 if c.get('bass') is None else c['bass'])
                            for c in chords if start <= c['tick'] < end))
-    return (tuple(bar['meter']), end - start, bool(bar.get('partial')), tones, harmony)
+    # Sung lines written as text under the bar (lyrics by lines) are part of what the reader sees: a second pass
+    # with other words is not a literal repetition.
+    lines = tuple((item.get('offset', 0), item.get('text')) for item in bar.get('lyric_texts', ()))
+    return (tuple(bar['meter']), end - start, bool(bar.get('partial')), tones, harmony, lines)
 
 
 def _crosses(notes, tick):
@@ -53,10 +56,12 @@ def _apply_second_verse(pairs):
     return len(pairs)
 
 
-def fold_repeats(bars, notes, chords, grids, tempos, key_changes, ppq, origin, div):
+def fold_repeats(bars, notes, chords, grids, tempos, key_changes, ppq, origin, div, max_bars=MAX_BARS, skip_uniform=False):
     """Folds repeated blocks in place (bars, notes, chords, grids and the tempo/key change ticks) and returns what was folded.
 
-    Ticks after a removed block move back by its length, so the written score stays continuous.
+    Ticks after a removed block move back by its length, so the written score stays continuous. max_bars is the
+    longest block folded (8 by default; the repeat synthesis raises it to whole sections). With skip_uniform, a run
+    of identical bars is left to the measure-repeat sign (%) instead of a repeat.
     """
     folds = []
     def tempo_ticks():
@@ -65,7 +70,10 @@ def fold_repeats(bars, notes, chords, grids, tempos, key_changes, ppq, origin, d
     while k < len(bars) - 2 * MIN_BARS + 1:
         signatures = [_bar_signature(bar, notes, chords) for bar in bars]
         found = None
-        for length in range(min(MAX_BARS, (len(bars) - k) // 2), MIN_BARS - 1, -1):
+        for length in range(min(max_bars, (len(bars) - k) // 2), MIN_BARS - 1, -1):
+            if skip_uniform and len(set(signatures[k:k + 2 * length])) == 1: continue
+            # Bars of rests only (an introduction the melody does not play) read better written out than as a repeat.
+            if not any(signature[3] for signature in signatures[k:k + length]): continue
             if signatures[k:k + length] != signatures[k + length:k + 2 * length]:
                 ending = _ending(signatures, bars, notes, k, length, tempo_ticks())
                 if ending:

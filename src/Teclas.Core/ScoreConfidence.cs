@@ -15,12 +15,15 @@ public sealed record ConfidenceInput(
     bool SourceMelodyIncomplete = false,
     int? NotationQuality = null,
     IReadOnlyList<string>? NotationIssues = null,
-    bool MelodyFromRecording = false);
+    bool MelodyFromRecording = false,
+    IReadOnlyList<string>? NotationNotes = null);
 
-/// <summary>A 0–100 rating (higher needs less review) and the reasons that lowered it, in words.</summary>
-public sealed record ConfidenceRating(int Score, IReadOnlyList<string> Reasons)
+/// <summary>A 0–100 rating (higher needs less review), the reasons that lowered it, in words, and the notes about
+/// what the engine's notation synthesis did (counts of merged durations, tempo marks, repeats…), which never lower it.</summary>
+public sealed record ConfidenceRating(int Score, IReadOnlyList<string> Reasons, IReadOnlyList<string>? Notes = null)
 {
     public string Label => Score >= 85 ? "Pronta" : Score >= 65 ? "Conferir" : "Revisar";
+    public IReadOnlyList<string> NotationNotes => Notes ?? [];
 }
 
 /// <summary>
@@ -67,6 +70,6 @@ public static class ScoreConfidence
         }
         if (input.PageCount > 6) { score -= 5; reasons.Add($"{input.PageCount} páginas: talvez falte dobrar repetições"); }
         if (input.MelodyFromRecording) { score = Math.Min(score, RecordedMelodyCeiling); reasons.Add("a melodia veio de uma gravação: confira ouvindo"); }
-        return new((int)Math.Round(Math.Clamp(score, 0, 100)), reasons);
+        return new((int)Math.Round(Math.Clamp(score, 0, 100)), reasons, input.NotationNotes);
     }
 }

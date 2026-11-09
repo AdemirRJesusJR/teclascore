@@ -21,6 +21,14 @@ try
     Check(old.ThemeMode == "light", "Older settings keep the light version of their palette");
     Check(old.TrackAuditionSpeed == 1.0, "Settings without the audition speed field migrate to normal speed");
     Check(old.ComfortableDiagramMaximumSpan == 12, "Legacy settings adopt an octave for voicing suggestions");
+    // Síntese rítmica e notação única (1.8.0): on for fresh installations and for settings saved before it.
+    foreach (var settings in new[] { missing, old })
+        Check(settings.RhythmGrid && settings.DurationSynthesis && settings.PhraseEndings && settings.UnifiedTempo && settings.RepeatSynthesis && settings.UnifiedSpelling,
+              "Rhythm synthesis rules default to on");
+    var synthesisPath = Path.Combine(folder, "synthesis.json");
+    new Settings { RepeatSynthesis = false, UnifiedTempo = false }.Save(synthesisPath);
+    var synthesis = Settings.Load(synthesisPath);
+    Check(!synthesis.RepeatSynthesis && !synthesis.UnifiedTempo && synthesis.RhythmGrid, "Rhythm synthesis choices roundtrip");
     var reachPath = Path.Combine(folder, "voicing-reach.json");
     foreach (int reach in new[] { 7, 9, 10, 12 })
     {

@@ -1,5 +1,19 @@
 # Histórico de versões
 
+## 1.8.0 — 09/11/2026
+
+Síntese rítmica e notação única: a mesma música escrita de forma uniforme, para processar centenas de MIDIs sem misturar figuras raras, pausas miúdas e marcas de andamento repetidas. Nenhuma regra muda ataque, altura ou duração total da partitura; cada uma conta no relatório o que fez.
+
+- **Seis opções novas em Configurações › Aparência das partituras › Síntese rítmica e notação única,** todas ligadas por padrão e válidas para as próximas partituras geradas (perfis revisados mantêm a escrita aprovada do ritmo):
+  - **Grade rítmica única.** O motor descobre se a música vive em colcheias, semicolcheias ou tercinas (pelos ataques escritos) e alinha o fim das notas a essa grade. Uma tercina isolada ou um trecho em semicolcheias fica como foi tocado e vira ponto de revisão na etapa Ritmo ("Tempo fora da grade da música").
+  - **Síntese de durações.** Figuras e pausas pela convenção do compasso: no 4/4 a metade do compasso fica visível; no 6/8 os grupos de três (semínima pontuada ligada à semínima, não mínima); a colcheia seguida de semínima pontuada que termina na metade do compasso vira uma figura só; as pausas são agrupadas por tempo, sem síncopes nem pontos (semicolcheia e colcheia, mínima e semínima, nunca mínima pontuada).
+  - **Finais de frase.** Nota curta seguida de pausas miúdas até o fim do tempo ou do compasso vira a nota completa (estende a regra "Durações legíveis" da 1.3.0 a pausas encadeadas e a notas antes da barra). Uma pausa de colcheia inteira continua escrita.
+  - **Tempo e fórmula únicos.** O andamento é arredondado (119,8 vira 120); as microvariações do MIDI (menores que 3 bpm) não geram marcas; rallentandos e mudanças reais continuam escritos; fórmulas de compasso repetidas numa barra somem (antes, uma 4/4 restated no meio da música encurtava um compasso). O cabeçalho continua mostrando "♩ = N".
+  - **Síntese de repetições.** Compassos idênticos em sequência viram o sinal % (as notas continuam no arquivo: o MuseScore toca e exporta a música inteira), e trechos repetidos de até 16 compassos viram ritornelo, com casa 1 e 2 quando só o final muda. É opção separada porque muda a leitura.
+  - **Grafia única.** Acidentes, cifras e diagramas usam a mesma grafia ao longo da peça e nas modulações (Si bemol e não Lá sustenido, conforme o tom e os acordes), e uma nota repetida no mesmo compasso não troca de grafia.
+- **Relatório e dica do card.** O `validacao.json` traz, em `melody_analysis`, o que cada regra fez (`rhythm_grid`, `duration_synthesis`, `phrase_endings`, `unified_tempo`, `repeat_synthesis`, `unified_spellings`); a nota da escrita (`quality`) ganha `metrics.synthesis` e `notes`, e a dica do card mostra uma linha "Escrita: …" com esses números. Muitos tempos fora da grade dominante baixam um pouco a nota da escrita e entram em "Para conferir".
+- **Medição de precisão.** No corpus sintético, a métrica `duration` subiu de 0,957 para 0,999 (as notas antes de pausas miúdas passam a ser escritas inteiras); nenhum ataque, altura ou cifra mudou.
+- **Testes.** `tests/test_rhythm_synthesis.py` cobre cada regra e a invariância (ataques, alturas e duração total iguais com tudo ligado e desligado); um teste nativo reabre o .mscz no MuseScore e confere os sinais % e as marcas de andamento. A comparação antes/depois em três MIDIs reais fica em `trabalho/sintese-1.8.0/comparacao.html`.
 ## 1.7.0 — 09/11/2026
 
 Proteções para trabalhar com centenas de MIDIs de uma vez: nada em lote acontece sem prévia, sem ponto de restauração e sem resumo.

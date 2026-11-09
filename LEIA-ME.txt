@@ -1,3 +1,6 @@
+TECLASCORE 1.8.0
+
+Síntese rítmica e notação única: seis regras novas, ligadas por padrão em Configurações › Aparência das partituras, escrevem a mesma música de forma uniforme (grade rítmica única, síntese de durações, finais de frase, tempo e fórmula únicos, síntese de repetições e grafia única). Nenhuma muda ataque, altura ou duração total; a dica do card mostra em "Escrita:" o que cada uma fez.
 TECLASCORE 1.7.0
 
 Proteções para lotes grandes: antes de cada operação em massa o app guarda um ponto de restauração (os 5 mais recentes, com "Voltar a este ponto" em Biblioteca › Pontos de restauração), mostra a janela "O que vai acontecer" (quantas vai gerar, quantas pula por estarem aprovadas, quais precisam de você e por quê, tempo estimado, com a opção de desmarcar músicas) e termina com um resumo que diz "Nada foi apagado" ou o que mudou, gravado em %LOCALAPPDATA%\TeclasPartituras\lotes. Partituras aprovadas não são refeitas, redesenhadas nem removidas em lote (menu ⋯ › Retirar aprovação libera). Na importação e na Pasta de MIDIs, arquivos com o mesmo conteúdo ou o mesmo título e intérprete pedem Manter os dois, Pular ou Substituir. Na linha de comando, --gerar … --simular só mostra o que aconteceria.

@@ -389,6 +389,15 @@ def main():
     config['section_marks']=req.get('sectionMarks') is not False
     config['header_info']=req.get('headerInfo') is not False
     config['clean_durations']=req.get('cleanDurations') is not False and not data.get('reviewedProfile')
+    # Síntese rítmica e notação única (score_synthesis.py), ligadas por padrão. As regras que mudam a escrita do
+    # ritmo ficam fora dos perfis revisados; o andamento e a grafia valem para todos.
+    rhythm_rules=not data.get('reviewedProfile')
+    config['rhythm_grid']=req.get('rhythmGrid') is not False and rhythm_rules
+    config['duration_synthesis']=req.get('durationSynthesis') is not False and rhythm_rules
+    config['phrase_endings']=req.get('phraseEndings') is not False and rhythm_rules
+    config['unified_tempo']=req.get('unifiedTempo') is not False
+    config['repeat_synthesis']=req.get('repeatSynthesis') is not False and rhythm_rules
+    config['unified_spelling']=req.get('unifiedSpelling') is not False
     if isinstance(req.get('chordNotation'),dict):config['chord_notation']=req['chordNotation']
     if req.get('secondVoiceSources'):config['second_voice_sources']=manual_melody_config(req['secondVoiceSources'])['melody_sources']
     if isinstance(req.get('scoreStyle'),dict):config['score_style']={'music_font':str(req['scoreStyle'].get('musicFont','')),'size':str(req['scoreStyle'].get('size','')),'spacing':str(req['scoreStyle'].get('spacing',''))}
