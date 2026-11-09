@@ -98,7 +98,7 @@ public partial class MainWindow
             showFailure("Melodia de uma gravação", "Não foi possível usar esta gravação. O MIDI original não foi alterado.\n\n" + Status);
             return null;
         }
-        await ImportAndOpenLibraryAsync([created]);
+        await AddCreatedFilesAsync([created]);
         var row = Files.FirstOrDefault(r => string.Equals(r.FullPath, Path.GetFullPath(created), StringComparison.OrdinalIgnoreCase));
         if (row is null) return null;
         foreach (var track in row.Tracks) track.IsMelody = track.Source.Name == RecordedMelody.TrackName;

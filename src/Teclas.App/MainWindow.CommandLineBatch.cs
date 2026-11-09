@@ -22,6 +22,7 @@ public partial class MainWindow
                 // Only this run: the default folder in Configurações is restored before saving.
                 settings.OutputDirectory = normalized;
             }
+            if (options.Simulate) return SimulateCommandLineBatch(midis, log);
             log($"Importando {midis.Count} MIDI(s) para a biblioteca…");
             var imports = await ImportQuietlyAsync(midis);
             if (imports.Any(i => i.Added)) { PersistPreferences(); RefreshDashboard(); }
@@ -80,6 +81,39 @@ public partial class MainWindow
             PersistPreferences();
         }
         static string? Join(string? first, string? second) => string.Join(" · ", new[] { first, second }.Where(s => !string.IsNullOrWhiteSpace(s))) is { Length: > 0 } text ? text : null;
+    }
+
+    /// <summary>
+    /// <c>--simular</c>: the same "O que vai acontecer" of the window, printed, without importing or generating anything.
+    /// Files already in the library are judged as they are; new ones are read in memory only.
+    /// </summary>
+    internal IReadOnlyList<BatchFileReport> SimulateCommandLineBatch(IReadOnlyList<string> midis, Action<string> log)
+    {
+        var items = new List<BatchPreviewItem>(); var reports = new List<BatchFileReport>();
+        foreach (string path in midis)
+        {
+            string full = Path.GetFullPath(path);
+            var row = Files.FirstOrDefault(f => string.Equals(f.FullPath, full, StringComparison.OrdinalIgnoreCase));
+            bool inLibrary = row is not null;
+            if (row is null)
+            {
+                try { row = LoadMidi(full); }
+                catch (Exception error) when (error is IOException or InvalidDataException or OverflowException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+                { items.Add(new(full, Path.GetFileName(full), BatchPreview.Skip, "não foi possível ler: " + error.Message, false)); continue; }
+                if (row.SourceSha256 is { } sha && Files.FirstOrDefault(f => string.Equals(f.SourceSha256, sha, StringComparison.OrdinalIgnoreCase)) is { } same) { row = same; inLibrary = true; }
+            }
+            string title = SongTitle(row) + (inLibrary ? "" : " (novo na biblioteca)");
+            if (row.ScorePath is not null) items.Add(new(full, title, BatchPreview.AlreadyGenerated, row.Approved ? "aprovada" : "", false));
+            else if (row.UsesNativeScoreWorkflow) items.Add(new(full, title, BatchPreview.Skip, "partitura importada ou editada: continue no Editor musical", false));
+            else if (row.Document is null) items.Add(new(full, title, BatchPreview.Skip, row.Status, false));
+            else if (PlanAutopilotMelody(row, apply: false) is { } reason) items.Add(new(full, title, BatchPreview.NeedsYou, reason, false));
+            else items.Add(new(full, title, BatchPreview.Generate, row.HasMelodyChoice || row.UseReviewedProfile ? "melodia já escolhida" : "melodia clara", true));
+        }
+        var preview = BuildBatchPreview("--gerar (simulação)", items);
+        foreach (string line in preview.ToText().Split('\n')) log(line.TrimEnd('\r'));
+        log("Simulação: nada foi importado nem gerado. Sem --simular, um ponto de restauração é guardado antes de gerar.");
+        foreach (var item in items) reports.Add(new(item.Id, BatchFileReport.Simulated, item.Title, null, null, item.Detail.Length == 0 ? item.Group : item.Group + " · " + item.Detail));
+        return reports;
     }
 
     /// <summary>One PDF per score, straight into the folder; returns where each one went or why it did not.</summary>

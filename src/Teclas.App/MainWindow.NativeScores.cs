@@ -108,7 +108,7 @@ public partial class MainWindow
         var dialog=new Microsoft.Win32.OpenFileDialog{Title="Abrir partituras MuseScore ou MusicXML",Filter="Partituras (MuseScore e MusicXML)|*.mscz;*.musicxml;*.mxl;*.xml|Partitura MuseScore 4|*.mscz|MusicXML|*.musicxml;*.mxl;*.xml",Multiselect=true};
         if(dialog.ShowDialog(this)!=true)return;
         var files=await ConvertMusicXmlAsync(dialog.FileNames);
-        if(files.Count>0)await ImportAndOpenLibraryAsync(files);
+        if(files.Count>0)await AddCreatedFilesAsync(files);
     }
 
     internal Func<string,string,CancellationToken,Task>? musicXmlConverter=null;

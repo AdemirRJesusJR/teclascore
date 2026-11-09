@@ -67,14 +67,21 @@ public sealed class ScoreHistoryWindow : Window
     private readonly ScoreViewer previous;
     private readonly Button restore;
     public SavedScoreVersion? SelectedVersion=>list.SelectedItem as SavedScoreVersion;
-    public ScoreHistoryWindow(MidiRow row)
+    /// <summary>The user asked for the library's restore points (the "Antes de: …" snapshots) instead of a version of this song.</summary>
+    public bool OpenRestorePoints{get;private set;}
+    public ScoreHistoryWindow(MidiRow row,int restorePoints=0)
     {
         Title="Histórico · "+row.ScoreTitle;Width=1180;Height=800;MinWidth=900;MinHeight=600;DialogUi.Theme(this);
         var root=new DockPanel { Margin=new(20) };Content=root;
         var heading=new TextBlock { Text="Compare com a versão atual. Restaurar muda a versão ativa; os arquivos continuam preservados.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12) };DockPanel.SetDock(heading,Dock.Top);root.Children.Add(heading);
-        var footer=new StackPanel { Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right };DockPanel.SetDock(footer,Dock.Bottom);root.Children.Add(footer);
-        footer.Children.Add(DialogUi.Button("Fechar",(_,_)=>DialogResult=false));
-        restore=DialogUi.Button("Restaurar versão selecionada",(_,_)=>DialogResult=true,true);restore.IsEnabled=false;footer.Children.Add(restore);
+        var footer=new DockPanel();DockPanel.SetDock(footer,Dock.Bottom);root.Children.Add(footer);
+        var points=DialogUi.Button(restorePoints>0?$"Pontos de restauração da biblioteca ({restorePoints})…":"Pontos de restauração da biblioteca…",(_,_)=>{OpenRestorePoints=true;DialogResult=false;});
+        points.ToolTip="Os momentos guardados antes de cada operação em lote (Piloto automático, Gerar as marcadas, remoções): Voltar a este ponto deixa a biblioteca inteira como estava.";
+        points.Name="HistoryRestorePointsButton";DockPanel.SetDock(points,Dock.Left);footer.Children.Add(points);
+        var buttons=new StackPanel { Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right };footer.Children.Add(buttons);
+        var footerButtons=buttons;
+        footerButtons.Children.Add(DialogUi.Button("Fechar",(_,_)=>DialogResult=false));
+        restore=DialogUi.Button("Restaurar versão selecionada",(_,_)=>DialogResult=true,true);restore.IsEnabled=false;footerButtons.Children.Add(restore);
         list=new ListBox { ItemsSource=row.Versions.OrderByDescending(v=>v.CreatedAt).ToArray(),DisplayMemberPath="Label",Height=112,Margin=new(0,0,0,12) };DockPanel.SetDock(list,Dock.Top);root.Children.Add(list);
         var views=new Grid();views.ColumnDefinitions.Add(new());views.ColumnDefinitions.Add(new());root.Children.Add(views);
         previous=new ScoreViewer { Margin=new(0,0,8,0) };views.Children.Add(previous);

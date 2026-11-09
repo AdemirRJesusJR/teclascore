@@ -70,7 +70,8 @@ public partial class App
                 Write($"{Label(file.Situacao),-16} {Path.GetFileName(file.Arquivo)}" + (file.Partitura is { } score ? " → " + score : "") +
                       (file.Pdf is { } pdf ? " · PDF " + pdf : "") + (file.Motivo is { } reason ? " · " + reason : "") + (file.PdfErro is { } pdfError ? " · PDF: " + pdfError : ""));
             var s = report.Resumo;
-            Write($"Resumo: {s.Prontas} pronta(s), {s.ParaRevisar} para revisar, {s.PrecisamDeVoce} precisam de você, {s.Falharam} falharam, {s.JaGeradas} já tinham partitura, {s.Pdfs} PDF(s).");
+            if (options.Simulate) Write($"Resumo da simulação: {files.Count} arquivo(s) avaliados, nada gerado.");
+            else Write($"Resumo: {s.Prontas} pronta(s), {s.ParaRevisar} para revisar, {s.PrecisamDeVoce} precisam de você, {s.Falharam} falharam, {s.JaGeradas} já tinham partitura, {s.Pdfs} PDF(s).");
             if (error is not null) WriteError("Erro: " + error);
             if (options.ReportPath is { } reportPath)
             {
@@ -92,7 +93,7 @@ public partial class App
     private static string Label(string situation) => situation switch
     {
         BatchFileReport.Ready => "[pronta]", BatchFileReport.Review => "[para revisar]", BatchFileReport.NeedsYou => "[precisa de você]",
-        BatchFileReport.AlreadyGenerated => "[já gerada]", _ => "[falhou]"
+        BatchFileReport.AlreadyGenerated => "[já gerada]", BatchFileReport.Simulated => "[simulada]", _ => "[falhou]"
     };
 
     private static bool OtherInstanceIsRunning()

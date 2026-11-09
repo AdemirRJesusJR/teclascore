@@ -88,7 +88,7 @@ public partial class MainWindow
             showFailure("Áudio para partitura", "Não foi possível transcrever o áudio.\n\n" + Status);
             return created;
         }
-        await ImportAndOpenLibraryAsync(created);
+        await AddCreatedFilesAsync(created);
         foreach (var row in Files.Where(row => created.Contains(row.FullPath, StringComparer.OrdinalIgnoreCase)))
         {
             // The transcription writes the melody on track 1 and the accompaniment on track 2.

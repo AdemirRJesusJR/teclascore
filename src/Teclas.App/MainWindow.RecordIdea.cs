@@ -53,7 +53,7 @@ public partial class MainWindow
             midi = target;
         }, operationTitle: "Transformando a ideia em partitura");
         if (midi is null || report is null) { showFailure("Gravar ideia", "Não foi possível transformar a ideia em partitura.\n\n" + Status); return null; }
-        await ImportAndOpenLibraryAsync([midi]);
+        await AddCreatedFilesAsync([midi]);
         bool clear = report["melody_clear"]?.GetValue<bool>() ?? true;
         foreach (var row in Files.Where(r => string.Equals(r.FullPath, midi, StringComparison.OrdinalIgnoreCase)))
         {

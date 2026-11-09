@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using Teclas.Core;
 
 namespace Teclas.App;
 
@@ -252,17 +253,27 @@ public partial class MainWindow
         NotifyLibrarySelection();
     }
 
-    private void SelectedRemoveClick(object sender, RoutedEventArgs e)
+    private async void SelectedRemoveClick(object sender, RoutedEventArgs e)
     {
         if (!TryMarked(out var rows)) return;
-        RemoveMarkedLibraryItems(rows);
+        // "O que vai acontecer": approved scores stay; the others can still be unticked here.
+        var removable = rows.Where(row => !IsApprovalLocked(row)).ToList();
+        var preview = BuildBatchPreview("Remover as marcadas", rows.Select(row => IsApprovalLocked(row)
+            ? new BatchPreviewItem(row.FullPath, SongTitle(row), BatchPreview.SkipApproved, "retire a aprovação na própria música para removê-la", false)
+            : new BatchPreviewItem(row.FullPath, SongTitle(row), BatchPreview.Remove, row.ScorePath is null ? "sem partitura" : "a partitura continua na pasta", true)), estimate: false);
+        if (ConfirmBatch(preview, removable, "Remover") is not { } chosen) return;
+        await RemoveMarkedLibraryItemsAsync(chosen, rows.Count - removable.Count);
     }
 
-    /// <summary>Removes several cards at once; Desfazer brings all of them back in their places.</summary>
-    internal void RemoveMarkedLibraryItems(IReadOnlyList<MidiRow> rows)
+    /// <summary>Removes several cards at once (approved scores are never removed in bulk); Desfazer brings all of them back in their places.</summary>
+    internal void RemoveMarkedLibraryItems(IReadOnlyList<MidiRow> rows) => _ = RemoveMarkedLibraryItemsAsync(rows.Where(row => !IsApprovalLocked(row)).ToList(), rows.Count(IsApprovalLocked), restorePoint: false);
+
+    internal async Task RemoveMarkedLibraryItemsAsync(IReadOnlyList<MidiRow> rows, int skippedApproved, bool restorePoint = true)
     {
-        var removing = rows.Where(Files.Contains).OrderBy(Files.IndexOf).ToArray();
-        if (removing.Length == 0) return;
+        var removing = rows.Where(Files.Contains).Where(row => !IsApprovalLocked(row)).OrderBy(Files.IndexOf).ToArray();
+        if (removing.Length == 0) { if (skippedApproved > 0) Status = $"Nada removido: {skippedApproved} música(s) marcada(s) estão aprovadas. Retire a aprovação na própria música para removê-las."; return; }
+        var started = DateTimeOffset.Now;
+        var point = restorePoint && removing.Length > 1 ? await CreateRestorePointAsync($"Remover {removing.Length} músicas", removing) : null;
         bool openRemoved = selectedFile is { } open && removing.Contains(open);
         lastRemovedLibraryItems.Clear();
         lastRemovedLibraryItems.AddRange(removing.Select(row => (row, Files.IndexOf(row))));
@@ -271,8 +282,14 @@ public partial class MainWindow
         if (openRemoved) Library.SelectedItem = null;
         RefreshSelection();
         ExitLibrarySelection();
-        Status = removing.Length == 1 ? $"{removing[0].Name} removido da biblioteca. Os arquivos foram mantidos nas suas pastas. Você pode desfazer esta remoção."
-            : $"{removing.Length} músicas removidas da biblioteca. Os arquivos foram mantidos nas suas pastas. Você pode desfazer esta remoção.";
+        var items = removing.Select(row => LogItem(row, "removida", "card fora da biblioteca; arquivos mantidos")).ToList();
+        var entry = RecordBatch("Remover as marcadas", started, items,
+            [$"{removing.Length} card(s) saíram da biblioteca: {string.Join(", ", removing.Take(8).Select(SongTitle))}{(removing.Length > 8 ? " e outros" : "")} (os arquivos continuam nas pastas; Desfazer traz os cards de volta)"], point);
+        Status = (removing.Length == 1 ? $"{removing[0].Name} removido da biblioteca." : $"{removing.Length} músicas removidas da biblioteca.")
+            + " Os arquivos foram mantidos nas suas pastas. Você pode desfazer esta remoção."
+            + (skippedApproved > 0 ? $" {skippedApproved} pulada(s) · aprovada(s)." : "")
+            + (point is not null ? $" Ponto de restauração: {point.Label}." : "");
+        _ = entry;
         PersistPreferences();
     }
 
@@ -280,7 +297,7 @@ public partial class MainWindow
     {
         if (!TryMarked(out var marked)) return;
         // Songs still without a melody get the same proposal as Melodias em lote; nothing is chosen without the confirmation.
-        var proposals = MelodyBatchWindow.Build(marked);
+        var proposals = MelodyBatchWindow.Build(marked.Where(row => !IsApprovalLocked(row)).ToList());
         if (proposals.Count > 0)
         {
             var dialog = new MelodyBatchWindow(proposals) { Owner = this };
@@ -290,13 +307,25 @@ public partial class MainWindow
                 PersistPreferences();
             }
         }
-        var ready = marked.Where(row => !row.UsesNativeScoreWorkflow && row.Document is not null && (row.UseReviewedProfile || row.HasMelodyChoice)).ToArray();
-        int left = marked.Count - ready.Length;
+        var ready = marked.Where(row => !IsApprovalLocked(row) && !row.UsesNativeScoreWorkflow && row.Document is not null && (row.UseReviewedProfile || row.HasMelodyChoice)).ToArray();
+        int approved = marked.Count(IsApprovalLocked);
+        int left = marked.Count - ready.Length - approved;
         if (ready.Length == 0)
         {
-            Status = "Nenhuma das músicas marcadas pode ir para a fila: escolha a melodia primeiro. As importadas do MuseScore se melhoram uma a uma, em Gerar.";
+            Status = approved > 0 && left == 0 ? $"Nenhuma música vai para a fila: {approved} marcada(s) estão aprovadas. Retire a aprovação na própria música para refazê-las."
+                : "Nenhuma das músicas marcadas pode ir para a fila: escolha a melodia primeiro. As importadas do MuseScore se melhoram uma a uma, em Gerar.";
             return;
         }
+        // "O que vai acontecer": what will be generated or redone, what is skipped because it is approved, what still needs a melody.
+        var preview = BuildBatchPreview("Gerar as marcadas", marked.Select(row =>
+            IsApprovalLocked(row) ? new BatchPreviewItem(row.FullPath, SongTitle(row), BatchPreview.SkipApproved, "retire a aprovação na própria música para refazê-la", false)
+            : ready.Contains(row) ? new BatchPreviewItem(row.FullPath, SongTitle(row), row.ScorePath is null ? BatchPreview.Generate : BatchPreview.Regenerate, row.ScorePath is null ? "" : "a versão atual fica no Histórico", true)
+            : row.UsesNativeScoreWorkflow ? new BatchPreviewItem(row.FullPath, SongTitle(row), BatchPreview.Skip, "partitura importada ou editada: melhore-a uma a uma, em Gerar", false)
+            : new BatchPreviewItem(row.FullPath, SongTitle(row), BatchPreview.NeedsYou, row.Document is null ? "o MIDI não pôde ser lido" : "escolha a melodia primeiro", false)));
+        if (ConfirmBatch(preview, ready, "Gerar") is not { } chosen || chosen.Count == 0) return;
+        ready = chosen.ToArray();
+        var started = DateTimeOffset.Now;
+        var point = await CreateRestorePointAsync("Gerar as marcadas", ready);
         int added = 0; var failed = new List<string>();
         await RunOperation(async () =>
         {
@@ -311,9 +340,13 @@ public partial class MainWindow
                 catch (Exception error) when (error is not OperationCanceledException) { failed.Add(row.ScoreTitle + ": " + error.Message); }
             }
             Status = $"{added} música(s) marcada(s) foram para a Fila de conversões."
+                + (approved > 0 ? $" {approved} pulada(s) · aprovada(s)." : "")
                 + (left > 0 ? $" {left} ficaram de fora porque ainda não têm melodia escolhida ou são partituras importadas." : "")
                 + (failed.Count > 0 ? $" {failed.Count} não entraram: " + string.Join(" · ", failed) : "");
         }, operationTitle: "Enfileirando as músicas marcadas");
+        var items = marked.Select(row => IsApprovalLocked(row) ? LogItem(row, "pulada · aprovada") : ready.Contains(row) ? LogItem(row, "enfileirada", row.ScorePath is null ? null : "refazer; versão anterior no Histórico") : LogItem(row, "fica de fora", "sem melodia escolhida ou partitura importada")).ToList();
+        var entry = RecordBatch("Gerar as marcadas", started, items, [], point);
+        Status += " " + entry.ChangesText();
         if (added > 0 && melodyBatchEnqueue is null) { StartBackgroundQueue(); Status += " A fila está gerando em segundo plano."; }
     }
 

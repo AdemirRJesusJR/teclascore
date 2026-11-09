@@ -89,6 +89,7 @@ public partial class MainWindow
             Act("Caderno de cifras", "cifra pdf letra", () => SongbookClick(this, e)),
             Act("Acordes para aprender", "estudar acordes", () => ChordsToLearnClick(this, e)),
             Act("Músicas repetidas", "duplicadas limpar", () => FindDuplicatesClick(this, e)),
+            Act("Pontos de restauração", "voltar desfazer lote backup antes", () => RestorePointsClick(this, e), () => CanShowRestorePoints),
             Act("Apresentação (palco)", "palco show culto tocar", () => OpenPresentationClick(this, e)),
             Act("Analisar a música selecionada", "acordes analise", () => AnalyzeClick(this, e)),
             Act("Gerar a partitura selecionada", "gerar mscz", () => GenerateClick(this, e)),

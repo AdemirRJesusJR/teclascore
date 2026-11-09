@@ -80,7 +80,7 @@ public partial class MainWindow
         var taken = new HashSet<string>(Directory.EnumerateFiles(folder).Select(Path.GetFileName).OfType<string>(), StringComparer.OrdinalIgnoreCase);
         string midi = Path.Combine(folder, ScoreFileName.Unique(ScoreFileName.Stem(null, exercise.Title), ".mid", taken));
         await File.WriteAllBytesAsync(midi, exercise.ToMidi(), token);
-        await ImportAndOpenLibraryAsync([midi]);
+        await AddCreatedFilesAsync([midi]);
         foreach (var row in Files.Where(r => string.Equals(r.FullPath, midi, StringComparison.OrdinalIgnoreCase)))
         {
             foreach (var track in row.Tracks) track.IsMelody = track.Source.Key.Track == 1;

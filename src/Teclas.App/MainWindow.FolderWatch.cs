@@ -252,7 +252,8 @@ public partial class MainWindow
         folderWatchAutopilotRunning = true;
         try
         {
-            LastFolderWatchAutopilot = await RunAutopilotAsync(rows, exportPdf: false, keepAwake: false, quiet: true);
+            // One song at a time as files arrive: no restore point per arrival (they would push out the useful ones).
+            LastFolderWatchAutopilot = await RunAutopilotAsync(rows, exportPdf: false, keepAwake: false, quiet: true, restorePoint: false);
             Status = "Pasta acompanhada · " + Status;
         }
         finally { folderWatchAutopilotRunning = false; }

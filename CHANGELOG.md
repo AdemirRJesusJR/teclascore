@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 1.7.0 — 09/11/2026
+
+Proteções para trabalhar com centenas de MIDIs de uma vez: nada em lote acontece sem prévia, sem ponto de restauração e sem resumo.
+
+- **Ponto de restauração automático.** Antes de qualquer operação em lote (Piloto automático, Gerar as marcadas, Redesenhar diagramas da biblioteca, Remover as marcadas, Limpar biblioteca) o app guarda como a biblioteca estava e uma cópia dos .mscz que a operação vai mexer. Os 5 mais recentes ficam em Biblioteca › ⋯ › **Pontos de restauração** (também pelo botão no Histórico de qualquer música), listados como "Antes de: Piloto automático · 09/11 14:02 · 168 músicas". **Voltar a este ponto** deixa a biblioteca como naquele momento, em um clique, sem apagar as partituras feitas depois, e guarda um novo ponto antes, para desfazer a volta. Os pontos ficam em `%LOCALAPPDATA%\TeclasPartituras\pontos-de-restauracao`.
+- **"O que vai acontecer".** Antes de o Piloto automático ou uma ação em massa rodar, uma janela mostra as contagens e a lista por grupo: vai gerar N (dá para desmarcar músicas ali mesmo), pula M aprovadas, K precisam de você e por quê, J já geradas. O tempo estimado vem da mediana das gerações anteriores medidas em Desempenho. A prévia não muda nada nos cards. Na linha de comando, `--gerar … --simular` imprime a mesma prévia e sai sem importar nem gerar.
+- **Aprovação travada.** Uma partitura aprovada na revisão não é refeita, redesenhada nem removida por ação em massa: ela aparece como "pulada · aprovada" na prévia e no resumo. Para mexer nela, use **Retirar aprovação** no menu ⋯ da própria música (continua valendo que uma alteração pendente retira a aprovação sozinha).
+- **Repetidas na importação.** Ao importar arquivos ou escolher na Pasta de MIDIs, um arquivo com o mesmo conteúdo, ou o mesmo título e intérprete, de uma música da biblioteca é mostrado antes de entrar, com **Manter os dois**, **Pular** ou **Substituir** (o card antigo sai, dá para desfazer; nenhum arquivo é apagado). A Pasta de MIDIs já marca esses arquivos como "Parece repetida".
+- **Resumo e registro de cada lote.** Toda operação em lote termina dizendo "Nada foi apagado" ou listando o que mudou (cards que saíram, substituições), e grava um registro JSON em `%LOCALAPPDATA%\TeclasPartituras\lotes\<data>.json` (operação, resumo por situação, itens com motivo, mudanças, ponto de restauração), que relatórios podem ler.
+- Testes: casos novos em `Teclas.Tests` (prévia, estimativa, registro, pontos, duplicados, `--simular`), em `Teclas.Backup.Tests` (pontos de restauração com pacotes reais) e o smoke WPF `--verify-batch-guard-ui`, registrado em `tools/verify_ci.ps1`.
+
 ## 1.6.5 — 08/11/2026
 
 Os cards da lista ficam como na prévia aprovada.

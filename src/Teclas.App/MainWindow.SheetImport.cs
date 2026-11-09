@@ -80,7 +80,7 @@ public partial class MainWindow
         if (files is not { Length: > 0 }) return;
         var scores = await ConvertMusicXmlAsync(await RecognizeSheetsAsync(files));
         if (scores.Count == 0) return;
-        await ImportAndOpenLibraryAsync(scores);
+        await AddCreatedFilesAsync(scores);
         await ReviewRecognizedAsync(scores);
     }
 

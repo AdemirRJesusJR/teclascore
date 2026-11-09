@@ -1,3 +1,7 @@
+TECLASCORE 1.7.0
+
+Proteções para lotes grandes: antes de cada operação em massa o app guarda um ponto de restauração (os 5 mais recentes, com "Voltar a este ponto" em Biblioteca › Pontos de restauração), mostra a janela "O que vai acontecer" (quantas vai gerar, quantas pula por estarem aprovadas, quais precisam de você e por quê, tempo estimado, com a opção de desmarcar músicas) e termina com um resumo que diz "Nada foi apagado" ou o que mudou, gravado em %LOCALAPPDATA%\TeclasPartituras\lotes. Partituras aprovadas não são refeitas, redesenhadas nem removidas em lote (menu ⋯ › Retirar aprovação libera). Na importação e na Pasta de MIDIs, arquivos com o mesmo conteúdo ou o mesmo título e intérprete pedem Manter os dois, Pular ou Substituir. Na linha de comando, --gerar … --simular só mostra o que aconteceria.
+
 TECLASCORE 1.6.5
 
 Cada música da lista fica numa caixa com borda, e a barrinha de progresso corre pela borda de baixo do card, como na prévia aprovada.

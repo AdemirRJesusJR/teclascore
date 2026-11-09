@@ -57,7 +57,7 @@ public partial class MainWindow
             }
         }, operationTitle: "Criando partitura da cifra");
         if (scorePath is null || !File.Exists(scorePath)) return false;
-        await ImportAndOpenLibraryAsync([scorePath]);
+        await AddCreatedFilesAsync([scorePath]);
         Status = $"Partitura da cifra criada com {measures.Count} acordes: {Path.GetFileName(scorePath)}.";
         return true;
     }

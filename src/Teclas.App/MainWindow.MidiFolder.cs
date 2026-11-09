@@ -15,9 +15,11 @@ public partial class MainWindow
         var library = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in Files) library[file.FullPath] = file.ScorePath is { } score && File.Exists(score);
         DateTime? lastVisit = folder.Length > 0 && settings.MidiFolderVisits.TryGetValue(Path.GetFullPath(folder), out var visit) ? visit : null;
+        // Titles and artists already in the library: a folder file with the same ones is marked "Parece repetida" before it is chosen.
+        var titles = Files.Select(file => ImportDuplicateDetector.Key(file.ScoreTitle, file.ScoreArtist)).Where(key => key.Length > 0).ToHashSet(StringComparer.Ordinal);
         var window = new MidiFolderWindow(folder, settings.MidiFolderIncludeSubfolders, library, lastVisit,
             () => { StopTrackAudition(); if (audioPlaying || countingIn) StopPlayback(); }, null,
-            settings.WatchMidiFolder, settings.WatchMidiFolderAutopilot) { Owner = this };
+            settings.WatchMidiFolder, settings.WatchMidiFolderAutopilot, titles) { Owner = this };
         bool? accepted = midiFolderDialog(window);
         string previousFolder = settings.MidiFolder;
         bool previousSubfolders = settings.MidiFolderIncludeSubfolders, wasWatching = settings.WatchMidiFolder, previousAutopilot = settings.WatchMidiFolderAutopilot;

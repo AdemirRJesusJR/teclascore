@@ -11,7 +11,7 @@ using Teclas.Core;
 
 namespace Teclas.App;
 
-public sealed class MidiFolderItem(MidiFolderEntry entry, bool inLibrary, bool generated = false, bool newSinceVisit = false) : INotifyPropertyChanged
+public sealed class MidiFolderItem(MidiFolderEntry entry, bool inLibrary, bool generated = false, bool newSinceVisit = false, bool looksRepeated = false) : INotifyPropertyChanged
 {
     private bool selected;
     private string listenGlyph = "▶";
@@ -23,8 +23,10 @@ public sealed class MidiFolderItem(MidiFolderEntry entry, bool inLibrary, bool g
     public bool InLibrary { get; } = inLibrary;
     public bool Generated { get; } = inLibrary && generated;
     public bool NewSinceVisit { get; } = !inLibrary && newSinceVisit;
+    /// <summary>Outside the library, but a card with the same title and artist is already there (the import asks what to do).</summary>
+    public bool LooksRepeated { get; } = !inLibrary && looksRepeated;
     public bool CanSelect => !InLibrary;
-    public string State => Generated ? "Partitura gerada" : InLibrary ? "Na biblioteca" : NewSinceVisit ? "Novo desde a última visita" : "Fora da biblioteca";
+    public string State => Generated ? "Partitura gerada" : InLibrary ? "Na biblioteca" : LooksRepeated ? "Parece repetida (mesmo título e intérprete)" : NewSinceVisit ? "Novo desde a última visita" : "Fora da biblioteca";
     public bool IsSelected { get => selected; set { if (selected == value || InLibrary) return; selected = value; Changed(); } }
     public string ListenGlyph { get => listenGlyph; set { listenGlyph = value; Changed(); } }
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -35,6 +37,7 @@ public sealed class MidiFolderItem(MidiFolderEntry entry, bool inLibrary, bool g
 public sealed class MidiFolderWindow : Window
 {
     private readonly Dictionary<string, bool> library;
+    private readonly IReadOnlySet<string> titleKeys;
     private readonly DateTime? lastVisit;
     private readonly CheckBox onlyOutside;
     private readonly ObservableCollection<MidiFolderItem> items = [];
@@ -67,11 +70,13 @@ public sealed class MidiFolderWindow : Window
 
     /// <param name="libraryPaths">Library files and whether each already has a generated score.</param>
     /// <param name="lastVisit">When this folder was last opened here; later files are marked new.</param>
+    /// <param name="libraryTitleKeys">Title + artist keys (ImportDuplicateDetector.Key) of the library's cards, to mark files that look repeated.</param>
     public MidiFolderWindow(string folder, bool includeSubfolders, IReadOnlyDictionary<string, bool> libraryPaths, DateTime? lastVisit, Action stopOtherPlayback, Func<IMidiOutputTransport>? outputFactory = null,
-        bool watchFolder = false, bool watchAutopilot = false)
+        bool watchFolder = false, bool watchAutopilot = false, IReadOnlySet<string>? libraryTitleKeys = null)
     {
         library = new(StringComparer.OrdinalIgnoreCase);
         foreach (var (path, generated) in libraryPaths) library[Path.GetFullPath(path)] = generated;
+        titleKeys = libraryTitleKeys ?? new HashSet<string>();
         this.lastVisit = lastVisit;
         this.stopOtherPlayback = stopOtherPlayback; this.outputFactory = outputFactory;
         Title = "Pasta de MIDIs"; Width = 880; Height = 640; MinWidth = 640; MinHeight = 420; DialogUi.Theme(this);
@@ -227,7 +232,7 @@ public sealed class MidiFolderWindow : Window
                 var result = await Task.Run(() => MidiFolderScanner.Scan(folder, recursive, token), token);
                 if (token.IsCancellationRequested) return;
                 foreach (var entry in result.Entries)
-                    items.Add(new(entry, library.TryGetValue(entry.FullPath, out bool generated), generated, lastVisit is { } visit && entry.ModifiedLocal > visit));
+                    items.Add(new(entry, library.TryGetValue(entry.FullPath, out bool generated), generated, lastVisit is { } visit && entry.ModifiedLocal > visit, LooksRepeated(entry.FullPath)));
                 lastScanNote = result.Entries.Count == 0 ? "Nenhum MIDI (.mid, .midi, .kar) nesta pasta." : null;
                 if (result.Truncated) lastScanNote = $"Mostrando os primeiros {MidiFolderScanner.MaximumEntries} MIDIs; escolha uma subpasta para ver o restante.";
                 if (result.SkippedFolders > 0) lastScanNote = (lastScanNote is null ? "" : lastScanNote + " ") + $"{result.SkippedFolders} pasta(s) sem permissão de leitura foram ignoradas.";
@@ -236,6 +241,14 @@ public sealed class MidiFolderWindow : Window
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { lastScanNote = "Não foi possível ler a pasta: " + ex.Message; }
             UpdateSummary();
         }
+    }
+
+    /// <summary>Same title and artist (read from the file name, like the import does) as a card already in the library.</summary>
+    private bool LooksRepeated(string path)
+    {
+        if (titleKeys.Count == 0) return false;
+        try { var header = ScoreMetadataOrganizer.Suggest(path); return titleKeys.Contains(ImportDuplicateDetector.Key(PortugueseAccents.Restore(header.Title), header.Artist)); }
+        catch (Exception error) when (error is ArgumentException or IOException) { return false; }
     }
 
     private void SetVisibleSelection(bool value)
@@ -248,9 +261,9 @@ public sealed class MidiFolderWindow : Window
     {
         if (summary is null || addButton is null) return;
         int selected = items.Count(i => i.IsSelected), inLibrary = items.Count(i => i.InLibrary), visible = view.Cast<object>().Count();
-        int generatedCount = items.Count(i => i.Generated), fresh = items.Count(i => i.NewSinceVisit);
+        int generatedCount = items.Count(i => i.Generated), fresh = items.Count(i => i.NewSinceVisit), repeated = items.Count(i => i.LooksRepeated);
         string counts = items.Count == 0 ? "" : $"{items.Count} MIDIs · {visible} visíveis · {inLibrary} na biblioteca ({generatedCount} gerados)"
-            + (fresh > 0 ? $" · {fresh} novos desde a última visita" : "") + $" · {selected} marcados.";
+            + (fresh > 0 ? $" · {fresh} novos desde a última visita" : "") + (repeated > 0 ? $" · {repeated} parecem repetidos" : "") + $" · {selected} marcados.";
         summary.Text = string.Join(" ", new[] { counts, lastScanNote }.Where(t => !string.IsNullOrEmpty(t)));
         addButton.Content = selected == 0 ? "Adicionar à biblioteca" : $"Adicionar {selected} à biblioteca";
         addButton.IsEnabled = selected > 0;

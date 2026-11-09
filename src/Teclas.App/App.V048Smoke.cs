@@ -113,8 +113,9 @@ public partial class App
             // 6. Command palette: actions and songs found by typing, accents ignored.
             var palette = new CommandPaletteWindow(window.PaletteItems()) { ShowActivated = false, ShowInTaskbar = false, Opacity = 0 };
             palette.Show(); Flush();
-            Check(palette.Shown.Count > 0 && palette.Shown[0].Group == PaletteItem.ActionsGroup && palette.Shown.All(i => i.Glyph != "")
-                && window.PaletteItems().Where(i => i.Group == PaletteItem.SongsGroup).Count() == window.Files.Count, "palette-groups-actions-and-songs-with-icons");
+            bool paletteA = palette.Shown.Count > 0, paletteB = palette.Shown[0].Group == PaletteItem.ActionsGroup, paletteC = palette.Shown.All(i => i.Glyph != "");
+            bool paletteD = window.PaletteItems().Where(i => i.Group == PaletteItem.SongsGroup).Count() == window.Files.Count;
+            Check(paletteA && paletteB && paletteC && paletteD, $"palette-groups-actions-and-songs-with-icons a={paletteA} b={paletteB} c={paletteC} d={paletteD} shown={palette.Shown.Count} glyphs={string.Join(",", palette.Shown.Where(i => i.Glyph == "").Select(i => i.Label))}");
             CaptureFolderWindow(palette, Path.Combine(reports, "command-palette.png"));
             palette.Search("hino");
             CaptureFolderWindow(palette, Path.Combine(reports, "command-palette-busca.png"));

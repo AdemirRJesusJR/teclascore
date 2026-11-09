@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 1.6.5 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 1.7.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Selecionar várias músicas:** clique com o botão direito num card e escolha **Selecionar** (ou use Ctrl+clique). Cada card ganha uma caixa de marcação; Shift+clique marca um intervalo, a caixa da seção marca a seção inteira e Ctrl+A marca todas. A barra flutuante embaixo da lista age sobre todas as marcadas: **PDFs**, **Repertório**, **Gerar**, **Cifras**, **Coleção**, **Favoritar**, **Títulos** e **Remover** (com Desfazer). Esc sai da seleção.
 
@@ -141,7 +141,7 @@ Teclas.Partituras.exe --gerar "C:\MIDIs\Novos" --pdf "C:\Partituras\PDF" --relat
 $LASTEXITCODE
 ```
 
-`--gerar` aceita uma pasta (todos os .mid, .midi e .kar dela; com `--recursivo`, também os das subpastas) ou um ou mais arquivos. Os MIDIs entram na biblioteca como na importação normal, sem repetir arquivos, e passam pelo mesmo fluxo do Piloto automático, sem confirmações e sem janela. `--pdf <pasta>` salva o PDF de cada partitura gerada (e das que já existiam), `--saida <pasta>` grava os .mscz em outra pasta só nesta execução, `--relatorio <arquivo.json>` grava por arquivo a situação (`pronta`, `para-revisar`, `precisa-de-voce`, `falhou`, `ja-gerada`), a partitura, o PDF e o motivo, e `--configuracoes <settings.json>` usa outra biblioteca. `--ajuda` mostra o uso. Código de saída: **0** tudo pronto, **2** algo ficou para revisar ou precisa de você, **1** erro ou falha (inclusive um arquivo que não é MIDI ou um PDF que não saiu). Feche o TeclaScore antes, pois os dois usariam a mesma biblioteca (com `--configuracoes` não é preciso). Como o app é de janela, no PowerShell redirecione a saída (`| Out-Host`) para ele esperar o fim e preencher `$LASTEXITCODE`; no Prompt de Comando use `start /wait`.
+`--gerar` aceita uma pasta (todos os .mid, .midi e .kar dela; com `--recursivo`, também os das subpastas) ou um ou mais arquivos. Os MIDIs entram na biblioteca como na importação normal, sem repetir arquivos, e passam pelo mesmo fluxo do Piloto automático, sem confirmações e sem janela. `--pdf <pasta>` salva o PDF de cada partitura gerada (e das que já existiam), `--saida <pasta>` grava os .mscz em outra pasta só nesta execução, `--relatorio <arquivo.json>` grava por arquivo a situação (`pronta`, `para-revisar`, `precisa-de-voce`, `falhou`, `ja-gerada`), a partitura, o PDF e o motivo, e `--configuracoes <settings.json>` usa outra biblioteca, `--simular` só imprime "O que vai acontecer" (o que seria gerado, pulado ou precisa de você) sem importar nem gerar. Antes de gerar, um ponto de restauração da biblioteca é guardado; partituras aprovadas nunca são refeitas. `--ajuda` mostra o uso. Código de saída: **0** tudo pronto, **2** algo ficou para revisar ou precisa de você, **1** erro ou falha (inclusive um arquivo que não é MIDI ou um PDF que não saiu). Feche o TeclaScore antes, pois os dois usariam a mesma biblioteca (com `--configuracoes` não é preciso). Como o app é de janela, no PowerShell redirecione a saída (`| Out-Host`) para ele esperar o fim e preencher `$LASTEXITCODE`; no Prompt de Comando use `start /wait`.
 
 ## Testes automáticos e medições
 
@@ -202,6 +202,20 @@ No Editor musical, clicar na pauta seleciona os elementos existentes para corrig
 Na **Prévia**, abra **Revisão visual** em uma partitura MIDI já gerada ou MSCZ importada. A lista localiza colisões entre cifras, diagramas e textos reconhecidos, elementos além das margens e alguns problemas de paginação. Escolha um achado para conferir a página e o detalhe ampliado.
 
 Prepare a proposta, compare **Original / Proposta corrigida** e salve uma nova versão. Os ajustes são conservadores: espaçamento local, reposicionamento automático e paginação quando seguros. Notas, durações, cifras e imagens são conferidas novamente; propostas sem melhoria validada não são publicadas. A revisão não cobre toda a tipografia musical, colisões entre todas as notas/articulações nem a intenção estética. Leia as limitações e confira as páginas.
+
+## Proteções para lotes grandes (1.7.0)
+
+Pensadas para centenas de MIDIs de uma vez; nenhuma ação em massa acontece sem prévia, ponto de restauração e resumo.
+
+**Ponto de restauração automático.** Antes do Piloto automático, de Gerar as marcadas, do redesenho de diagramas da biblioteca, de Remover as marcadas e de Limpar biblioteca, o app guarda como a biblioteca estava e copia os .mscz que a operação vai mexer. Os 5 mais recentes ficam em **Biblioteca › ⋯ › Pontos de restauração** (e no botão do Histórico de qualquer música), listados como "Antes de: Piloto automático · 09/11 14:02 · 168 músicas". **Voltar a este ponto** deixa a biblioteca como naquele momento, sem apagar as partituras feitas depois, e guarda um novo ponto antes, para desfazer a volta. Pasta: `%LOCALAPPDATA%\TeclasPartituras\pontos-de-restauracao` (com `--configuracoes`, ao lado do arquivo de configurações).
+
+**"O que vai acontecer".** Antes de rodar, a janela mostra "Vai gerar N · pula M aprovadas · K precisam de você · J já geradas", a lista de cada grupo com o motivo, o tempo estimado (mediana das gerações medidas em Sobre › Desempenho, dividida pelas conversões simultâneas) e permite desmarcar músicas. A prévia não altera os cards. Na linha de comando, `--gerar … --simular` imprime a mesma prévia e sai sem importar nem gerar (código de saída 0; no relatório, situação `simulada`).
+
+**Aprovação travada.** Uma partitura aprovada na revisão não é refeita, redesenhada nem removida por ação em massa; aparece como "pulada · aprovada" na prévia, no rodapé e no registro. Para mexer nela, use **Retirar aprovação** no menu ⋯ da música. Uma alteração pendente continua retirando a aprovação sozinha.
+
+**Repetidas na importação.** Um arquivo com o mesmo conteúdo (hash), ou o mesmo título e intérprete, de uma música da biblioteca é mostrado antes de entrar, com **Manter os dois**, **Pular** ou **Substituir** (o card antigo sai, com Desfazer; nenhum arquivo é apagado). A Pasta de MIDIs marca esses arquivos como "Parece repetida"; a pasta acompanhada e `--gerar` continuam pulando repetições sozinhos.
+
+**Resumo e registro.** Toda operação em lote termina com "Nada foi apagado" ou a lista do que mudou, e grava `%LOCALAPPDATA%\TeclasPartituras\lotes\<data>.json` (camelCase): `versao`, `operacao`, `inicio`, `fim`, `total`, `resumo` (contagem por situação), `itens` (`titulo`, `arquivo`, `situacao`, `motivo`, `partitura`), `mudancas`, `nadaApagado`, `pontoDeRestauracao`, `cancelado`. Os 200 registros mais recentes ficam; um relatório HTML pode lê-los diretamente.
 
 ## Backup portátil da biblioteca
 

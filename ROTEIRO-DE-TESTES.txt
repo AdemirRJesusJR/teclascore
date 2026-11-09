@@ -1,3 +1,17 @@
+TECLASCORE 1.7.0 · PROTEÇÕES PARA LOTES GRANDES
+
+1. Em Sobre, confira que a versão é 1.7.0.
+2. Aprove uma partitura gerada (Revisão em sequência › A). Em Biblioteca, marque essa música e outras duas (Ctrl+clique) e clique em Gerar: a janela "O que vai acontecer" lista a aprovada em "Pula · aprovada" e as outras em "Vai gerar" ou "Vai refazer", com o tempo estimado; desmarque uma delas e confira que o botão passa a "Gerar (1)".
+3. Confirme: o rodapé diz quantas foram para a fila, "1 pulada(s) · aprovada(s)" e "Nada foi apagado". A aprovada continua com "✓ Aprovada".
+4. Abra Biblioteca › ⋯ › Pontos de restauração: há um ponto "Antes de: Gerar as marcadas · dd/MM HH:mm · N músicas". O mesmo botão aparece no Histórico de qualquer música.
+5. Piloto automático: a prévia mostra "Vai gerar N", "Precisam de você" (com o motivo) e "Já geradas" (as aprovadas marcadas); as opções de PDF e manter acordado continuam na mesma janela. Ao terminar, o resultado traz "N partitura(s) nova(s). Nada foi apagado. Ponto de restauração: …".
+6. Marque duas músicas, uma aprovada, e clique em Remover: a prévia mostra "Vai remover 1" e "Pula · aprovada 1"; depois, o rodapé diz "1 pulada(s) · aprovada(s)" e Desfazer traz o card de volta.
+7. Em Pontos de restauração, escolha o ponto do Piloto e clique em Voltar a este ponto: a biblioteca volta ao estado anterior (as músicas geradas pelo Piloto ficam sem partitura), os .mscz continuam na pasta de saída, e um ponto "Antes de: Voltar ao ponto …" aparece na lista. Só os 5 pontos mais recentes ficam.
+8. Na música aprovada, menu ⋯ › Retirar aprovação: o card perde o "✓ Aprovada" e volta a entrar nas ações em lote.
+9. Importe uma cópia de um MIDI já na biblioteca (ou um arquivo com o mesmo "Intérprete - Título"): a janela "Músicas repetidas na importação" mostra o motivo; escolha Pular, Manter os dois ou Substituir e confira o rodapé ("… repetido(s) pulado(s) … Nada foi apagado do computador"). Em Pasta de MIDIs, o arquivo aparece como "Parece repetida".
+10. Linha de comando: `Teclas.Partituras.exe --gerar "C:\MIDIs" --simular | Out-Host` imprime "O que vai acontecer" e termina sem gerar nem importar.
+11. Em %LOCALAPPDATA%\TeclasPartituras\lotes há um JSON por lote com operação, resumo, itens e "nadaApagado".
+
 TECLASCORE 1.6.5 · CAIXA DOS CARDS
 
 1. Em Sobre, confira que a versão é 1.6.5.

@@ -40,6 +40,8 @@ public partial class MainWindow
     private void LibraryMenuOpened(object? sender, EventArgs e)
     {
         if (sender is not Popup { Child: FrameworkElement content }) return;
+        // The approval of the open song may have changed since the card was selected; the menu item follows it.
+        Notify(nameof(CanUnapprove)); Notify(nameof(CanShowRestorePoints)); Notify(nameof(RestorePointsHint));
         Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
         {
             if (FirstFocusable(content) is { } first) Keyboard.Focus(first);

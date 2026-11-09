@@ -56,7 +56,16 @@ public partial class MainWindow
             row.HasPendingScoreProperties=true;
         }
         // Other songs receive only the chords changed here; their remaining chords and defaults stay as they were.
-        int keptChoices=0;
+        // Approved scores are never redrawn by the propagation; a restore point is saved before the library changes.
+        int keptChoices=0,skippedApproved=0;
+        var started=DateTimeOffset.Now;
+        RestorePointInfo? point=null;
+        if(applyToLibrary && changes.Count>0)
+        {
+            var targets=Files.Where(other=>IsPropagationTarget(other,row)).ToList();
+            skippedApproved=Files.Count(other=>!ReferenceEquals(other,row) && !other.UsesNativeScoreWorkflow && other.Chords.Count>0 && IsApprovalLocked(other));
+            if(targets.Count>0)point=await CreateRestorePointAsync("Redesenhar diagramas da biblioteca",targets.Where(t=>t.ScorePath is not null).Append(row).ToList());
+        }
         var updated=applyToLibrary && changes.Count>0 ? PropagateDiagramPositions(row,changes,out keptChoices) : [];
         // Every chosen position is remembered and used automatically for chords analyzed later.
         if(changes.Count>0)RememberChordPreferences(changes);
@@ -69,7 +78,8 @@ public partial class MainWindow
         var regenerate=new List<MidiRow>();
         if(changed && CanRegenerate(row))regenerate.Add(row);
         regenerate.AddRange(updated.Where(other=>other.ScorePath is not null && CanRegenerate(other)));
-        string library=(updated.Count==0?"":updated.Count==1?" Também aplicadas a 1 outra música.":$" Também aplicadas a {updated.Count} outras músicas.")+KeptChoicesText(keptChoices);
+        string library=(updated.Count==0?"":updated.Count==1?" Também aplicadas a 1 outra música.":$" Também aplicadas a {updated.Count} outras músicas.")+KeptChoicesText(keptChoices)
+            +(skippedApproved>0?$" {skippedApproved} pulada(s) · aprovada(s).":"");
         if(regenerate.Count==0)
         {
             Status=(row.Document is null?"Posições salvas. Reconecte o MIDI original para atualizar os diagramas.":
@@ -95,6 +105,13 @@ public partial class MainWindow
             if(changed && ReferenceEquals(regenerate[0],row))EditorTabs.SelectedIndex=2;
             Status=$"Diagramas atualizados em {done-failed} partitura(s)."+library+(failed>0?$" {failed} não puderam ser atualizadas; confira o status de cada card.":"");
         },row,regenerate.Count==1?"Atualizando diagramas de acordes":$"Atualizando diagramas em {regenerate.Count} partituras");
+        if(updated.Count>0)
+        {
+            // A library-wide redraw is a batch: it leaves a log; the previous versions stay in each song's Histórico.
+            var entry=RecordBatch("Redesenhar diagramas da biblioteca",started,
+                updated.Select(other=>LogItem(other,other.HasOperationError?"falhou":other.HasPendingScoreProperties?"posições salvas · gerar depois":"redesenhada","versão anterior no Histórico")).ToList(),[],point);
+            Status+=" "+entry.ChangesText();
+        }
         PersistPreferences();
     }
 
@@ -126,7 +143,7 @@ public partial class MainWindow
     }
 
     private static bool IsPropagationTarget(MidiRow other,MidiRow source)=>
-        !ReferenceEquals(other,source) && !other.UsesNativeScoreWorkflow && other.Chords.Count>0;
+        !ReferenceEquals(other,source) && !other.UsesNativeScoreWorkflow && other.Chords.Count>0 && !IsApprovalLocked(other);
     private static ChordPositionEntry[] Entries(MidiRow row)=>
         row.Chords.Select(chord=>new ChordPositionEntry(chord.Root,chord.Quality,chord.DiagramInversion)).ToArray();
     private static bool CanRegenerate(MidiRow row)=>

@@ -49,6 +49,8 @@ public partial class App
             File.WriteAllText(unsupported, "Unsupported file fixture, intentionally not a MIDI.");
 
             window = new MainWindow(true) { Opacity = 0, ShowInTaskbar = false, ShowActivated = false };
+            // 1.7.0: copies of the same MIDI are asked about before entering; this smoke keeps both, as before.
+            window.importDuplicatesDialog = w => { foreach (var row in w.Rows) row.Both.IsChecked = true; return true; };
             window.Show(); Flush();
             var library = (Selector)window.FindName("Library");
             var tabs = (TabControl)window.FindName("EditorTabs");

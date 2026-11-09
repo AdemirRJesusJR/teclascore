@@ -100,5 +100,4 @@ public partial class MainWindow
         return new(pdf, sheet, stage, seconds, leftOut);
     }
 
-    private static string SongTitle(MidiRow row) => string.IsNullOrWhiteSpace(row.ScoreTitle) ? row.Name : row.ScoreTitle;
 }

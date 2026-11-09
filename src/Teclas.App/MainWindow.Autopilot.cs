@@ -33,7 +33,13 @@ public partial class MainWindow
         Files.Where(row => !row.UsesNativeScoreWorkflow && row.Document is not null && row.ScorePath is null).ToList();
 
     /// <summary>Chooses the melody when it is clear; returns null when ready, or the reason it needs a human.</summary>
-    internal string? PrepareAutopilotMelody(MidiRow row)
+    internal string? PrepareAutopilotMelody(MidiRow row) => PlanAutopilotMelody(row, apply: true);
+
+    /// <summary>
+    /// The autopilot's melody decision. With <paramref name="apply"/> false nothing on the card changes (the preview and
+    /// <c>--simular</c> only ask what would happen); with true the clear choice is marked as the melody.
+    /// </summary>
+    internal string? PlanAutopilotMelody(MidiRow row, bool apply)
     {
         if (row.UseReviewedProfile) return null;
         if (row.Tracks.FirstOrDefault(t => t.IsMelody && IsGuideTrack(t)) is { } guide)
@@ -41,23 +47,24 @@ public partial class MainWindow
         if (row.HasMelodyChoice) return null;
         // A missing voice is not replaced by arpeggios, bass or lyric guide notes: the user decides (another MIDI or Só cifras).
         if (row.CatalogLacksMelody) return "o diagnóstico do lote indica que o MIDI não traz a melodia completa; escolha outra fonte ou ligue Só cifras";
+        void Choose(TrackRow track) { if (!apply) return; track.IsMelody = true; row.AutoMelody = true; row.AutoMelodyConfident = true; }
         // The lyrics decide: the part with 90% or more of the syllables, clearly ahead of the other lines, is the melody.
         if (row.Tracks.FirstOrDefault(t => t.MelodySuggestion?.FollowsLyrics == true && !IsGuideTrack(t)) is { } lyricsMelody)
         {
-            lyricsMelody.IsMelody = true; row.AutoMelody = true; row.AutoMelodyConfident = true;
+            Choose(lyricsMelody);
             return null;
         }
         var coverage = LyricsCoverageOf(row);
         if (coverage.Count > 0 && coverage[0].Share >= .5 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } sung
             && !IsGuideTrack(sung))
         {
-            sung.IsMelody = true; row.AutoMelody = true; row.AutoMelodyConfident = true;
+            Choose(sung);
             return null;
         }
         var proposal = MelodyBatchAdvisor.Propose(row.Tracks.Select(t => t.MelodySuggestion).OfType<MelodySourceSuggestion>().ToArray());
         if (proposal.Source is { } source && proposal.Confident && row.Tracks.FirstOrDefault(t => t.Source.Key == source) is { } track)
         {
-            track.IsMelody = true; row.AutoMelody = true; row.AutoMelodyConfident = true;
+            Choose(track);
             return null;
         }
         if (coverage.Count > 0 && row.Tracks.FirstOrDefault(t => t.Source.Key == coverage[0].Source) is { } lyricGuide && IsGuideTrack(lyricGuide))
@@ -82,11 +89,29 @@ public partial class MainWindow
         if (candidates.Count == 0) { Status = "Nenhuma música pendente: todas as MIDIs da biblioteca já têm partitura."; return; }
         var pdf = new CheckBox { Content = "Salvar também o PDF de cada partitura pronta", IsChecked = true, Margin = new Thickness(0, 10, 0, 0) };
         var awake = new CheckBox { Content = "Manter o computador acordado até terminar (pode deixar rodando à noite)", IsChecked = true, Margin = new Thickness(0, 6, 0, 0) };
-        var confirm = SimpleDialog("Piloto automático",
-            $"{candidates.Count} música(s) sem partitura. Para cada uma, o TeclaScore escolhe a melodia quando ela é clara (a pista que acompanha a letra ou a candidata bem à frente das outras), analisa os acordes e gera a partitura. " +
-            "Melodias duvidosas não são adivinhadas: essas músicas ficam na lista \"Precisam de você\".", "Começar", pdf, awake);
-        if (autopilotDialog(confirm) != true) return;
-        await RunAutopilotAsync(candidates, pdf.IsChecked == true, awake.IsChecked == true);
+        var note = new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = .8, FontSize = 12, Margin = new Thickness(0, 10, 0, 0),
+            Text = "Para cada música marcada, o TeclaScore escolhe a melodia quando ela é clara (a pista que acompanha a letra ou a candidata bem à frente das outras), analisa os acordes e gera a partitura. Melodias duvidosas não são adivinhadas." };
+        // The preview asks nothing of the cards: the melody is only marked when the run starts.
+        var preview = AutopilotPreview(candidates);
+        var window = new BatchPreviewWindow(preview, "Começar", true, note, pdf, awake) { Owner = this };
+        if (autopilotDialog(window) != true) return;
+        var selected = window.SelectedIds.ToHashSet(StringComparer.Ordinal);
+        var chosen = candidates.Where(row => selected.Contains(row.FullPath)).ToList();
+        if (chosen.Count == 0) { Status = "Nenhuma música ficou marcada para o Piloto automático."; return; }
+        await RunAutopilotAsync(chosen, pdf.IsChecked == true, awake.IsChecked == true);
+    }
+
+    /// <summary>"O que vai acontecer" for the autopilot: what will be generated, what needs a human and why, what is already done.</summary>
+    internal BatchPreview AutopilotPreview(IReadOnlyList<MidiRow> candidates)
+    {
+        var items = new List<BatchPreviewItem>();
+        foreach (var row in candidates)
+            items.Add(PlanAutopilotMelody(row, apply: false) is { } reason
+                ? new(row.FullPath, SongTitle(row), BatchPreview.NeedsYou, reason, false)
+                : new(row.FullPath, SongTitle(row), BatchPreview.Generate, row.HasMelodyChoice || row.UseReviewedProfile ? "melodia já escolhida" : "melodia clara", true));
+        foreach (var row in Files.Where(row => row.ScorePath is not null))
+            items.Add(new(row.FullPath, SongTitle(row), BatchPreview.AlreadyGenerated, row.Approved ? "aprovada" : "", false));
+        return BuildBatchPreview("Piloto automático", items);
     }
 
     /// <param name="quiet">Background runs (watched folder, command line): progress only in the footer, no report window.</param>
@@ -95,12 +120,13 @@ public partial class MainWindow
     /// ready ones can be reviewed meanwhile, and each PDF is saved as soon as its song is ready. One run at a time: a
     /// watched-folder run waits for the one in progress.
     /// </remarks>
-    internal async Task<IReadOnlyList<AutopilotOutcome>> RunAutopilotAsync(IReadOnlyList<MidiRow> candidates, bool exportPdf, bool keepAwake, bool quiet = false)
+    /// <param name="restorePoint">Saves a restore point of the library first (the watched folder, one song at a time, does not).</param>
+    internal async Task<IReadOnlyList<AutopilotOutcome>> RunAutopilotAsync(IReadOnlyList<MidiRow> candidates, bool exportPdf, bool keepAwake, bool quiet = false, bool restorePoint = true)
     {
         while (autopilotRunning) await Task.Delay(200);
         autopilotRunning = true; Notify(nameof(IsAutopilotRunning)); Notify(nameof(CanGenerateInBackground));
         using var stop = autopilotCancellation = new CancellationTokenSource();
-        try { return await RunAutopilotCoreAsync(candidates, exportPdf, keepAwake, quiet, stop.Token); }
+        try { return await RunAutopilotCoreAsync(candidates, exportPdf, keepAwake, quiet, restorePoint, stop.Token); }
         finally
         {
             autopilotRunning = false; autopilotCancellation = null;
@@ -108,11 +134,17 @@ public partial class MainWindow
         }
     }
 
-    private async Task<IReadOnlyList<AutopilotOutcome>> RunAutopilotCoreAsync(IReadOnlyList<MidiRow> candidates, bool exportPdf, bool keepAwake, bool quiet, CancellationToken token)
+    private async Task<IReadOnlyList<AutopilotOutcome>> RunAutopilotCoreAsync(IReadOnlyList<MidiRow> candidates, bool exportPdf, bool keepAwake, bool quiet, bool restorePoint, CancellationToken token)
     {
+        var started = DateTimeOffset.Now;
+        // Approved scores are never candidates (they have a score), but a caller's list is filtered all the same.
+        var skippedApproved = candidates.Where(IsApprovalLocked).ToList();
+        candidates = candidates.Where(row => !IsApprovalLocked(row)).ToList();
+        var point = restorePoint && candidates.Count > 0 ? await CreateRestorePointAsync("Piloto automático", candidates) : null;
         LastAdjustments = new Dictionary<MidiRow, string>();
         var outcomes = new List<AutopilotOutcome>();
         var ready = new List<MidiRow>();
+        foreach (var row in skippedApproved) outcomes.Add(new(row, "Puladas", "aprovada"));
         foreach (var row in candidates)
         {
             if (PrepareAutopilotMelody(row) is { } reason) outcomes.Add(new(row, "Precisam de você", reason));
@@ -182,9 +214,13 @@ public partial class MainWindow
         LastAutopilot = outcomes;
         RefreshSelection(); PersistPreferences(); libraryDirty = true; RefreshDashboard();
         int Count(string group) => outcomes.Count(o => o.Group == group);
+        // The autopilot only adds scores (a generation never overwrites a file): nothing is deleted, so the log says so.
+        var entry = RecordBatch("Piloto automático", started, outcomes.Select(o => LogItem(o.Row, o.Group == "Puladas" ? "pulada · aprovada" : o.Group, o.Detail)).ToList(),
+            [], point, token.IsCancellationRequested);
         Status = $"Piloto automático: {Count("Prontas")} pronta(s), {Count("Para revisar")} para revisar, {Count("Precisam de você")} precisam de você, {Count("Falharam")} falharam" +
-                 (exportPdf && pdfs > 0 ? $"; {pdfs} PDF(s) salvos." : ".");
-        if (!quiet) ShowAutopilotReport(outcomes);
+                 (Count("Puladas") > 0 ? $", {Count("Puladas")} pulada(s) · aprovada(s)" : "") +
+                 (exportPdf && pdfs > 0 ? $"; {pdfs} PDF(s) salvos." : ".") + " " + entry.ChangesText();
+        if (!quiet) ShowAutopilotReport(outcomes, entry);
         return outcomes;
     }
 
@@ -203,14 +239,14 @@ public partial class MainWindow
 
     internal Func<Window, bool?> autopilotReportDialog = window => window.ShowDialog();
 
-    private void ShowAutopilotReport(IReadOnlyList<AutopilotOutcome> outcomes)
+    private void ShowAutopilotReport(IReadOnlyList<AutopilotOutcome> outcomes, BatchLogEntry? entry = null)
     {
         var text = new System.Text.StringBuilder();
-        foreach (string group in new[] { "Prontas", "Para revisar", "Precisam de você", "Falharam" })
+        foreach (string group in new[] { "Prontas", "Para revisar", "Precisam de você", "Falharam", "Puladas" })
         {
             var items = outcomes.Where(o => o.Group == group).ToList();
             if (items.Count == 0) continue;
-            text.AppendLine($"{group} ({items.Count})");
+            text.AppendLine(group == "Puladas" ? $"Puladas · aprovadas ({items.Count})" : $"{group} ({items.Count})");
             foreach (var item in items) text.AppendLine($"  • {(string.IsNullOrWhiteSpace(item.Row.ScoreTitle) ? item.Row.Name : item.Row.ScoreTitle)} — {item.Detail}");
             text.AppendLine();
         }
@@ -218,6 +254,14 @@ public partial class MainWindow
         AutomationProperties.SetName(list, "Resultado do piloto automático");
         var readyRows = outcomes.Where(o => o.Group == "Prontas" && o.Row.ScorePath is not null && !o.Row.Approved).Select(o => o.Row).ToList();
         var content = new List<UIElement> { list };
+        if (entry is not null)
+        {
+            int made = outcomes.Count(o => o.Group is "Prontas" or "Para revisar" && o.Row.ScorePath is not null);
+            var summary = new TextBlock { Name = "AutopilotSummaryText", TextWrapping = TextWrapping.Wrap, Opacity = .85, FontSize = 12, Margin = new Thickness(0, 8, 0, 0),
+                Text = $"{made} partitura(s) nova(s). " + BatchSummaryText(entry) };
+            AutomationProperties.SetName(summary, "Resumo da operação");
+            content.Add(summary);
+        }
         if (readyRows.Count > 0)
         {
             var approveReady = DialogUi.Button($"Aprovar as {readyRows.Count} prontas (≥85%)", (sender, _) =>

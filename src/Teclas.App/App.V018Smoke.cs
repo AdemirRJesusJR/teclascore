@@ -219,6 +219,8 @@ public partial class App
             Invoke(window,"ClearLibrary");Check(window.Files.Count==3 && !window.CanClearLibrary,"bulk-clear-blocked-during-operation");
             Invoke(window,"SetBusy",false);
             ClearLibrary(true);
+            // 1.7.0: the confirmed clear first saves a restore point off the UI thread, then removes the cards.
+            await V018Wait(()=>window.Files.Count==0);Flush();
             Check(window.Files.Count==0 && window.SelectedFile is null && window.GeneratedCount==0 && !window.CanClearLibrary
                 && !window.CanExportPdf && window.CanUndoLibraryRemoval && Settings.Load(settingsPath).Library.Count==0,
                 "bulk-clear-removes-hidden-and-visible-cards-and-persists-empty-library");

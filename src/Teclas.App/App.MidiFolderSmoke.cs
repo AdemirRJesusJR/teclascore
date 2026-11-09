@@ -56,6 +56,8 @@ public partial class App
 
             new Settings { MidiFolder = folder, MidiFolderIncludeSubfolders = true, OutputDirectory = Path.Combine(work, "output") }.Save(settingsPath);
             window = new MainWindow(true, settingsPath) { Opacity = 0, ShowInTaskbar = false, ShowActivated = false, Width = 1100, Height = 740 };
+            // 1.7.0: the fixtures share the same bytes; the duplicates question is answered "keep both" here.
+            window.importDuplicatesDialog = w => { foreach (var row in w.Rows) row.Both.IsChecked = true; return true; };
             window.Show(); Flush();
             var header = (FrameworkElement)window.FindName("WorkspaceHeader");
             Check(window.FindName("MidiFolderButton") is Button { IsEnabled: true } folderButton && folderButton.Style == window.FindResource("PrimaryButton"),

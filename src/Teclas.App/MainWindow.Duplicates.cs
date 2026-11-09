@@ -23,17 +23,20 @@ public partial class MainWindow
         RemoveLibraryItems(window.ToRemove.Select(id => Files.FirstOrDefault(row => row.FullPath == id)).OfType<MidiRow>().ToArray());
     }
 
-    /// <summary>Removes several cards at once (undo brings them all back); the files are kept in their folders.</summary>
+    /// <summary>Removes several cards at once (undo brings them all back); the files are kept in their folders. Approved scores stay.</summary>
     internal void RemoveLibraryItems(IReadOnlyList<MidiRow> rows)
     {
-        if (rows.Count == 0) return;
+        int approved = rows.Count(IsApprovalLocked);
+        rows = rows.Where(row => !IsApprovalLocked(row)).ToList();
+        if (rows.Count == 0) { if (approved > 0) Status = $"Nada retirado: {approved} card(s) repetido(s) estão aprovados. Retire a aprovação na própria música para removê-los."; return; }
         lastRemovedLibraryItems.Clear();
         foreach (var row in rows) lastRemovedLibraryItems.Add((row, Files.IndexOf(row)));
         removedLibrarySelection = rows[0];
         foreach (var row in rows) Files.Remove(row);
         if (selectedFile is { } selected && rows.Contains(selected)) Library.SelectedItem = Files.FirstOrDefault();
         RefreshSelection();
-        Status = $"{rows.Count} card(s) repetido(s) retirado(s) da biblioteca. Os arquivos continuam nas pastas; use Desfazer para trazê-los de volta.";
+        Status = $"{rows.Count} card(s) repetido(s) retirado(s) da biblioteca. Os arquivos continuam nas pastas; use Desfazer para trazê-los de volta."
+            + (approved > 0 ? $" {approved} pulado(s) · aprovado(s)." : "");
         PersistPreferences();
     }
 }

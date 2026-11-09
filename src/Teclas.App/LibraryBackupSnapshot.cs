@@ -10,7 +10,12 @@ public sealed record PortableLibraryPlan(string LibraryJson, IReadOnlyList<Libra
 
 public static class LibraryBackupSnapshot
 {
-    public static PortableLibraryPlan Capture(IEnumerable<SavedMidi> rows, string? selectedPath)
+    /// <param name="copyFile">
+    /// Restore points only: which files enter the package. The others stay where they are and are referenced by their
+    /// own path ("local:"), so a point before a batch over hundreds of songs copies only the scores the batch will touch.
+    /// Null (portable backups) copies every file.
+    /// </param>
+    public static PortableLibraryPlan Capture(IEnumerable<SavedMidi> rows, string? selectedPath, Func<string, bool>? copyFile = null)
     {
         // Clone every nested choice, including future section/diagram fields; never rewrite the live session.
         var copied = JsonSerializer.Deserialize<List<SavedMidi>>(JsonSerializer.Serialize(rows))!;
@@ -27,6 +32,7 @@ public static class LibraryBackupSnapshot
             }
             string full = Path.GetFullPath(path);
             if (references.TryGetValue(full, out var cached)) return cached;
+            if (copyFile is not null && !copyFile(full)) return references[full] = "local:" + full;
             string parent = Path.GetDirectoryName(full)!;
             if (!folders.TryGetValue(parent, out string? folder)) folders[parent] = folder = $"g{folders.Count + 1:D5}";
             string relative = "files/" + folder + "/" + Path.GetFileName(full);
@@ -58,7 +64,8 @@ public static class LibraryBackupSnapshot
         return new(JsonSerializer.Serialize(new PortableLibraryData(copied, selected)), files.Values.ToArray(), missing, copied.Count);
     }
 
-    public static PortableLibraryData Resolve(LibraryBackupManifest manifest, string root)
+    /// <param name="allowLocal">Restore points: accept "local:" references to files that were never copied (they stay where they were).</param>
+    public static PortableLibraryData Resolve(LibraryBackupManifest manifest, string root, bool allowLocal = false)
     {
         var data = JsonSerializer.Deserialize<PortableLibraryData>(manifest.LibraryJson)
             ?? throw new InvalidDataException("A biblioteca do backup está vazia.");
@@ -71,6 +78,13 @@ public static class LibraryBackupSnapshot
             {
                 if (required) throw new InvalidDataException("Uma referência obrigatória está ausente do backup.");
                 return null;
+            }
+            if (reference.StartsWith("local:", StringComparison.Ordinal))
+            {
+                string local = reference[6..];
+                if (!allowLocal || !Path.IsPathFullyQualified(local) || !extensions.Contains(Path.GetExtension(local), StringComparer.OrdinalIgnoreCase))
+                    throw new InvalidDataException("O backup contém um caminho que não é portátil.");
+                return Path.GetFullPath(local);
             }
             bool missing = reference.StartsWith("missing:", StringComparison.Ordinal);
             if (!missing && !reference.StartsWith("asset:", StringComparison.Ordinal))
@@ -95,7 +109,7 @@ public static class LibraryBackupSnapshot
                 version.PreviewPath = ResolvePath(version.PreviewPath, pages);
                 version.AnalysisPath = null; version.Workspace = null;
             }
-            row.Status = "Restaurada do backup · escolhas musicais e Histórico preservados";
+            row.Status = allowLocal ? "Voltou ao ponto de restauração · escolhas musicais e Histórico preservados" : "Restaurada do backup · escolhas musicais e Histórico preservados";
         }
         string? selected = ResolvePath(data.SelectedPath, sources);
         // Use the same migration/default validation as normal sessions, in memory and without local executable paths.

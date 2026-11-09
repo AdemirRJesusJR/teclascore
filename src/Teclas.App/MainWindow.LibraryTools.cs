@@ -58,8 +58,10 @@ public partial class MainWindow
     {
         if(!CanShowHistory || selectedFile is not {} row || !CommitEdits())return;
         RememberVersion(row);
-        var dialog=new ScoreHistoryWindow(row){Owner=this};
-        if(dialog.ShowDialog()!=true || dialog.SelectedVersion is not {} version || !File.Exists(version.ScorePath))return;
+        var dialog=new ScoreHistoryWindow(row,ListRestorePoints().Count){Owner=this};
+        bool restore=dialog.ShowDialog()==true;
+        if(dialog.OpenRestorePoints){_=ShowRestorePointsAsync();return;}
+        if(!restore || dialog.SelectedVersion is not {} version || !File.Exists(version.ScorePath))return;
         RestoreVersion(row,version);
     }
     private void RestoreVersion(MidiRow row,SavedScoreVersion version)

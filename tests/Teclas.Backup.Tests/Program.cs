@@ -55,6 +55,25 @@ string swapped=Path.Combine(root,"swapped.zip");File.Copy(backup,swapped);var ol
 Check(await Reject<IOException>(()=>LibraryBackupService.RestoreAsync(old,Path.Combine(root,"stale"),null,default)),"Changed package after inspection cannot be restored silently");
 Check((await File.ReadAllBytesAsync(source)).SequenceEqual(new byte[]{0x4d,0x54,0x68,0x64,1,2,3,4}),"Original input remains intact");
 Check(!Directory.EnumerateFiles(root,"*.tmp").Any(),"Failed exports leave no temporary package");
+// Restore points: a local package (library JSON plus the affected scores) registered in the store, pruned to the newest five.
+var points=new RestorePointStore(Path.Combine(root,"pontos-de-restauracao"));
+var ids=new List<string>();
+for(int i=0;i<RestorePointStore.Kept+2;i++)
+{
+    string id=points.NewId(DateTimeOffset.Now.AddMinutes(i));string package=points.PackagePath(id);
+    await LibraryBackupService.CreateAsync(package,json,i==0?files:[files[1]],[],null,default);
+    var removed=points.Register(new RestorePointInfo(id,"Piloto automático",DateTimeOffset.Now.AddMinutes(i),3,i==0?2:1,package));
+    ids.Add(id);
+    Check(removed.Count==(i>=RestorePointStore.Kept?1:0),"Restore point registration prunes beyond the newest five");
+}
+var kept=points.List();
+Check(kept.Count==RestorePointStore.Kept && kept[0].Id==ids[^1] && !File.Exists(points.PackagePath(ids[0])) && !File.Exists(points.PackagePath(ids[1])),"Only the newest five restore points keep their packages");
+Check(kept.All(p=>p.Label.StartsWith("Antes de: Piloto automático · ") && p.Label.EndsWith(" · 3 músicas") && p.IsAvailable),"Restore points are labelled for the Histórico");
+var restoredPoint=await LibraryBackupService.RestoreAsync(await LibraryBackupService.InspectAsync(kept[0].Package,null,default),points.RestoreDirectory(kept[0].Id),null,default);
+Check((await File.ReadAllBytesAsync(LibraryBackupService.SafePath(restoredPoint.Directory,files[1].RelativePath))).SequenceEqual(originalScore),"A restore point's score comes back byte for byte");
+points.Remove(kept[0].Id);
+Check(!File.Exists(kept[0].Package) && !Directory.Exists(points.RestoreDirectory(kept[0].Id)) && points.List().Count==RestorePointStore.Kept-1,"Removing a restore point deletes its package and extracted folder");
+Check(await Reject<ArgumentException>(()=>Task.FromResult(points.Register(new RestorePointInfo("fora","op",DateTimeOffset.Now,1,0,Path.Combine(root,"fora.teclasbackup"))))),"A package outside the restore-point folder is rejected");
 await File.WriteAllTextAsync(Path.Combine(root,"report.json"),JsonSerializer.Serialize(new{passed=checks.Count,checks},new JsonSerializerOptions{WriteIndented=true}));
 Console.WriteLine($"PASS: {checks.Count} portable backup checks. {root}");
 sealed class SyncProgress(Action<string> action):IProgress<string>{public void Report(string text)=>action(text);}

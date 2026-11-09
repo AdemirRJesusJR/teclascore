@@ -6,7 +6,7 @@ namespace Teclas.Core;
 
 /// <summary>Options of <c>Teclas.Partituras.exe --gerar</c>; paths are already absolute.</summary>
 public sealed record BatchCommandLineOptions(
-    IReadOnlyList<string> Targets, bool Recursive, string? PdfDirectory, string? OutputDirectory, string? ReportPath, string? SettingsPath);
+    IReadOnlyList<string> Targets, bool Recursive, string? PdfDirectory, string? OutputDirectory, string? ReportPath, string? SettingsPath, bool Simulate = false);
 
 /// <summary>Result of reading the arguments: help, an error message, or the options to run.</summary>
 public sealed record BatchCommandLineParse(BatchCommandLineOptions? Options, bool ShowHelp, string? Error);
@@ -26,7 +26,7 @@ public static class BatchCommandLine
         "\n" +
         "Uso:\n" +
         "  Teclas.Partituras.exe --gerar <pasta-ou-arquivos>... [--recursivo] [--pdf <pasta>] [--saida <pasta>]\n" +
-        "                        [--relatorio <arquivo.json>] [--configuracoes <settings.json>]\n" +
+        "                        [--relatorio <arquivo.json>] [--configuracoes <settings.json>] [--simular]\n" +
         "  Teclas.Partituras.exe --ajuda\n" +
         "\n" +
         "  --gerar <...>      MIDIs (.mid, .midi, .kar) ou pastas; de uma pasta entram todos os MIDIs dela.\n" +
@@ -35,7 +35,10 @@ public static class BatchCommandLine
         "  --saida <pasta>    Pasta das partituras .mscz nesta execução (o padrão das Configurações não muda).\n" +
         "  --relatorio <arq>  Grava um relatório JSON: situação, partitura, PDF e motivo de cada arquivo.\n" +
         "  --configuracoes    Usa outro arquivo de configurações (outra biblioteca) em vez do padrão.\n" +
+        "  --simular          Só mostra o que vai acontecer (o que seria gerado, pulado ou precisa de você) e sai sem gerar.\n" +
         "\n" +
+        "Antes de gerar, um ponto de restauração da biblioteca é guardado (os 5 mais recentes ficam em Histórico › Pontos de\n" +
+        "restauração). Partituras aprovadas na revisão nunca são refeitas pelo lote.\n" +
         "Os MIDIs entram na biblioteca como na importação normal (sem copiar nem repetir arquivos) e passam pelo\n" +
         "Piloto automático: melodias duvidosas e MIDIs sem melodia completa não são adivinhados.\n" +
         "\n" +
@@ -50,7 +53,7 @@ public static class BatchCommandLine
         string baseDirectory = workingDirectory ?? Environment.CurrentDirectory;
         if (args.Any(a => HelpOptions.Contains(a, StringComparer.OrdinalIgnoreCase))) return new(null, true, null);
         var targets = new List<string>();
-        bool recursive = false, generate = false;
+        bool recursive = false, generate = false, simulate = false;
         string? pdf = null, output = null, report = null, settings = null;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < args.Count; i++)
@@ -73,6 +76,7 @@ public static class BatchCommandLine
                     if (targets.Count == 0) return Fail("Informe depois de --gerar uma pasta ou um ou mais arquivos MIDI.");
                     break;
                 case "--recursivo": recursive = true; break;
+                case "--simular": simulate = true; break;
                 case "--pdf": if (Value(ref i, out pdf) is { } e1) return Fail(e1); break;
                 case "--saida": if (Value(ref i, out output) is { } e2) return Fail(e2); break;
                 case "--relatorio": if (Value(ref i, out report) is { } e3) return Fail(e3); break;
@@ -83,7 +87,7 @@ public static class BatchCommandLine
         if (!generate) return Fail("Use --gerar seguido de uma pasta ou de arquivos MIDI.");
         if (report is not null && Directory.Exists(report)) return Fail("--relatorio precisa ser um arquivo (por exemplo relatorio.json), não uma pasta.");
         if (settings is not null && !File.Exists(settings)) return Fail("Arquivo de configurações não encontrado: " + settings);
-        return new(new(targets, recursive, pdf, output, report, settings), false, null);
+        return new(new(targets, recursive, pdf, output, report, settings, simulate), false, null);
 
         string? Value(ref int index, out string? value)
         {
@@ -162,7 +166,7 @@ public static class BatchCommandLine
 /// <summary>One file of the command-line report (JSON names in Portuguese, like the rest of the app's files).</summary>
 public sealed record BatchFileReport(string Arquivo, string Situacao, string? Titulo = null, string? Partitura = null, string? Pdf = null, string? Motivo = null, string? PdfErro = null)
 {
-    public const string Ready = "pronta", Review = "para-revisar", NeedsYou = "precisa-de-voce", Failed = "falhou", AlreadyGenerated = "ja-gerada";
+    public const string Ready = "pronta", Review = "para-revisar", NeedsYou = "precisa-de-voce", Failed = "falhou", AlreadyGenerated = "ja-gerada", Simulated = "simulada";
     public static BatchFileReport Failure(string path, string reason) => new(path, Failed, Motivo: reason);
 }
 
@@ -172,7 +176,7 @@ public sealed record BatchRunReport(string Versao, DateTimeOffset Inicio, DateTi
 {
     public static BatchRunReport Create(string version, DateTimeOffset start, IReadOnlyList<BatchFileReport> files, string? error = null) =>
         new(version, start, DateTimeOffset.Now, BatchCommandLine.ExitCode(files, error), error,
-            new(files.Count(f => f.Situacao == BatchFileReport.Ready), files.Count(f => f.Situacao == BatchFileReport.Review),
+            new(files.Count(f => f.Situacao is BatchFileReport.Ready or BatchFileReport.Simulated), files.Count(f => f.Situacao == BatchFileReport.Review),
                 files.Count(f => f.Situacao == BatchFileReport.NeedsYou), files.Count(f => f.Situacao == BatchFileReport.Failed),
                 files.Count(f => f.Situacao == BatchFileReport.AlreadyGenerated), files.Count(f => f.Pdf is not null)),
             files);

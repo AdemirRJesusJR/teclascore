@@ -202,13 +202,13 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         catch(Exception ex) when(ex is IOException or InvalidDataException or OverflowException){row=new(){FullPath=Path.GetFullPath(path),Status="Não foi possível ler: "+ex.Message};}
         Files.Add(row);if(Library.SelectedItem is null)Library.SelectedItem=row;RefreshSelection();
     }
-    private async Task<MidiRow?> ImportAsync(IEnumerable<string> paths)
+    /// <summary>Reads the files of an import without adding cards yet: the duplicates check and the cards come after the operation.</summary>
+    private async Task<(List<MidiRow> Loaded,MidiRow? Existing)> LoadForImportAsync(IEnumerable<string> paths)
     {
         var list=paths.Where(p=>new[]{".mid",".midi",".kar",".mscz"}.Contains(Path.GetExtension(p).ToLowerInvariant())).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        int imported=0;
         int processed=0;
         SetOperationItems(0,list.Length);
-        MidiRow? firstImported=null,firstExisting=null;
+        MidiRow? firstExisting=null;var loaded=new List<MidiRow>();
         // The new MIDIs are read on several cores first; the loop below finds them ready.
         await PrefetchForImportAsync(list,cancellation!.Token);
         try{
@@ -223,26 +223,74 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             try{row=await Task.Run(()=>LoadMidi(path),cancellation.Token);}
             catch(Exception ex) when(ex is IOException or InvalidDataException or OverflowException){row=new(){FullPath=Path.GetFullPath(path),Status="Não foi possível ler: "+ex.Message};}
             cancellation.Token.ThrowIfCancellationRequested();
-            Files.Add(row);firstImported??=row;
+            loaded.Add(row);
             if(row.IsNativeScore && row.NativeSourceSha256 is not null)
             {
                 try{await PrepareNativePreview(row);}
                 catch(OperationCanceledException){throw;}
                 catch(Exception ex){row.HasOperationError=true;row.Status="Partitura importada · prévia indisponível: "+ex.Message;}
             }
-            imported++;
             SetOperationItems(++processed,list.Length);
         }
         }finally{prefetchedMidis=null;}
-        Status=imported>0?$"{imported} arquivos importados. Abra a prévia das partituras ou prepare os MIDIs.":firstExisting is not null?"Este arquivo já está na biblioteca.":"Nenhum MIDI ou arquivo MuseScore foi selecionado.";
-        Notify(nameof(FileCountText));
-        return firstImported??firstExisting;
+        if(loaded.Count==0)Status=firstExisting is not null?"Este arquivo já está na biblioteca.":"Nenhum MIDI ou arquivo MuseScore foi selecionado.";
+        return (loaded,firstExisting);
     }
-    private async Task ImportAndOpenLibraryAsync(IEnumerable<string> paths)
+    internal Func<ImportDuplicatesWindow,bool?> importDuplicatesDialog=window=>window.ShowDialog();
+    /// <summary>
+    /// Adds the read files as cards. A file with the same content, or the same title and artist, as a card already in the
+    /// library is shown first with "Manter os dois", "Pular" or "Substituir"; nothing enters before the choice.
+    /// </summary>
+    internal IReadOnlyList<MidiRow> AddImportedRows(IReadOnlyList<MidiRow> loaded,bool checkDuplicates=true)
+    {
+        if(loaded.Count==0)return [];
+        var candidates=loaded.Select(row=>new ImportCandidate(row.FullPath,row.SourceSha256,row.ScoreTitle,row.ScoreArtist)).ToList();
+        var library=Files.Select(row=>new ImportLibraryEntry(row.FullPath,row.FullPath,row.SourceSha256,row.ScoreTitle,row.ScoreArtist,row.ScorePath is not null)).ToList();
+        var duplicates=checkDuplicates?ImportDuplicateDetector.Find(candidates,library):[];
+        var decisions=new Dictionary<string,ImportDuplicateDecision>(StringComparer.OrdinalIgnoreCase);
+        if(duplicates.Count>0)
+        {
+            var window=new ImportDuplicatesWindow(duplicates,loaded.Count-duplicates.Count){Owner=IsLoaded?this:null};
+            if(importDuplicatesDialog(window)!=true){Status="Importação cancelada: nada mudou na biblioteca.";return [];}
+            foreach(var choice in window.Choices)decisions[choice.Duplicate.Candidate.Path]=choice.Decision;
+        }
+        var byPath=duplicates.ToDictionary(d=>d.Candidate.Path,StringComparer.OrdinalIgnoreCase);
+        var added=new List<MidiRow>();var replaced=new List<MidiRow>();int skipped=0;
+        foreach(var row in loaded)
+        {
+            if(decisions.TryGetValue(row.FullPath,out var decision))
+            {
+                if(decision==ImportDuplicateDecision.Skip){skipped++;continue;}
+                if(decision==ImportDuplicateDecision.Replace && Files.FirstOrDefault(f=>string.Equals(f.FullPath,byPath[row.FullPath].Existing.Id,StringComparison.OrdinalIgnoreCase)) is {} old)
+                {
+                    // The new file takes the old card's place; the old card can come back with Desfazer, its files stay on disk.
+                    int index=Files.IndexOf(old);
+                    if(replaced.Count==0)lastRemovedLibraryItems.Clear();
+                    lastRemovedLibraryItems.Add((old,index));removedLibrarySelection=old;
+                    Files.Remove(old);Files.Insert(index,row);replaced.Add(old);added.Add(row);continue;
+                }
+            }
+            Files.Add(row);added.Add(row);
+        }
+        Status=(added.Count>0?$"{added.Count} arquivo(s) importado(s).":"Nenhum arquivo novo entrou.")
+            +(skipped>0?$" {skipped} repetido(s) pulado(s).":"")+(replaced.Count>0?$" {replaced.Count} card(s) substituído(s); Desfazer traz os antigos de volta.":"")
+            +" Nada foi apagado do computador."+(added.Count>0?" Abra a prévia das partituras ou prepare os MIDIs.":"");
+        Notify(nameof(FileCountText));NotifyLibraryActions();
+        return added;
+    }
+    /// <summary>Files the user chose (dialog, drop, Pasta de MIDIs): repeated songs are asked about before entering.</summary>
+    private Task ImportAndOpenLibraryAsync(IEnumerable<string> paths)=>ImportAndOpenLibraryCoreAsync(paths,checkDuplicates:true);
+    /// <summary>Files the app itself just created (transcriptions, ideas, sheets, improved copies): they enter without the duplicates question.</summary>
+    private Task AddCreatedFilesAsync(IEnumerable<string> paths)=>ImportAndOpenLibraryCoreAsync(paths,checkDuplicates:false);
+    private async Task ImportAndOpenLibraryCoreAsync(IEnumerable<string> paths,bool checkDuplicates)
     {
         if(busy || !CommitEdits())return;
-        MidiRow? importedSelection=null;
-        await RunOperation(async()=>{importedSelection=await ImportAsync(paths);}, operationTitle:"Importando para a biblioteca");
+        List<MidiRow> loaded=[];MidiRow? existing=null;
+        await RunOperation(async()=>{(loaded,existing)=await LoadForImportAsync(paths);}, operationTitle:"Importando para a biblioteca");
+        if(operationsDisposed)return;
+        var added=AddImportedRows(loaded,checkDuplicates);
+        if(added.Count>0)PersistPreferences();
+        var importedSelection=added.FirstOrDefault()??existing;
         if(importedSelection is null)return;
         // Select after RunOperation releases busy state, so stale filters are refreshed first.
         SearchText="";CurrentFilter="all";FavoritesOnly=false;CollectionFilter="";

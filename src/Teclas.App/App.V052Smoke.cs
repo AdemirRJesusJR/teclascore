@@ -33,6 +33,8 @@ public partial class App
             new Settings { OutputDirectory = Path.Combine(work, "saida"), PythonPath = Path.Combine(work, "sem-python.exe"), MuseScorePath = Path.Combine(work, "sem-musescore.exe") }.Save(settingsPath);
             window = new MainWindow(true, settingsPath) { Opacity = 0, ShowInTaskbar = false, ShowActivated = false, Width = 1300, Height = 900 };
             window.Show(); Flush();
+            // 1.7.0: batch actions show "O que vai acontecer" first; this smoke accepts it as is.
+            window.batchPreviewDialog = _ => true;
             window.HandleShortcut(Key.D2, ModifierKeys.Control, null); Flush();
             var library = (ListBox)window.FindName("Library");
             T Named<T>(string name) where T : class => (T)window.FindName(name);
@@ -145,6 +147,8 @@ public partial class App
             var order = window.Files.ToList();
             window.SetAllLibraryChecks(false); window.ToggleLibraryCheck(rows[1]); window.ToggleLibraryCheck(rows[3]); Flush();
             Named<Button>("SelectedRemoveButton").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); Flush();
+            // 1.7.0: the removal first saves a restore point off the UI thread.
+            for (int i = 0; i < 100 && window.Files.Count > 2; i++) { await Task.Delay(50); Flush(); }
             Check(window.Files.Count == 2 && !window.Files.Contains(rows[1]) && !window.Files.Contains(rows[3]) && !window.LibrarySelectionMode && window.CanUndoLibraryRemoval && window.Status.Contains("2 músicas removidas"),
                 "remove-the-marked-songs " + window.Status);
             window.UndoLibraryRemovalForSmoke(); Flush();
