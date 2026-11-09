@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 1.6.1 — 08/11/2026
+
+Novo desenho para os diagramas de teclado.
+
+- **Pontos com nomes (novo padrão).** As teclas ficam brancas: cada nota do acorde ganha um ponto (preto nas teclas brancas, branco nas pretas), a nota do grave aparece num círculo vazado e os nomes das notas ficam numa linha embaixo do teclado, com o grave em negrito. Quando duas notas ficam muito próximas, os nomes se alternam em duas linhas para não se sobreporem. O desenho ocupa o mesmo espaço do anterior, então o espaçamento das partituras não muda.
+- **Os outros desenhos continuam disponíveis** em Configurações › Aparência das partituras › Diagramas (Destacado, Destacado em cinza e Clássico). Quem já tinha escolhido um desenho continua com ele; para usar o novo, escolha "Pontos com nomes". Vale para as próximas partituras geradas; as já geradas mudam ao gerar de novo.
+- A prévia dos diagramas no app e a edição de cifras de uma partitura já gerada reconhecem o novo desenho.
+
 ## 1.6.0 — 08/11/2026
 
 Menos espaço vazio entre as pautas, e uma opção para ajustar esse espaço.

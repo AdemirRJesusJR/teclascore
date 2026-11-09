@@ -1,6 +1,6 @@
 # TeclaScore
 
-Versão 1.6.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
+Versão 1.6.1 para Windows x64, em C# / WPF (.NET 10). Organiza título e artista ao importar MIDI, permite ouvir as pistas antes de escolher a melodia, prepara partituras com cifras e diagramas de teclado com inversão configurável por acorde, salva arquivos MuseScore .mscz, reproduz a partitura e exporta PDFs individuais ou em massa.
 
 **Selecionar várias músicas:** clique com o botão direito num card e escolha **Selecionar** (ou use Ctrl+clique). Cada card ganha uma caixa de marcação; Shift+clique marca um intervalo, a caixa da seção marca a seção inteira e Ctrl+A marca todas. A barra flutuante embaixo da lista age sobre todas as marcadas: **PDFs**, **Repertório**, **Gerar**, **Cifras**, **Coleção**, **Favoritar**, **Títulos** e **Remover** (com Desfazer). Esc sai da seleção.
 
@@ -9,6 +9,8 @@ Versão 1.6.0 para Windows x64, em C# / WPF (.NET 10). Organiza título e artist
 **Pasta acompanhada (opcional, desligada por padrão):** marque **Acompanhar esta pasta** na janela Pasta de MIDIs ou em Configurações › Pasta acompanhada. A partir daí, cada MIDI novo (.mid, .midi, .kar) que chegar à pasta vira um card quando termina de ser gravado ou baixado, como na importação normal (mesmo título e artista, sem copiar e sem repetir um arquivo que já está na biblioteca, nem com outro nome), e o rodapé avisa. Os MIDIs que já estavam na pasta ao ligar continuam de fora até você marcá-los. Ao abrir o app, entram também os que chegaram com ele fechado. **Gerar sozinho com o Piloto automático** (só com a primeira opção ligada) envia os cards novos ao Piloto, que segue as mesmas regras: melodias duvidosas e MIDIs sem melodia completa ficam esperando a sua escolha. O Piloto espera você terminar o que está fazendo (uma janela aberta, a música tocando, a edição de cifras) e mostra o progresso no rodapé, sem a janela de resultado. A lista do que a pasta já tinha fica em `pasta-acompanhada.json`, ao lado das configurações.
 
 **Posições na biblioteca inteira:** em Posições dos diagramas, deixe marcada a opção Aplicar também às outras músicas. As cifras alteradas passam a valer nas músicas com o mesmo acorde tocado (nota e tipo, já com a transposição), e as partituras já geradas são atualizadas em seguida, com a versão anterior no Histórico. As outras cifras de cada música não mudam.
+
+**Diagramas com pontos e nomes (1.6.1):** o novo desenho padrão marca as notas do acorde com pontos sobre teclas brancas, mostra o grave num círculo vazado e escreve os nomes das notas embaixo do teclado. Os desenhos Destacado, Cinza e Clássico continuam em Configurações › Aparência das partituras › Diagramas.
 
 **Espaço entre as pautas (1.6.0):** em Configurações › Aparência das partituras, escolha Compacto (mais música por página), Normal ou Amplo (espaço para anotar). Vale para as próximas partituras geradas; cifras, diagramas, letras e nomes de instrumento continuam sem se sobrepor.
 

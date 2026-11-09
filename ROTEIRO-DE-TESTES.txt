@@ -1,3 +1,12 @@
+TECLASCORE 1.6.1 · DIAGRAMAS COM PONTOS E NOMES
+
+1. Em Sobre, confira que a versão é 1.6.1.
+2. Em Configurações › Aparência das partituras › Diagramas, escolha "Pontos com nomes".
+3. Na etapa Cifras, a prévia dos diagramas mostra teclas brancas com pontos, o grave num círculo vazado e os nomes das notas embaixo do teclado.
+4. Gere uma partitura: os diagramas acima das cifras saem com o mesmo desenho, no mesmo espaço de antes, sem sobrepor cifras ou notas.
+5. Num acorde com notas vizinhas (por exemplo, Dmaj7), os nomes se alternam em duas linhas e não se sobrepõem.
+6. Troque uma cifra da partitura gerada pelo editor: o diagrama novo continua no desenho de pontos.
+
 TECLASCORE 1.6.0 · ESPAÇO ENTRE AS PAUTAS
 
 1. Em Sobre, confira que a versão é 1.6.0.
