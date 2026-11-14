@@ -1,3 +1,7 @@
+TECLASCORE 1.10.3
+
+Áudio para partitura: as cifras são lidas direto do som do baixo e dos instrumentos, a cada meio compasso, como faz o Songscription; a melodia da sanfona não entra mais como se fosse acorde.
+
 TECLASCORE 1.10.2
 
 Áudio para partitura: nas frases lentas da sanfona, a melodia fica só com a voz de cima, sem a nota grave que o sanfoneiro repete entre as notas da melodia; a última nota de um solo não some quando a voz entra.

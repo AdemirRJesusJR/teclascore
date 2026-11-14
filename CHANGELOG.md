@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 1.10.3 — 14/11/2026
+
+- **Cifras pelo som, como o Songscription.** Na transcrição de áudio, os acordes passam a ser lidos direto do som do baixo e dos instrumentos de harmonia (as ativações do modelo de notas a cada instante), em vez das notas longas já escritas. Antes, as notas curtas da sanfona ficavam de fora, e a melodia tocada pela própria sanfona entrava como se fosse acorde. Em *Pega Essa Gatinha*, saíam cifras como Lá♭m, Sol m e Fá m e compassos com uma cifra só; agora a música inteira sai Cm Ab | Eb Bb, um acorde a cada meio compasso, igual ao Songscription. Em cada meio compasso, a nota mais grave do baixo pesa a favor da fundamental, os acordes da tonalidade têm uma pequena preferência, e uma sétima só aparece quando soa tão forte quanto a tríade: uma nota de passagem da melodia não transforma Cm em Cm7. Uma passagem pelo caminho mais provável (Viterbi) evita trocas de acorde por um meio compasso duvidoso. O mesmo vale sem a separação de fontes, lendo a mistura inteira.
+
 ## 1.10.2 — 14/11/2026
 
 - **Melodia da sanfona sem o pedal interno.** Em frases lentas, a sanfona alterna a nota da melodia com uma nota mais grave repetida (Mi♭ longo, Dó, Lá♭ longo, Dó, Lá♭…). A transcrição escrevia as duas numa linha só, e a melodia saltava para baixo e para cima e perdia o sentido: em *Pega Essa Gatinha*, logo depois do riff da introdução, aos 10 s. Agora um grupo de notas na mesma altura, abaixo das duas vizinhas e ao lado de uma nota longa da melodia, sai da linha, e a nota de cima segue até a próxima. Passagens rápidas, como o riff, não mudam.

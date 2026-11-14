@@ -522,6 +522,117 @@ def audio_chords(melody, accompaniment, beats, phase=0, span=2, melody_weight=.2
     return result
 
 
+# Perfis de tonalidade de Krumhansl–Kessler (maior e menor), para saber quais acordes pertencem à música.
+MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+MINOR_PROFILE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+
+
+def frame_chroma(frames, floor=.1):
+    """Basic Pitch note activations (frames × 88 keys) folded into 12 pitch classes per frame; faint activations
+    (below `floor`) are the model's doubt, not notes."""
+    folded = np.where(frames >= floor, frames, 0)
+    chroma = np.zeros((len(frames), 12))
+    for key in range(frames.shape[1]): chroma[:, (key + MIDI_OFFSET) % 12] += folded[:, key]
+    return chroma
+
+
+def lowest_chroma(frames, active=.3):
+    """The bass of each frame: only the lowest key sounding (activation ≥ `active`), so the harmonics of a bass note and
+    the chord above it do not count as bass."""
+    chroma = np.zeros((len(frames), 12))
+    sounding = frames >= active
+    rows = np.where(sounding.any(axis=1))[0]
+    lowest = np.argmax(sounding, axis=1)[rows]
+    chroma[rows, (lowest + MIDI_OFFSET) % 12] = frames[rows, lowest]
+    return chroma
+
+
+def key_guess(chroma):
+    """(tonic, minor) whose Krumhansl–Kessler profile best matches a 12-value pitch-class profile."""
+    best = None
+    for tonic in range(12):
+        for minor, profile in ((False, MAJOR_PROFILE), (True, MINOR_PROFILE)):
+            fit = float(np.corrcoef(np.roll(profile, tonic), chroma)[0, 1]) if chroma.std() > 0 else 0.0
+            if best is None or fit > best[0]: best = (fit, tonic, minor)
+    return best[1], best[2]
+
+
+def diatonic_chords(tonic, minor):
+    """The triads and sevenths built on the scale of the key; in minor, also the major V of the harmonic minor."""
+    degrees = ((0, 'm'), (3, ''), (5, 'm'), (7, 'm'), (7, ''), (8, ''), (10, '')) if minor else ((0, ''), (2, 'm'), (4, 'm'), (5, ''), (7, ''), (9, 'm'))
+    chords = set()
+    for step, quality in degrees:
+        root = (tonic + step) % 12
+        chords |= {(root, quality), (root, 'm7' if quality == 'm' else '7')}
+    return chords
+
+
+def heard_chords(times, harmony, bass, beats, phase=0, span=2, start=None, end=None, bass_weight=.15, change=.1,
+                 key_weight=.04, seventh_cost=.04, seventh_ratio=1.0, quiet=.15):
+    """Chords read from the sound itself, as the commercial transcribers do, instead of from the notes already
+    written: `harmony` and `bass` are Basic Pitch activations (frames × 88) of the harmony instruments and of the bass
+    (with separated stems, the "other" and "bass" stems; for a whole mix, the mix for both), at frame `times`.
+
+    One guess per `span` beats from the bar phase. Each segment sums its activations into a pitch-class profile and a
+    bass profile (lowest key per frame), and every chord is scored by its cosine match with the profile, a bonus for the
+    share of the bass on its root, a small bonus for the chords of the key and a small cost for the four-note chords —
+    a seventh also needs its seventh at least as loud as the triad (`seventh_ratio`), so a passing note in the melody
+    does not turn Cm into Cm7. A Viterbi pass then picks the sequence, charging `change` for each new chord, so a
+    single unclear segment keeps the chord around it. Silent segments (below `quiet` × the median energy) get no chord.
+    Returns (start, end, root, quality) in seconds, between `start` and `end` when given."""
+    beats = np.asarray(beats, np.float64)
+    if len(beats) < span + 1 or not len(times): return []
+    chroma, low = frame_chroma(harmony), lowest_chroma(bass)
+    segments = []
+    for index in range(phase % span, len(beats) - 1, span):
+        a, b = float(beats[index]), float(beats[min(index + span, len(beats) - 1)])
+        if end is not None and a >= end - .05: break
+        if start is not None and b <= start + .05: continue
+        inside = (times >= a) & (times < b)
+        segments.append((a, b, chroma[inside].sum(axis=0), low[inside].sum(axis=0), max(int(inside.sum()), 1)))
+    if not segments: return []
+    energy = np.array([(h.sum() + l.sum()) / frames for _, _, h, l, frames in segments])
+    if not (energy > 0).any(): return []
+    voiced = energy >= quiet * float(np.median(energy[energy > 0]))
+    tonic, minor = key_guess(sum(h + l for _, _, h, l, _ in segments))
+    favoured = diatonic_chords(tonic, minor)
+    states = [(root, quality) for root in range(12) for quality in CHORD_TEMPLATES]
+    templates = np.array([[1.0 if (pc - root) % 12 in CHORD_TEMPLATES[quality] else 0.0 for pc in range(12)] for root, quality in states])
+    templates /= np.linalg.norm(templates, axis=1, keepdims=True)
+    roots = np.array([root for root, _ in states])
+    prior = np.array([(key_weight if state in favoured else 0) - (seventh_cost if len(CHORD_TEMPLATES[state[1]]) == 4 else 0) for state in states])
+    sevenths = [(i, [(root + t) % 12 for t in CHORD_TEMPLATES[quality][:3]], (root + CHORD_TEMPLATES[quality][3]) % 12)
+                for i, (root, quality) in enumerate(states) if len(CHORD_TEMPLATES[quality]) == 4]
+    def emission(h, l):
+        profile = h + .5 * l
+        norm = float(np.linalg.norm(profile))
+        score = templates @ (profile / norm) if norm > 0 else np.zeros(len(states))
+        if l.sum() > 0: score = score + bass_weight * l[roots] / l.sum()
+        for i, triad, seventh in sevenths:
+            if h[seventh] < seventh_ratio * h[triad].mean(): score[i] -= 1
+        return score + prior
+    result = []
+    def decode(run):
+        scores = emission(*segments[run[0]][2:4]); back = []
+        for j in run[1:]:
+            leap = scores.max() - change
+            back.append(np.where(scores >= leap, np.arange(len(states)), int(scores.argmax())))
+            scores = np.maximum(scores, leap) + emission(*segments[j][2:4])
+        path = [int(scores.argmax())]
+        for pointers in reversed(back): path.append(int(pointers[path[-1]]))
+        for j, state in zip(run, reversed(path)):
+            a, b = segments[j][:2]; root, quality = states[state]
+            if result and result[-1][2:] == (root, quality) and abs(result[-1][1] - a) < 1e-6: result[-1] = (result[-1][0], b, root, quality)
+            else: result.append((a, b, root, quality))
+    run = []
+    for j in range(len(segments)):
+        if voiced[j]: run.append(j)
+        elif run: decode(run); run = []
+    if run: decode(run)
+    if end is not None and result and result[-1][1] > end: result[-1] = (result[-1][0], max(result[-1][0] + .05, end), *result[-1][2:])
+    return result
+
+
 def chord_notes(chords):
     """Block chords for the MIDI: the root in the bass (C2–B2) and the triad or seventh above C3."""
     notes = []
@@ -716,7 +827,11 @@ def transcribe_separated(wav_path, midi_path, progress=lambda message: None):
     meter = meter_guess(accompaniment or melody, beats)
     phase = downbeat_phase(accompaniment or melody, beats, meter=meter)
     progress('Reconhecendo os acordes pelo som…')
-    chords = audio_chords(melody, accompaniment, beats, phase, span=2 if meter == 4 else 3)
+    # Os acordes vêm do som do baixo e dos outros instrumentos, não das notas já escritas: as notas curtas da sanfona
+    # ficaram de fora do acompanhamento, e a melodia tocada pela sanfona confundiria a harmonia.
+    written = melody + accompaniment
+    chords = heard_chords(times, heard['other'][0], heard['bass'][0], beats, phase, span=2 if meter == 4 else 3,
+                          start=min(n[0] for n in written), end=max(n[1] for n in written)) or audio_chords(melody, accompaniment, beats, phase, span=2 if meter == 4 else 3)
     write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords), meter=meter)
     pitches = [n[2] for n in melody]
     return {'notes': len(melody) + len(accompaniment), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),
@@ -750,7 +865,8 @@ def transcribe_mix(wav_path, midi_path, progress=lambda message: None):
     meter = meter_guess(notes, beats)
     phase = downbeat_phase(accompaniment or melody, beats, meter=meter)
     progress('Reconhecendo os acordes pelo som…')
-    chords = audio_chords(melody, accompaniment, beats, phase, span=2 if meter == 4 else 3)
+    chords = heard_chords(times, frames, frames, beats, phase, span=2 if meter == 4 else 3, start=min(n[0] for n in notes),
+                          end=max(n[1] for n in notes)) or audio_chords(melody, accompaniment, beats, phase, span=2 if meter == 4 else 3)
     write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords), meter=meter)
     pitches = [n[2] for n in melody]
     return {'notes': len(notes), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),

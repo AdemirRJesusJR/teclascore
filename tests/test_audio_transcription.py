@@ -73,6 +73,59 @@ class AudioTranscriptionTests(unittest.TestCase):
         self.assertEqual(at.chord_of(*profile(2, 5, 9, bass=2))[:2], (2, 'm'))
         self.assertFalse(at.melody_is_clear([(i, i + .5, 60, .5) for i in range(20)], list(range(40))))
 
+    @staticmethod
+    def activations(seconds, events):
+        """Basic Pitch-like activations (frames × 88): each (start, end, pitch, level) lights its key."""
+        count = int(seconds * at.FRAMES_PER_SECOND); times = np.arange(count) / at.FRAMES_PER_SECOND
+        frames = np.zeros((count, 88))
+        for start, end, pitch, level in events:
+            inside = (times >= start) & (times < end)
+            frames[inside, pitch - at.MIDI_OFFSET] = np.maximum(frames[inside, pitch - at.MIDI_OFFSET], level)
+        return times, frames
+
+    def test_chords_are_heard_in_the_sound_with_the_bass(self):
+        # Forró loop Cm Ab | Eb Bb, a chord every half bar (beats of 0.6 s), as in Pega Essa Gatinha. The sanfona comps
+        # with short stabs (0.15 s) and plays its slow melody in the same stem: over Cm the long Eb with the inner C and
+        # the Ab of the next note, over Bb a loud G with a weak fifth. The bass on the root decides (without it the same
+        # sound reads Ab, Eb, Gm7).
+        loop = [((48, 51, 55), 36, ((75, .6), (72, .3), (80, .3))), ((44, 48, 51), 32, ((80, .6),)),
+                ((51, 55, 58), 39, ((79, .6),)), ((46, 50, 53), 34, ((79, .6), (77, .3)))] * 2
+        harmony, melody, bass = [], [], []
+        for i, (chord, root, line) in enumerate(loop):
+            a, b = 1.2 + 1.2 * i, 2.4 + 1.2 * i
+            for k in range(4):
+                for pitch in chord: harmony.append((a + .3 * k + .15, a + .3 * k + .3, pitch + 12, .3 if pitch == 53 else .6))
+            when = a
+            for pitch, length in line: melody.append((when, when + length, pitch, .9)); when += length
+            bass.append((a, b - .05, root, .8))
+        times, other = self.activations(12, harmony + melody)
+        _, low = self.activations(12, bass)
+        beats = [.6 * k for k in range(21)]
+        chords = at.heard_chords(times, other, low, beats, phase=0, span=2, start=1.2, end=10.8)
+        self.assertEqual([at.NOTE_NAMES[r] + q for _, _, r, q in chords], ['Cm', 'Ab', 'Eb', 'Bb'] * 2)
+        self.assertAlmostEqual(chords[0][0], 1.2); self.assertAlmostEqual(chords[-1][1], 10.8)
+        # The old reading from the written notes: the stabs are too short for the accompaniment (≥ 0.3 s), so only the
+        # sanfona melody and the bass are left, and the chords go wrong.
+        accompaniment = [n for n in harmony + melody if n[1] - n[0] >= at.ACCOMPANIMENT_MIN_SECONDS] + bass
+        old = [at.NOTE_NAMES[r] + q for _, _, r, q in at.audio_chords([], sorted(accompaniment), beats, 0, 2)]
+        self.assertNotEqual(old, ['Cm', 'Ab', 'Eb', 'Bb'] * 2)
+
+    def test_heard_chords_keep_sevenths_only_when_they_sound(self):
+        # G7 with a loud F (the seventh is part of the chord), then Cm with a soft Bb (a passing note): G7, Cm.
+        times, other = self.activations(6, [(0, 2.4, 55, .6), (0, 2.4, 59, .6), (0, 2.4, 62, .6), (0, 2.4, 65, .7),
+                                            (2.4, 4.8, 60, .6), (2.4, 4.8, 63, .6), (2.4, 4.8, 67, .6), (2.4, 3.0, 70, .5)])
+        _, low = self.activations(6, [(0, 2.4, 43, .8), (2.4, 4.8, 36, .8)])
+        chords = at.heard_chords(times, other, low, [.6 * k for k in range(10)], span=4)
+        self.assertEqual([at.NOTE_NAMES[r] + q for _, _, r, q in chords], ['G7', 'Cm'])
+
+    def test_heard_chords_skip_the_silence(self):
+        # Nothing sounds in the first measure: no chord there; the next chord starts with the music.
+        times, other = self.activations(6, [(2.4, 4.8, p, .6) for p in (57, 60, 64)])
+        _, low = self.activations(6, [(2.4, 4.8, 45, .8)])
+        chords = at.heard_chords(times, other, low, [.6 * k for k in range(10)], span=2)
+        self.assertEqual([(round(a, 1), at.NOTE_NAMES[r] + q) for a, _, r, q in chords], [(2.4, 'Am')])
+        self.assertEqual(at.heard_chords(times, np.zeros_like(other), np.zeros_like(low), [.6 * k for k in range(10)]), [])
+
     def test_drifting_tempo_follows_the_beats(self):
         # Tempo speeding up from 90 to about 110 BPM: positions follow the detected beats, not a fixed grid.
         curve = lambda b: 60 / 90 * b - .0028 * b * b
