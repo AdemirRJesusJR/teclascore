@@ -1,10 +1,19 @@
 # Histórico de versões
 
+## 1.13.0 — 14/11/2026
+
+- **A letra do MusicXML e do Guitar Pro vem junto.** Ao adicionar um desses arquivos, as sílabas entram no MIDI convertido, cada uma no instante da sua nota. A partitura gerada sai com a letra, a coluna Canto marca a pista cantada e a sugestão de melodia usa a letra para reconhecê-la.
+- Repetições e casas de 1ª e 2ª vez seguem a ordem em que a música toca: na segunda passagem entra a segunda estrofe, e um trecho que só tem uma estrofe (um refrão) repete a sua. As sílabas de uma mesma palavra chegam ligadas ("can-ção"), como nos karaokês.
+- Guitar Pro 3 a 5: a letra é lida do próprio arquivo e distribuída nas notas da pista da voz, uma sílaba por tempo, como o Guitar Pro faz (espaço e hífen passam para o tempo seguinte, "+" junta duas palavras no mesmo tempo, [comentários] ficam de fora). Vale a primeira linha de letra do arquivo.
+- Correção do que a 1.12.0 dizia: o MIDI que o MuseScore exporta já trazia a letra, mas com todas as estrofes ao mesmo tempo em cada repetição, sem os hífens das sílabas e, nos Guitar Pro 3 a 5 com mais de uma pista, com as palavras espalhadas fora do lugar. A 1.13.0 troca essa letra pela lida da partitura.
+- Uma letra que não coincide com as notas não é trazida: a música entra sem ela e o rodapé diz o motivo.
+- Arquivos adicionados na 1.12.0 ganham a letra ao serem adicionados de novo; o app pergunta se o card antigo é substituído.
+
 ## 1.12.0 — 14/11/2026
 
 - **Importar MusicXML e Guitar Pro.** Em Adicionar › "MIDI, MusicXML ou Guitar Pro" (Ctrl+O), ou arrastando o arquivo para a janela, a biblioteca aceita MusicXML (.musicxml, .mxl, .xml) e Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx, .gtp). O MuseScore toca o arquivo num MIDI novo, com uma pista por instrumento e as repetições já desdobradas, guardado na pasta de saída em "Convertidos para MIDI". Daí em diante a música segue as etapas de sempre: Melodia, Ritmo, Cifras e Gerar. O arquivo original só é lido.
 - O título, o intérprete e o compositor escritos no arquivo vão para o card. Os nomes das pistas do Guitar Pro 3 a 5 chegam com os acentos certos ("Violão").
-- As cifras escritas no arquivo entram como uma pista de acompanhamento em acordes, no mesmo instrumento da pauta em que estão, e a etapa Cifras lê a harmonia dela. A letra do arquivo não é trazida nesta versão.
+- As cifras escritas no arquivo entram como uma pista de acompanhamento em acordes, no mesmo instrumento da pauta em que estão, e a etapa Cifras lê a harmonia dela. A letra vem como o MuseScore a exporta (ver 1.13.0).
 - O mesmo arquivo escolhido de novo não é convertido outra vez: o card que já existe é aberto. Um arquivo que o MuseScore não consegue ler, que não tem notas ou um .xml que não é partitura aparece num aviso com o motivo, e nada entra pela metade.
 - Importar MuseScore (Ctrl+Shift+O) continua abrindo a partitura como ela está, sem passar pelas etapas, e agora também aceita Guitar Pro.
 - Ficam para depois: a Pasta de MIDIs, a pasta vigiada e a linha de comando (`--gerar`) seguem listando só MIDIs.

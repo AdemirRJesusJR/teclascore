@@ -1,3 +1,13 @@
+TECLASCORE 1.13.0 · LETRA DO MUSICXML E DO GUITAR PRO
+
+1. Em Sobre, confira que a versão é 1.13.0.
+2. Adicione um MusicXML com letra: o rodapé diz "… com a letra". Na etapa Melodia, a coluna Canto marca a pista cantada.
+3. Marque a melodia e gere a partitura: a letra aparece embaixo das notas, com as sílabas das palavras ligadas por hífen.
+4. Use um MusicXML com repetição e duas estrofes (ou casas de 1ª e 2ª vez): na partitura gerada a segunda passagem traz a segunda estrofe, não as duas misturadas.
+5. Adicione um Guitar Pro 4 ou 5 com letra e mais de uma pista: as sílabas ficam nas notas da pista da voz, na ordem da letra do arquivo.
+6. Adicione de novo um arquivo que entrou na 1.12.0: o app pergunta se substitui o card antigo; a música nova tem a letra.
+7. Adicione um MusicXML sem letra: entra como antes, sem menção à letra no rodapé.
+
 TECLASCORE 1.12.0 · MUSICXML E GUITAR PRO
 
 1. Em Sobre, confira que a versão é 1.12.0.

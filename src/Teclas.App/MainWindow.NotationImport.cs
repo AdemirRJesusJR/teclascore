@@ -5,8 +5,9 @@ namespace Teclas.App;
 
 /// <summary>
 /// MusicXML and Guitar Pro in the library: MuseScore plays each file into a MIDI saved in the output folder
-/// ("Convertidos para MIDI"), with one track per instrument, and that MIDI follows the usual steps (Melodia, Ritmo,
-/// Cifras, Gerar). The original file is only read. A file converted before is found by its content and reused.
+/// ("Convertidos para MIDI"), with one track per instrument and the lyrics as lyric events, and that MIDI follows the
+/// usual steps (Melodia, Ritmo, Cifras, Gerar). The original file is only read. A file converted before is found by
+/// its content and reused.
 /// </summary>
 public partial class MainWindow
 {
@@ -15,10 +16,11 @@ public partial class MainWindow
         $"Músicas (MIDI, MusicXML, Guitar Pro, MuseScore)|*.mid;*.midi;*.kar;{NotationSource.MusicXmlPattern};{NotationSource.GuitarProPattern};*.mscz" +
         $"|MIDI e karaokê|*.mid;*.midi;*.kar|MusicXML|{NotationSource.MusicXmlPattern}|Guitar Pro|{NotationSource.GuitarProPattern}|MuseScore 4|*.mscz";
 
-    /// <summary>Test hook: replaces MuseScore's part of the conversion (source, new MIDI) → writes the MIDI.</summary>
-    internal Func<string, string, CancellationToken, Task>? notationMidiExporter = null;
+    /// <summary>Test hook: replaces MuseScore's part of the conversion (source, exports) → writes the MIDI and, for lyrics, the other two.</summary>
+    internal Func<string, NotationExports, CancellationToken, Task>? notationMidiExporter = null;
     internal Task ImportFilesForSmoke(IEnumerable<string> paths) => ImportAndOpenLibraryAsync(paths);
-    private int notationConverted, notationReused;
+    private int notationConverted, notationReused, notationWithLyrics;
+    private readonly List<string> notationLyricNotes = [];
     private readonly List<string> notationFailures = [];
 
     /// <summary>
@@ -27,7 +29,7 @@ public partial class MainWindow
     /// </summary>
     private async Task<IReadOnlyList<string>> ConvertNotationSourcesAsync(IReadOnlyList<string> paths, CancellationToken token)
     {
-        notationConverted = notationReused = 0; notationFailures.Clear();
+        notationConverted = notationReused = notationWithLyrics = 0; notationFailures.Clear(); notationLyricNotes.Clear();
         var sources = paths.Where(NotationSource.IsSupported).Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (sources.Length == 0) return paths;
         // The chosen order is kept: each source gives its place to its MIDI.
@@ -57,8 +59,10 @@ public partial class MainWindow
                 { midis[source] = ready; notationReused++; continue; }
                 Status = $"Convertendo {name} ({NotationSource.KindName(source)}) em MIDI no MuseScore…";
                 string target = Path.Combine(folder, ScoreFileName.Unique(ScoreFileName.Stem(null, Path.GetFileNameWithoutExtension(source)), ".mid", taken));
-                await NotationSource.ConvertAsync(notationMidiExporter ?? exporter.ExportMidiAsync, source, target, token);
+                var conversion = await NotationSource.ConvertAsync(notationMidiExporter ?? NotationSource.MuseScoreExport(exporter), source, target, PlaybackCacheDirectory, token);
                 midis[source] = target; notationConverted++;
+                if (conversion.Syllables >= NotationLyrics.MinimumSyllables) notationWithLyrics++;
+                else if (conversion.LyricsNote is { } note) notationLyricNotes.Add($"{name}: {note}");
             }
             catch (Exception error) when (error is InvalidOperationException or IOException or InvalidDataException or UnauthorizedAccessException or TimeoutException)
             {
@@ -72,12 +76,14 @@ public partial class MainWindow
     /// <summary>After the cards entered: says what was converted and shows what could not be (a status line alone is easy to miss).</summary>
     private void ReportNotationImport()
     {
-        int converted = notationConverted + notationReused, reused = notationReused; var failed = notationFailures.ToArray();
+        int converted = notationConverted + notationReused, reused = notationReused, lyrics = notationWithLyrics;
+        var failed = notationFailures.ToArray(); var withoutLyrics = notationLyricNotes.ToArray();
         // Nothing is carried to the next import, whatever road this one took.
-        notationConverted = notationReused = 0; notationFailures.Clear();
+        notationConverted = notationReused = notationWithLyrics = 0; notationFailures.Clear(); notationLyricNotes.Clear();
         if (converted > 0)
             Status += $" MusicXML e Guitar Pro: {converted} arquivo(s) em MIDI na pasta \"{NotationSource.Folder}\""
-                + (reused > 0 ? $" ({reused} já convertido(s) antes)" : "") + "; os originais não mudaram.";
+                + (reused > 0 ? $" ({reused} já convertido(s) antes)" : "") + (lyrics > 0 ? $", {lyrics} com a letra" : "") + "; os originais não mudaram."
+                + (withoutLyrics.Length > 0 ? " A letra não veio de " + string.Join("; ", withoutLyrics.Take(3)) + "." : "");
         if (failed.Length == 0) return;
         string failures = string.Join("\n", failed.Take(8)) + (failed.Length > 8 ? $"\n… e mais {failed.Length - 8}." : "");
         Status = (converted > 0 ? Status + " " : "") + $"{failed.Length} arquivo(s) MusicXML ou Guitar Pro não entraram: " + failed[0];

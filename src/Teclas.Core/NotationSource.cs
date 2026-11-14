@@ -12,10 +12,17 @@ public sealed record NotationMetadata(string Title, string Artist, string Compos
     public bool IsEmpty => Title.Length == 0 && Artist.Length == 0 && Composer.Length == 0;
 }
 
+/// <summary>Where one MuseScore run writes its exports of a source: the MIDI, the measure positions (.mpos) and the MusicXML.</summary>
+public sealed record NotationExports(string Midi, string MeasurePositions, string MusicXml);
+
+/// <summary>What a conversion brought besides the notes: the lyric syllables, or why the lyric was left behind.</summary>
+public sealed record NotationConversion(int Syllables, string? LyricsNote);
+
 /// <summary>
 /// Songs written as notation by other programs (MusicXML, Guitar Pro). They enter the library as MIDI: MuseScore plays
 /// the file into a new MIDI (one track per instrument, repeats unrolled) and the original is never changed. The MIDI
-/// carries the title and names declared in the source, plus the source's hash, so the same file is converted only once.
+/// carries the title and names declared in the source, its lyrics (NotationLyrics.cs) and the source's hash, so the same
+/// file is converted only once.
 /// </summary>
 public static class NotationSource
 {
@@ -23,7 +30,8 @@ public static class NotationSource
     public static readonly string[] GuitarProExtensions = [".gp", ".gp3", ".gp4", ".gp5", ".gpx", ".gtp"];
     /// <summary>Subfolder of the output folder that receives the converted MIDIs.</summary>
     public const string Folder = "Convertidos para MIDI";
-    private const string OriginTag = "@ITeclaScore origem=";
+    // "origem=" marked the 1.12.0 conversions, which carry no lyrics; those are converted again.
+    private const string OriginTag = "@ITeclaScore fonte=";
     // Names editors write when the author left the field untouched.
     private static readonly string[] Placeholders =
         ["untitled", "untitled score", "title", "sem título", "sem titulo", "partitura sem título", "partitura sem titulo", "título", "titulo",
@@ -263,12 +271,25 @@ public static class NotationSource
         static string Repair(string text) => text.Any(c => c >= '\uFF80')
             ? new string(text.Select(c => c < '\uFF80' ? c : (c & 0xFF) is >= 0x80 and <= 0x9F ? windows1252[(c & 0xFF) - 0x80] : (char)(c & 0xFF)).ToArray())
             : text;
-        try { return RewriteTexts(midi, Repair); }
-        catch (Exception error) when (error is InvalidDataException or DecoderFallbackException) { return midi; }
+        try { return RewriteTexts(midi, (_, text) => Repair(text)); }
+        catch (InvalidDataException) { return midi; }
     }
 
-    /// <summary>Copies the MIDI, passing the text of every text meta event (types 1 to 7) through <paramref name="rewrite"/>.</summary>
-    private static byte[] RewriteTexts(byte[] midi, Func<string, string> rewrite)
+    /// <summary>
+    /// Takes the lyric events (type 5) out of the MIDI. MuseScore writes the lyrics it read, but with every verse at once
+    /// on each pass of a repeat and, for Guitar Pro 3 to 5, with the words scattered; NotationLyrics writes them again.
+    /// </summary>
+    public static byte[] RemoveLyricEvents(byte[] midi)
+    {
+        try { return RewriteTexts(midi, (type, text) => type == 5 ? null : text); }
+        catch (InvalidDataException) { return midi; }
+    }
+
+    /// <summary>
+    /// Copies the MIDI, passing every text meta event (types 1 to 7) through <paramref name="rewrite"/>: the same text
+    /// keeps the event as it is, another text replaces it and null removes it (its time goes to the next event).
+    /// </summary>
+    private static byte[] RewriteTexts(byte[] midi, Func<int, string, string?> rewrite)
     {
         if (midi.Length < 14 || Encoding.ASCII.GetString(midi, 0, 4) != "MThd") throw new InvalidDataException("MIDI inválido.");
         int position = 8 + ReadInt(midi, 4);
@@ -281,12 +302,18 @@ public static class NotationSource
             if (length < 0 || end > midi.Length) throw new InvalidDataException("Pista MIDI truncada.");
             if (Encoding.ASCII.GetString(midi, position, 4) != "MTrk") { output.AddRange(midi.AsSpan(position, 8 + length)); position = end; continue; }
             var track = new List<byte>(length);
-            int cursor = position + 8, running = 0;
+            int cursor = position + 8, running = 0; long carry = 0;
             int Byte() => cursor < end ? midi[cursor++] : throw new InvalidDataException("Pista MIDI truncada.");
             int Vlq() { int value = 0; for (int n = 0; n < 4; n++) { int b = Byte(); value = (value << 7) | (b & 127); if ((b & 128) == 0) return value; } throw new InvalidDataException("Duração MIDI inválida."); }
+            // The event's own bytes follow its time; a removed event before it left its time in "carry".
+            void Keep(int start, int afterDelta, long delta)
+            {
+                if (carry == 0) track.AddRange(midi.AsSpan(start, cursor - start));
+                else { NotationLyrics.WriteVlq(track, delta + carry); track.AddRange(midi.AsSpan(afterDelta, cursor - afterDelta)); carry = 0; }
+            }
             while (cursor < end)
             {
-                int start = cursor; Vlq(); int afterDelta = cursor, status = Byte();
+                int start = cursor; long delta = Vlq(); int afterDelta = cursor, status = Byte();
                 if (status == 0xFF)
                 {
                     int type = Byte(), size = Vlq(), payload = cursor;
@@ -294,14 +321,15 @@ public static class NotationSource
                     cursor += size;
                     if (type is >= 1 and <= 7)
                     {
-                        string text = strict.GetString(midi, payload, size), replaced = rewrite(text);
+                        string text;
+                        try { text = strict.GetString(midi, payload, size); } catch (DecoderFallbackException) { text = Encoding.Latin1.GetString(midi, payload, size); }
+                        string? replaced = rewrite(type, text);
+                        if (replaced is null) { carry += delta; continue; }
                         if (replaced != text)
                         {
                             byte[] bytes = Encoding.UTF8.GetBytes(replaced);
-                            if (bytes.Length > 16383) throw new InvalidDataException("Texto MIDI longo demais.");
-                            track.AddRange(midi.AsSpan(start, afterDelta - start)); track.Add(0xFF); track.Add((byte)type);
-                            if (bytes.Length > 127) track.Add((byte)(0x80 | (bytes.Length >> 7)));
-                            track.Add((byte)(bytes.Length & 0x7F)); track.AddRange(bytes);
+                            NotationLyrics.WriteVlq(track, delta + carry); carry = 0;
+                            track.Add(0xFF); track.Add((byte)type); NotationLyrics.WriteVlq(track, bytes.Length); track.AddRange(bytes);
                             continue;
                         }
                     }
@@ -314,7 +342,7 @@ public static class NotationSource
                     cursor += (running >> 4) is 0xC or 0xD ? 1 : 2;
                     if (cursor > end) throw new InvalidDataException("Pista MIDI truncada.");
                 }
-                track.AddRange(midi.AsSpan(start, cursor - start));
+                Keep(start, afterDelta, delta);
             }
             output.AddRange("MTrk"u8); output.AddRange([(byte)(track.Count >> 24), (byte)(track.Count >> 16), (byte)(track.Count >> 8), (byte)track.Count]); output.AddRange(track);
             position = end;
@@ -345,28 +373,65 @@ public static class NotationSource
     }
 
     /// <summary>
-    /// Converts <paramref name="source"/> into a new MIDI at <paramref name="destination"/> and stamps it.
-    /// <paramref name="exportMidi"/> is MuseScore's part (<see cref="ScoreExporter.ExportMidiAsync"/>). The destination
-    /// must not exist; a failed or cancelled conversion leaves no file behind.
+    /// MuseScore's part of a conversion: one run that writes the MIDI, the measure positions and the MusicXML. When that
+    /// job fails (an export this file does not support), the MIDI alone is exported, as before the lyrics were brought.
     /// </summary>
-    public static async Task ConvertAsync(Func<string, string, CancellationToken, Task> exportMidi, string source, string destination, CancellationToken token)
+    public static Func<string, NotationExports, CancellationToken, Task> MuseScoreExport(ScoreExporter exporter) => async (source, exports, token) =>
+    {
+        try { await exporter.ExportManyAsync(source, [exports.Midi, exports.MeasurePositions, exports.MusicXml], token); }
+        catch (InvalidOperationException) when (!token.IsCancellationRequested)
+        {
+            foreach (string partial in new[] { exports.Midi, exports.MeasurePositions, exports.MusicXml })
+                try { File.Delete(partial); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            await exporter.ExportMidiAsync(source, exports.Midi, token);
+        }
+    };
+
+    /// <summary>
+    /// Converts <paramref name="source"/> into a new MIDI at <paramref name="destination"/>, with its lyrics as lyric
+    /// events, and stamps it. <paramref name="export"/> is MuseScore's part (<see cref="MuseScoreExport"/>); its other
+    /// exports live in a folder under <paramref name="workDirectory"/> only during the conversion. The destination must
+    /// not exist; a failed or cancelled conversion leaves no file behind. A lyric that cannot be read never fails the
+    /// conversion: the MIDI comes without it and the reason is returned.
+    /// </summary>
+    public static async Task<NotationConversion> ConvertAsync(Func<string, NotationExports, CancellationToken, Task> export, string source, string destination, string workDirectory, CancellationToken token)
     {
         if (File.Exists(destination)) throw new IOException("A conversão precisa de um novo arquivo de destino.");
         string hash = Sha256(source); var metadata = ReadMetadata(source);
+        string job = Path.Combine(workDirectory, "importar-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(job);
+        var exports = new NotationExports(destination, Path.Combine(job, "compassos.mpos"), Path.Combine(job, "partitura.musicxml"));
         try
         {
-            await exportMidi(source, destination, token);
+            await export(source, exports, token);
             byte[] converted = await File.ReadAllBytesAsync(destination, token);
-            if (Path.GetExtension(source).ToLowerInvariant() is ".gp3" or ".gp4" or ".gp5" or ".gtp") converted = RepairGuitarProTexts(converted);
+            bool eightBit = Path.GetExtension(source).ToLowerInvariant() is ".gp3" or ".gp4" or ".gp5" or ".gtp";
+            if (eightBit) converted = RepairGuitarProTexts(converted);
+            int syllables = 0; string? lyricsNote = null;
+            try
+            {
+                var lyrics = NotationLyrics.Read(source, exports.MusicXml, exports.MeasurePositions, MidiReader.Read(converted));
+                if (lyrics.Count > 0) { converted = NotationLyrics.Append(RemoveLyricEvents(converted), lyrics); syllables = lyrics.Count; }
+            }
+            catch (Exception error) when (error is InvalidDataException or IOException or XmlException or UnauthorizedAccessException or OverflowException) { lyricsNote = error.Message; }
+            if (syllables == 0)
+            {
+                // Without a lyric of our own: MuseScore's scattered Guitar Pro 3-5 words are worse than none; elsewhere its
+                // own lyric events stay (right for a song with one verse).
+                if (eightBit) converted = RemoveLyricEvents(converted);
+                else syllables = MidiReader.Read(converted).TextEvents.Count(e => e.Type == 5);
+            }
             byte[] stamped = Stamp(converted, metadata, hash);
             // A score without a single note (only rests, or text) is not a song the library can use.
             MidiReader.Read(stamped);
             await File.WriteAllBytesAsync(destination, stamped, token);
+            return new(syllables, lyricsNote);
         }
         catch
         {
             try { File.Delete(destination); } catch (IOException) { } catch (UnauthorizedAccessException) { }
             throw;
         }
+        finally { try { Directory.Delete(job, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
     }
 }

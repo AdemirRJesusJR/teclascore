@@ -107,20 +107,20 @@ internal static class NotationSourceChecks
             // Conversion: the export step is injected; failures and empty scores leave no file.
             string source = Path.Combine(folder, "origem.musicxml"); File.WriteAllText(source, "<score-partwise><work><work-title>Da origem</work-title></work></score-partwise>");
             string target = Path.Combine(converted, "origem.mid");
-            NotationSource.ConvertAsync((_, destination, _) => { File.WriteAllBytes(destination, midi); return Task.CompletedTask; }, source, target, CancellationToken.None).GetAwaiter().GetResult();
+            NotationSource.ConvertAsync((_, exports, _) => { File.WriteAllBytes(exports.Midi, midi); return Task.CompletedTask; }, source, target, folder, CancellationToken.None).GetAwaiter().GetResult();
             check(NotationSource.FindConverted(converted, NotationSource.Sha256(source)) == target
                 && ScoreMetadataOrganizer.Suggest(target, MidiReader.Read(target).TextEvents).Title == "Da origem", "Conversion stamps the source's hash and title");
             bool refused = false;
-            try { NotationSource.ConvertAsync((_, destination, _) => { File.WriteAllBytes(destination, midi); return Task.CompletedTask; }, source, target, CancellationToken.None).GetAwaiter().GetResult(); }
+            try { NotationSource.ConvertAsync((_, exports, _) => { File.WriteAllBytes(exports.Midi, midi); return Task.CompletedTask; }, source, target, folder, CancellationToken.None).GetAwaiter().GetResult(); }
             catch (IOException) { refused = true; }
             check(refused && MidiReader.Read(target).Notes.Count == 1, "An existing destination is never replaced");
             string failed = Path.Combine(converted, "falhou.mid"); bool reported = false;
-            try { NotationSource.ConvertAsync((_, destination, _) => { File.WriteAllBytes(destination, [0]); throw new InvalidOperationException("MuseScore 1"); }, source, failed, CancellationToken.None).GetAwaiter().GetResult(); }
+            try { NotationSource.ConvertAsync((_, exports, _) => { File.WriteAllBytes(exports.Midi, [0]); throw new InvalidOperationException("MuseScore 1"); }, source, failed, folder, CancellationToken.None).GetAwaiter().GetResult(); }
             catch (InvalidOperationException) { reported = true; }
             check(reported && !File.Exists(failed), "A failed conversion leaves no partial file");
             byte[] silent = [.. "MThd"u8, 0, 0, 0, 6, 0, 0, 0, 1, 1, 224, .. "MTrk"u8, 0, 0, 0, 4, 0, 0xFF, 0x2F, 0];
             reported = false;
-            try { NotationSource.ConvertAsync((_, destination, _) => { File.WriteAllBytes(destination, silent); return Task.CompletedTask; }, source, failed, CancellationToken.None).GetAwaiter().GetResult(); }
+            try { NotationSource.ConvertAsync((_, exports, _) => { File.WriteAllBytes(exports.Midi, silent); return Task.CompletedTask; }, source, failed, folder, CancellationToken.None).GetAwaiter().GetResult(); }
             catch (InvalidDataException) { reported = true; }
             check(reported && !File.Exists(failed), "A score without notes is refused and leaves no file");
         }

@@ -1,6 +1,10 @@
+TECLASCORE 1.13.0
+
+Letra do MusicXML e do Guitar Pro: ao adicionar um desses arquivos, a letra entra junto, cada sílaba no instante da sua nota, e a partitura gerada sai com ela. Repetições e casas de 1ª e 2ª vez seguem a ordem em que a música toca (segunda estrofe na segunda passagem). Nos Guitar Pro 3 a 5, a primeira linha de letra do arquivo é distribuída nas notas da pista da voz. Arquivos adicionados na 1.12.0 ganham a letra ao serem adicionados de novo.
+
 TECLASCORE 1.12.0
 
-MusicXML e Guitar Pro: em Adicionar › MIDI, MusicXML ou Guitar Pro (Ctrl+O), ou arrastando o arquivo para a janela, a biblioteca aceita .musicxml, .mxl, .xml, .gp, .gp3, .gp4, .gp5, .gpx e .gtp. O MuseScore converte o arquivo num MIDI com uma pista por instrumento (pasta "Convertidos para MIDI" na pasta de saída) e a música segue as etapas Melodia, Ritmo, Cifras e Gerar. O arquivo original não muda. As cifras do arquivo viram uma pista de acompanhamento; a letra não é trazida. Importar MuseScore (Ctrl+Shift+O) abre a partitura como ela está e também aceita Guitar Pro.
+MusicXML e Guitar Pro: em Adicionar › MIDI, MusicXML ou Guitar Pro (Ctrl+O), ou arrastando o arquivo para a janela, a biblioteca aceita .musicxml, .mxl, .xml, .gp, .gp3, .gp4, .gp5, .gpx e .gtp. O MuseScore converte o arquivo num MIDI com uma pista por instrumento (pasta "Convertidos para MIDI" na pasta de saída) e a música segue as etapas Melodia, Ritmo, Cifras e Gerar. O arquivo original não muda. As cifras do arquivo viram uma pista de acompanhamento; a letra vem junto desde a 1.13.0. Importar MuseScore (Ctrl+Shift+O) abre a partitura como ela está e também aceita Guitar Pro.
 
 TECLASCORE 1.11.0
 

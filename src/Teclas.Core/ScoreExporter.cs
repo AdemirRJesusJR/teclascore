@@ -59,6 +59,33 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
     }
 
     /// <summary>
+    /// One MuseScore run (a conversion job, -j) that writes several exports of the same input, each to a new file.
+    /// The exports describe the same reading of the file: its MIDI, its measure positions, its MusicXML.
+    /// </summary>
+    public async Task ExportManyAsync(string input, IReadOnlyList<string> outputs, CancellationToken token)
+    {
+        ValidateScore(input);
+        if (outputs.Count == 0) throw new ArgumentException("Informe ao menos um arquivo de saída.", nameof(outputs));
+        foreach (string output in outputs) ValidateNewDestination(input, output, Path.GetExtension(output));
+        Directory.CreateDirectory(cacheDirectory);
+        string job = Path.Combine(cacheDirectory, "exportar-" + Guid.NewGuid().ToString("N") + ".json");
+        await File.WriteAllTextAsync(job, System.Text.Json.JsonSerializer.Serialize(new[] { new { @in = input, @out = outputs } }), token);
+        try
+        {
+            for (int attempt = 1; ; attempt++)
+            {
+                try { await ExportOnceAsync(input, outputs[0], token, PerformanceOperation.ScoreExportMidi, false, 120, null, job, outputs); return; }
+                catch (MuseScoreCrashException) when (attempt < 3 && !token.IsCancellationRequested)
+                {
+                    foreach (string output in outputs) TryDelete(output);
+                    await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), token);
+                }
+            }
+        }
+        finally { TryDelete(job); }
+    }
+
+    /// <summary>
     /// Saves a copy as MusicXML (.musicxml) or as one PNG per page (.png, 200 dpi). Rendering happens in the cache;
     /// existing PNG files are never replaced (repeated names receive a number). Returns the saved files.
     /// </summary>
@@ -299,7 +326,8 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         }
     }
 
-    private async Task ExportOnceAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng, int resolution, string? stylePath)
+    private async Task ExportOnceAsync(string scorePath, string outputPath, CancellationToken token, PerformanceOperation operation, bool allowPagedPng, int resolution, string? stylePath,
+        string? jobPath = null, IReadOnlyList<string>? jobOutputs = null)
     {
         using var measurement = (recorder ?? PerformanceDiagnostics.Recorder)?.Begin(operation, PerformanceProcessKind.MuseScore, PerformancePhase.Process)
             ?? PerformanceMeasurement.Disabled;
@@ -316,7 +344,8 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         };
         if (allowPagedPng) { start.ArgumentList.Add("-r"); start.ArgumentList.Add(resolution.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
         if (stylePath is not null) { start.ArgumentList.Add("-S"); start.ArgumentList.Add(stylePath); }
-        start.ArgumentList.Add("-o"); start.ArgumentList.Add(outputPath); start.ArgumentList.Add(scorePath);
+        if (jobPath is null) { start.ArgumentList.Add("-o"); start.ArgumentList.Add(outputPath); start.ArgumentList.Add(scorePath); }
+        else { start.ArgumentList.Add("-j"); start.ArgumentList.Add(jobPath); }
         // On Windows the normal -o conversion is headless. The Qt offscreen platform can hang this build.
         using var timeout = new CancellationTokenSource(processTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
@@ -340,7 +369,8 @@ public sealed class ScoreExporter(string museScorePath, string cacheDirectory)
         }
         token.ThrowIfCancellationRequested();
         string details = (await stdout + "\n" + await stderr).Trim();
-        if (process.ExitCode != 0 || !(File.Exists(outputPath) || allowPagedPng && FindPreviewPages(outputPath).Length > 0))
+        bool produced = jobOutputs is not null ? jobOutputs.All(File.Exists) : File.Exists(outputPath) || allowPagedPng && FindPreviewPages(outputPath).Length > 0;
+        if (process.ExitCode != 0 || !produced)
         {
             if (details.Length > 1200) details = details[^1200..];
             string message = $"Não foi possível exportar a partitura (MuseScore {process.ExitCode}). {details}".Trim();
