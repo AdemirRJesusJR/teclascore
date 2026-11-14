@@ -19,6 +19,8 @@ public partial class App : Application
         base.OnStartup(e);
         // Command-line generation (--gerar, --ajuda) runs without the window and reports errors without message boxes.
         if (Teclas.Core.BatchCommandLine.IsRequest(e.Args)) { RunCommandLine(e.Args); return; }
+        if (e.Args.Length is 2 or 4 && e.Args[0] == "--verify-piano-roll-ui")
+        { VerifyPianoRollUi(e.Args[1], e.Args.Length == 4 ? e.Args[2] : null, e.Args.Length == 4 ? e.Args[3] : null); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-folder-watch-ui")
         { VerifyFolderWatchUi(e.Args[1]); return; }
         // Automated checks report their own failures; only real sessions keep crash files.

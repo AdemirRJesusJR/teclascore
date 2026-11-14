@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 1.11.0 — 14/11/2026
+
+- **Piano roll embaixo da partitura, como o Songscription.** Na Prévia, enquanto a partitura toca, as notas descem sobre um teclado inteiro de 88 teclas no ritmo do áudio. A melodia aparece em azul e as notas do diagrama de cada acorde em âmbar, com o nome no bloco. As teclas acendem quando a nota soa, e o nome do acorde que está tocando fica pequeno, à esquerda, logo acima das teclas. O fundo é quase preto, com uma linha discreta em cada Dó; só o Dó central leva nome. O fim da música é marcado por uma pequena etiqueta "Fim da partitura" com cadeado. As notas seguem a linha do tempo dos compassos que o MuseScore toca: um trecho com repetição desce de novo na segunda vez, e uma mudança de andamento estica ou encurta os blocos. Em pausa, o piano roll fica parado no ponto da reprodução; clicar num compasso leva o piano roll junto. Antes do primeiro ▶ (ou de Preparar), não ocupa espaço; depois, fica com cerca de um terço da área e sempre deixa pelo menos 160 px para a página. Em painéis baixos, as notas descem mais devagar (no mínimo 70 px por segundo) para as semicolcheias continuarem visíveis.
+- **Ligar e desligar o piano roll.** Vem ligado, e a escolha fica salva. Há quatro caminhos:
+  - o botão de piano roll na Prévia (teclado com notas descendo), logo depois de Notas caindo;
+  - o ✕ no canto do próprio piano roll;
+  - a caixa em Configurações › Estudo;
+  - a busca de comandos (Ctrl K), com "Ligar ou desligar o piano roll".
+- A linha do tempo dos compassos, que o piano roll e o Acompanhar usam, passa a ser preparada junto com o áudio depois de gerar a partitura, para o primeiro ▶ não esperar o MuseScore de novo.
+
 ## 1.10.3 — 14/11/2026
 
 - **Cifras pelo som, como o Songscription.** Na transcrição de áudio, os acordes passam a ser lidos direto do som do baixo e dos instrumentos de harmonia (as ativações do modelo de notas a cada instante), em vez das notas longas já escritas. Antes, as notas curtas da sanfona ficavam de fora, e a melodia tocada pela própria sanfona entrava como se fosse acorde. Em *Pega Essa Gatinha*, saíam cifras como Lá♭m, Sol m e Fá m e compassos com uma cifra só; agora a música inteira sai Cm Ab | Eb Bb, um acorde a cada meio compasso, igual ao Songscription. Em cada meio compasso, a nota mais grave do baixo pesa a favor da fundamental, os acordes da tonalidade têm uma pequena preferência, e uma sétima só aparece quando soa tão forte quanto a tríade: uma nota de passagem da melodia não transforma Cm em Cm7. Uma passagem pelo caminho mais provável (Viterbi) evita trocas de acorde por um meio compasso duvidoso. O mesmo vale sem a separação de fontes, lendo a mistura inteira.

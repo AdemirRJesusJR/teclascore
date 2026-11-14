@@ -105,7 +105,7 @@ public partial class MainWindow
     {
         foreach (var name in new[] { nameof(CanPlayScore), nameof(CanPauseScore), nameof(CanStopScore), nameof(CanExportPdf), nameof(CanSeekScore), nameof(PlaybackPositionSeconds), nameof(PlaybackPositionText), nameof(PlaybackDurationSeconds), nameof(PlaybackDurationText) }) Notify(name);
         NotifyStudyState();
-        Notify(nameof(CanPrepareScoreSynchronization));
+        Notify(nameof(CanPrepareScoreSynchronization)); NotifyPianoRollLayout();
     }
 
     private string? SelectedScoreIdentity()
@@ -181,7 +181,8 @@ public partial class MainWindow
                 var audio = await scoreAudioPreparation(exporter, scorePath, requestedSpeed, CreateOperationProgress(), token);
                 var (playedAudio, beats, metronomeWarning) = await PrepareMetronome(exporter, scorePath, requestedSpeed, audio, token);
                 audio = playedAudio;
-                if (FollowScorePlayback) await PrepareScoreSynchronization(scorePath, requestedSpeed, token);
+                // The piano roll places its notes through the same measure timeline.
+                if (FollowScorePlayback || settings.PianoRoll) await PrepareScoreSynchronization(scorePath, requestedSpeed, token);
                 token.ThrowIfCancellationRequested();
                 if (playbackDisposed || identity != SelectedScoreIdentity()) throw new OperationCanceledException();
                 loadedAudioSpeed = requestedSpeed;

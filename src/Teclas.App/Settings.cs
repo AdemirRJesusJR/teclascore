@@ -50,6 +50,8 @@ public sealed class Settings
     public string ScoreSpacing { get; set; } = "normal";
     public bool Karaoke { get; set; }
     public bool CurrentChord { get; set; }
+    /// <summary>Piano roll under the score while it plays: notes falling onto a keyboard, like the transcription apps (on by default).</summary>
+    public bool PianoRoll { get; set; } = true;
     /// <summary>Keys of the user's keyboard (49, 61, 76 or 88), to warn about melodies outside it.</summary>
     public int KeyboardKeys { get; set; } = 61;
     /// <summary>Songs generated at the same time by the queue, Piloto, PDFs and the watched folder: 0 = automatic, or 1 to 8.</summary>

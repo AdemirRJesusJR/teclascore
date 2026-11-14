@@ -60,7 +60,7 @@ public partial class App
             V018Score(source); V018Preview(page1); V018Preview(page2);
             await File.WriteAllTextAsync(renderer, "Synthetic identity only; never execute.");
             string hash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(source)));
-            new Settings { MuseScorePath = renderer, FollowScorePlayback = false, OutputDirectory = Path.Combine(work, "output") }.Save(settingsPath);
+            new Settings { MuseScorePath = renderer, FollowScorePlayback = false, PianoRoll = false, OutputDirectory = Path.Combine(work, "output") }.Save(settingsPath);
             window = new MainWindow(true, settingsPath) { Opacity = 0, ShowInTaskbar = false, ShowActivated = false, Width = 1100, Height = 740 };
             window.Show(); Flush();
             var row = new MidiRow { FullPath = source, NativeSourceSha256 = hash, ScorePath = source, PreviewPath = page1, PageCount = 2, ScoreTitle = "Fixture" };
@@ -88,10 +88,15 @@ public partial class App
             window.FollowScorePlayback = true;
             Invoke("PlayScoreClick", window, new RoutedEventArgs()); await Idle();
             Check(audioRequests == 2 && cache.CacheHits == 1, "follow-enabled-reuses-verified-map-before-audio-open");
+            // The piano roll places its notes on the same timeline, so it also has Play prepare the map.
+            window.FollowScorePlayback = false; window.PianoRollEnabled = true;
+            Invoke("PlayScoreClick", window, new RoutedEventArgs()); await Idle();
+            Check(audioRequests == 3 && cache.CacheHits == 2, "piano-roll-reuses-verified-map-with-follow-disabled");
+            window.PianoRollEnabled = false;
             window.FollowScorePlayback = false;
             Invoke("PrepareScoreSynchronizationClick", window, new RoutedEventArgs()); await Idle();
             await Wait(() => pageImage.Source is not null && viewer.PageCount == 2);
-            Check(ReferenceEquals(Field<ScorePlaybackMap?>("scorePlaybackMap"), map) && cache.CacheHits == 2, "explicit-prepare-still-works-with-follow-disabled");
+            Check(ReferenceEquals(Field<ScorePlaybackMap?>("scorePlaybackMap"), map) && cache.CacheHits == 3, "explicit-prepare-still-works-with-follow-disabled");
             var firstBitmap = pageImage.Source;
             viewer.CurrentPage = 2; await Wait(() => viewer.CurrentPage == 2 && pageImage.Source is not null && !ReferenceEquals(firstBitmap, pageImage.Source));
             var bitmap = pageImage.Source;

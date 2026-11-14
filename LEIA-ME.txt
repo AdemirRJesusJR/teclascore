@@ -1,3 +1,7 @@
+TECLASCORE 1.11.0
+
+Piano roll: na Prévia, enquanto a partitura toca, as notas descem sobre um teclado de 88 teclas embaixo da página, como no Songscription (melodia em azul, acordes em âmbar, o acorde atual e o fim da partitura). Liga e desliga pelo botão ao lado de Notas caindo, pelo ✕ no próprio piano roll ou em Configurações › Estudo.
+
 TECLASCORE 1.10.3
 
 Áudio para partitura: as cifras são lidas direto do som do baixo e dos instrumentos, a cada meio compasso, como faz o Songscription; a melodia da sanfona não entra mais como se fosse acorde.

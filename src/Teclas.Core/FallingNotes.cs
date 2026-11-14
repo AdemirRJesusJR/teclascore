@@ -31,12 +31,20 @@ public static class FallingNotes
         return joined.OrderBy(n => n.Start).ThenBy(n => n.Chord).ThenBy(n => n.Pitch).ToArray();
     }
 
-    /// <summary>Lowest and highest keys to draw: whole octaves around the notes, at least two octaves.</summary>
-    public static (int Low, int High) KeyRange(IReadOnlyList<FallingNote> notes)
+    /// <summary>Lowest and highest keys to draw: whole octaves around the notes, at least two octaves. A larger
+    /// <paramref name="minimumOctaves"/> adds octaves above and below in turn, so the notes stay in the middle.</summary>
+    public static (int Low, int High) KeyRange(IReadOnlyList<FallingNote> notes, int minimumOctaves = 2)
     {
-        if (notes.Count == 0) return (48, 71);
+        if (notes.Count == 0) return Widen(48, 71, minimumOctaves);
         int low = notes.Min(n => n.Pitch) / 12 * 12, high = notes.Max(n => n.Pitch) / 12 * 12 + 11;
         if (high - low < 23) high = low + 23;
+        return Widen(low, high, minimumOctaves);
+    }
+
+    private static (int Low, int High) Widen(int low, int high, int octaves)
+    {
+        for (bool above = true; (high - low + 1) / 12 < octaves; above = !above)
+            if (above && high + 12 <= 119 || low < 12) high += 12; else low -= 12;
         return (low, high);
     }
 }

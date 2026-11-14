@@ -31,11 +31,12 @@ public partial class MainWindow
     {
         scorePlaybackMap = null; scoreMapIdentity = null;
         MainScoreViewer?.SetPlaybackMap(null);
+        UpdatePianoRoll();
         ScoreSynchronizationStatus = "Prepare o acompanhamento para clicar nos compassos e acompanhar a reprodução.";
     }
     private void UpdateScoreSynchronization()
     {
-        UpdateKaraoke(); UpdateCurrentChord();
+        UpdateKaraoke(); UpdateCurrentChord(); UpdatePianoRoll();
         if (scorePlaybackMap is null || scoreMapIdentity != SelectedScoreIdentity()) return;
         MainScoreViewer.UpdatePlaybackPosition(PlaybackPositionSeconds, FollowScorePlayback && audioPlaying);
     }
@@ -59,6 +60,7 @@ public partial class MainWindow
             bool sameMap = ReferenceEquals(scorePlaybackMap, map) && scoreMapIdentity == identity;
             scorePlaybackMap = map; scoreMapIdentity = identity;
             if (!sameMap) MainScoreViewer.SetPlaybackMap(map);
+            UpdatePianoRoll();
             ScoreSynchronizationStatus = "Clique em um compasso ou ataque para ouvir a partir dali. O destaque segue a reprodução." +
                 (map.Limitations.Count > 0 ? " " + string.Join(" ", map.Limitations) : "");
         }

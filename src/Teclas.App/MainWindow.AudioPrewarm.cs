@@ -20,14 +20,20 @@ public partial class MainWindow
         audioPrewarmCancellation?.Cancel();
         var cancellation = audioPrewarmCancellation = new CancellationTokenSource();
         double speed = ScorePlaybackSpeed; bool metronome = MetronomeEnabled || CountInEnabled;
+        // The piano roll (and Acompanhar) also need the measure timeline: prepared here too, so Play finds it ready.
+        var timeline = settings.FollowScorePlayback || settings.PianoRoll ? new ScorePlaybackMapService(MuseScorePath, Path.Combine(PlaybackCacheDirectory, "score-maps")) : null;
         audioPrewarmKey = PrewarmKey(scorePath, speed, metronome); AudioPrewarmCount++;
         audioPrewarm = audioPrewarmOverride is { } run ? run(scorePath, speed, metronome, cancellation.Token) : Task.Run(async () =>
         {
             var service = new ScoreStudyAudio(MuseScorePath, PlaybackCacheDirectory);
             var audio = await service.PrepareAsync(scorePath, speed, null, cancellation.Token);
-            if (!metronome) return;
-            var beats = await service.PrepareBeatsAsync(scorePath, speed, null, cancellation.Token);
-            if (beats.Count > 0) await service.PrepareMetronomeAudioAsync(audio, beats, null, cancellation.Token);
+            if (metronome)
+            {
+                var beats = await service.PrepareBeatsAsync(scorePath, speed, null, cancellation.Token);
+                if (beats.Count > 0) await service.PrepareMetronomeAudioAsync(audio, beats, null, cancellation.Token);
+            }
+            if (timeline is not null)
+                await scoreMapCache.GetOrPrepareAsync(scorePath, MuseScorePath, speed, request => timeline.PrepareAsync(scorePath, speed, null, request), null, cancellation.Token);
         }, cancellation.Token);
     }
 

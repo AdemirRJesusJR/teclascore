@@ -72,6 +72,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         InitializeComponent();
         InitializeOperations();
         InitializePlayback();
+        InitializePianoRoll();
         InitializeShortcuts();
         Closed+=(_,_)=>DisposePlayback();
         InitializeTrackAudition(midiOutputFactory);
