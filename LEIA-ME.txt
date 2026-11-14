@@ -1,3 +1,7 @@
+TECLASCORE 1.10.2
+
+Áudio para partitura: nas frases lentas da sanfona, a melodia fica só com a voz de cima, sem a nota grave que o sanfoneiro repete entre as notas da melodia; a última nota de um solo não some quando a voz entra.
+
 TECLASCORE 1.10.1
 
 Áudio para partitura: gritos e falas soltas do cantor por cima de um solo (como "ai, ai" na introdução) não substituem mais a melodia da sanfona; a voz só assume onde há canto contínuo.

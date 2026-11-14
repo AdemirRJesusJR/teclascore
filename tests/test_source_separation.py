@@ -110,6 +110,33 @@ class MelodyLineTests(unittest.TestCase):
         self.assertFalse(any(n in melody for n in shouts))
         self.assertEqual(sum(n in melody for n in singing), 16)
 
+    def test_inner_pedal_of_the_accordion_leaves_the_melody(self):
+        # Trecho real de "Pega essa gatinha": a sanfona alterna a melodia (Mi♭, Lá♭, Sol, notas longas) com um pedal
+        # mais grave (Dó, Si♭). Só a voz de cima fica, cada nota até a seguinte. O riff rápido de antes não muda.
+        riff = [(2.72, 2.89, 83), (2.89, 3.04, 84), (3.04, 3.19, 79), (3.19, 3.38, 82), (3.38, 3.53, 77), (3.53, 3.70, 79),
+                (3.70, 3.84, 77), (3.84, 3.97, 75), (5.62, 5.78, 70), (5.78, 5.94, 75), (5.94, 6.08, 77), (6.09, 6.25, 70),
+                (6.25, 6.40, 70), (6.41, 6.70, 77), (6.74, 7.03, 70), (7.07, 7.24, 77)]
+        phrase = [(13.03, 13.86, 75), (13.86, 14.30, 72), (14.31, 15.08, 80), (15.14, 15.39, 72), (15.44, 15.61, 80),
+                  (15.61, 16.39, 79), (16.42, 16.89, 70), (16.91, 17.23, 79), (17.23, 17.41, 79), (17.41, 17.56, 77),
+                  (17.56, 17.72, 75), (17.72, 17.88, 77), (17.88, 18.82, 75), (18.82, 19.01, 72), (19.01, 19.47, 72),
+                  (19.49, 20.14, 80), (20.16, 20.31, 72), (20.31, 20.48, 72), (20.48, 20.66, 75), (20.66, 21.55, 79),
+                  (21.58, 22.03, 70), (22.06, 22.20, 79), (22.21, 22.36, 70), (22.39, 22.54, 75), (22.54, 22.72, 77),
+                  (22.72, 22.86, 79), (22.86, 23.14, 70), (23.19, 23.40, 82), (23.40, 24.27, 84)]
+        notes = [(s, e, p, .7) for s, e, p in riff + phrase]
+        upper = at.upper_voice(notes)
+        self.assertEqual([n for n in upper if n[0] < 8], [n for n in notes if n[0] < 8])
+        self.assertEqual([n[2] for n in upper if n[0] > 13],
+                         [75, 80, 80, 79, 79, 79, 77, 75, 77, 75, 80, 79, 79, 70, 75, 77, 79, 70, 82, 84])
+        self.assertEqual([(n[0], n[1]) for n in upper if n[0] > 13][:2], [(13.03, 14.31), (14.31, 15.44)])
+
+    def test_last_solo_note_is_shortened_where_the_voice_enters(self):
+        # A frase da sanfona termina numa nota longa que ainda soa quando o cantor entra: ela fica, encurtada até ali.
+        solo = [(.5 * k, .5 * k + .4, 72 + k % 3, .8) for k in range(16)] + [(8.0, 9.6, 84, .8)]
+        singing = [(9.2 + .5 * k, 9.2 + .5 * k + .4, 60 + k % 3, .7) for k in range(16)]
+        melody, added = at.fill_gaps(singing, solo, end=20)
+        self.assertEqual(added, 17)
+        self.assertEqual([(n[0], round(n[1], 2)) for n in melody if n[2] == 84], [(8.0, 9.05)])
+
     def test_same_attack_twice_is_one_written_note(self):
         with tempfile.TemporaryDirectory() as folder:
             midi = Path(folder) / 'd.mid'

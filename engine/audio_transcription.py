@@ -236,6 +236,31 @@ def predominant_line(frames, onsets, low=40, high=86, voicing=.3, change=2.5, ju
     return [(int(s), int(e), int(p), amp) for s, e, p, amp in notes]
 
 
+def upper_voice(notes, interval=3, held=.4, contact=.12):
+    """A sanfona (e o teclado) muitas vezes alterna a nota da melodia com uma nota mais grave repetida, um pedal
+    interno: Mi♭ longo, Dó, Lá♭ longo, Dó, Lá♭… Numa linha só, esse pedal faz a melodia saltar para baixo e para cima
+    e ela perde o sentido. Um grupo de notas numa mesma altura, encostado nas vizinhas e pelo menos `interval`
+    semitons abaixo das duas, ao lado de uma nota de cima longa (`held` segundos ou mais, mais longa que o grupo), é o
+    pedal: sai, e a nota de cima anterior se estende até a seguinte. Passagens rápidas, em que nenhuma nota é longa (o
+    riff, um ponteio), ficam como estão. notes em segundos (início, fim, altura, amplitude)."""
+    notes = sorted(notes)
+    out = []
+    i = 0
+    while i < len(notes):
+        j = i
+        while j + 1 < len(notes) and notes[j + 1][2] == notes[i][2] and notes[j + 1][0] - notes[j][1] <= contact: j += 1
+        if out and j + 1 < len(notes):
+            before, after = out[-1], notes[j + 1]
+            span = notes[j][1] - notes[i][0]
+            longest = max(before[1] - before[0], after[1] - after[0])
+            if (notes[i][0] - before[1] <= contact and after[0] - notes[j][1] <= contact
+                    and notes[i][2] <= min(before[2], after[2]) - interval and longest >= held and longest > span):
+                out[-1] = (before[0], after[0], before[2], before[3])
+                i = j + 1; continue
+        out.extend(notes[i:j + 1]); i = j + 1
+    return out
+
+
 def presence(audio, count, relative=.1, smooth=.25):
     """Em quais quadros do modelo uma pista separada soa de verdade: energia (média de `smooth` segundos) acima de
     `relative` vezes o nível dos trechos fortes da própria pista (percentil 90). O que vaza de outros instrumentos para
@@ -613,16 +638,22 @@ def sung_regions(vocal, end, window=SINGING_WINDOW, threshold=SINGING_COVERAGE, 
     return result
 
 
-def fill_gaps(vocal, instrument, gap=INSTRUMENT_GAP, margin=.15, minimum_amplitude=INSTRUMENT_MIN_AMPLITUDE, end=None):
+def fill_gaps(vocal, instrument, gap=INSTRUMENT_GAP, margin=.15, minimum_amplitude=INSTRUMENT_MIN_AMPLITUDE, end=None, keep=.25):
     """A melodia: a voz onde ela canta de verdade (sung_regions) e o solo instrumental no resto (introdução,
     interlúdios, final, e silêncios da voz de pelo menos `gap` segundos dentro do canto): notas da linha
-    instrumental que caem inteiras fora da voz. notes em segundos (início, fim, altura, amplitude); retorna
-    (melodia, quantas notas vieram do instrumento)."""
+    instrumental que começam fora da voz. Uma nota longa do solo que ainda soa quando a voz entra (a nota final de
+    uma frase da sanfona) é encurtada até ali, se o que sobra tem pelo menos `keep` segundos. notes em segundos
+    (início, fim, altura, amplitude); retorna (melodia, quantas notas vieram do instrumento)."""
     regions = sung_regions(vocal, end)
     vocal = sorted(n for n in vocal if any(a <= (n[0] + n[1]) / 2 <= b for a, b in regions))
     edges = [-1.0] + [x for s, e, _, _ in vocal for x in (s, e)] + [end if end is not None else max([n[1] for n in instrument + vocal] or [0]) + 1]
     silences = [(edges[i], edges[i + 1]) for i in range(0, len(edges) - 1, 2) if edges[i + 1] - edges[i] >= gap]
-    added = [n for n in instrument if n[3] >= minimum_amplitude and any(a + margin <= n[0] and n[1] <= b - margin for a, b in silences)]
+    added = []
+    for s, e, pitch, amplitude in instrument:
+        if amplitude < minimum_amplitude: continue
+        for a, b in silences:
+            if a + margin <= s and min(e, b - margin) - s >= min(e - s, keep):
+                added.append((s, min(e, b - margin), pitch, amplitude)); break
     return sorted(vocal + added), len(added)
 
 
@@ -667,7 +698,8 @@ def transcribe_separated(wav_path, midi_path, progress=lambda message: None):
     def in_seconds(events): return [(seconds(a), seconds(b), pitch, amplitude) for a, b, pitch, amplitude in events]
     progress('Seguindo a melodia da voz…')
     vocal = in_seconds(predominant_line(heard['vocals'][0], heard['vocals'][1], *VOICE_RANGE, syllables=syllables))
-    instrument = in_seconds(predominant_line(heard['other'][0], heard['other'][1], *INSTRUMENT_RANGE, rise=.3))
+    # A linha do instrumento sem o pedal interno da sanfona: só a voz de cima, que é a melodia.
+    instrument = upper_voice(in_seconds(predominant_line(heard['other'][0], heard['other'][1], *INSTRUMENT_RANGE, rise=.3)))
     melody, solo_notes = fill_gaps(vocal, instrument, end=seconds_total)
     # Acompanhamento: o baixo e as notas sustentadas dos outros instrumentos. As notas curtas (ponteios, floreios da
     # sanfona) fariam a análise de harmonia ver um acorde novo a cada tempo.

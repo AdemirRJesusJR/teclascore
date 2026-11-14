@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 1.10.2 — 14/11/2026
+
+- **Melodia da sanfona sem o pedal interno.** Em frases lentas, a sanfona alterna a nota da melodia com uma nota mais grave repetida (Mi♭ longo, Dó, Lá♭ longo, Dó, Lá♭…). A transcrição escrevia as duas numa linha só, e a melodia saltava para baixo e para cima e perdia o sentido: em *Pega Essa Gatinha*, logo depois do riff da introdução, aos 10 s. Agora um grupo de notas na mesma altura, abaixo das duas vizinhas e ao lado de uma nota longa da melodia, sai da linha, e a nota de cima segue até a próxima. Passagens rápidas, como o riff, não mudam.
+- A última nota longa de uma frase do solo, que ainda soa quando o cantor entra, é encurtada até a entrada da voz em vez de descartada.
+
 ## 1.10.1 — 14/11/2026
 
 - **Solo instrumental não é interrompido por gritos do cantor.** Na transcrição de áudio, a melodia passa a escolher a fonte por trecho, não nota a nota: a voz só assume onde canta de verdade (cobre pelo menos 35% de uma janela de 4 s; canto contínuo fica entre 40% e 70%, interjeições abaixo de 30%). Em *Pega Essa Gatinha*, a introdução tocava 2 s da sanfona e passava para cinco notas soltas de "ai, ai" do cantor, e a melodia perdia o sentido; agora o motivo da sanfona segue inteiro até o canto começar, aos 24 s, e o mesmo vale para os interlúdios e o final.
