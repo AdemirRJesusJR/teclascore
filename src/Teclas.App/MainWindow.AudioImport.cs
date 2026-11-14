@@ -20,15 +20,23 @@ public partial class MainWindow
 
     /// <summary>
     /// Transcription needs numpy and onnxruntime, which come with the TeclaScore's own Python. A Python chosen in
-    /// Settings for MuseScore work may not have them, so the private one is used whenever it is installed.
+    /// Settings for MuseScore work may not have them, so the private one is used whenever one can be found: next to the
+    /// executable (installed and portable copies), in the repository's Aplicativo folder (development builds under
+    /// src\Teclas.App\bin, which carry no runtime) or in the installed copy under Program Files.
     /// </summary>
-    internal string TranscriptionPython
+    internal string TranscriptionPython => FindPrivatePython(AppContext.BaseDirectory) ?? PythonPath;
+
+    internal static string? FindPrivatePython(string baseDirectory)
     {
-        get
+        string bundled = Path.Combine(baseDirectory, "runtime", "python.exe");
+        if (File.Exists(bundled)) return bundled;
+        for (var folder = new DirectoryInfo(baseDirectory).Parent; folder is not null; folder = folder.Parent)
         {
-            string bundled = Path.Combine(AppContext.BaseDirectory, "runtime", "python.exe");
-            return File.Exists(bundled) ? bundled : PythonPath;
+            string published = Path.Combine(folder.FullName, "Aplicativo", "runtime", "python.exe");
+            if (File.Exists(published)) return published;
         }
+        string installed = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "TeclaScore", "runtime", "python.exe");
+        return File.Exists(installed) ? installed : null;
     }
 
     private async void AudioToScoreClick(object sender, RoutedEventArgs e)

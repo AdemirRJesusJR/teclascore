@@ -182,6 +182,13 @@ public partial class App
             var none = await window.TranscribeAudioAsync([mp3]); Flush();
             Check(none.Count == 0 && shown is not null && shown.Contains("Áudio para partitura") && shown.Contains("onnxruntime"), "failed-transcription-is-shown " + shown);
             Check(window.TranscriptionPython.EndsWith("python.exe", StringComparison.OrdinalIgnoreCase), "transcription-has-a-python");
+            // 1.10.0: a development build (src\Teclas.App\bin\…, no runtime folder) finds the repository's Aplicativo Python.
+            string repository = Path.Combine(work, "repo"), devBuild = Path.Combine(repository, "src", "Teclas.App", "bin", "Debug", "net10.0-windows");
+            string published = Path.Combine(repository, "Aplicativo", "runtime", "python.exe");
+            Directory.CreateDirectory(devBuild); Directory.CreateDirectory(Path.GetDirectoryName(published)!); File.WriteAllBytes(published, [0]);
+            Check(string.Equals(Teclas.App.MainWindow.FindPrivatePython(devBuild), published, StringComparison.OrdinalIgnoreCase), "dev-build-finds-the-repository-python");
+            string portable = Path.Combine(work, "portable"); Directory.CreateDirectory(Path.Combine(portable, "runtime")); File.WriteAllBytes(Path.Combine(portable, "runtime", "python.exe"), [0]);
+            Check(string.Equals(Teclas.App.MainWindow.FindPrivatePython(portable), Path.Combine(portable, "runtime", "python.exe"), StringComparison.OrdinalIgnoreCase), "bundled-python-comes-first");
             window.audioTranscriber = null;
 
             File.WriteAllText(report, JsonSerializer.Serialize(new { status = "passed", checks, enginesRun = 0 }, new JsonSerializerOptions { WriteIndented = true }));

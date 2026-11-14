@@ -6,7 +6,7 @@ and every time is mapped onto those beats, so the MIDI measures follow the music
 melody is the highest sustained line (skyline); everything else becomes the accompaniment the chords are read from.
 The result is an honest starting point: a full band recording usually needs the melody reviewed."""
 from pathlib import Path
-import struct, math
+import struct, math, sys
 import numpy as np
 
 SAMPLE_RATE = 22050
@@ -75,7 +75,7 @@ def posteriors(audio, session=None):
     """Note, onset and contour activations per frame (86 per second) for 22050 Hz mono audio."""
     try: import onnxruntime
     except ImportError as error:
-        raise ValueError('Este Python não tem o componente de reconhecimento de notas (onnxruntime). Use o Python que acompanha o TeclaScore.') from error
+        raise ValueError(f'Este Python não tem o componente de reconhecimento de notas (onnxruntime): {sys.executable}. Use o Python que acompanha o TeclaScore (pasta runtime do aplicativo).') from error
     session = session or onnxruntime.InferenceSession(str(MODEL), providers=['CPUExecutionProvider'])
     original = len(audio)
     audio = np.concatenate([np.zeros(OVERLAP // 2, np.float32), audio])

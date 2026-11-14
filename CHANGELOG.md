@@ -9,6 +9,7 @@
 - **Solos instrumentais.** Onde ninguém canta por pelo menos 2 s (introdução, interlúdios, final), a melodia vem da linha principal dos outros instrumentos.
 - **Pulso, acompanhamento e cifras.** O pulso vem da bateria separada e do baixo; o acompanhamento traz o baixo e as notas sustentadas dos instrumentos, sem a bateria e sem os floreios curtos que faziam a análise ver um acorde novo a cada tempo.
 - **Medido numa gravação real** (forró, 3 min 13 s): o método antigo escrevia a melodia de Sol1 a Dó6 a ♩ = 122 com 70 tempos de tercinas falsas (o 3+3+2 do zabumba tomado como pulso); o novo acha ♩ = 93, a voz em Si♭3–Ré4 conferida por uma estimativa de altura independente (YIN), e o solo de sanfona da introdução inteiro. A transcrição leva cerca de 90 s (antes, 11 s).
+- **Python certo para transcrever.** A versão de desenvolvimento (`src\Teclas.Appin\…`) não tem a pasta `runtime` e caía no Python das Configurações, que pode não ter o onnxruntime ("Este Python não tem o componente de reconhecimento de notas"). Agora o app procura o Python próprio ao lado do executável, na pasta `Aplicativo` do repositório e na instalação em Arquivos de Programas, e a mensagem de erro diz qual Python foi usado.
 - Sem o modelo instalado, `transcribe` usa o método antigo da mixagem. Testes novos em `tests/test_source_separation.py` (os que precisam do modelo são pulados sem ele).
 
 ## 1.9.2 — 09/11/2026
