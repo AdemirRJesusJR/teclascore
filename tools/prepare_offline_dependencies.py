@@ -1,4 +1,5 @@
-"""Fetch pinned official packages only with --download, then prepare private Python with Pillow, numpy and onnxruntime."""
+"""Fetch pinned official packages only with --download, then prepare private Python with Pillow, numpy and onnxruntime
+and put the pinned models (HTDemucs source separation) in their place in the app."""
 from pathlib import Path
 import argparse
 import json
@@ -37,6 +38,13 @@ def prepare(download=False):
         (scratch/'python313._pth').write_text('python313.zip\n.\nLib/site-packages\n../engine\n',encoding='ascii')
         files={p.relative_to(scratch).as_posix():p for p in scratch.rglob('*') if p.is_file()}
         sync_owned(BASE/'Aplicativo/runtime',files,{'product':'TeclaScore private Python','python':'3.13.13','pillow':'12.3.0','numpy':'2.5.3','onnxruntime':'1.30.0'})
+    # Models (the 174 MB source-separation network) go to their place in the app and in engine/ for local runs.
+    for item in packages.values():
+        if not item.get('target'): continue
+        for root in (BASE/'Aplicativo', BASE):
+            destination=safe_path(root,item['target'])
+            if destination.is_file() and digest(destination)==item['sha256']: continue
+            destination.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(cache/item['file'],destination)
     python=BASE/'Aplicativo/runtime/python.exe'
     subprocess.run([str(python),'-I','-B','-c',
         "import sys,io,PIL;from PIL import Image;b=io.BytesIO();Image.new('RGB',(2,2)).save(b,format='PNG');b.seek(0);Image.open(b).load();assert PIL.__version__=='12.3.0';"

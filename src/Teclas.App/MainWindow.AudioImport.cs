@@ -58,7 +58,7 @@ public partial class MainWindow
             for (int i = 0; i < files.Count; i++)
             {
                 string name = Path.GetFileNameWithoutExtension(files[i]);
-                SetOperationItems(i, files.Count, name); Status = $"Transcrevendo {name}… (leva alguns segundos por minuto de áudio)";
+                SetOperationItems(i, files.Count, name); Status = $"Transcrevendo {name}… (separa a voz e os instrumentos: cerca de meio minuto por minuto de áudio)";
                 string midi = Path.Combine(folder, ScoreFileName.Unique(ScoreFileName.Stem(null, name), ".mid", taken));
                 JsonObject report;
                 if (audioTranscriber is { } transcribe) report = await transcribe(files[i], midi, token);
@@ -80,7 +80,10 @@ public partial class MainWindow
                 bool clear = report["melody_clear"]?.GetValue<bool>() ?? true;
                 if (!clear) unclear.Add(midi);
                 string harmony = chords.Count == 0 ? "" : $", acordes {string.Join(" ", chords.Take(8))}{(chords.Count > 8 ? " …" : "")}";
-                reports.Add($"{name}: {report["melody_notes"]?.GetValue<int>() ?? 0} notas na melodia{(clear ? "" : " (pouco clara: só cifras)")}, ♩ ≈ {report["bpm"]?.GetValue<double>() ?? 0:0}{harmony}");
+                // With the separation model the melody comes from the voice alone, plus the instrumental solos where nobody sings.
+                int solo = report["solo_notes"]?.GetValue<int>() ?? 0;
+                string source = report["separated"]?.GetValue<bool>() == true ? $" (voz separada{(solo > 0 ? $", {solo} do solo instrumental" : "")})" : "";
+                reports.Add($"{name}: {report["melody_notes"]?.GetValue<int>() ?? 0} notas na melodia{source}{(clear ? "" : " (pouco clara: só cifras)")}, ♩ ≈ {report["bpm"]?.GetValue<double>() ?? 0:0}{harmony}");
             }
         }, operationTitle: "Transcrevendo áudio");
         if (created.Count == 0)

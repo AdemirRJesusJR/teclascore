@@ -1,4 +1,5 @@
-"""Audio → MIDI: Basic Pitch notes, beat grid, melody/accompaniment split (engine/audio_transcription.py)."""
+"""Audio → MIDI: Basic Pitch notes, beat grid, melody/accompaniment split (engine/audio_transcription.py). These tests run
+the whole-mix method (separate=False); the source-separated method is covered by test_source_separation.py."""
 from pathlib import Path
 import struct, tempfile, unittest
 import numpy as np
@@ -46,7 +47,7 @@ class AudioTranscriptionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             wav, midi = Path(folder) / 'a.wav', Path(folder) / 'a.mid'
             synth_wav(wav, MELODY, CHORDS)
-            report = at.transcribe(wav, midi)
+            report = at.transcribe(wav, midi, separate=False)
             self.assertAlmostEqual(report['bpm'], 100, delta=1)
             parsed = parse_midi(midi); ppq = parsed['ppq']
             melody = sorted([n for n in parsed['notes'] if n['track'] == 1], key=lambda n: n['start'])
@@ -78,7 +79,7 @@ class AudioTranscriptionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             wav, midi = Path(folder) / 'b.wav', Path(folder) / 'b.mid'
             synth_wav(wav, MELODY, CHORDS, tempo_curve=curve)
-            at.transcribe(wav, midi)
+            at.transcribe(wav, midi, separate=False)
             parsed = parse_midi(midi); ppq = parsed['ppq']
             melody = sorted([n for n in parsed['notes'] if n['track'] == 1], key=lambda n: n['start'])
             self.assertEqual([n['pitch'] for n in melody], MELODY)

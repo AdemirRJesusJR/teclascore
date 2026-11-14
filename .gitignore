@@ -40,3 +40,5 @@ ui-deployed.png
 *.bak
 *.corrupt-*
 /engine/garoto_diagramas/
+# Modelo de separação (174 MB): baixado e conferido pelo build, ver tools/offline-dependencies.json
+engine/models/htdemucs/

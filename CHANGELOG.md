@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 1.10.0 — 14/11/2026
+
+Áudio para partitura separa a voz e os instrumentos antes de transcrever, como o Songscription e os demais transcritores comerciais. Antes, a melodia era a nota mais aguda da gravação inteira: numa banda completa ela pulava entre a voz, a sanfona, os harmônicos da guitarra e os pratos, e a música ficava irreconhecível.
+
+- **Separação de fontes.** A gravação passa pelo HTDemucs v4 (Meta, licença MIT; `engine/source_separation.py`, onnxruntime), que a divide em voz, baixo, bateria e outros. A STFT, a iSTFT e a soma dos trechos sobrepostos seguem o código original do Demucs; a soma das quatro pistas reconstrói a mixagem. O modelo (174 MB) é baixado pelo build e conferido por SHA-256 em `tools/offline-dependencies.json`, e vai dentro do aplicativo (não entra no Git nem em `prerequisitos`).
+- **Melodia da voz.** A linha principal é seguida por Viterbi sobre a pista da voz: uma nota por vez, saltos custam mais que passos, vibratos e vozes de apoio não viram notas. A voz só conta onde a pista tem energia de canto (o que vaza dos instrumentos fica de fora), e sílabas repetidas na mesma altura se separam pelos ataques do modelo e pelos vales de energia das consoantes. Notas que o modelo adiantava ou atrasava começam no ataque real.
+- **Solos instrumentais.** Onde ninguém canta por pelo menos 2 s (introdução, interlúdios, final), a melodia vem da linha principal dos outros instrumentos.
+- **Pulso, acompanhamento e cifras.** O pulso vem da bateria separada e do baixo; o acompanhamento traz o baixo e as notas sustentadas dos instrumentos, sem a bateria e sem os floreios curtos que faziam a análise ver um acorde novo a cada tempo.
+- **Medido numa gravação real** (forró, 3 min 13 s): o método antigo escrevia a melodia de Sol1 a Dó6 a ♩ = 122 com 70 tempos de tercinas falsas (o 3+3+2 do zabumba tomado como pulso); o novo acha ♩ = 93, a voz em Si♭3–Ré4 conferida por uma estimativa de altura independente (YIN), e o solo de sanfona da introdução inteiro. A transcrição leva cerca de 90 s (antes, 11 s).
+- Sem o modelo instalado, `transcribe` usa o método antigo da mixagem. Testes novos em `tests/test_source_separation.py` (os que precisam do modelo são pulados sem ele).
+
 ## 1.9.2 — 09/11/2026
 
 Correções de robustez e de fuso horário encontradas pelo CI do GitHub.

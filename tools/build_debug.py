@@ -65,6 +65,8 @@ def build(base=BASE):
     for dependency in dependencies.values():
         installer = base/'qa/offline-dependencies'/dependency['file']
         if digest(installer) != dependency['sha256']: raise ValueError('Official dependency missing or changed: '+dependency['file'])
+        # Models with a target already travel inside app/ (installation manifest); only installers go to prerequisitos.
+        if dependency.get('target'): continue
         files['prerequisitos/'+dependency['file']] = installer
     files['LEIA-ME-INNO.txt'] = base/'tools/debug-kit/LEIA-ME-INNO.txt'
     msi = [dependency['file'] for dependency in dependencies.values() if dependency['file'].lower().endswith('.msi')]

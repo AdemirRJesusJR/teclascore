@@ -22,8 +22,9 @@ MODEL = Path(__file__).parent / 'models' / 'basic-pitch' / 'nmp.onnx'
 MAX_SECONDS = 15 * 60
 
 
-def read_wav(path):
-    """Mono float32 samples and the sample rate of a PCM (8/16/24/32-bit) or IEEE-float WAV file."""
+def read_wav(path, mono=True):
+    """Float32 samples and the sample rate of a PCM (8/16/24/32-bit) or IEEE-float WAV file: mono (the mean of the
+    channels) or, with mono=False, shaped (samples, channels)."""
     data = Path(path).read_bytes()
     if data[:4] != b'RIFF' or data[8:12] != b'WAVE': raise ValueError('O arquivo de áudio não está no formato WAV.')
     position, fmt, samples = 12, None, None
@@ -47,7 +48,8 @@ def read_wav(path):
         audio = ((raw[:, 0] | raw[:, 1] << 8 | raw[:, 2] << 16) << 8 >> 8).astype(np.float32) / 8388608
     elif tag == 1 and bits == 32: audio = np.frombuffer(samples[:len(samples) // 4 * 4], '<i4').astype(np.float32) / 2147483648
     else: raise ValueError(f'Formato de WAV não suportado ({tag}, {bits} bits).')
-    audio = audio[:len(audio) // channels * channels].reshape(-1, channels).mean(axis=1)
+    audio = audio[:len(audio) // channels * channels].reshape(-1, channels)
+    if mono: audio = audio.mean(axis=1)
     if len(audio) > rate * MAX_SECONDS: raise ValueError('Áudio longo demais (mais de 15 minutos).')
     return audio.astype(np.float32), rate
 
@@ -155,6 +157,130 @@ def filter_short_notes(events, long_frames=LONG_FRAMES, minimum_amplitude=.4, re
 def detect_notes(frames, onsets):
     """Notas do modelo com o mínimo curto (semicolcheias cantadas) e o filtro de amplitude e continuidade."""
     return filter_short_notes(build_notes(frames, onsets, minimum_frames=SHORT_FRAMES))
+
+
+VOICE_RANGE = (40, 86)          # Mi2–Ré6: vozes masculinas e femininas
+INSTRUMENT_RANGE = (52, 96)     # Mi3–Dó7: sanfona, flauta, guitarra solo
+
+
+def predominant_line(frames, onsets, low=40, high=86, voicing=.3, change=2.5, jump=.3, toggle=1.5, rise=0.0, minimum=5, syllables=None):
+    """Uma única linha melódica (a voz principal) das ativações do modelo, por Viterbi: em cada quadro a linha está
+    numa altura entre low e high ou em silêncio; ficar na mesma nota é grátis, mudar de nota custa `change` mais `jump`
+    por semitom, entrar e sair do silêncio custa `toggle`. Assim vibratos, vozes de apoio e harmônicos soltos não
+    viram notas. Notas repetidas (sílabas na mesma altura) se separam pelos picos de ataque; fragmentos com menos de
+    `minimum` quadros se juntam à vizinha ou somem. `rise` favorece levemente as notas agudas (linha de instrumento).
+    `syllables` (opcional, um booleano por quadro, de syllable_onsets) marca os começos de sílaba vistos na energia da
+    pista: eles também separam notas repetidas. Retorna (quadro inicial, quadro final, altura, amplitude)."""
+    a, b = low - MIDI_OFFSET, high - MIDI_OFFSET + 1
+    acts = np.asarray(frames, np.float64)[:, a:b]
+    count, size = acts.shape
+    if count < 2: return []
+    pitches = np.arange(low, high + 1)
+    emit = np.concatenate([np.full((count, 1), math.log(voicing)), np.log(acts + 1e-4) + rise * (pitches - low) / 12], axis=1)
+    trans = np.zeros((size + 1, size + 1))
+    distance = np.abs(pitches[:, None] - pitches[None, :])
+    trans[1:, 1:] = -(change + jump * distance); np.fill_diagonal(trans[1:, 1:], 0)
+    trans[0, 1:] = trans[1:, 0] = -toggle
+    score = emit[0].copy(); back = np.zeros((count, size + 1), np.int16)
+    for t in range(1, count):
+        candidates = score[:, None] + trans
+        back[t] = candidates.argmax(0); score = candidates.max(0) + emit[t]
+    path = np.empty(count, np.int64); path[-1] = int(score.argmax())
+    for t in range(count - 1, 0, -1): path[t - 1] = back[t, path[t]]
+    onsets = np.asarray(onsets, np.float64)
+    spacing = max(minimum, int(round(.09 * FRAMES_PER_SECOND)))   # duas sílabas na mesma altura: pelo menos ~90 ms
+    everywhere = onsets[:, a:b].max(axis=1) if syllables is not None else None
+    notes = []
+    t = 0
+    while t < count:
+        state = path[t]; end = t
+        while end < count and path[end] == state: end += 1
+        if state:
+            pitch = low + state - 1; column = pitch - MIDI_OFFSET
+            strike = onsets[:, max(0, column - 1):column + 2].max(axis=1)
+            # O ataque verdadeiro da nota: o pico de ataque mais forte da própria altura logo antes ou logo depois da
+            # troca de estado (a troca do Viterbi pode adiantar ou atrasar alguns quadros).
+            start = t
+            lo, hi = max(0, t - 4, notes[-1][1] if notes else 0), min(end - minimum, t + 14)
+            if hi > lo:
+                peak = lo + int(np.argmax(strike[lo:hi]))
+                if strike[peak] >= .3: start = peak
+            if notes and start < notes[-1][1]: start = notes[-1][1]
+            cuts = [start]
+            for i in range(start + spacing, end - spacing):
+                # Uma nova sílaba na mesma altura: pico de ataque e, logo antes, uma queda da nota (a consoante).
+                dip = acts[max(start, i - 3):i, state - 1].min() < .75 * acts[i:i + 3, state - 1].max()
+                attack = strike[i] >= .5 and strike[i] >= strike[i - 1] and strike[i] > strike[i + 1] and dip
+                # Uma sílaba vista na energia só corta se há ali um ataque desta altura (um batimento ou tremolo não
+                # tem ataque) e se nenhuma outra altura ataca mais forte (seria a nota seguinte começando).
+                syllable = syllables is not None and syllables[i] and strike[i - 1:i + 4].max() >= max(.35, .6 * everywhere[i - 1:i + 4].max())
+                if (attack or syllable) and i - cuts[-1] >= spacing: cuts.append(i)
+            cuts.append(end)
+            if start > t and notes and notes[-1][1] == t: notes[-1][1] = start
+            for s, e in zip(cuts, cuts[1:]):
+                if e > s: notes.append([s, e, pitch, float(acts[s:e, state - 1].mean())])
+        t = end
+    # Fragmentos curtos colados a uma nota vizinha próxima (vibrato, deslize) passam para ela; isolados somem.
+    changed = True
+    while changed:
+        changed = False
+        for i, note in enumerate(notes):
+            if note[1] - note[0] >= minimum: continue
+            neighbours = [j for j in (i - 1, i + 1) if 0 <= j < len(notes) and abs(notes[j][2] - note[2]) <= 2
+                          and (notes[j][1] == note[0] if j < i else notes[j][0] == note[1])]
+            if neighbours:
+                j = max(neighbours, key=lambda k: notes[k][1] - notes[k][0])
+                if j < i: notes[j][1] = note[1]
+                else: notes[j][0] = note[0]
+            del notes[i]; changed = True; break
+    return [(int(s), int(e), int(p), amp) for s, e, p, amp in notes]
+
+
+def presence(audio, count, relative=.1, smooth=.25):
+    """Em quais quadros do modelo uma pista separada soa de verdade: energia (média de `smooth` segundos) acima de
+    `relative` vezes o nível dos trechos fortes da própria pista (percentil 90). O que vaza de outros instrumentos para
+    a pista da voz fica bem abaixo disso e não vira melodia."""
+    audio = np.asarray(audio, np.float64)
+    usable = min(count, len(audio) // FFT_HOP)
+    energy = np.zeros(count)
+    energy[:usable] = (audio[:usable * FFT_HOP].reshape(usable, FFT_HOP) ** 2).mean(axis=1)
+    width = max(1, int(smooth * FRAMES_PER_SECOND))
+    energy = np.sqrt(np.convolve(energy, np.ones(width) / width, mode='same'))
+    if not energy.any(): return np.zeros(count, bool)
+    return energy > relative * float(np.percentile(energy, 90))
+
+
+def syllable_onsets(audio, count, depth=.7, reach=8):
+    """Começos de sílaba na energia de uma pista de voz, um booleano por quadro do modelo: um vale da energia (a
+    consoante ou a respiração) seguido, a até `reach` quadros, de um pico pelo menos 1/depth vezes mais forte."""
+    audio = np.asarray(audio, np.float64)
+    usable = min(count, len(audio) // FFT_HOP)
+    energy = np.zeros(count)
+    energy[:usable] = np.sqrt((audio[:usable * FFT_HOP].reshape(usable, FFT_HOP) ** 2).mean(axis=1))
+    energy = np.convolve(energy, np.ones(3) / 3, mode='same')
+    marks = np.zeros(count, bool)
+    if count < 3 or not energy.any(): return marks
+    floor = .05 * float(np.percentile(energy, 90))
+    valleys = np.where((energy[1:-1] <= energy[:-2]) & (energy[1:-1] < energy[2:]))[0] + 1
+    for i in valleys:
+        ahead = energy[i + 1:i + 1 + reach]
+        if len(ahead) and ahead.max() > floor and energy[i] < depth * ahead.max(): marks[i + 1] = True
+    return marks
+
+
+def onset_envelope(audio, rate=SAMPLE_RATE):
+    """Força dos ataques por quadro do modelo (salto de 256 amostras a 22050 Hz): fluxo espectral positivo do
+    logaritmo da magnitude. Com a bateria separada, ele marca o pulso sem as notas longas dos outros instrumentos."""
+    audio = np.asarray(audio, np.float64)
+    size = 1024
+    if len(audio) < size * 2: return np.zeros(1)
+    padded = np.concatenate([np.zeros(size // 2), audio, np.zeros(size // 2)])
+    count = 1 + (len(padded) - size) // FFT_HOP
+    frames = np.lib.stride_tricks.as_strided(padded, (count, size), (padded.strides[0] * FFT_HOP, padded.strides[0]))
+    window = np.hanning(size)
+    magnitude = np.log1p(100 * np.abs(np.fft.rfft(frames * window, axis=1)))
+    flux = np.maximum(0, np.diff(magnitude, axis=0, prepend=magnitude[:1])).sum(axis=1)
+    return flux
 
 
 def beat_track(envelope, fps=FRAMES_PER_SECOND, tightness=100.0):
@@ -413,8 +539,12 @@ def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords
     def track(notes, channel, name):
         events = [(0, b'\xff\x03' + vlq(len(name.encode('latin-1'))) + name.encode('latin-1')), (0, bytes([0xC0 | channel, 0]))]
         # A live recording jitters a little around the beat; written music does not: every time goes onto the grid.
+        struck = set()
         for start, end, pitch, amplitude in notes:
             a = snap(to_ticks(start, beats, ppq) + shift, grids, ppq) - skip
+            # Two attacks of one pitch that fall on the same grid position are one written note.
+            if (a, pitch) in struck: continue
+            struck.add((a, pitch))
             b = max(a + ppq // 4, snap(to_ticks(end, beats, ppq) + shift, grids, ppq) - skip)
             velocity = max(30, min(120, int(40 + amplitude * 100)))
             events += [(a, bytes([0x90 | channel, pitch, velocity])), (b, bytes([0x80 | channel, pitch, 0]))]
@@ -433,8 +563,92 @@ def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords
     Path(path).write_bytes(data)
 
 
-def transcribe(wav_path, midi_path, progress=lambda message: None):
-    """Full pipeline; returns a report with counts, tempo and the melody range."""
+INSTRUMENT_GAP = 2.0       # segundos sem voz a partir dos quais a melodia vem do solo instrumental
+INSTRUMENT_MIN_AMPLITUDE = .35
+ACCOMPANIMENT_MIN_SECONDS = .3
+
+
+def fill_gaps(vocal, instrument, gap=INSTRUMENT_GAP, margin=.15, minimum_amplitude=INSTRUMENT_MIN_AMPLITUDE, end=None):
+    """A melodia da voz com o solo instrumental nos trechos em que ninguém canta (introdução, interlúdios, final):
+    notas da linha instrumental que caem inteiras num silêncio da voz de pelo menos `gap` segundos. notes em
+    segundos (início, fim, altura, amplitude); retorna (melodia, quantas notas vieram do instrumento)."""
+    vocal = sorted(vocal)
+    edges = [0.0] + [x for s, e, _, _ in vocal for x in (s, e)] + [end if end is not None else max([n[1] for n in instrument + vocal] or [0]) + 1]
+    silences = [(edges[i], edges[i + 1]) for i in range(0, len(edges) - 1, 2) if edges[i + 1] - edges[i] >= gap]
+    added = [n for n in instrument if n[3] >= minimum_amplitude and any(a + margin <= n[0] and n[1] <= b - margin for a, b in silences)]
+    return sorted(vocal + added), len(added)
+
+
+def transcribe(wav_path, midi_path, progress=lambda message: None, separate=None):
+    """Full pipeline; returns a report with counts, tempo and the melody range. With the source-separation model
+    installed (or separate=True) the recording is split into voice, bass, drums and the other instruments first, as the
+    commercial transcribers do; without it, the whole mix goes through the older skyline method."""
+    if separate is None:
+        import source_separation
+        separate = source_separation.available()
+    if separate: return transcribe_separated(wav_path, midi_path, progress)
+    return transcribe_mix(wav_path, midi_path, progress)
+
+
+def transcribe_separated(wav_path, midi_path, progress=lambda message: None):
+    """Gravação → voz, baixo, bateria e outros (HTDemucs) → a melodia é a linha principal da voz, completada pelo solo
+    instrumental onde ninguém canta; o acompanhamento e os acordes vêm do baixo e dos outros instrumentos, sem a
+    bateria; o pulso vem da bateria."""
+    import source_separation as ss
+    progress('Lendo o áudio…')
+    raw, rate = read_wav(wav_path, mono=False)
+    if len(raw) < rate * 2: raise ValueError('Áudio curto demais (menos de 2 segundos).')
+    peak = float(np.abs(raw).max())
+    if peak < 1e-4: raise ValueError('O áudio está em silêncio.')
+    stereo = ss.to_stereo_44k(raw / peak * .9, rate); del raw
+    progress('Separando a voz e os instrumentos…')
+    stems = ss.separate(stereo, lambda done, total: progress(f'Separando a voz e os instrumentos… {round(100 * done / total)}%'))
+    seconds_total = stereo.shape[1] / ss.SAMPLE_RATE; del stereo
+    progress('Ouvindo a voz, o baixo e os instrumentos…')
+    import onnxruntime
+    session = onnxruntime.InferenceSession(str(MODEL), providers=['CPUExecutionProvider'])
+    heard = {}; mono = {}
+    for name in ('vocals', 'other', 'bass'):
+        mono[name] = resample(stems[name].mean(axis=0), ss.SAMPLE_RATE)
+        heard[name] = posteriors(mono[name], session)
+    drums = onset_envelope(resample(stems['drums'].mean(axis=0), ss.SAMPLE_RATE)); del stems
+    count = len(heard['vocals'][0]); times = frame_times(count)
+    # Só há voz onde a pista da voz tem energia; o resto é vazamento dos instrumentos.
+    sung = presence(mono['vocals'], count); syllables = syllable_onsets(mono['vocals'], count); del mono
+    heard['vocals'] = (heard['vocals'][0] * sung[:, None], heard['vocals'][1] * sung[:, None])
+    def seconds(frame): return float(times[min(frame, count - 1)])
+    def in_seconds(events): return [(seconds(a), seconds(b), pitch, amplitude) for a, b, pitch, amplitude in events]
+    progress('Seguindo a melodia da voz…')
+    vocal = in_seconds(predominant_line(heard['vocals'][0], heard['vocals'][1], *VOICE_RANGE, syllables=syllables))
+    instrument = in_seconds(predominant_line(heard['other'][0], heard['other'][1], *INSTRUMENT_RANGE, rise=.3))
+    melody, solo_notes = fill_gaps(vocal, instrument, end=seconds_total)
+    # Acompanhamento: o baixo e as notas sustentadas dos outros instrumentos. As notas curtas (ponteios, floreios da
+    # sanfona) fariam a análise de harmonia ver um acorde novo a cada tempo.
+    accompaniment = sorted([n for n in in_seconds(detect_notes(*heard['other'][:2])) if n[1] - n[0] >= ACCOMPANIMENT_MIN_SECONDS] +
+                           [n for n in in_seconds(detect_notes(*heard['bass'][:2])) if n[2] < 60])
+    if len(melody) < 8 and len(accompaniment) < 8: raise ValueError('Quase nenhuma nota reconhecida neste áudio.')
+    progress('Encontrando o pulso da música…')
+    envelope = drums[:count] / (drums.std() or 1)
+    bass_onsets = heard['bass'][1].sum(axis=1)
+    envelope = envelope + .5 * bass_onsets[:len(envelope)] / (bass_onsets.std() or 1)
+    beats, bpm = beat_track(envelope)
+    beats = steady_grid(beats, melody + accompaniment)
+    if len(beats) >= 2: bpm = 60 / float(np.median(np.diff(beats)))
+    meter = meter_guess(accompaniment or melody, beats)
+    phase = downbeat_phase(accompaniment or melody, beats, meter=meter)
+    progress('Reconhecendo os acordes pelo som…')
+    chords = audio_chords(melody, accompaniment, beats, phase, span=2 if meter == 4 else 3)
+    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords), meter=meter)
+    pitches = [n[2] for n in melody]
+    return {'notes': len(melody) + len(accompaniment), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),
+            'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
+            'bpm': round(bpm, 1), 'meter': meter, 'beats': len(beats), 'downbeat_phase': phase, 'seconds': round(seconds_total, 1),
+            'melody_range': [min(pitches), max(pitches)] if pitches else None, 'separated': True,
+            'vocal_notes': len(vocal), 'solo_notes': solo_notes, **write_midi.last}
+
+
+def transcribe_mix(wav_path, midi_path, progress=lambda message: None):
+    """The older pipeline on the whole mix (no separation model): skyline melody."""
     progress('Lendo o áudio…')
     audio, rate = read_wav(wav_path)
     if len(audio) < rate * 2: raise ValueError('Áudio curto demais (menos de 2 segundos).')
