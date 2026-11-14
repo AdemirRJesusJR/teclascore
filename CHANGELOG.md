@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 1.12.0 — 14/11/2026
+
+- **Importar MusicXML e Guitar Pro.** Em Adicionar › "MIDI, MusicXML ou Guitar Pro" (Ctrl+O), ou arrastando o arquivo para a janela, a biblioteca aceita MusicXML (.musicxml, .mxl, .xml) e Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx, .gtp). O MuseScore toca o arquivo num MIDI novo, com uma pista por instrumento e as repetições já desdobradas, guardado na pasta de saída em "Convertidos para MIDI". Daí em diante a música segue as etapas de sempre: Melodia, Ritmo, Cifras e Gerar. O arquivo original só é lido.
+- O título, o intérprete e o compositor escritos no arquivo vão para o card. Os nomes das pistas do Guitar Pro 3 a 5 chegam com os acentos certos ("Violão").
+- As cifras escritas no arquivo entram como uma pista de acompanhamento em acordes, no mesmo instrumento da pauta em que estão, e a etapa Cifras lê a harmonia dela. A letra do arquivo não é trazida nesta versão.
+- O mesmo arquivo escolhido de novo não é convertido outra vez: o card que já existe é aberto. Um arquivo que o MuseScore não consegue ler, que não tem notas ou um .xml que não é partitura aparece num aviso com o motivo, e nada entra pela metade.
+- Importar MuseScore (Ctrl+Shift+O) continua abrindo a partitura como ela está, sem passar pelas etapas, e agora também aceita Guitar Pro.
+- Ficam para depois: a Pasta de MIDIs, a pasta vigiada e a linha de comando (`--gerar`) seguem listando só MIDIs.
+
 ## 1.11.0 — 14/11/2026
 
 - **Piano roll embaixo da partitura, como o Songscription.** Na Prévia, enquanto a partitura toca, as notas descem sobre um teclado inteiro de 88 teclas no ritmo do áudio. A melodia aparece em azul e as notas do diagrama de cada acorde em âmbar, com o nome no bloco. As teclas acendem quando a nota soa, e o nome do acorde que está tocando fica pequeno, à esquerda, logo acima das teclas. O fundo é quase preto, com uma linha discreta em cada Dó; só o Dó central leva nome. O fim da música é marcado por uma pequena etiqueta "Fim da partitura" com cadeado. As notas seguem a linha do tempo dos compassos que o MuseScore toca: um trecho com repetição desce de novo na segunda vez, e uma mudança de andamento estica ou encurta os blocos. Em pausa, o piano roll fica parado no ponto da reprodução; clicar num compasso leva o piano roll junto. Antes do primeiro ▶ (ou de Preparar), não ocupa espaço; depois, fica com cerca de um terço da área e sempre deixa pelo menos 160 px para a página. Em painéis baixos, as notas descem mais devagar (no mínimo 70 px por segundo) para as semicolcheias continuarem visíveis.

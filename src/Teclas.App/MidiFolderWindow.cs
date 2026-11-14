@@ -192,7 +192,7 @@ public sealed class MidiFolderWindow : Window
     private void ChooseFiles()
     {
         var dialog = new OpenFileDialog { Title = "Escolher arquivos para a biblioteca", Multiselect = true,
-            Filter = "MIDI e MuseScore|*.mid;*.midi;*.kar;*.mscz|MIDI e karaokê|*.mid;*.midi;*.kar|MuseScore 4|*.mscz" };
+            Filter = MainWindow.LibraryImportFilter };
         if (Directory.Exists(folderBox.Text)) dialog.InitialDirectory = folderBox.Text;
         if (dialog.ShowDialog(this) == true) AcceptFiles(dialog.FileNames);
     }

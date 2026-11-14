@@ -1,3 +1,7 @@
+TECLASCORE 1.12.0
+
+MusicXML e Guitar Pro: em Adicionar › MIDI, MusicXML ou Guitar Pro (Ctrl+O), ou arrastando o arquivo para a janela, a biblioteca aceita .musicxml, .mxl, .xml, .gp, .gp3, .gp4, .gp5, .gpx e .gtp. O MuseScore converte o arquivo num MIDI com uma pista por instrumento (pasta "Convertidos para MIDI" na pasta de saída) e a música segue as etapas Melodia, Ritmo, Cifras e Gerar. O arquivo original não muda. As cifras do arquivo viram uma pista de acompanhamento; a letra não é trazida. Importar MuseScore (Ctrl+Shift+O) abre a partitura como ela está e também aceita Guitar Pro.
+
 TECLASCORE 1.11.0
 
 Piano roll: na Prévia, enquanto a partitura toca, as notas descem sobre um teclado de 88 teclas embaixo da página, como no Songscription (melodia em azul, acordes em âmbar, o acorde atual e o fim da partitura). Liga e desliga pelo botão ao lado de Notas caindo, pelo ✕ no próprio piano roll ou em Configurações › Estudo.

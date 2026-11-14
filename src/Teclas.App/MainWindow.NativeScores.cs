@@ -105,7 +105,7 @@ public partial class MainWindow
     private async void ImportMuseScoreClick(object sender,RoutedEventArgs e)
     {
         if(!IsIdle || !CommitEdits())return;
-        var dialog=new Microsoft.Win32.OpenFileDialog{Title="Abrir partituras MuseScore ou MusicXML",Filter="Partituras (MuseScore e MusicXML)|*.mscz;*.musicxml;*.mxl;*.xml|Partitura MuseScore 4|*.mscz|MusicXML|*.musicxml;*.mxl;*.xml",Multiselect=true};
+        var dialog=new Microsoft.Win32.OpenFileDialog{Title="Abrir partituras prontas (MuseScore, MusicXML ou Guitar Pro)",Filter=$"Partituras (MuseScore, MusicXML e Guitar Pro)|*.mscz;{NotationSource.MusicXmlPattern};{NotationSource.GuitarProPattern}|Partitura MuseScore 4|*.mscz|MusicXML|{NotationSource.MusicXmlPattern}|Guitar Pro|{NotationSource.GuitarProPattern}",Multiselect=true};
         if(dialog.ShowDialog(this)!=true)return;
         var files=await ConvertMusicXmlAsync(dialog.FileNames);
         if(files.Count>0)await AddCreatedFilesAsync(files);
@@ -114,8 +114,9 @@ public partial class MainWindow
     internal Func<string,string,CancellationToken,Task>? musicXmlConverter=null;
 
     /// <summary>
-    /// MusicXML from other editors is converted by MuseScore into a new .mscz in the output folder (the original is kept),
-    /// then imported like any MuseScore score. Keyboard diagrams are added when the score is improved or regenerated.
+    /// MusicXML and Guitar Pro files opened as finished scores (Ctrl+Shift+O) are converted by MuseScore into a new .mscz
+    /// in the output folder (the original is kept), then imported like any MuseScore score. Keyboard diagrams are added
+    /// when the score is improved or regenerated. "Adicionar" takes the other road: MainWindow.NotationImport.cs.
     /// </summary>
     internal async Task<IReadOnlyList<string>> ConvertMusicXmlAsync(IReadOnlyList<string> paths)
     {
@@ -129,7 +130,7 @@ public partial class MainWindow
             var taken=new HashSet<string>(Directory.EnumerateFiles(folder).Select(Path.GetFileName).OfType<string>(),StringComparer.OrdinalIgnoreCase);
             for(int i=0;i<xml.Length;i++)
             {
-                SetOperationItems(i,xml.Length,Path.GetFileName(xml[i]));Status=$"Convertendo {Path.GetFileName(xml[i])} para MuseScore…";
+                SetOperationItems(i,xml.Length,Path.GetFileName(xml[i]));Status=$"Convertendo {Path.GetFileName(xml[i])} em partitura MuseScore…";
                 string target=Path.Combine(folder,ScoreFileName.Unique(ScoreFileName.Stem(null,Path.GetFileNameWithoutExtension(xml[i])),".mscz",taken));
                 try
                 {

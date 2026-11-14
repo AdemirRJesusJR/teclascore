@@ -206,7 +206,9 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     /// <summary>Reads the files of an import without adding cards yet: the duplicates check and the cards come after the operation.</summary>
     private async Task<(List<MidiRow> Loaded,MidiRow? Existing)> LoadForImportAsync(IEnumerable<string> paths)
     {
-        var list=paths.Where(p=>new[]{".mid",".midi",".kar",".mscz"}.Contains(Path.GetExtension(p).ToLowerInvariant())).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        // MusicXML and Guitar Pro become MIDIs first (MainWindow.NotationImport.cs); the rest of the import sees only those.
+        var chosen=await ConvertNotationSourcesAsync(paths.ToArray(),cancellation!.Token);
+        var list=chosen.Where(p=>new[]{".mid",".midi",".kar",".mscz"}.Contains(Path.GetExtension(p).ToLowerInvariant())).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         int processed=0;
         SetOperationItems(0,list.Length);
         MidiRow? firstExisting=null;var loaded=new List<MidiRow>();
@@ -234,7 +236,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
             SetOperationItems(++processed,list.Length);
         }
         }finally{prefetchedMidis=null;}
-        if(loaded.Count==0)Status=firstExisting is not null?"Este arquivo já está na biblioteca.":"Nenhum MIDI ou arquivo MuseScore foi selecionado.";
+        if(loaded.Count==0)Status=firstExisting is not null?"Este arquivo já está na biblioteca.":"Nenhum arquivo de música foi selecionado (MIDI, MusicXML, Guitar Pro ou MuseScore).";
         return (loaded,firstExisting);
     }
     internal Func<ImportDuplicatesWindow,bool?> importDuplicatesDialog=window=>window.ShowDialog();
@@ -290,6 +292,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
         await RunOperation(async()=>{(loaded,existing)=await LoadForImportAsync(paths);}, operationTitle:"Importando para a biblioteca");
         if(operationsDisposed)return;
         var added=AddImportedRows(loaded,checkDuplicates);
+        ReportNotationImport();
         if(added.Count>0)PersistPreferences();
         var importedSelection=added.FirstOrDefault()??existing;
         if(importedSelection is null)return;
@@ -453,7 +456,7 @@ public partial class MainWindow : Window,INotifyPropertyChanged
     }
     private async void ImportClick(object sender,RoutedEventArgs e)
     {
-        var dialog=new OpenFileDialog{Title="Importar para a biblioteca",Filter="MIDI e MuseScore|*.mid;*.midi;*.kar;*.mscz|MuseScore 4|*.mscz|MIDI e karaokê|*.mid;*.midi;*.kar",Multiselect=true};
+        var dialog=new OpenFileDialog{Title="Importar para a biblioteca",Filter=LibraryImportFilter,Multiselect=true};
         if(dialog.ShowDialog(this)==true)await ImportAndOpenLibraryAsync(dialog.FileNames);
     }
     private async void FilesDrop(object sender,DragEventArgs e)

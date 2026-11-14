@@ -1,3 +1,16 @@
+TECLASCORE 1.12.0 · MUSICXML E GUITAR PRO
+
+1. Em Sobre, confira que a versão é 1.12.0.
+2. Na Biblioteca, abra Adicionar: o primeiro item se chama "MIDI, MusicXML ou Guitar Pro". O diálogo oferece os filtros MIDI e karaokê, MusicXML, Guitar Pro e MuseScore 4.
+3. Escolha um .musicxml (ou .mxl) e um Guitar Pro (.gp, .gp5…): cada um vira um card "MIDI novo", aberto na etapa Melodia, com uma pista por instrumento. O rodapé diz quantos arquivos foram convertidos e cita a pasta "Convertidos para MIDI".
+4. Confira o título, o intérprete e o compositor do card com os do arquivo, e os nomes das pistas do Guitar Pro com acentos ("Violão").
+5. Abra a pasta de saída › Convertidos para MIDI: há um .mid por arquivo. Os arquivos originais têm a mesma data de modificação de antes.
+6. Escolha o mesmo arquivo de novo: nenhum card e nenhum .mid novo; o card existente é aberto.
+7. Arraste um MusicXML para a janela: ele entra do mesmo jeito.
+8. Escolha um .xml que não é partitura (por exemplo, um arquivo de configuração): aparece o aviso "este .xml não é uma partitura MusicXML" e nada entra.
+9. Marque a melodia, siga até Gerar e confira a partitura com cifras e diagramas.
+10. Ctrl+Shift+O (Importar MuseScore) com um Guitar Pro: a partitura entra como ela está, na Prévia, sem as etapas.
+
 TECLASCORE 1.9.1 · CONFERÊNCIA SEM JANELAS
 
 1. Em Sobre, confira que a versão é 1.9.1.

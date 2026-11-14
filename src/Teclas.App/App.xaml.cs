@@ -21,6 +21,8 @@ public partial class App : Application
         if (Teclas.Core.BatchCommandLine.IsRequest(e.Args)) { RunCommandLine(e.Args); return; }
         if (e.Args.Length is 2 or 4 && e.Args[0] == "--verify-piano-roll-ui")
         { VerifyPianoRollUi(e.Args[1], e.Args.Length == 4 ? e.Args[2] : null, e.Args.Length == 4 ? e.Args[3] : null); return; }
+        if (e.Args.Length is 2 or 3 && e.Args[0] == "--verify-notation-import-ui")
+        { VerifyNotationImportUi(e.Args[1], e.Args.Length == 3 ? e.Args[2] : null); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--verify-folder-watch-ui")
         { VerifyFolderWatchUi(e.Args[1]); return; }
         // Automated checks report their own failures; only real sessions keep crash files.
