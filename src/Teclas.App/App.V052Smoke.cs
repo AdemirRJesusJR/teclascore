@@ -106,7 +106,8 @@ public partial class App
             window.batchPdfSelectionDialog = _ => throw new InvalidOperationException("A janela de escolha não deveria abrir.");
             window.batchPdfFolderOverride = () => Task.FromResult<string?>(Path.Combine(work, "pdfs"));
             Directory.CreateDirectory(Path.Combine(work, "pdfs"));
-            window.batchPdfExport = (source, target, _, _) => { exported.Add(source); File.WriteAllBytes(target, System.Text.Encoding.ASCII.GetBytes("%PDF-1.7 " + new string('x', 150) + " %%EOF")); return Task.CompletedTask; };
+            // The marked songs are exported in parallel: the stub records them under a lock.
+            window.batchPdfExport = (source, target, _, _) => { lock (exported) exported.Add(source); File.WriteAllBytes(target, System.Text.Encoding.ASCII.GetBytes("%PDF-1.7 " + new string('x', 150) + " %%EOF")); return Task.CompletedTask; };
             Named<Button>("SelectedPdfsButton").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             for (int i = 0; i < 100 && !window.IsIdle; i++) { await Task.Delay(50); Flush(); }
             for (int i = 0; i < 20 && exported.Count < 2; i++) { await Task.Delay(50); Flush(); }
