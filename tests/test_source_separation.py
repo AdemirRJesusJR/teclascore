@@ -89,11 +89,26 @@ class MelodyLineTests(unittest.TestCase):
         self.assertFalse(sung[second(4.3):second(5.7)].any())
 
     def test_instrument_solo_fills_long_silences_of_the_voice(self):
-        vocal = [(3.0, 3.5, 60, .7), (3.5, 4.0, 62, .7), (10.0, 10.5, 64, .7)]
-        instrument = [(0.5, 1.0, 72, .8), (1.0, 1.5, 74, .8), (3.2, 3.6, 76, .8), (5.0, 5.5, 77, .8), (6.0, 6.5, 79, .2)]
-        melody, added = at.fill_gaps(vocal, instrument, end=11)
-        self.assertEqual(added, 3)                       # introdução (2) e interlúdio (1); a nota fraca fica de fora
-        self.assertEqual([n[2] for n in melody], [72, 74, 60, 62, 77, 64])
+        # Canto contínuo de 4 a 10 s e de 14 a 20 s; o solo entra na introdução e no interlúdio. A nota fraca fica de fora.
+        phrase = lambda start, pitch: [(start + .5 * k, start + .5 * k + .4, pitch + k % 3, .7) for k in range(12)]
+        vocal = phrase(4, 60) + phrase(14, 64)
+        instrument = [(0.5, 1.0, 72, .8), (1.0, 1.5, 74, .8), (6.0, 6.3, 76, .8), (11.0, 11.5, 77, .8), (12.0, 12.5, 79, .2)]
+        melody, added = at.fill_gaps(vocal, instrument, end=22)
+        self.assertEqual(added, 3)
+        self.assertEqual([n[2] for n in melody if n[3] == .8], [72, 74, 77])
+        self.assertEqual(len(melody), 27)
+
+    def test_interjections_over_a_solo_keep_the_solo(self):
+        # Um solo de sanfona de 0 a 12 s com gritos soltos do cantor (5 notas curtas): a melodia é o solo inteiro.
+        # Depois, de 12 a 20 s, o canto contínuo assume.
+        solo = [(.25 * k, .25 * k + .2, 72 + k % 5, .8) for k in range(48)]
+        shouts = [(4.5, 4.7, 63, .7), (5.0, 5.2, 61, .7), (5.7, 5.9, 60, .7), (8.0, 8.2, 65, .7), (9.5, 9.7, 58, .7)]
+        singing = [(12 + .5 * k, 12 + .5 * k + .4, 60 + k % 3, .7) for k in range(16)]
+        self.assertEqual([(round(a), round(b)) for a, b in at.sung_regions(shouts + singing, 20)], [(12, 20)])
+        melody, added = at.fill_gaps(shouts + singing, solo, end=20)
+        self.assertEqual(added, 47)                      # a última nota do solo encosta no começo do canto
+        self.assertFalse(any(n in melody for n in shouts))
+        self.assertEqual(sum(n in melody for n in singing), 16)
 
     def test_same_attack_twice_is_one_written_note(self):
         with tempfile.TemporaryDirectory() as folder:

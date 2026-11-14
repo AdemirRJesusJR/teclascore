@@ -1,3 +1,7 @@
+TECLASCORE 1.10.1
+
+Áudio para partitura: gritos e falas soltas do cantor por cima de um solo (como "ai, ai" na introdução) não substituem mais a melodia da sanfona; a voz só assume onde há canto contínuo.
+
 TECLASCORE 1.10.0
 
 Áudio para partitura separa a voz, o baixo, a bateria e os demais instrumentos antes de transcrever (HTDemucs v4, no próprio computador). A melodia passa a ser a linha da voz, com os solos instrumentais onde ninguém canta; o pulso vem da bateria e as cifras vêm do baixo e dos instrumentos. Leva cerca de meio minuto por minuto de áudio. O instalador fica cerca de 170 MB maior por causa do modelo.

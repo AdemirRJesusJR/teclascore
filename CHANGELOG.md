@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 1.10.1 — 14/11/2026
+
+- **Solo instrumental não é interrompido por gritos do cantor.** Na transcrição de áudio, a melodia passa a escolher a fonte por trecho, não nota a nota: a voz só assume onde canta de verdade (cobre pelo menos 35% de uma janela de 4 s; canto contínuo fica entre 40% e 70%, interjeições abaixo de 30%). Em *Pega Essa Gatinha*, a introdução tocava 2 s da sanfona e passava para cinco notas soltas de "ai, ai" do cantor, e a melodia perdia o sentido; agora o motivo da sanfona segue inteiro até o canto começar, aos 24 s, e o mesmo vale para os interlúdios e o final.
+- Uma nota do solo que começa exatamente no início da gravação não é mais descartada.
+
 ## 1.10.0 — 14/11/2026
 
 Áudio para partitura separa a voz e os instrumentos antes de transcrever, como o Songscription e os demais transcritores comerciais. Antes, a melodia era a nota mais aguda da gravação inteira: numa banda completa ela pulava entre a voz, a sanfona, os harmônicos da guitarra e os pratos, e a música ficava irreconhecível.

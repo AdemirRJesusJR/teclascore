@@ -568,12 +568,59 @@ INSTRUMENT_MIN_AMPLITUDE = .35
 ACCOMPANIMENT_MIN_SECONDS = .3
 
 
-def fill_gaps(vocal, instrument, gap=INSTRUMENT_GAP, margin=.15, minimum_amplitude=INSTRUMENT_MIN_AMPLITUDE, end=None):
-    """A melodia da voz com o solo instrumental nos trechos em que ninguém canta (introdução, interlúdios, final):
-    notas da linha instrumental que caem inteiras num silêncio da voz de pelo menos `gap` segundos. notes em
-    segundos (início, fim, altura, amplitude); retorna (melodia, quantas notas vieram do instrumento)."""
+SINGING_WINDOW = 4.0       # segundos da janela em que se mede quanto a voz canta
+SINGING_COVERAGE = .35     # canto contínuo cobre 40–70% da janela; gritos e falas soltas, no máximo uns 30%
+
+
+def sung_regions(vocal, end, window=SINGING_WINDOW, threshold=SINGING_COVERAGE, step=.25, close=2.0, shortest=3.0, reach=2.0, link=.6):
+    """Trechos em que a voz canta de verdade: a fração de uma janela de `window` segundos coberta por notas da voz
+    passa de `threshold`. Interjeições do cantor por cima de um solo ("ai, ai", o nome da banda) ficam abaixo disso,
+    e o solo segue como melodia. Trechos separados por menos de `close` segundos se juntam, trechos com menos de
+    `shortest` segundos são descartados, e cada trecho se estende às notas da voz encadeadas a ele (pausas de menos de
+    `link` segundos) até `reach` segundos das bordas (a janela centrada atrasa o começo e adianta o fim). Retorna [(início, fim)] em segundos."""
     vocal = sorted(vocal)
-    edges = [0.0] + [x for s, e, _, _ in vocal for x in (s, e)] + [end if end is not None else max([n[1] for n in instrument + vocal] or [0]) + 1]
+    if not vocal: return []
+    end = max(end or 0, vocal[-1][1])
+    times = np.arange(0, end + step, step)
+    covered = np.zeros(len(times))
+    for s, e, _, _ in vocal:                      # fração exata de cada intervalo de `step` coberta pela nota
+        for k in range(int(s / step), min(len(times), int(math.ceil(e / step)))):
+            covered[k] += max(0.0, min(e, (k + 1) * step) - max(s, k * step)) / step
+    covered = np.minimum(covered, 1)
+    width = max(1, int(round(window / step)))
+    coverage = np.convolve(covered, np.ones(width) / width, mode='same')
+    regions = []
+    active = coverage >= threshold
+    i = 0
+    while i < len(times):
+        if not active[i]: i += 1; continue
+        j = i
+        while j < len(times) and active[j]: j += 1
+        a, b = float(times[i]), float(times[j - 1]) + step
+        if regions and a - regions[-1][1] < close: regions[-1] = (regions[-1][0], b)
+        else: regions.append((a, b))
+        i = j
+    result = []
+    for a, b in regions:
+        if b - a < shortest: continue
+        # Extensão só por notas encadeadas (pausas de menos de `link` segundos), até `reach` segundos da borda.
+        start, finish = a, b
+        for s, e, _, _ in reversed(vocal):
+            if s < start and e >= start - link and s >= a - reach: start = s
+        for s, e, _, _ in vocal:
+            if e > finish and s <= finish + link and e <= b + reach: finish = e
+        result.append((start, finish))
+    return result
+
+
+def fill_gaps(vocal, instrument, gap=INSTRUMENT_GAP, margin=.15, minimum_amplitude=INSTRUMENT_MIN_AMPLITUDE, end=None):
+    """A melodia: a voz onde ela canta de verdade (sung_regions) e o solo instrumental no resto (introdução,
+    interlúdios, final, e silêncios da voz de pelo menos `gap` segundos dentro do canto): notas da linha
+    instrumental que caem inteiras fora da voz. notes em segundos (início, fim, altura, amplitude); retorna
+    (melodia, quantas notas vieram do instrumento)."""
+    regions = sung_regions(vocal, end)
+    vocal = sorted(n for n in vocal if any(a <= (n[0] + n[1]) / 2 <= b for a, b in regions))
+    edges = [-1.0] + [x for s, e, _, _ in vocal for x in (s, e)] + [end if end is not None else max([n[1] for n in instrument + vocal] or [0]) + 1]
     silences = [(edges[i], edges[i + 1]) for i in range(0, len(edges) - 1, 2) if edges[i + 1] - edges[i] >= gap]
     added = [n for n in instrument if n[3] >= minimum_amplitude and any(a + margin <= n[0] and n[1] <= b - margin for a, b in silences)]
     return sorted(vocal + added), len(added)
@@ -644,7 +691,7 @@ def transcribe_separated(wav_path, midi_path, progress=lambda message: None):
             'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
             'bpm': round(bpm, 1), 'meter': meter, 'beats': len(beats), 'downbeat_phase': phase, 'seconds': round(seconds_total, 1),
             'melody_range': [min(pitches), max(pitches)] if pitches else None, 'separated': True,
-            'vocal_notes': len(vocal), 'solo_notes': solo_notes, **write_midi.last}
+            'vocal_notes': len(melody) - solo_notes, 'solo_notes': solo_notes, **write_midi.last}
 
 
 def transcribe_mix(wav_path, midi_path, progress=lambda message: None):
