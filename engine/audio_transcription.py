@@ -4,7 +4,11 @@ Notes come from Spotify's Basic Pitch model (engine/models/basic-pitch/nmp.onnx,
 note-building step follows Basic Pitch's own algorithm. A dynamic-programming beat tracker (Ellis 2007) finds the pulse,
 and every time is mapped onto those beats, so the MIDI measures follow the music even when the tempo drifts. The
 melody is the highest sustained line (skyline); everything else becomes the accompaniment the chords are read from.
-The result is an honest starting point: a full band recording usually needs the melody reviewed."""
+The result is an honest starting point: a full band recording usually needs the melody reviewed.
+
+When the YourMT3+ component is installed (yourmt3_setup.py), that model recognizes the notes instead (yourmt3_engine.py):
+the sung line, the instruments and the bass come from it, while the pulse and the chords are still read from the sound
+as before."""
 from pathlib import Path
 import struct, math, sys
 import numpy as np
@@ -649,10 +653,12 @@ def melody_is_clear(melody, beats):
     return len(melody) / len(beats) >= .35 and max(pitches) - min(pitches) >= 5
 
 
-def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords=(), meter=4, names=('Melodia (audio)', 'Acompanhamento (audio)', 'Acordes (audio)')):
+def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords=(), meter=4, names=('Melodia (audio)', 'Acompanhamento (audio)', 'Acordes (audio)'),
+               single_melody=False):
     """Type 1 MIDI: tempo and 4/4, melody on track 1 (piano, channel 1), accompaniment on track 2 (channel 2) and, when
     given, the chords heard in the audio as block chords on track 3 (channel 3). Beat `phase` of the grid falls on a
-    bar line."""
+    bar line. With `single_melody` the melody is written as one line: of two melody notes that land on the same grid
+    position only the longer stays, and a note ends where the next one starts."""
     chords = list(chords)
     first = to_ticks(min([n[0] for n in melody + accompaniment + chords] or [0]), beats, ppq) + (meter - phase) % meter * ppq
     shift = (meter - phase) % meter * ppq - min(0, first // (meter * ppq) * (meter * ppq))  # never negative ticks; keep whole measures
@@ -672,10 +678,10 @@ def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords
         out = [value & 127]; value >>= 7
         while value: out.insert(0, (value & 127) | 128); value >>= 7
         return bytes(out)
-    def track(notes, channel, name):
+    def track(notes, channel, name, single=False):
         events = [(0, b'\xff\x03' + vlq(len(name.encode('latin-1'))) + name.encode('latin-1')), (0, bytes([0xC0 | channel, 0]))]
         # A live recording jitters a little around the beat; written music does not: every time goes onto the grid.
-        struck = set()
+        struck = set(); placed = []
         for start, end, pitch, amplitude in notes:
             a = snap(to_ticks(start, beats, ppq) + shift, grids, ppq) - skip
             # Two attacks of one pitch that fall on the same grid position are one written note.
@@ -683,6 +689,15 @@ def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords
             struck.add((a, pitch))
             b = max(a + ppq // 4, snap(to_ticks(end, beats, ppq) + shift, grids, ppq) - skip)
             velocity = max(30, min(120, int(40 + amplitude * 100)))
+            placed.append((a, b, pitch, velocity, end - start))
+        if single:
+            line = []
+            for note in sorted(placed, key=lambda n: (n[0], -n[4])):
+                if line and line[-1][0] == note[0]: continue                # same position: the longer one is already there
+                if line and line[-1][1] > note[0]: line[-1] = (line[-1][0], note[0], *line[-1][2:])
+                line.append(note)
+            placed = line
+        for a, b, pitch, velocity, _ in placed:
             events += [(a, bytes([0x90 | channel, pitch, velocity])), (b, bytes([0x80 | channel, pitch, 0]))]
         body = b''; previous = 0
         for tick, message in sorted(events, key=lambda e: (e[0], e[1][0] & 0xF0 != 0x80)):
@@ -694,7 +709,7 @@ def write_midi(path, melody, accompaniment, beats, bpm, ppq=480, phase=0, chords
     # A pickup is a short first measure: the same meter restated at the first downbeat closes it early.
     conductor = b'\x00\xff\x51\x03' + tempo.to_bytes(3, 'big') + b'\x00' + signature + (vlq(pickup) + signature if pickup else b'') + b'\x00\xff\x2f\x00'
     data = b'MThd' + struct.pack('>IHHH', 6, 1, 4 if chords else 3, ppq) + b'MTrk' + struct.pack('>I', len(conductor)) + conductor
-    data += track(melody, 0, names[0]) + track(accompaniment, 1, names[1])
+    data += track(melody, 0, names[0], single_melody) + track(accompaniment, 1, names[1])
     if chords: data += track(chords, 2, names[2])
     Path(path).write_bytes(data)
 
@@ -749,13 +764,14 @@ def sung_regions(vocal, end, window=SINGING_WINDOW, threshold=SINGING_COVERAGE, 
     return result
 
 
-def fill_gaps(vocal, instrument, gap=INSTRUMENT_GAP, margin=.15, minimum_amplitude=INSTRUMENT_MIN_AMPLITUDE, end=None, keep=.25):
+def fill_gaps(vocal, instrument, gap=INSTRUMENT_GAP, margin=.15, minimum_amplitude=INSTRUMENT_MIN_AMPLITUDE, end=None, keep=.25, regions=None):
     """A melodia: a voz onde ela canta de verdade (sung_regions) e o solo instrumental no resto (introdução,
     interlúdios, final, e silêncios da voz de pelo menos `gap` segundos dentro do canto): notas da linha
     instrumental que começam fora da voz. Uma nota longa do solo que ainda soa quando a voz entra (a nota final de
     uma frase da sanfona) é encurtada até ali, se o que sobra tem pelo menos `keep` segundos. notes em segundos
-    (início, fim, altura, amplitude); retorna (melodia, quantas notas vieram do instrumento)."""
-    regions = sung_regions(vocal, end)
+    (início, fim, altura, amplitude); retorna (melodia, quantas notas vieram do instrumento). `regions` (opcional) são
+    os trechos cantados já decididos por quem chama, em vez dos medidos nas próprias notas da voz."""
+    if regions is None: regions = sung_regions(vocal, end)
     vocal = sorted(n for n in vocal if any(a <= (n[0] + n[1]) / 2 <= b for a, b in regions))
     edges = [-1.0] + [x for s, e, _, _ in vocal for x in (s, e)] + [end if end is not None else max([n[1] for n in instrument + vocal] or [0]) + 1]
     silences = [(edges[i], edges[i + 1]) for i in range(0, len(edges) - 1, 2) if edges[i + 1] - edges[i] >= gap]
@@ -768,21 +784,106 @@ def fill_gaps(vocal, instrument, gap=INSTRUMENT_GAP, margin=.15, minimum_amplitu
     return sorted(vocal + added), len(added)
 
 
-def transcribe(wav_path, midi_path, progress=lambda message: None, separate=None):
+ENGINES = ('yourmt3', 'classico')
+
+
+def transcribe(wav_path, midi_path, progress=lambda message: None, separate=None, engine=None):
     """Full pipeline; returns a report with counts, tempo and the melody range. With the source-separation model
     installed (or separate=True) the recording is split into voice, bass, drums and the other instruments first, as the
-    commercial transcribers do; without it, the whole mix goes through the older skyline method."""
+    commercial transcribers do; without it, the whole mix goes through the older skyline method.
+
+    `engine` chooses who recognizes the notes: 'yourmt3' (the YourMT3+ model, a separate component), 'classico' (Basic
+    Pitch and the engine's own melody line) or None, which uses YourMT3+ when it is installed. If YourMT3+ was not asked
+    for by name and fails on a recording, the classic engine takes over and the report says why (engine_note)."""
+    if engine not in (None,) + ENGINES: raise ValueError(f'Motor de transcrição desconhecido: {engine}.')
     if separate is None:
         import source_separation
         separate = source_separation.available()
-    if separate: return transcribe_separated(wav_path, midi_path, progress)
-    return transcribe_mix(wav_path, midi_path, progress)
+    recognized = note = None
+    if engine != 'classico':
+        import yourmt3_engine
+        if yourmt3_engine.available():
+            try: recognized = yourmt3_engine.recognize(wav_path, progress)
+            except ValueError as error:
+                if engine == 'yourmt3': raise
+                note = str(error)
+        elif engine == 'yourmt3':
+            raise ValueError('O motor YourMT3+ ainda não está instalado neste computador. Instale o componente (engine/yourmt3_setup.py) ou escolha o motor clássico.')
+    report = (transcribe_separated if separate else transcribe_mix)(wav_path, midi_path, progress, recognized)
+    report['engine'] = 'yourmt3' if recognized else 'classico'
+    if recognized: report['engine_device'] = recognized.get('device')
+    if note: report['engine_note'] = note
+    return report
 
 
-def transcribe_separated(wav_path, midi_path, progress=lambda message: None):
+def recognized_parts(recognized):
+    """YourMT3+ notes as the three parts the pipeline writes: the sung line, the solo instrument line (top line of the
+    other instruments, without the accordion's inner pedal) and the accompaniment (bass plus the sustained notes of the
+    other instruments). Returns (vocal, instrument, accompaniment, parts)."""
+    import yourmt3_engine
+    parts = yourmt3_engine.parts(recognized)
+    vocal = [n for n in parts['voice'] if VOICE_RANGE[0] <= n[2] <= VOICE_RANGE[1]]
+    instrument = upper_voice(yourmt3_engine.top_line(parts['others'], *INSTRUMENT_RANGE))
+    accompaniment = sorted([n for n in parts['others'] if n[1] - n[0] >= ACCOMPANIMENT_MIN_SECONDS] + [n for n in parts['bass'] if n[2] < 60])
+    return vocal, instrument, accompaniment, parts
+
+
+CONFIRMED = .3            # ativação média do Basic Pitch na pista da voz a partir da qual a nota do modelo está confirmada
+
+
+def note_support(notes, frames, times, reach=3):
+    """How the separated stem supports each recognized note: for every note (start, end, pitch, amplitude) in seconds,
+    (the mean Basic Pitch activation of its own key while it sounds, the best-supported key within `reach` semitones,
+    that key's mean activation). `frames` are the stem's note activations and `times` the seconds of each frame."""
+    result = []
+    for start, end, pitch, _ in notes:
+        a = int(np.searchsorted(times, start)); b = max(int(np.searchsorted(times, end)), a + 1)
+        key = pitch - MIDI_OFFSET
+        if a >= len(frames) or not 0 <= key < frames.shape[1]: result.append((0.0, pitch, 0.0)); continue
+        lo, hi = max(0, key - reach), min(frames.shape[1], key + reach + 1)
+        activation = frames[a:b, lo:hi].mean(axis=0)
+        best = int(activation.argmax())
+        result.append((float(activation[key - lo]), lo + best + MIDI_OFFSET, float(activation[best])))
+    return result
+
+
+def confirmed_voice(vocal, frames, times, end):
+    """YourMT3+ hears the singer's shouts and spoken words as notes too, and now and then writes a sung note a step
+    away from where the voice is. The separated vocal stem settles both. Returns (vocal, regions, moved):
+
+    - `regions`: where the voice really sings, measured only with the notes the stem confirms (activation of the
+      note's own key ≥ CONFIRMED). Spoken interjections over a solo are barely confirmed and stay below the singing
+      threshold, so the solo keeps the melody there;
+    - `vocal`: every model note, with the pitch moved to the stem's key when the stem clearly hears another one
+      (confirmed there, and at least twice as strong as the written key). Notes the stem neither confirms nor
+      contradicts stay as the model wrote them: they are what the model adds to the older line."""
+    support = note_support(vocal, frames, times)
+    # Confirmada: a própria tecla, ou a tecla vizinha (um canto um pouco baixo ou alto), soa na pista da voz.
+    regions = sung_regions([n for n, (own, best, value) in zip(vocal, support)
+                            if own >= CONFIRMED or abs(best - n[2]) <= 1 and value >= CONFIRMED], end)
+    result = []; moved = 0
+    for note, (own, best, value) in zip(vocal, support):
+        if best != note[2] and value >= CONFIRMED and value >= 2 * own:
+            note = (note[0], note[1], best, note[3]); moved += 1
+        result.append(note)
+    return result, regions, moved
+
+
+def attack_envelope(times, count, weight=1.0):
+    """Attack instants (seconds) as an onset-strength envelope on the model's frame grid, for the beat tracker."""
+    envelope = np.zeros(count)
+    for time in times:
+        frame = int(round(time * FRAMES_PER_SECOND))
+        if 0 <= frame < count: envelope[frame] += weight
+    kernel = np.exp(-.5 * (np.arange(-4, 5) / 1.5) ** 2)
+    return np.convolve(envelope, kernel, mode='same')
+
+
+def transcribe_separated(wav_path, midi_path, progress=lambda message: None, recognized=None):
     """Gravação → voz, baixo, bateria e outros (HTDemucs) → a melodia é a linha principal da voz, completada pelo solo
     instrumental onde ninguém canta; o acompanhamento e os acordes vêm do baixo e dos outros instrumentos, sem a
-    bateria; o pulso vem da bateria."""
+    bateria; o pulso vem da bateria. Com `recognized` (as notas do YourMT3+), a voz, o solo e o acompanhamento vêm do
+    modelo; a separação continua dando o pulso (bateria e baixo) e os acordes (baixo e demais instrumentos)."""
     import source_separation as ss
     progress('Lendo o áudio…')
     raw, rate = read_wav(wav_path, mono=False)
@@ -801,21 +902,28 @@ def transcribe_separated(wav_path, midi_path, progress=lambda message: None):
         mono[name] = resample(stems[name].mean(axis=0), ss.SAMPLE_RATE)
         heard[name] = posteriors(mono[name], session)
     drums = onset_envelope(resample(stems['drums'].mean(axis=0), ss.SAMPLE_RATE)); del stems
-    count = len(heard['vocals'][0]); times = frame_times(count)
+    count = len(heard['other'][0]); times = frame_times(count)
+    def seconds(frame): return float(times[min(frame, count - 1)])
+    def in_seconds(events): return [(seconds(a), seconds(b), pitch, amplitude) for a, b, pitch, amplitude in events]
     # Só há voz onde a pista da voz tem energia; o resto é vazamento dos instrumentos.
     sung = presence(mono['vocals'], count); syllables = syllable_onsets(mono['vocals'], count); del mono
     heard['vocals'] = (heard['vocals'][0] * sung[:, None], heard['vocals'][1] * sung[:, None])
-    def seconds(frame): return float(times[min(frame, count - 1)])
-    def in_seconds(events): return [(seconds(a), seconds(b), pitch, amplitude) for a, b, pitch, amplitude in events]
-    progress('Seguindo a melodia da voz…')
-    vocal = in_seconds(predominant_line(heard['vocals'][0], heard['vocals'][1], *VOICE_RANGE, syllables=syllables))
-    # A linha do instrumento sem o pedal interno da sanfona: só a voz de cima, que é a melodia.
+    regions = None; moved = 0
+    # A linha do instrumento sem o pedal interno da sanfona: só a voz de cima, que é a melodia. Ela vem da pista dos
+    # instrumentos também com o YourMT3+: no solo o modelo empilha notas de acorde acima da melodia.
     instrument = upper_voice(in_seconds(predominant_line(heard['other'][0], heard['other'][1], *INSTRUMENT_RANGE, rise=.3)))
-    melody, solo_notes = fill_gaps(vocal, instrument, end=seconds_total)
-    # Acompanhamento: o baixo e as notas sustentadas dos outros instrumentos. As notas curtas (ponteios, floreios da
-    # sanfona) fariam a análise de harmonia ver um acorde novo a cada tempo.
-    accompaniment = sorted([n for n in in_seconds(detect_notes(*heard['other'][:2])) if n[1] - n[0] >= ACCOMPANIMENT_MIN_SECONDS] +
-                           [n for n in in_seconds(detect_notes(*heard['bass'][:2])) if n[2] < 60])
+    if recognized:
+        progress('Conferindo a voz do YourMT3+ com a pista da voz…')
+        vocal, _, accompaniment, _ = recognized_parts(recognized)
+        vocal, regions, moved = confirmed_voice(vocal, heard['vocals'][0], times, seconds_total)
+    else:
+        progress('Seguindo a melodia da voz…')
+        vocal = in_seconds(predominant_line(heard['vocals'][0], heard['vocals'][1], *VOICE_RANGE, syllables=syllables))
+        # Acompanhamento: o baixo e as notas sustentadas dos outros instrumentos. As notas curtas (ponteios, floreios
+        # da sanfona) fariam a análise de harmonia ver um acorde novo a cada tempo.
+        accompaniment = sorted([n for n in in_seconds(detect_notes(*heard['other'][:2])) if n[1] - n[0] >= ACCOMPANIMENT_MIN_SECONDS] +
+                               [n for n in in_seconds(detect_notes(*heard['bass'][:2])) if n[2] < 60])
+    melody, solo_notes = fill_gaps(vocal, instrument, end=seconds_total, regions=regions)
     if len(melody) < 8 and len(accompaniment) < 8: raise ValueError('Quase nenhuma nota reconhecida neste áudio.')
     progress('Encontrando o pulso da música…')
     envelope = drums[:count] / (drums.std() or 1)
@@ -832,17 +940,19 @@ def transcribe_separated(wav_path, midi_path, progress=lambda message: None):
     written = melody + accompaniment
     chords = heard_chords(times, heard['other'][0], heard['bass'][0], beats, phase, span=2 if meter == 4 else 3,
                           start=min(n[0] for n in written), end=max(n[1] for n in written)) or audio_chords(melody, accompaniment, beats, phase, span=2 if meter == 4 else 3)
-    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords), meter=meter)
+    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords), meter=meter, single_melody=bool(recognized))
     pitches = [n[2] for n in melody]
     return {'notes': len(melody) + len(accompaniment), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),
             'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
             'bpm': round(bpm, 1), 'meter': meter, 'beats': len(beats), 'downbeat_phase': phase, 'seconds': round(seconds_total, 1),
             'melody_range': [min(pitches), max(pitches)] if pitches else None, 'separated': True,
-            'vocal_notes': len(melody) - solo_notes, 'solo_notes': solo_notes, **write_midi.last}
+            'vocal_notes': len(melody) - solo_notes, 'solo_notes': solo_notes, **({'voice_pitches_moved': moved} if recognized else {}), **write_midi.last}
 
 
-def transcribe_mix(wav_path, midi_path, progress=lambda message: None):
-    """The older pipeline on the whole mix (no separation model): skyline melody."""
+def transcribe_mix(wav_path, midi_path, progress=lambda message: None, recognized=None):
+    """The older pipeline on the whole mix (no separation model): skyline melody. With `recognized` (YourMT3+ notes) the
+    melody is the sung line completed by the solo instrument, and the pulse comes from the drum and bass attacks the
+    model found; the chords are still read from the sound of the mix."""
     progress('Lendo o áudio…')
     audio, rate = read_wav(wav_path)
     if len(audio) < rate * 2: raise ValueError('Áudio curto demais (menos de 2 segundos).')
@@ -852,27 +962,37 @@ def transcribe_mix(wav_path, midi_path, progress=lambda message: None):
     progress('Ouvindo as notas com o modelo Basic Pitch…')
     frames, onsets, _ = posteriors(audio)
     times = frame_times(len(frames))
-    events = detect_notes(frames, onsets)
-    def seconds(frame): return float(times[min(frame, len(times) - 1)])
-    notes = [(seconds(a), seconds(b), pitch, amplitude) for a, b, pitch, amplitude in events]
+    solo_notes = None
+    if recognized:
+        vocal, instrument, accompaniment, parts = recognized_parts(recognized)
+        melody, solo_notes = fill_gaps(vocal, instrument, end=len(audio) / SAMPLE_RATE)
+        notes = sorted(melody + accompaniment)
+        pulse = attack_envelope(parts['drums'], len(frames)) + attack_envelope([n[0] for n in parts['bass']], len(frames), .5)
+        if not pulse.any(): pulse = onsets.sum(axis=1)
+    else:
+        events = detect_notes(frames, onsets)
+        def seconds(frame): return float(times[min(frame, len(times) - 1)])
+        notes = [(seconds(a), seconds(b), pitch, amplitude) for a, b, pitch, amplitude in events]
+        pulse = onsets.sum(axis=1)
     if len(notes) < 8: raise ValueError('Quase nenhuma nota reconhecida neste áudio.')
     progress('Encontrando o pulso da música…')
-    beats, bpm = beat_track(onsets.sum(axis=1))
+    beats, bpm = beat_track(pulse)
     beats = steady_grid(beats, notes)
     if len(beats) >= 2: bpm = 60 / float(np.median(np.diff(beats)))
-    melody, accompaniment = skyline(notes)
+    if not recognized: melody, accompaniment = skyline(notes)
     # Compasso pelos acentos, como na gravação pelo teclado (3 ou 4 tempos).
     meter = meter_guess(notes, beats)
     phase = downbeat_phase(accompaniment or melody, beats, meter=meter)
     progress('Reconhecendo os acordes pelo som…')
     chords = heard_chords(times, frames, frames, beats, phase, span=2 if meter == 4 else 3, start=min(n[0] for n in notes),
                           end=max(n[1] for n in notes)) or audio_chords(melody, accompaniment, beats, phase, span=2 if meter == 4 else 3)
-    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords), meter=meter)
+    write_midi(midi_path, melody, accompaniment, beats, bpm, phase=phase, chords=chord_notes(chords), meter=meter, single_melody=bool(recognized))
     pitches = [n[2] for n in melody]
     return {'notes': len(notes), 'melody_notes': len(melody), 'accompaniment_notes': len(accompaniment),
             'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
             'bpm': round(bpm, 1), 'meter': meter, 'beats': len(beats), 'downbeat_phase': phase, 'seconds': round(len(audio) / SAMPLE_RATE, 1),
-            'melody_range': [min(pitches), max(pitches)] if pitches else None, **write_midi.last}
+            'melody_range': [min(pitches), max(pitches)] if pitches else None,
+            **({'vocal_notes': len(melody) - solo_notes, 'solo_notes': solo_notes} if solo_notes is not None else {}), **write_midi.last}
 
 
 def transcribe_notes(played, midi_path, progress=lambda message: None):

@@ -1,3 +1,12 @@
+TECLASCORE 1.14.0 · MOTOR DE ÁUDIO YOURMT3+
+
+1. Em Sobre, confira que a versão é 1.14.0.
+2. Sem o componente YourMT3+ instalado, transcreva uma gravação em Áudio para partitura: o resultado é o mesmo da 1.13.0 e o resumo não menciona o YourMT3+.
+3. Instale o componente na pasta do aplicativo: runtime\python.exe engine\yourmt3_setup.py. Ao final ele informa a placa de vídeo encontrada (ou que vai rodar no processador).
+4. Transcreva a mesma gravação: o andamento passa por "Reconhecendo as notas com o YourMT3+… %" e o resumo termina com "notas pelo YourMT3+".
+5. Gere a partitura: a introdução instrumental é a mesma de antes, as cifras são as mesmas e a parte cantada tem mais notas.
+6. Ponha "AudioEngine": "classico" no settings.json e transcreva de novo: o resumo volta a não mencionar o YourMT3+.
+
 TECLASCORE 1.13.0 · LETRA DO MUSICXML E DO GUITAR PRO
 
 1. Em Sobre, confira que a versão é 1.13.0.

@@ -66,7 +66,7 @@ public partial class MainWindow
             for (int i = 0; i < files.Count; i++)
             {
                 string name = Path.GetFileNameWithoutExtension(files[i]);
-                SetOperationItems(i, files.Count, name); Status = $"Transcrevendo {name}… (separa a voz e os instrumentos: cerca de meio minuto por minuto de áudio)";
+                SetOperationItems(i, files.Count, name); Status = $"Transcrevendo {name}… (reconhece as notas e separa a voz e os instrumentos: cerca de meio minuto por minuto de áudio)";
                 string midi = Path.Combine(folder, ScoreFileName.Unique(ScoreFileName.Stem(null, name), ".mid", taken));
                 JsonObject report;
                 if (audioTranscriber is { } transcribe) report = await transcribe(files[i], midi, token);
@@ -77,9 +77,10 @@ public partial class MainWindow
                     {
                         string wav = Path.Combine(job, "audio.wav");
                         await Task.Run(() => AudioDecoder.ToWav(files[i], wav, token), token);
-                        report = await new EngineClient(TranscriptionPython, engineDirectory).RunAsync(
-                            new JsonObject { ["mode"] = "transcribeAudio", ["workspace"] = job, ["inputMidi"] = "", ["inputAudio"] = wav, ["outputMidi"] = midi },
-                            job, CreateOperationProgress(), token);
+                        var request = new JsonObject { ["mode"] = "transcribeAudio", ["workspace"] = job, ["inputMidi"] = "", ["inputAudio"] = wav, ["outputMidi"] = midi };
+                        // "" leaves the choice to the engine: YourMT3+ when its component is installed.
+                        if (settings.AudioEngine.Length > 0) request["audioEngine"] = settings.AudioEngine;
+                        report = await new EngineClient(TranscriptionPython, engineDirectory).RunAsync(request, job, CreateOperationProgress(), token);
                     }
                     finally { try { Directory.Delete(job, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
                 }
@@ -91,6 +92,9 @@ public partial class MainWindow
                 // With the separation model the melody comes from the voice alone, plus the instrumental solos where nobody sings.
                 int solo = report["solo_notes"]?.GetValue<int>() ?? 0;
                 string source = report["separated"]?.GetValue<bool>() == true ? $" (voz separada{(solo > 0 ? $", {solo} do solo instrumental" : "")})" : "";
+                // Which engine recognized the notes; when YourMT3+ failed on this recording, the classic engine did it and the reason is shown.
+                if (report["engine"]?.GetValue<string>() == "yourmt3") source += " · notas pelo YourMT3+";
+                else if (report["engine_note"]?.GetValue<string>() is { Length: > 0 } reason) source += $" · motor clássico (o YourMT3+ falhou: {reason})";
                 reports.Add($"{name}: {report["melody_notes"]?.GetValue<int>() ?? 0} notas na melodia{source}{(clear ? "" : " (pouco clara: só cifras)")}, ♩ ≈ {report["bpm"]?.GetValue<double>() ?? 0:0}{harmony}");
             }
         }, operationTitle: "Transcrevendo áudio");

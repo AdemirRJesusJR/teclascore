@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 1.14.0 — 14/11/2026
+
+- **Motor de áudio YourMT3+.** Em Áudio para partitura, as notas da gravação passam a ser reconhecidas pelo YourMT3+ (modelo "YPTF.MoE+Multi", de Chang e colegas, 2024), um modelo de transcrição com vários instrumentos, quando o componente dele está instalado. A voz cantada, o baixo e os demais instrumentos vêm do modelo; o pulso e os acordes continuam lidos do som, como na 1.10.3.
+- A voz do modelo é conferida com a pista de voz separada. Falas e gritos do cantor por cima de um solo, que o modelo escreve como notas, não contam como canto: ali a melodia continua sendo o solo. Uma nota que a pista da voz ouve claramente em outra altura vai para essa altura. As notas que a pista não confirma nem contradiz ficam como o modelo escreveu.
+- O solo instrumental (introdução, interlúdios) continua vindo da pista dos instrumentos: no solo da sanfona o modelo empilha notas de acorde acima da melodia. O "baixo" que o modelo ouve acima de Mi3 (a virada da bateria) e as notas de voz com menos de 70 ms ficam de fora, e a melodia é escrita numa linha só.
+- Na música de teste (forró, 3 min 13 s), a voz escrita cobre 86% do que é cantado; o motor anterior cobria 57%. Nos trechos em que os dois escrevem, as alturas coincidem em 95% do tempo. O andamento, o compasso e os acordes saem iguais.
+- O componente fica fora do instalador (PyTorch e o modelo somam cerca de 5 GB) e é instalado à parte, em `%LOCALAPPDATA%\TeclasPartituras\componentes\yourmt3`, com `runtime\python.exe engine\yourmt3_setup.py` na pasta do aplicativo. Tudo vem das fontes oficiais com versão e SHA-256 fixados: uv (Astral), PyTorch 2.5.1 e o código e o modelo dos autores no Hugging Face (Apache 2.0). Com placa NVIDIA o modelo roda nela (cerca de 45 s para a música de teste numa RTX 3060); sem ela roda no processador, bem mais devagar.
+- Sem o componente, ou com `"AudioEngine": "classico"` nas configurações, vale o motor anterior, sem mudança. Se o YourMT3+ falhar numa gravação, o motor anterior transcreve e o resumo diz o motivo. O resumo da transcrição informa quando as notas vieram do YourMT3+.
+- Ainda não há botão no aplicativo para instalar o componente nem para escolher o motor.
+
 ## 1.13.0 — 14/11/2026
 
 - **A letra do MusicXML e do Guitar Pro vem junto.** Ao adicionar um desses arquivos, as sílabas entram no MIDI convertido, cada uma no instante da sua nota. A partitura gerada sai com a letra, a coluna Canto marca a pista cantada e a sugestão de melodia usa a letra para reconhecê-la.

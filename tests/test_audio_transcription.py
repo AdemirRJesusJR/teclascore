@@ -1,9 +1,12 @@
 """Audio → MIDI: Basic Pitch notes, beat grid, melody/accompaniment split (engine/audio_transcription.py). These tests run
 the whole-mix method (separate=False); the source-separated method is covered by test_source_separation.py."""
 from pathlib import Path
-import struct, tempfile, unittest
+import os, struct, tempfile, unittest
 import numpy as np
 import test_priority_melody  # noqa: F401  (puts engine/ on the import path)
+# These tests are about the engine's own recognition: a YourMT3+ component installed on this machine stays out of
+# them (test_yourmt3_engine.py covers that engine with notes written by hand).
+os.environ['TECLAS_YOURMT3'] = str(Path(tempfile.gettempdir()) / 'teclas-testes-sem-yourmt3')
 import audio_transcription as at
 from inspect_midi import parse_midi, summarize
 

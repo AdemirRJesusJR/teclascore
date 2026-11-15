@@ -223,7 +223,8 @@ def main():
         try:import audio_transcription
         except ImportError as error:raise ValueError('Componentes de transcrição ausentes (numpy/onnxruntime). Reinstale o TeclaScore.') from error
         target=Path(req['outputMidi']).resolve();target.parent.mkdir(parents=True,exist_ok=True)
-        report=audio_transcription.transcribe(req['inputAudio'],target,lambda message:send('progress',message=message))
+        # audioEngine: 'yourmt3', 'classico' or absent (YourMT3+ when its component is installed).
+        report=audio_transcription.transcribe(req['inputAudio'],target,lambda message:send('progress',message=message),engine=req.get('audioEngine') or None)
         send('result',data=dict(report,midiPath=str(target)))
         return
     if req['mode']=='alignAudioMelody':

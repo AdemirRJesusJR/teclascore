@@ -1,3 +1,7 @@
+TECLASCORE 1.14.0
+
+Motor de áudio YourMT3+: em Áudio para partitura, as notas da gravação passam a ser reconhecidas pelo modelo YourMT3+ quando o componente dele está instalado. A voz do modelo é conferida com a pista de voz separada (falas e gritos do cantor não viram melodia), o solo instrumental continua vindo da pista dos instrumentos, e o pulso e as cifras continuam lidos do som. O componente não vem no instalador (cerca de 5 GB, com PyTorch): instale-o, na pasta do aplicativo, com runtime\python.exe engine\yourmt3_setup.py. Com placa NVIDIA ele roda nela. Sem o componente, ou com "AudioEngine": "classico" nas configurações, vale o motor anterior.
+
 TECLASCORE 1.13.0
 
 Letra do MusicXML e do Guitar Pro: ao adicionar um desses arquivos, a letra entra junto, cada sílaba no instante da sua nota, e a partitura gerada sai com ela. Repetições e casas de 1ª e 2ª vez seguem a ordem em que a música toca (segunda estrofe na segunda passagem). Nos Guitar Pro 3 a 5, a primeira linha de letra do arquivo é distribuída nas notas da pista da voz. Arquivos adicionados na 1.12.0 ganham a letra ao serem adicionados de novo.

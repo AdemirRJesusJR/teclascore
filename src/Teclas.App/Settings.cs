@@ -33,6 +33,9 @@ public sealed class Settings
     public int CountInLeadMilliseconds { get; set; } = 40;
     public bool PracticeAnyOctave { get; set; } = true;
     public int PracticeBpm { get; set; } = 80;
+    /// <summary>Who recognizes the notes of a recording: "" (YourMT3+ when its component is installed, otherwise the
+    /// classic engine), "yourmt3" or "classico".</summary>
+    public string AudioEngine { get; set; } = "";
     public List<StudyRecord> StudyHistory { get; set; } = [];
     public string LibrarySyncFolder { get; set; } = "";
     public string LibrarySyncSentHash { get; set; } = "";
@@ -205,6 +208,7 @@ public sealed class Settings
         CollectionFilter ??= "";
         MidiFolder ??= "";
         PracticeBpm = Math.Clamp(PracticeBpm, 30, 200);
+        AudioEngine = AudioEngine?.Trim().ToLowerInvariant() is "yourmt3" or "classico" ? AudioEngine.Trim().ToLowerInvariant() : "";
         ConversionParallelism = ConversionParallelism is >= 1 and <= 8 ? ConversionParallelism : 0;
         LibrarySyncFolder ??= ""; LibrarySyncSentHash ??= ""; LibrarySyncRestoreRoot ??= "";
         KnownUpdateTag ??= ""; KnownUpdateSetup ??= ""; KnownUpdateSha256 ??= "";

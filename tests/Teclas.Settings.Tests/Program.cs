@@ -21,6 +21,14 @@ try
     Check(old.ThemeMode == "light", "Older settings keep the light version of their palette");
     Check(old.TrackAuditionSpeed == 1.0, "Settings without the audition speed field migrate to normal speed");
     Check(old.ComfortableDiagramMaximumSpan == 12, "Legacy settings adopt an octave for voicing suggestions");
+    // Motor de áudio (1.14.0): "" leaves the choice to the engine (YourMT3+ when installed); only the two names are kept.
+    Check(missing.AudioEngine == "" && old.AudioEngine == "", "The audio engine is automatic until the user chooses");
+    foreach (var (written, read) in new[] { ("yourmt3", "yourmt3"), (" Classico ", "classico"), ("outro", "") })
+    {
+        var enginePath = Path.Combine(folder, "engine.json");
+        new Settings { AudioEngine = written }.Save(enginePath);
+        Check(Settings.Load(enginePath).AudioEngine == read, "Audio engine setting is normalized: " + written);
+    }
     // Síntese rítmica e notação única (1.8.0): on for fresh installations and for settings saved before it.
     foreach (var settings in new[] { missing, old })
         Check(settings.RhythmGrid && settings.DurationSynthesis && settings.PhraseEndings && settings.UnifiedTempo && settings.RepeatSynthesis && settings.UnifiedSpelling,
