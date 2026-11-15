@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 1.14.1 — 14/11/2026
+
+- **YourMT3+: sílabas faladas não viram notas graves.** Numa frase cantada, o modelo escrevia a sílaba falada ou a consoante como uma nota curta bem abaixo da frase (Fá3, Sol3 no meio de Si♭3 e Dó4). Agora, cada nota que a pista da voz não confirma e que está a três semitons ou mais das notas confirmadas ao redor é conferida com a altura que a voz realmente sustenta ali (YIN na pista separada). Sem altura definida, a sílaba mantém o lugar no ritmo e passa para a nota da frase; com outra altura definida (um erro de oitava), a nota vai para ela; se a voz canta mesmo a nota escrita, ela fica.
+- Na música de teste, 65 das 71 notas graves da voz não tinham altura definida na pista. As notas abaixo de Lá3 caíram de 68 para 19 na melodia escrita, com as mesmas 837 notas e o mesmo ritmo.
+- O resumo da transcrição do motor traz quantas sílabas foram assentadas (`voice_syllables_settled`).
+
 ## 1.14.0 — 14/11/2026
 
 - **Motor de áudio YourMT3+.** Em Áudio para partitura, as notas da gravação passam a ser reconhecidas pelo YourMT3+ (modelo "YPTF.MoE+Multi", de Chang e colegas, 2024), um modelo de transcrição com vários instrumentos, quando o componente dele está instalado. A voz cantada, o baixo e os demais instrumentos vêm do modelo; o pulso e os acordes continuam lidos do som, como na 1.10.3.

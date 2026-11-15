@@ -1,3 +1,10 @@
+TECLASCORE 1.14.1 · YOURMT3+ SEM NOTAS GRAVES SOLTAS
+
+1. Em Sobre, confira que a versão é 1.14.1.
+2. Com o componente YourMT3+ instalado, transcreva uma gravação com canto falado ou muito rápido e gere a partitura.
+3. Na parte cantada, as notas curtas bem abaixo da frase (uma quarta ou quinta abaixo) não aparecem mais; o número de notas e o ritmo são os mesmos da 1.14.0.
+4. Uma nota grave que o cantor sustenta de verdade continua na partitura.
+
 TECLASCORE 1.14.0 · MOTOR DE ÁUDIO YOURMT3+
 
 1. Em Sobre, confira que a versão é 1.14.0.

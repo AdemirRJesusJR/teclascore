@@ -80,7 +80,7 @@ class ConfirmedVoiceTests(unittest.TestCase):
         shouted = [(i * .3, i * .3 + .25, 57 + i % 3, .8) for i in range(26)]
         sung = [(10 + i * .3, 10 + i * .3 + .25, 58 + 2 * (i % 2), .8) for i in range(40)]
         frames, times = activations(24, [(a, b, p) for a, b, p, _ in sung])
-        vocal, regions, moved = at.confirmed_voice(shouted + sung, frames, times, 24)
+        vocal, regions, moved, _ = at.confirmed_voice(shouted + sung, frames, times, 24)
         self.assertEqual(len(regions), 1)
         self.assertAlmostEqual(regions[0][0], 10, delta=.5); self.assertAlmostEqual(regions[0][1], 22, delta=.5)
         self.assertEqual((len(vocal), moved), (66, 0))
@@ -94,13 +94,57 @@ class ConfirmedVoiceTests(unittest.TestCase):
         sung = [(i * .3, i * .3 + .25, 60, .8) for i in range(40)]
         heard = [(a, b, 62 if i == 10 else 60) for i, (a, b, _, _) in enumerate(sung)]
         frames, times = activations(13, heard)
-        vocal, regions, moved = at.confirmed_voice(sung, frames, times, 13)
+        vocal, regions, moved, _ = at.confirmed_voice(sung, frames, times, 13)
         self.assertEqual(moved, 1)
         self.assertEqual([n[2] for n in vocal], [62 if i == 10 else 60 for i in range(40)])
         # A note the stem neither confirms nor contradicts stays as the model wrote it.
         frames[:] = np.where(np.arange(len(frames))[:, None] < np.searchsorted(times, 6), frames, 0)
-        vocal, _, moved = at.confirmed_voice(sung, frames, times, 13)
+        vocal, _, moved, _ = at.confirmed_voice(sung, frames, times, 13)
         self.assertEqual([n[2] for n in vocal[25:]], [60] * 15)
+
+    def voice(self, seconds, tones, noise=()):
+        """A vocal stem at the engine's sample rate: sine tones (start, end, pitch) and noise bursts (start, end)."""
+        t = np.arange(int(seconds * at.SAMPLE_RATE)) / at.SAMPLE_RATE
+        audio = np.zeros(len(t)); random = np.random.default_rng(7)
+        for start, end, pitch in tones:
+            inside = (t >= start) & (t < end)
+            audio[inside] += .5 * np.sin(2 * np.pi * 440 * 2 ** ((pitch - 69) / 12) * t[inside])
+        for start, end in noise:
+            inside = (t >= start) & (t < end); audio[inside] += .3 * random.standard_normal(int(inside.sum()))
+        return audio
+
+    def test_the_stem_pitch_tells_a_sung_note_from_a_spoken_one(self):
+        audio = self.voice(3, [(0, 1, 58), (2, 3, 65)], noise=[(1, 2)])
+        held, fraction = at.stem_pitch(audio, .1, .9)
+        self.assertAlmostEqual(held, 58, delta=.1); self.assertGreater(fraction, .9)
+        held, fraction = at.stem_pitch(audio, 2.1, 2.9)
+        self.assertAlmostEqual(held, 65, delta=.1)
+        self.assertLess(at.stem_pitch(audio, 1.1, 1.9)[1], .2)                 # noise: no period
+        self.assertEqual(at.stem_pitch(audio, 5, 6), (None, 0.0))              # past the end
+
+    def test_a_spoken_syllable_takes_the_pitch_of_the_phrase(self):
+        # A chanted phrase on B flat and C; the model wrote three syllables far below it.
+        sung = [(i * .3, i * .3 + .25, 58 if i % 4 else 60, .8) for i in range(40)]
+        spoken, low, slipped = 9, 21, 30
+        model = list(sung)
+        model[spoken] = (*sung[spoken][:2], 53, .8)     # no pitch in the stem: a spoken syllable
+        model[low] = (*sung[low][:2], 53, .8)           # the singer really dips to F3
+        model[slipped] = (*sung[slipped][:2], 46, .8)   # written an octave below what is sung
+        truth = {low: 53}
+        tones = [(a, b, truth.get(i, p)) for i, (a, b, p, _) in enumerate(sung) if i != spoken]
+        audio = self.voice(13, tones, noise=[sung[spoken][:2]])
+        # Basic Pitch confirms the phrase, but neither the spoken syllable nor the two doubtful notes.
+        frames, times = activations(13, [(a, b, p) for i, (a, b, p, _) in enumerate(sung) if i not in (spoken, low, slipped)])
+        vocal, _, moved, settled = at.confirmed_voice(model, frames, times, 13, audio)
+        self.assertEqual((moved, settled), (0, 2))
+        self.assertEqual(vocal[spoken][2], 58)          # the phrase around it
+        self.assertEqual(vocal[low][2], 53)             # the stem holds F3: it stays
+        self.assertEqual(vocal[slipped][2], 58)         # the stem holds B flat: the note goes there
+        self.assertEqual([n[:2] for n in vocal], [n[:2] for n in model])      # the rhythm is untouched
+        # Without the stem audio nothing is settled, and a note one step off the phrase is never touched.
+        self.assertEqual(at.confirmed_voice(model, frames, times, 13)[3], 0)
+        model[spoken] = (*sung[spoken][:2], 56, .8)
+        self.assertEqual(at.confirmed_voice(model, frames, times, 13, audio)[0][spoken][2], 56)
 
     def test_the_written_melody_is_one_line(self):
         beats = np.arange(0, 20) * .5

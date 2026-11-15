@@ -1,3 +1,7 @@
+TECLASCORE 1.14.1
+
+YourMT3+: as sílabas faladas e as consoantes dentro de uma frase cantada não saem mais como notas graves soltas. O motor confere essas notas com a altura que a voz realmente sustenta na pista separada: a sílaba mantém o ritmo e fica na nota da frase.
+
 TECLASCORE 1.14.0
 
 Motor de áudio YourMT3+: em Áudio para partitura, as notas da gravação passam a ser reconhecidas pelo modelo YourMT3+ quando o componente dele está instalado. A voz do modelo é conferida com a pista de voz separada (falas e gritos do cantor não viram melodia), o solo instrumental continua vindo da pista dos instrumentos, e o pulso e as cifras continuam lidos do som. O componente não vem no instalador (cerca de 5 GB, com PyTorch): instale-o, na pasta do aplicativo, com runtime\python.exe engine\yourmt3_setup.py. Com placa NVIDIA ele roda nela. Sem o componente, ou com "AudioEngine": "classico" nas configurações, vale o motor anterior.

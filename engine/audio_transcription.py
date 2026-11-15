@@ -847,26 +847,85 @@ def note_support(notes, frames, times, reach=3):
     return result
 
 
-def confirmed_voice(vocal, frames, times, end):
+def stem_pitch(audio, start, end, rate=SAMPLE_RATE, lowest=75.0, highest=500.0, size=1024, hop=128, threshold=.15, voiced=.2):
+    """The pitch the stem really holds between `start` and `end` seconds, by YIN (de Cheveigné and Kawahara, 2002):
+    (median MIDI pitch of the frames with a defined pitch, or None; fraction of the frames that have one). A spoken
+    syllable, a consonant or a breath has no period: its frames are aperiodic and the fraction stays near zero."""
+    audio = np.asarray(audio, np.float64)
+    longest, shortest = int(rate / lowest), max(2, int(rate / highest))
+    first = int(start * rate); last = max(first + 1, int(end * rate) - size // 2)
+    pitches = []; total = 0
+    lags = np.arange(1, longest + 1)
+    for position in range(first, last, hop):
+        block = audio[position:position + size + longest]
+        if len(block) < size + longest: break
+        total += 1
+        window = block[:size]
+        difference = np.array([np.sum((window - block[lag:lag + size]) ** 2) for lag in lags])
+        normalized = (difference * lags / np.maximum(np.cumsum(difference), 1e-12))[shortest - 1:]
+        below = np.where(normalized < threshold)[0]
+        if len(below):
+            i = int(below[0])
+            while i + 1 < len(normalized) and normalized[i + 1] < normalized[i]: i += 1
+        else: i = int(normalized.argmin())
+        if normalized[i] >= voiced: continue
+        lag = float(i + shortest)
+        if 0 < i < len(normalized) - 1:
+            a, b, c = normalized[i - 1], normalized[i], normalized[i + 1]
+            if a - 2 * b + c > 0: lag += .5 * (a - c) / (a - 2 * b + c)
+        pitches.append(69 + 12 * math.log2(rate / lag / 440))
+    if not total: return None, 0.0
+    return (float(np.median(pitches)) if pitches else None), len(pitches) / total
+
+
+LEAP = 3                  # semitons: a partir daí uma nota não confirmada está fora da frase à sua volta
+ANCHOR_REACH = 1.0        # segundos em que se procura a nota confirmada vizinha
+
+
+def confirmed_voice(vocal, frames, times, end, audio=None):
     """YourMT3+ hears the singer's shouts and spoken words as notes too, and now and then writes a sung note a step
-    away from where the voice is. The separated vocal stem settles both. Returns (vocal, regions, moved):
+    away from where the voice is. The separated vocal stem settles both. Returns (vocal, regions, moved, settled):
 
     - `regions`: where the voice really sings, measured only with the notes the stem confirms (activation of the
       note's own key ≥ CONFIRMED). Spoken interjections over a solo are barely confirmed and stay below the singing
       threshold, so the solo keeps the melody there;
     - `vocal`: every model note, with the pitch moved to the stem's key when the stem clearly hears another one
       (confirmed there, and at least twice as strong as the written key). Notes the stem neither confirms nor
-      contradicts stay as the model wrote them: they are what the model adds to the older line."""
+      contradicts stay as the model wrote them: they are what the model adds to the older line;
+    - with `audio` (the vocal stem at SAMPLE_RATE), the unconfirmed notes that leap `LEAP` semitones or more away from
+      the confirmed notes around them are checked against the pitch the voice really holds (stem_pitch). The model
+      writes a spoken syllable or a consonant inside a sung phrase as a short low note: when the stem has no defined
+      pitch there, the syllable keeps its place in the rhythm and takes the pitch of the phrase (the confirmed
+      neighbour nearest in pitch); when the stem holds another pitch (an octave slip), the note goes there. `settled`
+      counts both."""
     support = note_support(vocal, frames, times)
     # Confirmada: a própria tecla, ou a tecla vizinha (um canto um pouco baixo ou alto), soa na pista da voz.
     regions = sung_regions([n for n, (own, best, value) in zip(vocal, support)
                             if own >= CONFIRMED or abs(best - n[2]) <= 1 and value >= CONFIRMED], end)
-    result = []; moved = 0
+    result = []; moved = 0; anchored = []
     for note, (own, best, value) in zip(vocal, support):
         if best != note[2] and value >= CONFIRMED and value >= 2 * own:
-            note = (note[0], note[1], best, note[3]); moved += 1
-        result.append(note)
-    return result, regions, moved
+            note = (note[0], note[1], best, note[3]); moved += 1; own = value
+        result.append(note); anchored.append(own >= CONFIRMED)
+    settled = 0
+    if audio is not None:
+        anchors = [n for n, sure in zip(result, anchored) if sure]
+        starts = [n[0] for n in anchors]
+        import bisect
+        for index, note in enumerate(result):
+            if anchored[index]: continue
+            at_note = bisect.bisect_left(starts, note[0])
+            around = [a for a in anchors[max(0, at_note - 2):at_note + 2] if a[1] >= note[0] - ANCHOR_REACH and a[0] <= note[1] + ANCHOR_REACH]
+            if not around or min(abs(a[2] - note[2]) for a in around) < LEAP: continue
+            held, fraction = stem_pitch(audio, note[0], note[1])
+            if held is not None and fraction >= .5:
+                target = int(round(held))
+                if not VOICE_RANGE[0] <= target <= VOICE_RANGE[1]: continue
+            else:
+                nearest = min(around, key=lambda a: (abs(a[2] - note[2]), min(abs(a[0] - note[1]), abs(note[0] - a[1]))))
+                target = nearest[2]
+            if target != note[2]: result[index] = (note[0], note[1], target, note[3]); settled += 1
+    return result, regions, moved, settled
 
 
 def attack_envelope(times, count, weight=1.0):
@@ -906,16 +965,17 @@ def transcribe_separated(wav_path, midi_path, progress=lambda message: None, rec
     def seconds(frame): return float(times[min(frame, count - 1)])
     def in_seconds(events): return [(seconds(a), seconds(b), pitch, amplitude) for a, b, pitch, amplitude in events]
     # Só há voz onde a pista da voz tem energia; o resto é vazamento dos instrumentos.
-    sung = presence(mono['vocals'], count); syllables = syllable_onsets(mono['vocals'], count); del mono
+    sung = presence(mono['vocals'], count); syllables = syllable_onsets(mono['vocals'], count)
+    voice_audio = mono['vocals']; del mono
     heard['vocals'] = (heard['vocals'][0] * sung[:, None], heard['vocals'][1] * sung[:, None])
-    regions = None; moved = 0
+    regions = None; moved = settled = 0
     # A linha do instrumento sem o pedal interno da sanfona: só a voz de cima, que é a melodia. Ela vem da pista dos
     # instrumentos também com o YourMT3+: no solo o modelo empilha notas de acorde acima da melodia.
     instrument = upper_voice(in_seconds(predominant_line(heard['other'][0], heard['other'][1], *INSTRUMENT_RANGE, rise=.3)))
     if recognized:
         progress('Conferindo a voz do YourMT3+ com a pista da voz…')
         vocal, _, accompaniment, _ = recognized_parts(recognized)
-        vocal, regions, moved = confirmed_voice(vocal, heard['vocals'][0], times, seconds_total)
+        vocal, regions, moved, settled = confirmed_voice(vocal, heard['vocals'][0], times, seconds_total, voice_audio)
     else:
         progress('Seguindo a melodia da voz…')
         vocal = in_seconds(predominant_line(heard['vocals'][0], heard['vocals'][1], *VOICE_RANGE, syllables=syllables))
@@ -946,7 +1006,7 @@ def transcribe_separated(wav_path, midi_path, progress=lambda message: None, rec
             'chords': [NOTE_NAMES[root] + quality for _, _, root, quality in chords], 'melody_clear': melody_is_clear(melody, beats),
             'bpm': round(bpm, 1), 'meter': meter, 'beats': len(beats), 'downbeat_phase': phase, 'seconds': round(seconds_total, 1),
             'melody_range': [min(pitches), max(pitches)] if pitches else None, 'separated': True,
-            'vocal_notes': len(melody) - solo_notes, 'solo_notes': solo_notes, **({'voice_pitches_moved': moved} if recognized else {}), **write_midi.last}
+            'vocal_notes': len(melody) - solo_notes, 'solo_notes': solo_notes, **({'voice_pitches_moved': moved, 'voice_syllables_settled': settled} if recognized else {}), **write_midi.last}
 
 
 def transcribe_mix(wav_path, midi_path, progress=lambda message: None, recognized=None):
