@@ -1,3 +1,7 @@
+TECLASCORE 1.15.0
+
+Áudio para partitura em Configurações: o cartão novo escolhe o motor (Automático, YourMT3+ ou Motor clássico), mostra se o YourMT3+ está instalado e onde ele roda, e traz os botões Instalar o YourMT3+… (cerca de 3 GB de download, 5 GB no disco, com andamento e cancelamento) e Remover o YourMT3+….
+
 TECLASCORE 1.14.1
 
 YourMT3+: as sílabas faladas e as consoantes dentro de uma frase cantada não saem mais como notas graves soltas. O motor confere essas notas com a altura que a voz realmente sustenta na pista separada: a sílaba mantém o ritmo e fica na nota da frase.

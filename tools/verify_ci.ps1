@@ -365,6 +365,7 @@ try {
         [void](Invoke-Check 'wpf-midi-folder-ui' $app @('--verify-midi-folder-ui',(Join-Path $reports 'wpf-midi-folder-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-midi-folder-ui.json'))
         [void](Invoke-Check 'wpf-folder-watch-ui' $app @('--verify-folder-watch-ui',(Join-Path $reports 'wpf-folder-watch-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-folder-watch-ui.json'))
         [void](Invoke-Check 'wpf-notation-import-ui' $app @('--verify-notation-import-ui',(Join-Path $reports 'wpf-notation-import-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-notation-import-ui.json'))
+        [void](Invoke-Check 'wpf-audio-engine-ui' $app @('--verify-audio-engine-ui',(Join-Path $reports 'wpf-audio-engine-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-audio-engine-ui.json'))
         [void](Invoke-Check 'wpf-piano-roll-ui' $app @('--verify-piano-roll-ui',(Join-Path $reports 'wpf-piano-roll-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-piano-roll-ui.json'))
         [void](Invoke-Check 'wpf-metronome-ui'$app @('--verify-metronome-ui',(Join-Path $reports 'wpf-metronome-ui.json')) $work -JsonReport (Join-Path $reports 'wpf-metronome-ui.json'))
         if ($fixturesReady) {

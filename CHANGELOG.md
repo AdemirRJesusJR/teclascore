@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 1.15.0 — 15/11/2026
+
+- **Instalar o YourMT3+ e escolher o motor pelo aplicativo.** Em Configurações há um cartão novo, Áudio para partitura, com a escolha do motor (Automático, YourMT3+ ou Motor clássico), a situação do componente e o botão Instalar o YourMT3+…. Não é mais preciso usar a linha de comando nem editar o arquivo de configurações.
+- A instalação pergunta antes, informando o tamanho (cerca de 3 GB de download, 5 GB no disco) e as fontes, e mostra o andamento com a opção de cancelar. Se for cancelada ou falhar, o que já foi baixado fica guardado e o botão passa a Continuar a instalação do YourMT3+….
+- Com o componente instalado, o cartão diz onde o modelo roda (o nome da placa de vídeo NVIDIA, ou o processador) e qual motor está em uso, e oferece Remover o YourMT3+…, que libera os 5 GB depois de confirmar. A remoção apaga só o que a instalação criou.
+- Automático usa o YourMT3+ quando ele está instalado e o motor clássico quando não está. Escolher YourMT3+ sem o componente instalado é avisado no cartão.
+- Uma pasta do componente escolhida pela variável TECLAS_YOURMT3 nunca é apagada pelo aplicativo.
+
 ## 1.14.1 — 14/11/2026
 
 - **YourMT3+: sílabas faladas não viram notas graves.** Numa frase cantada, o modelo escrevia a sílaba falada ou a consoante como uma nota curta bem abaixo da frase (Fá3, Sol3 no meio de Si♭3 e Dó4). Agora, cada nota que a pista da voz não confirma e que está a três semitons ou mais das notas confirmadas ao redor é conferida com a altura que a voz realmente sustenta ali (YIN na pista separada). Sem altura definida, a sílaba mantém o lugar no ritmo e passa para a nota da frase; com outra altura definida (um erro de oitava), a nota vai para ela; se a voz canta mesmo a nota escrita, ela fica.

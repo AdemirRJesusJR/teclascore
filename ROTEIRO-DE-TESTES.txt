@@ -1,3 +1,12 @@
+TECLASCORE 1.15.0 · YOURMT3+ PELO APLICATIVO
+
+1. Em Sobre, confira que a versão é 1.15.0.
+2. Abra Configurações e role até Áudio para partitura: o cartão mostra o motor (Automático), a situação do YourMT3+ e o motor em uso.
+3. Sem o componente: aparece Instalar o YourMT3+…. Clique e responda Não: nada é baixado. Clique de novo, responda Sim e cancele no meio: o botão passa a Continuar a instalação do YourMT3+….
+4. Conclua a instalação: o cartão diz "YourMT3+ instalado" com a placa de vídeo (ou o processador) e "Em uso: YourMT3+ (automático)".
+5. Escolha Motor clássico e transcreva uma gravação: o resumo não menciona o YourMT3+. Volte para Automático: o resumo termina com "notas pelo YourMT3+".
+6. Clique em Remover o YourMT3+… e responda Não: nada muda. Responda Sim: o cartão volta a oferecer a instalação e a pasta do componente some.
+
 TECLASCORE 1.14.1 · YOURMT3+ SEM NOTAS GRAVES SOLTAS
 
 1. Em Sobre, confira que a versão é 1.14.1.

@@ -214,6 +214,8 @@ public partial class MainWindow
         currentPage = page;
         if (page != "library") StopTrackAudition();
         if (page == "settings") _ = RefreshTempFilesStatus();
+        // Automated checks never start the engine process just for opening Configurações; they inject the answer.
+        if (page == "settings" && (audioEngineClient is not null || !naturalThemeVersion)) _ = RefreshAudioEngineStatusAsync();
         foreach (var name in new[] { nameof(CurrentPage), nameof(DashboardVisible), nameof(LibraryVisible),
             nameof(ProductionVisible), nameof(SettingsVisible), nameof(AboutVisible), nameof(PageTitle), nameof(PageSubtitle) }) Notify(name);
         RefreshDashboard();

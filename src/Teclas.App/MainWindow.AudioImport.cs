@@ -39,6 +39,15 @@ public partial class MainWindow
         return File.Exists(installed) ? installed : null;
     }
 
+    /// <summary>The engine request for one recording. The engine chosen in Configurações › Áudio para partitura goes
+    /// along; "" (automatic) sends nothing and leaves the choice to the engine: YourMT3+ when its component is installed.</summary>
+    internal JsonObject AudioTranscriptionRequest(string job, string wav, string midi)
+    {
+        var request = new JsonObject { ["mode"] = "transcribeAudio", ["workspace"] = job, ["inputMidi"] = "", ["inputAudio"] = wav, ["outputMidi"] = midi };
+        if (settings.AudioEngine.Length > 0) request["audioEngine"] = settings.AudioEngine;
+        return request;
+    }
+
     private async void AudioToScoreClick(object sender, RoutedEventArgs e)
     {
         if (!IsIdle || !CommitEdits()) return;
@@ -77,10 +86,7 @@ public partial class MainWindow
                     {
                         string wav = Path.Combine(job, "audio.wav");
                         await Task.Run(() => AudioDecoder.ToWav(files[i], wav, token), token);
-                        var request = new JsonObject { ["mode"] = "transcribeAudio", ["workspace"] = job, ["inputMidi"] = "", ["inputAudio"] = wav, ["outputMidi"] = midi };
-                        // "" leaves the choice to the engine: YourMT3+ when its component is installed.
-                        if (settings.AudioEngine.Length > 0) request["audioEngine"] = settings.AudioEngine;
-                        report = await new EngineClient(TranscriptionPython, engineDirectory).RunAsync(request, job, CreateOperationProgress(), token);
+                        report = await new EngineClient(TranscriptionPython, engineDirectory).RunAsync(AudioTranscriptionRequest(job, wav, midi), job, CreateOperationProgress(), token);
                     }
                     finally { try { Directory.Delete(job, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
                 }

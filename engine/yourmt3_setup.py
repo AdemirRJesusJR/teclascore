@@ -48,6 +48,43 @@ def installed(root=None):
     return marker
 
 
+def status(root=None):
+    """What the app shows in Configurações › Áudio para partitura: whether the component is installed, where it lives,
+    whether that folder was chosen by TECLAS_YOURMT3 (then the app never removes it), and the device it runs on."""
+    root = Path(root or default_root())
+    marker = installed(root)
+    return {'installed': marker is not None, 'folder': str(root), 'custom_folder': bool(os.environ.get('TECLAS_YOURMT3')),
+            'partial': marker is None and any((root / name).exists() for name in OWNED),
+            'cuda': bool(marker and marker.get('cuda')), 'gpu': (marker or {}).get('gpu'), 'torch': (marker or {}).get('torch')}
+
+
+OWNED = ('uv', 'venv', 'YourMT3', MARKER)      # o que a instalação cria na pasta do componente
+
+
+def remove(root=None, progress=print):
+    """Apaga o componente (cerca de 5 GB): só o que a instalação criou (uv, venv, YourMT3, instalado.json) e a pasta, se
+    ficar vazia. Qualquer outro arquivo que esteja nela é preservado."""
+    root = Path(root or default_root())
+    if not root.is_dir(): return status(root)
+    marker = root / MARKER
+    if marker.exists(): marker.unlink()                # primeiro: uma remoção interrompida não deixa "instalado"
+    for name in OWNED[:-1]:
+        target = root / name
+        if target.is_symlink() or target.is_file(): target.unlink()
+        elif target.is_dir():
+            progress(f'Removendo o YourMT3+… ({name})')
+            shutil.rmtree(target, onerror=_writable)
+    try: root.rmdir()
+    except OSError: pass
+    return status(root)
+
+
+def _writable(function, path, _):
+    """shutil.rmtree no Windows: um arquivo só de leitura é liberado e apagado."""
+    import stat
+    os.chmod(path, stat.S_IWRITE); function(path)
+
+
 def _digest(path):
     sha = hashlib.sha256()
     with open(path, 'rb') as stream:

@@ -267,6 +267,59 @@ class ComponentTests(unittest.TestCase):
             (root / setup.MARKER).write_text(json.dumps({'component': setup.COMPONENT, 'revision': 'outra'}), encoding='utf-8')
             self.assertIsNone(setup.installed(root))
 
+    def test_status_and_removal(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.component(folder)
+            (root / 'uv').mkdir(); (root / 'uv' / 'uv.exe').write_bytes(b'')
+            (root / 'instalado.json').write_text(json.dumps({'component': setup.COMPONENT, 'revision': setup.REVISION, 'cuda': True, 'gpu': 'Placa de teste', 'torch': '2.5.1'}), encoding='utf-8')
+            state = setup.status(root)
+            self.assertEqual((state['installed'], state['cuda'], state['gpu'], state['folder'], state['partial']), (True, True, 'Placa de teste', str(root), False))
+            # A file the user put there survives the removal, and so does the folder that holds it.
+            (root / 'minhas notas.txt').write_text('não apagar', encoding='utf-8')
+            messages = []
+            state = setup.remove(root, messages.append)
+            self.assertEqual((state['installed'], state['partial']), (False, False))
+            self.assertEqual([p.name for p in root.iterdir()], ['minhas notas.txt'])
+            self.assertTrue(any('venv' in m for m in messages))
+            (root / 'minhas notas.txt').unlink()
+            # An interrupted installation is "partial": not installed, but something is already there.
+            (root / 'venv').mkdir()
+            self.assertEqual((setup.status(root)['installed'], setup.status(root)['partial']), (False, True))
+            setup.remove(root, messages.append)
+            self.assertFalse(root.exists())
+            self.assertEqual(setup.remove(root)['installed'], False)             # nothing to remove: no error
+
+    def test_the_worker_answers_the_settings_card(self):
+        import subprocess
+        engine = Path(ye.__file__).parent
+        code = 'import runpy,sys;sys.path.insert(0,sys.argv[1]);sys.argv=[sys.argv[1]+"/worker.py",sys.argv[2]];runpy.run_path(sys.argv[0],run_name="__main__")'
+        base = []
+        def ask(mode, root, chosen=True):
+            request = base[0] / 'pedido.json'
+            request.write_text(json.dumps({'mode': mode, 'workspace': str(base[0] / 'job')}), encoding='utf-8')
+            # LOCALAPPDATA moves the default folder into the temporary directory: the real component is never touched.
+            env = dict(os.environ, LOCALAPPDATA=str(base[0] / 'local'), PYTHONIOENCODING='utf-8')
+            env.pop('TECLAS_YOURMT3', None)
+            if chosen: env['TECLAS_YOURMT3'] = str(root)
+            run = subprocess.run([sys.executable, '-B', '-c', code, str(engine), str(request)], capture_output=True, text=True, encoding='utf8', timeout=60, env=env)
+            return [json.loads(line) for line in run.stdout.splitlines() if line.strip()]
+        with tempfile.TemporaryDirectory() as folder:
+            base.append(Path(folder))
+            root = self.component(folder)
+            answer = ask('audioEngineStatus', root)
+            self.assertEqual((answer[-1]['kind'], answer[-1]['data']['installed'], answer[-1]['data']['custom_folder']), ('result', True, True))
+            # A folder chosen by the environment is the user's: the app's button does not delete it.
+            answer = ask('removeAudioEngine', root)
+            self.assertEqual(answer[-1]['kind'], 'error'); self.assertIn('TECLAS_YOURMT3', answer[-1]['message'])
+            self.assertTrue(setup.checkpoint_of(root).is_file())
+            # The default folder (under LOCALAPPDATA) is removed by the button.
+            default = Path(folder) / 'local' / 'TeclasPartituras' / 'componentes' / 'yourmt3'
+            default.parent.mkdir(parents=True); root.rename(default)
+            self.assertTrue(ask('audioEngineStatus', default, chosen=False)[-1]['data']['installed'])
+            answer = ask('removeAudioEngine', default, chosen=False)
+            self.assertEqual((answer[-1]['kind'], answer[-1]['data']['installed']), ('result', False))
+            self.assertFalse(default.exists())
+
     def test_the_folder_can_be_chosen_by_the_environment(self):
         previous = os.environ.get('TECLAS_YOURMT3')
         try:

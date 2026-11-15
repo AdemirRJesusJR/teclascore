@@ -209,8 +209,20 @@ def chord_sheet_score(req,workspace,engine,parse_midi,intervals):
     first=sorted(report_dir.glob('pagina-*.png'),key=lambda p:int(p.stem.rsplit('-',1)[-1]))[0]
     send('result',data={'scorePath':str(dest),'previewPath':str(first),'reviewDirectory':str(report_dir),'pages':result['pages'],'measures':result['measures']})
 
+def audio_engine(req):
+    """Configurações › Áudio para partitura: the state of the YourMT3+ component, its installation and its removal.
+    Nothing musical is loaded for these, so the answer comes at once."""
+    import yourmt3_setup
+    progress=lambda message:send('progress',message=message)
+    if req['mode']=='installAudioEngine':yourmt3_setup.install(progress=progress)
+    elif req['mode']=='removeAudioEngine':
+        if os.environ.get('TECLAS_YOURMT3'):raise ValueError('A pasta do YourMT3+ foi escolhida por TECLAS_YOURMT3: remova-a você mesmo.')
+        yourmt3_setup.remove(progress=progress)
+    send('result',data=yourmt3_setup.status())
+
 def main():
     req=json.loads(Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
+    if req['mode'] in ('audioEngineStatus','installAudioEngine','removeAudioEngine'):return audio_engine(req)
     send('progress',message='Lendo o mapa de compassos…' if req['mode']=='measureMap' else 'Preparando a análise musical…' if req['mode']=='analyze' else 'Preparando a geração da partitura…')
     workspace=Path(req['workspace']).resolve();workspace.mkdir(parents=True,exist_ok=True)
     if req['mode']=='generate':queue_receipt_path(req,workspace)
